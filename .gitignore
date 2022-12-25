@@ -1,0 +1,7 @@
+.direnv
+.envrc
+.idea
+.phpunit.result.cache
+result*
+/.pre-commit-config.yaml
+/vendor/

@@ -1,0 +1,14 @@
+includes:
+    - phpstan-baseline.neon
+    - vendor/phpstan/phpstan/conf/bleedingEdge.neon
+    - vendor/phpstan/phpstan-phpunit/extension.neon
+    - vendor/phpstan/phpstan-phpunit/rules.neon
+    - extension.neon
+parameters:
+    level: max
+    paths:
+        - src
+        - tests
+    excludePaths:
+        - tests/rules
+        - tests/structure

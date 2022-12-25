@@ -1,0 +1,11 @@
+parameters:
+	ignoreErrors:
+		-
+			message: "#^Asking about instanceof PHPStan\\\\Type\\\\Accessory\\\\AccessoryNonEmptyStringType is not covered by backward compatibility promise\\. The class might change in a minor PHPStan version\\.$#"
+			count: 1
+			path: src/Rule/TypeResolver.php
+
+		-
+			message: "#^Asking about instanceof PHPStan\\\\Type\\\\Accessory\\\\AccessoryNumericStringType is not covered by backward compatibility promise\\. The class might change in a minor PHPStan version\\.$#"
+			count: 1
+			path: src/Rule/TypeResolver.php
