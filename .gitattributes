@@ -1,14 +1,18 @@
 * text=auto
 
-/nix/composition.nix linguist-generated export-ignore
-/nix/composer-env.nix linguist-generated export-ignore
-/nix/php-packages.nix linguist-generated export-ignore
-
-/tests export-ignore
 .github export-ignore
 .editorconfig export-ignore
 .gitattributes export-ignore
 .gitignore export-ignore
-.phpcs.xml.dist export-ignore
-phpstan.neon.dist export-ignore
-phpunit.xml.dist export-ignore
+
+/composer.lock linguist-generated
+/phpstan-baseline.neon linguist-generated
+/nix/composition.nix linguist-generated
+/nix/composer-env.nix linguist-generated
+/nix/php-packages.nix linguist-generated
+
+# we can't export-ignore these (for composer) or nix build will fail...
+#.phpcs.xml.dist export-ignore
+#phpstan.neon.dist export-ignore
+#/tests export-ignore
+#phpunit.xml.dist export-ignore

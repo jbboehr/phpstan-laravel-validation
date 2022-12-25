@@ -1,5 +1,6 @@
 {
     "name": "jbboehr/phpstan-laravel-validation",
+    "description": "Laravel Validation extension for PHPStan",
     "type": "phpstan-extension",
     "keywords": ["laravel", "phpstan", "php", "static analysis", "code analysis", "code analyse", "validator", "validation"],
     "license": "AGPL-3.0-or-later",
