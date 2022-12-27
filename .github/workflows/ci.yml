@@ -33,7 +33,9 @@ jobs:
                   tools: composer:v2
 
             - name: Validate composer.json and composer.lock
-              run: composer validate --strict
+              run: composer validate
+# The package "stephank/composer-plugin-nixify" is pointing to a commit-ref, this is bad practice and can cause unforeseen issues.
+#              run: composer validate --strict
 
             - name: Cache Composer packages
               id: composer-cache

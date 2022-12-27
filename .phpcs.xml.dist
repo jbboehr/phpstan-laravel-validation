@@ -3,11 +3,15 @@
     <file>src</file>
     <file>tests</file>
 
+    <exclude-pattern>*/.direnv/*</exclude-pattern>
+    <exclude-pattern>*/vendor/*</exclude-pattern>
+
     <arg name="basepath" value="."/>
     <arg name="colors"/>
     <arg name="parallel" value="4"/>
     <arg name="encoding" value="utf-8"/>
     <arg name="tab-width" value="4"/>
+    <arg name="extensions" value="php" />
 
     <rule ref="PSR12">
         <exclude name="PSR12.Files.FileHeader" />
@@ -16,5 +20,6 @@
 
     <rule ref="Generic.Files.LineLength">
         <exclude-pattern>*/tests/rules/*</exclude-pattern>
+        <exclude-pattern>*/tests/structure/*</exclude-pattern>
     </rule>
 </ruleset>

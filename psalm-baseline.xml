@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<files psalm-version="dev-master@">
+  <file src="tests/RulesInferenceTest.php">
+    <PropertyNotSetInConstructor occurrences="2">
+      <code>RulesInferenceTest</code>
+      <code>RulesInferenceTest</code>
+    </PropertyNotSetInConstructor>
+  </file>
+  <file src="tests/StructureInferenceTest.php">
+    <PropertyNotSetInConstructor occurrences="2">
+      <code>StructureInferenceTest</code>
+      <code>StructureInferenceTest</code>
+    </PropertyNotSetInConstructor>
+  </file>
+</files>
