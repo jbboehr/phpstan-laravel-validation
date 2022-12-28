@@ -2,6 +2,7 @@
 .envrc
 .idea
 .phpunit.result.cache
+*.log
 result*
 /.pre-commit-config.yaml
 /vendor/

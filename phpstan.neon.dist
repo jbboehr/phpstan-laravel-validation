@@ -1,5 +1,4 @@
 includes:
-    - phpstan-baseline.neon
     - vendor/phpstan/phpstan/conf/bleedingEdge.neon
     - vendor/phpstan/phpstan-phpunit/extension.neon
     - vendor/phpstan/phpstan-phpunit/rules.neon
@@ -10,5 +9,6 @@ parameters:
         - src
         - tests
     excludePaths:
+        - tests/fixtures
         - tests/rules
         - tests/structure

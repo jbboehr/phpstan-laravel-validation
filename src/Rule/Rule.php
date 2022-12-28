@@ -15,6 +15,8 @@ final class Rule
     public const RULE_EXCLUDE_WITH = "ExcludeWith";
     public const RULE_EXCLUDE_WITHOUT = "ExcludeWithout";
     public const RULE_NULLABLE = "Nullable";
+    public const RULE_SOMETIMES = "Sometimes";
+    public const RULE_ARRAY = "Array";
 
     public const RULES = [
         self::RULE_ACCEPTED_IF => self::RULE_ACCEPTED_IF,
@@ -26,6 +28,8 @@ final class Rule
         self::RULE_EXCLUDE_WITH => self::RULE_EXCLUDE_WITH,
         self::RULE_EXCLUDE_WITHOUT => self::RULE_EXCLUDE_WITHOUT,
         self::RULE_NULLABLE => self::RULE_NULLABLE,
+        self::RULE_SOMETIMES => self::RULE_SOMETIMES,
+        self::RULE_ARRAY => self::RULE_ARRAY,
     ];
 
     /**

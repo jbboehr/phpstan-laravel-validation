@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace jbboehr\PhpstanLaravelValidation\Rule;
 
+use jbboehr\PhpstanLaravelValidation\ShouldNotHappenException;
 use PHPStan\Type;
 use PHPStan\Type\Accessory\AccessoryNonEmptyStringType;
 use PHPStan\Type\Accessory\AccessoryNumericStringType;
@@ -16,18 +17,24 @@ use PHPStan\Type\UnionType;
 
 final class TypeResolver
 {
-    public function evaluate(RuleTreeLeafNode $node): Type\Type
+    public function evaluate(RuleTreeNode $node): Type\Type
     {
-        if ($node instanceof RuleTreeMapNode) {
-            return $this->evaluateMap($node);
-        } elseif ($node instanceof RuleTreeArrayNode) {
-            return $this->evaluateArray($node);
+        if ($node->isWildcard()) {
+            $type = $this->evaluateWildcard($node);
+        } elseif ($node->hasChildren()) {
+            $type = $this->evaluateMap($node);
         } else {
-            return $this->evaluateLeaf($node);
+            $type = $this->evaluateLeaf($node);
         }
+
+        if ($node->isNullable()) {
+            $type = Type\TypeCombinator::addNull($type);
+        }
+
+        return $type;
     }
 
-    public function evaluateMap(RuleTreeMapNode $node): Type\Type
+    public function evaluateMap(RuleTreeNode $node): Type\Type
     {
         $builder = ConstantArrayTypeBuilder::createEmpty();
 
@@ -39,7 +46,7 @@ final class TypeResolver
             $type = $this->evaluate($value);
 
             $builder->setOffsetValueType(
-                new ConstantStringType($key),
+                is_int($key) ? new ConstantIntegerType($key) : new ConstantStringType($key),
                 $type,
                 $value->isOptional()
             );
@@ -56,74 +63,31 @@ final class TypeResolver
         return $builder->getArray();
     }
 
-    public function evaluateArray(RuleTreeArrayNode $node): Type\Type
+    public function evaluateWildcard(RuleTreeNode $node): Type\Type
     {
+        $children = $node->getIterator();
+        if ($children->count() !== 1) {
+            // @todo don't throw
+            throw new ShouldNotHappenException('wildcard mixed with non-wildcard rules');
+        }
         // @TODO This may allow string keys, double-check
         return new Type\ArrayType(
             new Type\IntegerType(),
-            $this->evaluate($node->getChild())
+            $this->evaluate($children->current())
         );
     }
 
-    public function evaluateLeaf(RuleTreeLeafNode $node): Type\Type
+    public function evaluateLeaf(RuleTreeNode $node): Type\Type
     {
-        $types = array_filter(array_map(function ($rule) {
+        $types = array_values(array_filter(array_map(function ($rule) {
             return $this->resolveType($rule);
-        }, $node->getRules()));
+        }, $node->getRules())));
 
-        $types = $this->deduplicateTypes(...$types);
-
-        if (count($types) >= 2) {
-            return new IntersectionType($types);
-        } elseif (count($types) === 1) {
-            return $types[0];
+        if (empty($types)) {
+            return new MixedType();
+        } else {
+            return Type\TypeCombinator::intersect(...$types);
         }
-
-        return new MixedType();
-    }
-
-    /**
-     * @param Type\Type ...$types
-     * @return Type\Type[]
-     */
-    private function deduplicateTypes(Type\Type ...$types): array
-    {
-        $deduplicate = [];
-        $arr = [];
-
-        // @todo remove string if numeric-string, etc
-
-        foreach ($types as $type) {
-            if (
-                $type instanceof Type\StringType ||
-                $type instanceof Type\MixedType ||
-                $type instanceof AccessoryNumericStringType ||
-                $type instanceof AccessoryNonEmptyStringType
-            ) {
-                $key = get_class($type);
-            } elseif ($type instanceof Type\ObjectType) {
-                $key = get_class($type) . '|' . $type->getClassName();
-            } else {
-                $key = null;
-            }
-
-            if (isset($deduplicate[$key])) {
-                continue;
-            }
-
-            $arr[] = $type;
-
-            if ($key) {
-                $deduplicate[$key] = $type;
-            }
-        }
-
-        // this might not be necessary
-        if (isset($deduplicate[Type\StringType::class]) && isset($deduplicate[AccessoryNonEmptyStringType::class])) {
-            unset($deduplicate[Type\StringType::class]);
-        }
-
-        return array_values($deduplicate) + $arr;
     }
 
     /**
@@ -134,52 +98,68 @@ final class TypeResolver
         // Currently unsupported: Enum, Present, RequiredArrayKeys
 
         return match ($rule->getRuleName()) {
-            "Accepted", "AcceptedIf" => new UnionType([
+            "Accepted", "AcceptedIf" => Type\TypeCombinator::union(
                 new ConstantStringType("yes"),
                 new ConstantStringType("on"),
                 new ConstantStringType("1"),
                 new ConstantIntegerType(1),
                 new ConstantStringType("true"),
                 new ConstantBooleanType(true),
-            ]),
+            ),
 
-            "ActiveUrl", "Alpha", "AlphaDash", "AlphaNum", "Before", "BeforeOrEqual", "CurrentPassword", "Date",
-            "DateEquals", "DateFormat", "Email", "Ip", "Ipv4", "Ipv6", "Json", "MacAddress", "Timezone", "Url", "Ulid",
+            "ActiveUrl", "Alpha", "AlphaDash", "AlphaNum", "CurrentPassword", "DateFormat",
+            "Email", "Ip", "Ipv4", "Ipv6", "Json", "MacAddress", "Timezone", "Url", "Ulid",
             "Uuid" => new AccessoryNonEmptyStringType(),
 
-            "Ascii", "Lowercase", "NotRegex", "Regex", "String", "Uppercase" => new Type\StringType(),
+            "After", "Before", "BeforeOrEqual", "Date", "DateEquals" => Type\TypeCombinator::union(
+                new Type\ObjectType(\DateTimeInterface::class),
+                new AccessoryNonEmptyStringType()
+            ),
+
+            "Ascii", "Lowercase", "String", "Uppercase" => new Type\StringType(),
+
+            "NotRegex", "Regex" => Type\TypeCombinator::union(
+                new Type\IntegerType(),
+                new Type\FloatType(),
+                new Type\StringType(),
+                new Type\BooleanType()
+            ),
 
             "Array" => $this->resolveTypeArray($rule),
 
-            "Bail", "Confirmed", "Between", "Different", "Dimensions", "Distinct", "DoesntStartWith", "DoesntEndWith",
+            "Bail", "Confirmed", "Between", "Different", "Distinct", "DoesntStartWith", "DoesntEndWith",
             "EndsWith", "Exists", "Filled", "Gt", "Gte", "InArray", "Lt", "Lte", "Max", "Min", "NotIn", "Exclude",
             "ExcludeIf", "ExcludeUnless", "ExcludeWith", "ExcludeWithout", "Nullable", "Required", "Password",
             "Prohibited", "ProhibitedIf", "ProhibitedUnless", "Prohibits", "RequiredIf", "RequiredUnless",
             "RequiredWith", "RequiredWithAll", "RequiredWithout", "RequiredWithoutAll", "Same", "Size", "Sometimes",
             "StartsWith", "Unique" => null,
 
-            "Boolean" => new UnionType([
+            "Boolean" => Type\TypeCombinator::union(
                 new Type\BooleanType(),
                 new ConstantIntegerType(0),
                 new ConstantIntegerType(1),
                 new ConstantStringType('0'),
                 new ConstantStringType('1'),
-            ]),
+            ),
 
-            "Declined", "DeclinedIf" => new UnionType([
+            "Declined", "DeclinedIf" => Type\TypeCombinator::union(
                 new ConstantStringType("no"),
                 new ConstantStringType("off"),
                 new ConstantStringType("0"),
                 new ConstantIntegerType(0),
                 new ConstantStringType("false"),
                 new ConstantBooleanType(false),
-            ]),
+            ),
 
             // We can't use numeric ranges here because laravel doesn't cast it to an integer or float
             "Digits", "DigitsBetween", "Decimal", "Integer", "MaxDigits", "MinDigits", "MultipleOf",
-            "Numeric" => new AccessoryNumericStringType(),
+            "Numeric" => Type\TypeCombinator::union(
+                new AccessoryNumericStringType(),
+                new Type\IntegerType(),
+                new Type\FloatType()
+            ),
 
-            "File", "Image", "Mimetypes",
+            "Dimensions", "File", "Image", "Mimetypes",
             "Mimes" => new Type\ObjectType('Symfony\\Component\\HttpFoundation\\File\\File'),
 
             "In" => $this->resolveTypeIn($rule),
@@ -196,15 +176,20 @@ final class TypeResolver
     private function resolveTypeArray(Rule $rule): Type\Type
     {
         $builder = ConstantArrayTypeBuilder::createEmpty();
+        $parameters = $rule->getParameters();
 
-        foreach ($rule->getParameters() as $parameter) {
+        if (empty($parameters)) {
+            return new Type\ArrayType(new Type\MixedType(), new Type\MixedType());
+        }
+
+        foreach ($parameters as $parameter) {
             if (!is_scalar($parameter)) {
                 throw new InvalidRuleException('Cannot have non-scalar key');
             }
             $builder->setOffsetValueType(
                 new ConstantStringType((string) $parameter),
                 new Type\MixedType(),
-                false
+                true
             );
         }
 
@@ -216,12 +201,20 @@ final class TypeResolver
      */
     private function resolveTypeIn(Rule $rule): Type\Type
     {
-        return new UnionType(array_map(function ($str) {
+        $types = array_map(function ($str) {
             if (is_scalar($str)) {
                 return new ConstantStringType((string) $str);
             } else {
                 throw new InvalidRuleException('Cannot have non-scalar key');
             }
-        }, $rule->getParameters()));
+        }, $rule->getParameters());
+
+        if (count($types) > 1) {
+            return new UnionType($types);
+        } elseif (count($types) == 1) {
+            return $types[0];
+        } else {
+            return new Type\NeverType();
+        }
     }
 }

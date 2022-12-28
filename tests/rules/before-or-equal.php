@@ -12,6 +12,6 @@ $validator = \Illuminate\Support\Facades\Validator::make([], [
 assertType('Illuminate\\Validation\\Validator', $validator);
 
 $validated = $validator->validated();
-assertType('array{required_value: non-empty-string, optional_value?: non-empty-string}', $validated);
-assertType('non-empty-string', $validated['required_value']);
-assertType('non-empty-string', $validated['optional_value']);
+assertType('array{required_value: DateTimeInterface|non-empty-string, optional_value?: DateTimeInterface|non-empty-string}', $validated);
+assertType('DateTimeInterface|non-empty-string', $validated['required_value']);
+assertType('DateTimeInterface|non-empty-string', $validated['optional_value']);

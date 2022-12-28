@@ -5,9 +5,9 @@ declare(strict_types=1);
 use function PHPStan\Testing\assertType;
 
 $validator = \Illuminate\Support\Facades\Validator::make([], [
-    'required_digits' => 'required|integer',
-    'optional_digits' => 'integer',
-    'excluded_value' => 'required|exclude|integer',
+    'required_digits' => 'required|integer|string',
+    'optional_digits' => 'integer|string',
+    'excluded_value' => 'required|exclude|integer|string',
 ]);
 assertType('Illuminate\\Validation\\Validator', $validator);
 

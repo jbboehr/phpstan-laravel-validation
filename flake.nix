@@ -24,6 +24,7 @@
         phpstan = pkgs.callPackage ./nix/phpstan.nix { inherit (pkgs.stdenv) mkDerivation; };
         psalm = pkgs.callPackage ./nix/psalm.nix { inherit (pkgs.stdenv) mkDerivation; };
         phpWithXdebug = php.withExtensions ({ enabled, all }: enabled ++ [ all.xdebug ]);
+        phpWithUopz = php.withExtensions ({ enabled, all }: enabled ++ [ (pkgs.callPackage ./nix/uopz.nix { inherit (php) buildPecl; }) ]);
         src = gitignore.lib.gitignoreSource ./.;
 
         makePackage = php: (pkgs.callPackage ./nix/composer-project.nix {
@@ -42,6 +43,7 @@
             phpcs.enable = true;
             psalm.enable = true;
             phpstan.enable = true;
+            shellcheck.enable = true;
           };
           settings = {
             phpstan.binPath = "${php}/bin/php -d phar.require_hash=0 ${phpstan}/bin/phpstan";
@@ -82,6 +84,7 @@
             ${pre-commit-check.shellHook}
             export PATH="$PWD/vendor/bin:$PATH"
             export PHP_WITH_XDEBUG="${phpWithXdebug}/bin/php"
+            export PHP_WITH_UOPZ="${phpWithUopz}/bin/php"
             export PHPUNIT_WITH_XDEBUG="$PHP_WITH_XDEBUG -d xdebug.mode=coverage ./vendor/bin/phpunit"
             export XDEBUG_MODE=coverage
           '';

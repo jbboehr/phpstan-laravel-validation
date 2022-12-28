@@ -74,6 +74,18 @@ let
                     "id": -1
                 },
                 "type": "cache",
+                "name": "brick_varexporter-0.3.7.0",
+                "urls": [
+                    "https://api.github.com/repos/brick/varexporter/zipball/3e263cd718d242594c52963760fee2059fd5833c"
+                ],
+                "cacheFile": "brick/varexporter/3db8947f6c3da0acd7fea124189ad13998d24e5f.zip",
+                "sha256": "2c5ab28e3c0966def2a7cd1065da83b33a8afedd4b597608b73fd8cf42eee5d6"
+            },
+            {
+                "package": {
+                    "id": -1
+                },
+                "type": "cache",
                 "name": "composer_package-versions-deprecated-1.11.99.5",
                 "urls": [
                     "https://api.github.com/repos/composer/package-versions-deprecated/zipball/b4f54f74ef3453349c24a845d22392cd31e65f1d"
@@ -356,6 +368,18 @@ let
                 ],
                 "cacheFile": "illuminate/validation/7813d50920d50084dcb6645d8bd3068af3b60b88.zip",
                 "sha256": "7e7d0a21190c59b31df0a7447d75f8bdec9605a661809f3d6e4623b061c78a69"
+            },
+            {
+                "package": {
+                    "id": -1
+                },
+                "type": "cache",
+                "name": "monolog_monolog-2.8.0.0",
+                "urls": [
+                    "https://api.github.com/repos/Seldaek/monolog/zipball/720488632c590286b88b80e62aa3d3d551ad4a50"
+                ],
+                "cacheFile": "monolog/monolog/8be15cb4c5912b19f2b030398fe4b7c51e6d3b5a.zip",
+                "sha256": "c6c5ccd79c8e3b5f16be516bc1facb493ba98c5e5bb1972e332b42f82af0e171"
             },
             {
                 "package": {

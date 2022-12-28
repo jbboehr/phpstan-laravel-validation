@@ -8,12 +8,12 @@ final class RuleParser
 {
     /**
      * @param mixed $rules
-     * @return RuleTreeMapNode
+     * @return RuleTreeNode
      * @throws InvalidRuleException
      */
-    public static function parse(mixed $rules): RuleTreeMapNode
+    public static function parse(mixed $rules): RuleTreeNode
     {
-        $node = new RuleTreeMapNode('');
+        $node = new RuleTreeNode('');
 
         if (!is_array($rules)) {
             return $node;
@@ -27,6 +27,9 @@ final class RuleParser
             $child = $node->resolvePath($path);
             $child->push(...self::explodeRules($ruleDef));
         }
+
+        $node->resolveOptional();
+
         return $node;
     }
 
@@ -45,15 +48,15 @@ final class RuleParser
             throw new InvalidRuleException('Invalid rule definition: ' . var_export($rules, true));
         }
 
-        return array_map(function ($rule) {
+        return array_filter(array_map(function ($rule) {
             return self::parseRule($rule);
-        }, $rules);
+        }, $rules));
     }
 
     /**
      * @throws InvalidRuleException
      */
-    public static function parseRule(mixed $rule): Rule
+    public static function parseRule(mixed $rule): ?Rule
     {
         if (is_array($rule)) {
             return self::parseArrayRule($rule);
@@ -68,16 +71,16 @@ final class RuleParser
      * @param array<int, mixed> $rule
      * @return Rule
      */
-    public static function parseArrayRule(array $rule): Rule
+    public static function parseArrayRule(array $rule): ?Rule
     {
         if (count($rule) <= 0) {
-            throw new InvalidRuleException('No rules in rule');
+            return null;
         }
 
         $ruleName = $rule[0];
 
         if (!is_string($ruleName)) {
-            throw new InvalidRuleException('Rule name not a string');
+            return null;
         }
 
         return Rule::create(self::normalizeName($ruleName), array_slice($rule, 1));

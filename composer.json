@@ -16,8 +16,10 @@
         "nikic/php-parser": "^4.15"
     },
     "require-dev": {
+        "brick/varexporter": "^0.3.7",
         "illuminate/http": "^9.45",
         "illuminate/validation": "^9.45",
+        "monolog/monolog": "^2.8",
         "phpstan/phpstan-php-parser": "^1.1",
         "phpstan/phpstan-phpunit": "*",
         "phpstan/phpstan-strict-rules": "^1.4",
