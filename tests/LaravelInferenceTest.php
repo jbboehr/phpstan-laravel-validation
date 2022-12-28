@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace jbboehr\PhpstanLaravelValidation\Test;
 
-use jbboehr\PhpstanLaravelValidation\Rule\RuleParser;
-use jbboehr\PhpstanLaravelValidation\Rule\RuleTreeNode;
-use jbboehr\PhpstanLaravelValidation\Rule\TypeResolver;
+use jbboehr\PhpstanLaravelValidation\Validation\RuleParser;
+use jbboehr\PhpstanLaravelValidation\Validation\RuleTreeNode;
+use jbboehr\PhpstanLaravelValidation\Validation\TypeResolver;
 use PHPStan\Type;
 use PHPStan\Type\Constant\ConstantArrayTypeBuilder;
 use PHPStan\Type\Constant\ConstantBooleanType;

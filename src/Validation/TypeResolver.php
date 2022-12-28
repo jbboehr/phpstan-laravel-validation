@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace jbboehr\PhpstanLaravelValidation\Rule;
+namespace jbboehr\PhpstanLaravelValidation\Validation;
 
 use jbboehr\PhpstanLaravelValidation\ShouldNotHappenException;
 use PHPStan\Type;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace jbboehr\PhpstanLaravelValidation\Extension;
 
 use jbboehr\PhpstanLaravelValidation\Evaluator\UnsafeConstExprEvaluator;
-use jbboehr\PhpstanLaravelValidation\Rule\RuleParser;
+use jbboehr\PhpstanLaravelValidation\Validation\RuleParser;
 use jbboehr\PhpstanLaravelValidation\ShouldNotHappenException;
 use jbboehr\PhpstanLaravelValidation\Type\ValidatorType;
 use PhpParser\ConstExprEvaluationException;

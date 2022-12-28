@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace jbboehr\PhpstanLaravelValidation\Type;
 
-use jbboehr\PhpstanLaravelValidation\Rule\RuleTreeNode;
+use jbboehr\PhpstanLaravelValidation\Validation\RuleTreeNode;
 use PHPStan\Type\ObjectType;
 use PHPStan\Type\TypeWithClassName;
 

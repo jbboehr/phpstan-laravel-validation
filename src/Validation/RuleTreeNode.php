@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace jbboehr\PhpstanLaravelValidation\Rule;
+namespace jbboehr\PhpstanLaravelValidation\Validation;
 
 use ArrayIterator;
 use IteratorAggregate;

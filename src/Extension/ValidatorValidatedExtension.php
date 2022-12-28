@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace jbboehr\PhpstanLaravelValidation\Extension;
 
-use jbboehr\PhpstanLaravelValidation\Rule\TypeResolver;
+use jbboehr\PhpstanLaravelValidation\Validation\TypeResolver;
 use jbboehr\PhpstanLaravelValidation\ShouldNotHappenException;
 use jbboehr\PhpstanLaravelValidation\Type\ValidatorType;
 use PhpParser\Node\Expr\MethodCall;
