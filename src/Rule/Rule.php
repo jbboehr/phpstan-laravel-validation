@@ -17,6 +17,7 @@ final class Rule
     public const RULE_NULLABLE = "Nullable";
     public const RULE_SOMETIMES = "Sometimes";
     public const RULE_ARRAY = "Array";
+    public const RULE_NUMERIC = "Numeric";
 
     public const RULES = [
         self::RULE_ACCEPTED_IF => self::RULE_ACCEPTED_IF,
@@ -30,6 +31,7 @@ final class Rule
         self::RULE_NULLABLE => self::RULE_NULLABLE,
         self::RULE_SOMETIMES => self::RULE_SOMETIMES,
         self::RULE_ARRAY => self::RULE_ARRAY,
+        self::RULE_NUMERIC => self::RULE_NUMERIC,
     ];
 
     /**

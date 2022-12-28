@@ -66,17 +66,25 @@ final class RuleTreeNode implements IteratorAggregate, \Countable
     {
         foreach ($rules as $rule) {
             match ($rule->getRuleName()) {
+                // These imply the node is not optional
                 Rule::RULE_REQUIRED => $this->optional = false,
+
+                // This removes the node completely
                 Rule::RULE_EXCLUDE => $this->excluded = true,
+
+                // These force the node to be optional
                 Rule::RULE_ACCEPTED_IF,
                 Rule::RULE_DECLINED_IF,
                 Rule::RULE_EXCLUDE_IF,
                 Rule::RULE_EXCLUDE_UNLESS,
                 Rule::RULE_EXCLUDE_WITH,
-                Rule::RULE_EXCLUDE_WITHOUT => $this->optional = true,
-                Rule::RULE_NULLABLE => $this->nullable = $this->optional = true,
+                Rule::RULE_EXCLUDE_WITHOUT,
                 Rule::RULE_SOMETIMES => $this->sometimes = true,
+
+                Rule::RULE_NULLABLE => $this->nullable = $this->optional = true,
+
                 Rule::RULE_ARRAY => $this->isArray = true,
+
                 default => null,
             };
             $this->rules[] = $rule;

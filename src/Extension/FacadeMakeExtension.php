@@ -37,7 +37,6 @@ final class FacadeMakeExtension implements DynamicStaticMethodReturnTypeExtensio
 
             $rulesArg = $methodCall->getArgs()[1];
             $evaluator = new UnsafeConstExprEvaluator();
-
             $rulesValue = $evaluator->evaluate($rulesArg->value);
 
             return new ValidatorType(RuleParser::parse($rulesValue));
