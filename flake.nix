@@ -73,6 +73,7 @@
         devShells.default = pkgs.mkShell {
           buildInputs = with pkgs; [
             actionlint
+            mdl
             nixpkgs-fmt
             php
             php.packages.composer
