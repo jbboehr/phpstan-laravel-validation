@@ -18,7 +18,7 @@ $data = \Illuminate\Support\Facades\Validator::make($request->all(), [
 ])->validated();
 
 \PHPStan\dumpType($data);
-// array{person: array<int, array{email: non-empty-string, first_name: string, age: numeric-string}>}
+// array{person: array<int|string, array{email: non-empty-string, first_name: string, age: numeric-string}>}
 
 $data = $request->validate([
     'person.*.email' => 'required|email|unique:users',
@@ -27,7 +27,7 @@ $data = $request->validate([
 ])->validated();
 
 \PHPStan\dumpType($data);
-// array{person: array<int, array{email: non-empty-string, first_name: string, age: numeric-string}>}
+// array{person: array<int|string, array{email: non-empty-string, first_name: string, age: numeric-string}>}
 ```
 
 If the input data does not match the rules array, an `\Illuminate\Validation\ValidationException` is thrown, thus preserving type safety.

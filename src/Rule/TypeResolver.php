@@ -70,9 +70,8 @@ final class TypeResolver
             // @todo don't throw
             throw new ShouldNotHappenException('wildcard mixed with non-wildcard rules');
         }
-        // @TODO This may allow string keys, double-check
         return new Type\ArrayType(
-            new Type\IntegerType(),
+            Type\TypeCombinator::union(new Type\IntegerType(), new Type\StringType()),
             $this->evaluate($children->current())
         );
     }

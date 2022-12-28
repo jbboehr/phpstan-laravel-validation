@@ -26,7 +26,7 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
      * @return void
      * @dataProvider laravelExportProvider
      */
-    public function testLaravelValidationExport(string $location, array $data, array $rules, array $validated): void
+    public function testLaravelValidationExport(string $location, array $data, array $validated, array $rules): void
     {
         $evaluator = new TypeResolver();
         $ruleTree = RuleParser::parse($rules);

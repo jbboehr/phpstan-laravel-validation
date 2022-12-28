@@ -97,7 +97,8 @@ uopz_set_return(\Illuminate\Validation\Validator::class, 'passes', function () u
 
     // get data
     $data = $this->getData();
-    $rules = $this->getRules();
+    $rules = $this->initialRules;
+    $expandedRules = $this->getRules();
     $validated = $this->validated();
     $dotPlaceholder = $this->dotPlaceholder;
 
@@ -123,6 +124,7 @@ uopz_set_return(\Illuminate\Validation\Validator::class, 'passes', function () u
     $validated = revert_dot_placeholder($validated, $dotPlaceholder);
 
     $isRulesConstExpr = is_constant_expression($rules);
+    $isExpandedRulesConstExpr = is_constant_expression($expandedRules);
     $isDataExportable = is_exportable($data);
     $isValidatedExportable = is_exportable($validated);
 
@@ -132,7 +134,7 @@ uopz_set_return(\Illuminate\Validation\Validator::class, 'passes', function () u
     $log->debug('validated exportable ' . $isValidatedExportable);
     $log->debug('dot placeholder ' . $dotPlaceholder);
 
-    if (!$isRulesConstExpr || !$isDataExportable || !$isValidatedExportable) {
+    if (!$isRulesConstExpr || !$isDataExportable || !$isValidatedExportable || !$isExpandedRulesConstExpr) {
         $log->info('skipping, not const expr');
         return $passes;
     }
@@ -170,8 +172,9 @@ uopz_set_return(\Illuminate\Validation\Validator::class, 'passes', function () u
     $allTests[$hash] = [
         'location' => $testName,
         'data' => $data,
-        'rules' => $rules,
         'validated' => $validated,
+        'rules' => $rules,
+        'expandedRules' => $expandedRules,
     ];
 
     return $passes;

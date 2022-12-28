@@ -11,7 +11,7 @@ $data = \Illuminate\Support\Facades\Validator::make($request->all(), [
     'person.*.age' => 'required|integer|string',
 ])->validated();
 
-assertType('array{person: array<int, array{email: non-empty-string, first_name: string, age: numeric-string}>}', $data);
+assertType('array{person: array<int|string, array{email: non-empty-string, first_name: string, age: numeric-string}>}', $data);
 
 $data = $request->validate([
     'person.*.email' => 'required|email|unique:users',
@@ -19,4 +19,4 @@ $data = $request->validate([
     'person.*.age' => 'required|integer|string',
 ])->validated();
 
-assertType('array{person: array<int, array{email: non-empty-string, first_name: string, age: numeric-string}>}', $data);
+assertType('array{person: array<int|string, array{email: non-empty-string, first_name: string, age: numeric-string}>}', $data);
