@@ -5,10 +5,9 @@ declare(strict_types=1);
 namespace jbboehr\PhpstanLaravelValidation\Test;
 
 use jbboehr\PhpstanLaravelValidation\Rule\RuleParser;
+use jbboehr\PhpstanLaravelValidation\Rule\RuleTreeNode;
 use jbboehr\PhpstanLaravelValidation\Rule\TypeResolver;
-use jbboehr\PhpstanLaravelValidation\Type\ValidatorType;
 use PHPStan\Type;
-use PHPStan\Type\Accessory\AccessoryArrayListType;
 use PHPStan\Type\Constant\ConstantArrayTypeBuilder;
 use PHPStan\Type\Constant\ConstantBooleanType;
 use PHPStan\Type\Constant\ConstantFloatType;
@@ -16,7 +15,6 @@ use PHPStan\Type\Constant\ConstantIntegerType;
 use PHPStan\Type\Constant\ConstantStringType;
 use PHPStan\Type\NullType;
 use PHPStan\Type\ObjectType;
-use SebastianBergmann\Type\UnknownType;
 
 class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
 {
@@ -36,11 +34,14 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         $validatedType = $this->convertToType($validated);
         $accepts = $rulesType->accepts($validatedType, true);
 
+        // See: https://github.com/sebastianbergmann/phpunit/issues/5114 ?
+        $this->assertInstanceOf(RuleTreeNode::class, $ruleTree);
+        $this->assertInstanceOf(Type\Type::class, $rulesType);
+
         if (
             str_contains($location, 'testValidateEmptyStringsAlwaysPasses:242')
             || str_contains($location, 'testEmptyExistingAttributesAreValidated:250')
         ) {
-            $this->expectNotToPerformAssertions();
             return;
         }
 
@@ -54,8 +55,6 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
 //            $dataTypeStr = $validatedType->describe(Type\VerbosityLevel::getRecommendedLevelByType($validatedType));
 //            $this->addWarning($rulesTypeStr . ' matches ' . $dataTypeStr);
         }
-
-        $this->expectNotToPerformAssertions();
     }
 
     /**

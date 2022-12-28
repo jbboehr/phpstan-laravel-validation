@@ -23,7 +23,7 @@
         php = pkgs.php80;
         phpstan = pkgs.callPackage ./nix/phpstan.nix { inherit (pkgs.stdenv) mkDerivation; };
         psalm = pkgs.callPackage ./nix/psalm.nix { inherit (pkgs.stdenv) mkDerivation; };
-        phpWithXdebug = php.withExtensions ({ enabled, all }: enabled ++ [ all.xdebug ]);
+        phpWithPcov = php.withExtensions ({ enabled, all }: enabled ++ [ all.pcov ]);
         phpWithUopz = php.withExtensions ({ enabled, all }: enabled ++ [ (pkgs.callPackage ./nix/uopz.nix { inherit (php) buildPecl; }) ]);
         src = gitignore.lib.gitignoreSource ./.;
 
@@ -83,10 +83,9 @@
           shellHook = ''
             ${pre-commit-check.shellHook}
             export PATH="$PWD/vendor/bin:$PATH"
-            export PHP_WITH_XDEBUG="${phpWithXdebug}/bin/php"
+            export PHP_WITH_PCOV="${phpWithPcov}/bin/php"
             export PHP_WITH_UOPZ="${phpWithUopz}/bin/php"
-            export PHPUNIT_WITH_XDEBUG="$PHP_WITH_XDEBUG -d xdebug.mode=coverage ./vendor/bin/phpunit"
-            export XDEBUG_MODE=coverage
+            export PHPUNIT_WITH_PCOV="$PHP_WITH_PCOV -d memory_limit=512M -d pcov.directory=$PWD -dpcov.exclude="~vendor~" ./vendor/bin/phpunit"
           '';
         };
 

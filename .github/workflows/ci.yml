@@ -102,7 +102,7 @@ jobs:
             - name: Install PHP
               uses: shivammathur/setup-php@v2
               with:
-                  coverage: xdebug
+                  coverage: pcov
                   php-version: "${{ matrix.php-version }}"
                   tools: composer:v2
 

@@ -4,6 +4,7 @@
         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
         beStrictAboutOutputDuringTests="true"
         beStrictAboutChangesToGlobalState="true"
+        beStrictAboutTodoAnnotatedTests="true"
         bootstrap="vendor/autoload.php"
         colors="true"
         failOnRisky="true"
@@ -12,8 +13,16 @@
 >
     <coverage includeUncoveredFiles="true">
         <include>
-            <directory suffix=".php">src</directory>
+            <directory suffix=".php">./src</directory>
         </include>
+        <report>
+            <clover outputFile="clover.xml"/>
+            <text
+                outputFile="php://stdout"
+                showUncoveredFiles="true"
+                showOnlySummary="true"
+            />
+        </report>
     </coverage>
 
     <testsuites>
