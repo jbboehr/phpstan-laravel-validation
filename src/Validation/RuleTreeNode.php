@@ -98,9 +98,10 @@ final class RuleTreeNode implements IteratorAggregate, \Countable
     public function resolvePath(string $key): RuleTreeNode
     {
         $matches = null;
-        preg_match('/[^\\\]\./', $key, $matches, PREG_OFFSET_CAPTURE);
-        $pos = $matches ? $matches[0][1] + 1 : false;
-//        $pos = strpos($key, '.');
+        $pos = false;
+        if (preg_match('/[^\\\]\./', $key, $matches, PREG_OFFSET_CAPTURE) > 0) {
+            $pos = $matches[0][1] + 1;
+        }
 
         // simple
         if (false === $pos) {
@@ -110,13 +111,13 @@ final class RuleTreeNode implements IteratorAggregate, \Countable
                 return $this->children[$key];
             }
 
-            $path = $this->getPath() . ($this->getPath() ? '.' : '') . $key;
+            $path = $this->getPath() . ($this->getPath() !== '' ? '.' : '') . $key;
             return $this->children[$key] = new RuleTreeNode($path);
         }
 
         $subKey = str_replace('\.', '.', substr($key, 0, $pos));
         $remainder = substr($key, $pos + 1);
-        $path = $this->getPath() . ($this->getPath() ? '.' : '') . $subKey;
+        $path = $this->getPath() . ($this->getPath() !== '' ? '.' : '') . $subKey;
 
         if (!isset($this->children[$subKey])) {
             $mapNode = $this->children[$subKey] = new RuleTreeNode($path);
@@ -124,16 +125,12 @@ final class RuleTreeNode implements IteratorAggregate, \Countable
             $mapNode = $this->children[$subKey];
         }
 
-        if (!($mapNode instanceof RuleTreeNode)) {
-            throw new InvalidRuleException('Cannot have both string and integer keys');
-        }
-
         return $mapNode->resolvePath($remainder);
     }
 
     public function resolveOptional(): bool
     {
-        if (empty($this->children)) {
+        if (count($this->children) <= 0) {
             return $this->optional || $this->sometimes;
         }
 
@@ -147,7 +144,7 @@ final class RuleTreeNode implements IteratorAggregate, \Countable
 
     public function hasChildren(): bool
     {
-        return !empty($this->children);
+        return count($this->children) > 0;
     }
 
     public function hasConfirmation(): bool

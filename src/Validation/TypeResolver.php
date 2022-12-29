@@ -82,7 +82,7 @@ final class TypeResolver
             return $this->resolveType($rule);
         }, $node->getRules())));
 
-        if (empty($types)) {
+        if (count($types) <= 0) {
             return new MixedType();
         } else {
             return Type\TypeCombinator::intersect(...$types);
@@ -177,7 +177,7 @@ final class TypeResolver
         $builder = ConstantArrayTypeBuilder::createEmpty();
         $parameters = $rule->getParameters();
 
-        if (empty($parameters)) {
+        if (count($parameters) <= 0) {
             return new Type\ArrayType(new Type\MixedType(), new Type\MixedType());
         }
 
@@ -210,7 +210,7 @@ final class TypeResolver
 
         if (count($types) > 1) {
             return new UnionType($types);
-        } elseif (count($types) == 1) {
+        } elseif (count($types) === 1) {
             return $types[0];
         } else {
             return new Type\NeverType();

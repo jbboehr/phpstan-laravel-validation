@@ -83,7 +83,7 @@ class UnsafeConstExprEvaluator
         }
 
         $classReflection = $scope->getClassReflection();
-        if (!$classReflection) {
+        if (null === $classReflection) {
             // This happens when the constant is referenced outside the class - any reason it can't work?
             throw new ConstExprEvaluationException();
         }
@@ -91,7 +91,7 @@ class UnsafeConstExprEvaluator
         $reflectionConstant = $classReflection->getNativeReflection()
             ->getReflectionConstant($constantName);
 
-        if ($reflectionConstant) {
+        if (false !== $reflectionConstant) {
             return $this->evaluate($reflectionConstant->getValueExpression(), $scope);
         }
 
@@ -123,7 +123,7 @@ class UnsafeConstExprEvaluator
         }
 
         $classReflection = $scope->getClassReflection();
-        if (!$classReflection) {
+        if (null === $classReflection) {
             throw new ConstExprEvaluationException();
         }
 

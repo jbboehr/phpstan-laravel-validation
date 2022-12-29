@@ -36,8 +36,8 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         $accepts = $rulesType->accepts($validatedType, true);
 
         // See: https://github.com/sebastianbergmann/phpunit/issues/5114 ?
-        $this->assertInstanceOf(RuleTreeNode::class, $ruleTree);
-        $this->assertInstanceOf(Type\Type::class, $rulesType);
+        $this->assertInstanceOf(RuleTreeNode::class, $ruleTree); // @phpstan-ignore-line
+        $this->assertInstanceOf(Type\Type::class, $rulesType); // @phpstan-ignore-line
 
         if (
             str_contains($location, 'testValidateEmptyStringsAlwaysPasses:242')
@@ -50,7 +50,7 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
             $rulesTypeStr = $rulesType->describe(Type\VerbosityLevel::getRecommendedLevelByType($rulesType));
             $dataTypeStr = $validatedType->describe(Type\VerbosityLevel::getRecommendedLevelByType($validatedType));
             $message = $rulesTypeStr . ' does not accept ' . $dataTypeStr;
-            $this->fail($message);
+            self::fail($message);
 //        } else {
 //            $rulesTypeStr = $rulesType->describe(Type\VerbosityLevel::getRecommendedLevelByType($rulesType));
 //            $dataTypeStr = $validatedType->describe(Type\VerbosityLevel::getRecommendedLevelByType($validatedType));
