@@ -14,6 +14,7 @@
     <arg name="tab-width" value="4"/>
     <arg name="extensions" value="php" />
 
+<!--    <exclude-pattern>*/tests/const-expr/*</exclude-pattern>-->
     <exclude-pattern>*/tests/fixtures/*</exclude-pattern>
 
     <rule ref="PSR12">
@@ -34,5 +35,10 @@
 
     <rule ref="PSR1.Files.SideEffects.FoundWithSymbols">
         <exclude-pattern>*/scripts/*</exclude-pattern>
+        <exclude-pattern>*/tests/const-expr/*</exclude-pattern>
+    </rule>
+
+    <rule ref="PSR1.Classes.ClassDeclaration.MissingNamespace">
+        <exclude-pattern>*/tests/const-expr/*</exclude-pattern>
     </rule>
 </ruleset>

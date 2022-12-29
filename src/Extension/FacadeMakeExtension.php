@@ -15,6 +15,14 @@ use PHPStan\Type\DynamicStaticMethodReturnTypeExtension;
 
 final class FacadeMakeExtension implements DynamicStaticMethodReturnTypeExtension
 {
+    private UnsafeConstExprEvaluator $constExprEvaluator;
+
+    public function __construct(
+        UnsafeConstExprEvaluator $constExprEvaluator
+    ) {
+        $this->constExprEvaluator = $constExprEvaluator;
+    }
+
     public function getClass(): string
     {
         return \Illuminate\Support\Facades\Validator::class;
@@ -36,8 +44,7 @@ final class FacadeMakeExtension implements DynamicStaticMethodReturnTypeExtensio
             }
 
             $rulesArg = $methodCall->getArgs()[1];
-            $evaluator = new UnsafeConstExprEvaluator();
-            $rulesValue = $evaluator->evaluate($rulesArg->value);
+            $rulesValue = $this->constExprEvaluator->evaluate($rulesArg->value, $scope);
 
             return new ValidatorType(RuleParser::parse($rulesValue));
         } catch (ConstExprEvaluationException $e) {

@@ -11,6 +11,7 @@
         <directory name="src" />
         <directory name="tests" />
         <ignoreFiles>
+            <directory name="tests/const-expr" />
             <directory name="tests/fixtures" />
             <directory name="tests/rules" />
             <directory name="tests/structure" />

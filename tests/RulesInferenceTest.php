@@ -67,6 +67,7 @@ class RulesInferenceTest extends \PHPStan\Testing\TypeInferenceTestCase
     /**
      * @dataProvider dataFileAsserts
      * @param array<string, mixed[]> $args
+     * @group rules
      */
     public function testFileAsserts(
         string $assertType,

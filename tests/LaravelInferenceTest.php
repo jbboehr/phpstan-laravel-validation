@@ -25,6 +25,7 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
      * @param array<mixed, mixed> $validated
      * @return void
      * @dataProvider laravelExportProvider
+     * @group laravel
      */
     public function testLaravelValidationExport(string $location, array $data, array $validated, array $rules): void
     {

@@ -15,6 +15,14 @@ use PHPStan\Type\DynamicMethodReturnTypeExtension;
 
 final class RequestValidateExtension implements DynamicMethodReturnTypeExtension
 {
+    private UnsafeConstExprEvaluator $constExprEvaluator;
+
+    public function __construct(
+        UnsafeConstExprEvaluator $constExprEvaluator
+    ) {
+        $this->constExprEvaluator = $constExprEvaluator;
+    }
+
     public function getClass(): string
     {
         return \Illuminate\Http\Request::class;
@@ -36,8 +44,7 @@ final class RequestValidateExtension implements DynamicMethodReturnTypeExtension
             }
 
             $rulesArg = $methodCall->getArgs()[0];
-            $evaluator = new UnsafeConstExprEvaluator();
-            $rulesValue = $evaluator->evaluate($rulesArg->value);
+            $rulesValue = $this->constExprEvaluator->evaluate($rulesArg->value, $scope);
 
             return new ValidatorType(RuleParser::parse($rulesValue));
         } catch (ConstExprEvaluationException $e) {

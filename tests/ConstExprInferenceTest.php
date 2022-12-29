@@ -4,26 +4,25 @@ declare(strict_types=1);
 
 namespace jbboehr\PhpstanLaravelValidation\Test;
 
-class StructureInferenceTest extends \PHPStan\Testing\TypeInferenceTestCase
+use PHPStan\Testing\TypeInferenceTestCase;
+
+class ConstExprInferenceTest extends TypeInferenceTestCase
 {
     /**
      * @return iterable<mixed>
      */
     public function dataFileAsserts(): iterable
     {
-        yield from $this->gatherAssertTypes(__DIR__ . '/structure/array.php');
-        yield from $this->gatherAssertTypes(__DIR__ . '/structure/factory.php');
-        yield from $this->gatherAssertTypes(__DIR__ . '/structure/map.php');
-        yield from $this->gatherAssertTypes(__DIR__ . '/structure/readme.php');
-        yield from $this->gatherAssertTypes(__DIR__ . '/structure/request.php');
+        yield from $this->gatherAssertTypes(__DIR__ . '/const-expr/constant.php');
+        yield from $this->gatherAssertTypes(__DIR__ . '/const-expr/class-constant.php');
     }
 
     /**
      * @dataProvider dataFileAsserts
      * @param array<string, mixed[]> $args
-     * @group structure
+     * @group const-expr
      */
-    public function testFileAsserts(
+    public function testConstExprFileAsserts(
         string $assertType,
         string $file,
         mixed ...$args
