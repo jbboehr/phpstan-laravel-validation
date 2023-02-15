@@ -20,7 +20,7 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
-        php = pkgs.php80;
+        php = pkgs.php81;
         phpstan = pkgs.callPackage ./nix/phpstan.nix { inherit (pkgs.stdenv) mkDerivation; };
         psalm = pkgs.callPackage ./nix/psalm.nix { inherit (pkgs.stdenv) mkDerivation; };
         phpWithPcov = php.withExtensions ({ enabled, all }: enabled ++ [ all.pcov ]);
@@ -32,10 +32,11 @@
           phpPackages = php.packages;
         }) src;
 
-        defaultPackage = makePackage pkgs.php80;
+        php81Package = makePackage pkgs.php81;
+        php82Package = makePackage pkgs.php82;
 
         pre-commit-check = pre-commit-hooks.lib.${system}.run {
-          src = "${defaultPackage}/libexec/source";
+          src = "${php81Package}/libexec/source";
           hooks = {
             actionlint.enable = true;
             nixpkgs-fmt.enable = true;
@@ -49,25 +50,28 @@
             phpstan.binPath = "${php}/bin/php -d phar.require_hash=0 ${phpstan}/bin/phpstan";
             psalm.binPath = "${php}/bin/php -d phar.require_hash=0 ${psalm}/bin/psalm --no-cache";
             # these are not currently working
-            #psalm.binPath = "${php}/bin/php -d phar.require_hash=0 ${defaultPackage}/libexec/source/vendor/bin/psalm";
-            #phpstan.binPath = "${php}/bin/php -d phar.require_hash=0 ${defaultPackage}/libexec/source/vendor/bin/phpstan";
+            #psalm.binPath = "${php}/bin/php -d phar.require_hash=0 ${php81Package}/libexec/source/vendor/bin/psalm";
+            #phpstan.binPath = "${php}/bin/php -d phar.require_hash=0 ${php81Package}/libexec/source/vendor/bin/phpstan";
           };
         };
 
-        makeCheck = php: (makePackage php).overrideAttrs (oldAttrs: {
+        makeCheck = package: package.overrideAttrs (oldAttrs: {
           postInstall = ''
             (cd $out/libexec/$sourceRoot && ${php}/bin/php ./vendor/bin/phpunit)
           '';
         });
       in
       rec {
-        packages.default = defaultPackage;
+        packages = rec {
+          php81 = php81Package;
+          php82 = php82Package;
+          default = php81;
+        };
 
         checks = {
           inherit pre-commit-check;
-          php80 = makeCheck pkgs.php80;
-          php81 = makeCheck pkgs.php81;
-          php82 = makeCheck pkgs.php82;
+          php81 = makeCheck packages.php81;
+          php82 = makeCheck packages.php82;
         };
 
         devShells.default = pkgs.mkShell {

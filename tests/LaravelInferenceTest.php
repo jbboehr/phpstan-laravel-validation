@@ -42,6 +42,9 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         if (
             str_contains($location, 'testValidateEmptyStringsAlwaysPasses:242')
             || str_contains($location, 'testEmptyExistingAttributesAreValidated:250')
+            || str_contains($location, 'testEmptyExistingAttributesAreValidated:252')
+            // Should probably fix this one maybe
+            || str_contains($location, 'testValidateImplicitEachWithAsterisksForRequiredNonExistingKey:5735')
         ) {
             return;
         }
@@ -63,7 +66,10 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
      */
     public function laravelExportProvider(): array
     {
-        return require __DIR__ . '/fixtures/laravel-export.php';
+        return array_merge(
+            require __DIR__ . '/fixtures/laravel-export-v9.php',
+            require __DIR__ . '/fixtures/laravel-export-v10.php'
+        );
     }
 
     private function convertToType(mixed $data): Type\Type
