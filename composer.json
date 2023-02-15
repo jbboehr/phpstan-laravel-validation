@@ -25,7 +25,7 @@
         "phpstan/phpstan-strict-rules": "^1.4",
         "phpunit/phpunit": "^9.5",
         "squizlabs/php_codesniffer": "^3.6.0",
-        "stephank/composer-plugin-nixify": "dev-main#fd8faf5b898f5366c9d107eb407360b41a477b8f",
+        "drupol/composer-plugin-nixify": "dev-main#fd8faf5b898f5366c9d107eb407360b41a477b8f",
         "vimeo/psalm": "^5.4"
     },
     "autoload": {
@@ -42,15 +42,10 @@
         "sort-packages": true,
         "preferred-install": "dist",
         "allow-plugins": {
-            "stephank/composer-plugin-nixify": true
+            "stephank/composer-plugin-nixify": true,
+            "drupol/composer-plugin-nixify": true
         }
     },
-    "repositories": [
-        {
-            "type": "vcs",
-            "url": "https://github.com/drupol/composer-plugin-nixify.git"
-        }
-    ],
     "extra": {
         "nix-expr-path": "nix/composer-project.nix",
         "generate-default-nix": true,

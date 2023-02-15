@@ -26,24 +26,24 @@ let
                     "id": -1
                 },
                 "type": "cache",
-                "name": "nikic_php-parser-4.15.2.0",
+                "name": "nikic_php-parser-4.15.3.0",
                 "urls": [
-                    "https://api.github.com/repos/nikic/PHP-Parser/zipball/f59bbe44bf7d96f24f3e2b4ddc21cd52c1d2adbc"
+                    "https://api.github.com/repos/nikic/PHP-Parser/zipball/570e980a201d8ed0236b0a62ddf2c9cbb2034039"
                 ],
-                "cacheFile": "nikic/php-parser/e236b4c6515233fbea34d00815dd48192bfd54f1.zip",
-                "sha256": "b543992555ebe12789282ff5ae2037eff819ec5246b5d2f5dec1072f8b485c53"
+                "cacheFile": "nikic/php-parser/d82d7114a2384784c2ec20cf1dd8fd2ac538f2ba.zip",
+                "sha256": "b9d68a41dc37fdb939e2200911ac0610fd37e4169a3171a0eb3a13e5e5b570e0"
             },
             {
                 "package": {
                     "id": -1
                 },
                 "type": "cache",
-                "name": "phpstan_phpstan-1.9.4.0",
+                "name": "phpstan_phpstan-1.9.17.0",
                 "urls": [
-                    "https://api.github.com/repos/phpstan/phpstan/zipball/d03bccee595e2146b7c9d174486b84f4dc61b0f2"
+                    "https://api.github.com/repos/phpstan/phpstan/zipball/204e459e7822f2c586463029f5ecec31bb45a1f2"
                 ],
-                "cacheFile": "phpstan/phpstan/a4d0abfecf2a858deed1be8c1b16d8e50708792d.zip",
-                "sha256": "38c0326d482bc2c545bd5d912da2b7907706ca86293ffe2695244e03cb55487f"
+                "cacheFile": "phpstan/phpstan/9cfa004e0e697525d593fb2914d439a9c4221609.zip",
+                "sha256": "b5c7eb2350e91ed1e19dfebbe56d12aad202b951bfc8dfab8a0ee058352a9c76"
             },
             {
                 "package": {
@@ -74,12 +74,24 @@ let
                     "id": -1
                 },
                 "type": "cache",
-                "name": "brick_varexporter-0.3.7.0",
+                "name": "brick_math-0.11.0.0",
                 "urls": [
-                    "https://api.github.com/repos/brick/varexporter/zipball/3e263cd718d242594c52963760fee2059fd5833c"
+                    "https://api.github.com/repos/brick/math/zipball/0ad82ce168c82ba30d1c01ec86116ab52f589478"
                 ],
-                "cacheFile": "brick/varexporter/3db8947f6c3da0acd7fea124189ad13998d24e5f.zip",
-                "sha256": "2c5ab28e3c0966def2a7cd1065da83b33a8afedd4b597608b73fd8cf42eee5d6"
+                "cacheFile": "brick/math/195eda47beececd923d5b93f8a31c834da4db6cd.zip",
+                "sha256": "cb93121cd6d55a7c57296c603375320d09f404cbb04a292d1986dc8d61f07812"
+            },
+            {
+                "package": {
+                    "id": -1
+                },
+                "type": "cache",
+                "name": "brick_varexporter-0.3.8.0",
+                "urls": [
+                    "https://api.github.com/repos/brick/varexporter/zipball/b5853edea6204ff8fa10633c3a4cccc4058410ed"
+                ],
+                "cacheFile": "brick/varexporter/7dcce8a1a2013e24367e88fb9e52154bd7e1a778.zip",
+                "sha256": "f5650f7774409e8121b56b968fe67e101883099d8693abada73139f07e22a04c"
             },
             {
                 "package": {
@@ -146,6 +158,18 @@ let
                     "id": -1
                 },
                 "type": "cache",
+                "name": "doctrine_deprecations-1.0.0.0",
+                "urls": [
+                    "https://api.github.com/repos/doctrine/deprecations/zipball/0e2a4f1f8cdfc7a92ec3b01c9334898c806b30de"
+                ],
+                "cacheFile": "doctrine/deprecations/0b11d410b30a1fca6ad657a01bbf1bf8cb37b15b.zip",
+                "sha256": "0948892861e2470c164fb0c45063967417c4b9e527ea4cf2b987030b047061ea"
+            },
+            {
+                "package": {
+                    "id": -1
+                },
+                "type": "cache",
                 "name": "doctrine_inflector-2.0.6.0",
                 "urls": [
                     "https://api.github.com/repos/doctrine/inflector/zipball/d9d313a36c872fd6ee06d9a6cbcf713eaa40f024"
@@ -158,36 +182,48 @@ let
                     "id": -1
                 },
                 "type": "cache",
-                "name": "doctrine_instantiator-1.4.1.0",
+                "name": "doctrine_instantiator-1.5.0.0",
                 "urls": [
-                    "https://api.github.com/repos/doctrine/instantiator/zipball/10dcfce151b967d20fde1b34ae6640712c3891bc"
+                    "https://api.github.com/repos/doctrine/instantiator/zipball/0a0fa9780f5d4e507415a065172d26a98d02047b"
                 ],
-                "cacheFile": "doctrine/instantiator/b6977602bc07407dd2e3c71223021731d80df6d6.zip",
-                "sha256": "e74aae2efad779dc6044b0b5d3ac4cf56eb41a511549ed35e6046cb4d6e0d7d4"
+                "cacheFile": "doctrine/instantiator/281539f78a082d6b6f518e4643e807bb44376df5.zip",
+                "sha256": "b2ac699a2ce6afe19db094650009e81eb0471d8cbfaa7a8bb4825e88e6011b03"
             },
             {
                 "package": {
                     "id": -1
                 },
                 "type": "cache",
-                "name": "doctrine_lexer-1.2.3.0",
+                "name": "doctrine_lexer-2.1.0.0",
                 "urls": [
-                    "https://api.github.com/repos/doctrine/lexer/zipball/c268e882d4dbdd85e36e4ad69e02dc284f89d229"
+                    "https://api.github.com/repos/doctrine/lexer/zipball/39ab8fcf5a51ce4b85ca97c7a7d033eb12831124"
                 ],
-                "cacheFile": "doctrine/lexer/4ab8440502eac4ce094502573b529bcbae3991e3.zip",
-                "sha256": "1a329ce6ee5b48d38f7455631d0f9abd122643b304a112a6a76a50496d32e089"
+                "cacheFile": "doctrine/lexer/b4234cb7c4536da25e7669362cfb87940f58d05f.zip",
+                "sha256": "50bde7a5b68b6ef697044ed6256605a3bf19b106491dcbea5dc569041d9a6aa6"
             },
             {
                 "package": {
                     "id": -1
                 },
                 "type": "cache",
-                "name": "egulias_email-validator-3.2.1.0",
+                "name": "drupol_composer-plugin-nixify-9999999-dev",
                 "urls": [
-                    "https://api.github.com/repos/egulias/EmailValidator/zipball/f88dcf4b14af14a98ad96b14b2b317969eab6715"
+                    "https://api.github.com/repos/drupol/composer-plugin-nixify/zipball/fd8faf5b898f5366c9d107eb407360b41a477b8f"
                 ],
-                "cacheFile": "egulias/email-validator/6057c080143c0fb488917f6bcf0c04e4322f12a5.zip",
-                "sha256": "b19dfc81a404989412dd7aa64fdcedbe3f8d57f325327e88e95ab9881a2004f0"
+                "cacheFile": "drupol/composer-plugin-nixify/b520a1e323394de2e25d37bf63b8627c8748b840.zip",
+                "sha256": "608a34aa52abc812f29b0834ea1334d6c5792cfd12bac20400156f5199819b0e"
+            },
+            {
+                "package": {
+                    "id": -1
+                },
+                "type": "cache",
+                "name": "egulias_email-validator-3.2.5.0",
+                "urls": [
+                    "https://api.github.com/repos/egulias/EmailValidator/zipball/b531a2311709443320c786feb4519cfaf94af796"
+                ],
+                "cacheFile": "egulias/email-validator/fbd93f281d2a45219617370e886cd79b5143b67b.zip",
+                "sha256": "ec59ebdc8df85e80c9a207c38b15fda8a84f38d5a25a2da5f017210b6e6b230c"
             },
             {
                 "package": {
@@ -242,79 +278,91 @@ let
                     "id": -1
                 },
                 "type": "cache",
-                "name": "illuminate_collections-9.45.1.0",
+                "name": "guzzlehttp_uri-template-1.0.1.0",
                 "urls": [
-                    "https://api.github.com/repos/illuminate/collections/zipball/7a8afa0875d7de162f30865d9fae33c8fb235fa2"
+                    "https://api.github.com/repos/guzzle/uri-template/zipball/b945d74a55a25a949158444f09ec0d3c120d69e2"
                 ],
-                "cacheFile": "illuminate/collections/13a587d92a296d99ad577bd79cbf3f473e1f39b4.zip",
-                "sha256": "0f6a4b63c9ca375f496e974fe3218d9d3586029149ca53041987d0398b9d5683"
+                "cacheFile": "guzzlehttp/uri-template/458dd37ed5ec454f8f2a0c65076b0672e09e4e3d.zip",
+                "sha256": "0e369c50062d365469c4312eebd57cc5eeb33c0d5e3aae8a4db0a3d844266d0b"
             },
             {
                 "package": {
                     "id": -1
                 },
                 "type": "cache",
-                "name": "illuminate_conditionable-9.45.1.0",
+                "name": "illuminate_collections-9.52.0.0",
                 "urls": [
-                    "https://api.github.com/repos/illuminate/conditionable/zipball/5b40f51ccb07e0e7b1ec5559d8db9e0e2dc51883"
+                    "https://api.github.com/repos/illuminate/collections/zipball/f3ac81877e98c0c096ef403ab4f0c7ed96623c18"
                 ],
-                "cacheFile": "illuminate/conditionable/3d13d9225d1c36a43c88c6e5eaa776bc5c76c77a.zip",
-                "sha256": "5e00880e76d178d1a8235bdc062c3a89506d1b575bb3eecfa36d55911a719ece"
+                "cacheFile": "illuminate/collections/1270e9d26788698f109d034a8c901d3924606282.zip",
+                "sha256": "6ea73c0de98e8a1c228154ec132d16c818c13cbfcad09d56c9f40f9e2b8b2917"
             },
             {
                 "package": {
                     "id": -1
                 },
                 "type": "cache",
-                "name": "illuminate_container-9.45.1.0",
+                "name": "illuminate_conditionable-9.52.0.0",
                 "urls": [
-                    "https://api.github.com/repos/illuminate/container/zipball/8ca3036459e26dc7cdedaf0f882b625757cc341e"
+                    "https://api.github.com/repos/illuminate/conditionable/zipball/bea24daa0fa84b7e7b0d5b84f62c71b7e2dc3364"
                 ],
-                "cacheFile": "illuminate/container/01bafe3a7b4ae717d4c741b97e1607a785e0d84f.zip",
-                "sha256": "8d479f5f3208379340b1bb751656f1b260297e8cb446556068b4c57d7c79a55e"
+                "cacheFile": "illuminate/conditionable/93c561aee09880f236eae3c0c95eb878f0378174.zip",
+                "sha256": "73138f78ec6391e39411a5e92a85fc8439625ab0e4754a5c5c1887f46856ee7d"
             },
             {
                 "package": {
                     "id": -1
                 },
                 "type": "cache",
-                "name": "illuminate_contracts-9.45.1.0",
+                "name": "illuminate_container-9.52.0.0",
                 "urls": [
-                    "https://api.github.com/repos/illuminate/contracts/zipball/c7cc6e6198cac6dfdead111f9758de25413188b7"
+                    "https://api.github.com/repos/illuminate/container/zipball/1641dda2d0750b68bb1264a3b37ff3973f2e6265"
                 ],
-                "cacheFile": "illuminate/contracts/786d93b99d549197e478f991390e03afc6c8b4ca.zip",
-                "sha256": "7dc254e5d9eef76571cc101f5b9e764c7050385820d2244776976f7c2c679fe4"
+                "cacheFile": "illuminate/container/4b66e540cfaeba30f4d8706f101c9f93db4a0354.zip",
+                "sha256": "4e7ad6e4afec0a4f4f7ce646ac36b7ec640a121383fb8fe5d6ad49161f3bb947"
             },
             {
                 "package": {
                     "id": -1
                 },
                 "type": "cache",
-                "name": "illuminate_filesystem-9.45.1.0",
+                "name": "illuminate_contracts-9.52.0.0",
                 "urls": [
-                    "https://api.github.com/repos/illuminate/filesystem/zipball/9923cb717f5505b84200fb78feba1c2f2fe9fe83"
+                    "https://api.github.com/repos/illuminate/contracts/zipball/44f65d723b13823baa02ff69751a5948bde60c22"
                 ],
-                "cacheFile": "illuminate/filesystem/fa4ff31eae43441b60ce3eaafa088332ea7e9084.zip",
-                "sha256": "8302cdc6f9431d8b7a595ec56f8473c793b11105e39258f69992e99d3c64c3bb"
+                "cacheFile": "illuminate/contracts/0eb325420fcd2aea815b29e9c380f0fa62e2a78b.zip",
+                "sha256": "42c48ccb4ba09b1ef994b300e017d27b4131dfa8df17998d8413be9ee73c6f64"
             },
             {
                 "package": {
                     "id": -1
                 },
                 "type": "cache",
-                "name": "illuminate_http-9.45.1.0",
+                "name": "illuminate_filesystem-9.52.0.0",
                 "urls": [
-                    "https://api.github.com/repos/illuminate/http/zipball/5a0284d6bff14a233c2280f0782be4b5bc6b03ab"
+                    "https://api.github.com/repos/illuminate/filesystem/zipball/8168361548b2c5e2e501096cfbadb62a4a526290"
                 ],
-                "cacheFile": "illuminate/http/5b3cdbab7307976bab81ac78bca4d4f2777167e4.zip",
-                "sha256": "59b35c3a6605b5b138ca5faef51b00a8aadc4925f4881a872c77117f2198f64c"
+                "cacheFile": "illuminate/filesystem/c8341df2773fac312bc459d28d4886e1bab09b6e.zip",
+                "sha256": "c7dd57ba220e7b56ade5cc3b3a0545bcd8b486cc2b3f139a4323f16f9aef33e1"
             },
             {
                 "package": {
                     "id": -1
                 },
                 "type": "cache",
-                "name": "illuminate_macroable-9.45.1.0",
+                "name": "illuminate_http-9.52.0.0",
+                "urls": [
+                    "https://api.github.com/repos/illuminate/http/zipball/dc92ce3a3dbc5c363fc5a70b2e5d3d109bc88ce2"
+                ],
+                "cacheFile": "illuminate/http/1e0bbcbdaced8020c95e98cacf895ed660e3b40c.zip",
+                "sha256": "03200896912ace346bb5957dc03098b88e9710fc485744337c1ad44b919ccb83"
+            },
+            {
+                "package": {
+                    "id": -1
+                },
+                "type": "cache",
+                "name": "illuminate_macroable-9.52.0.0",
                 "urls": [
                     "https://api.github.com/repos/illuminate/macroable/zipball/e3bfaf6401742a9c6abca61b9b10e998e5b6449a"
                 ],
@@ -326,60 +374,60 @@ let
                     "id": -1
                 },
                 "type": "cache",
-                "name": "illuminate_session-9.45.1.0",
+                "name": "illuminate_session-9.52.0.0",
                 "urls": [
-                    "https://api.github.com/repos/illuminate/session/zipball/1e5d31bf7c6ed5844cedd4c36cf8251ec677309e"
+                    "https://api.github.com/repos/illuminate/session/zipball/71972e3e01ef501876d916c02c4d9bff77549e33"
                 ],
-                "cacheFile": "illuminate/session/f34f64440bcf490d2389432f7cd8298ccdf509c5.zip",
-                "sha256": "c416054ca674eec9aff4dcb490995ba3ae5b96b58b34990da36b5167bd5bddeb"
+                "cacheFile": "illuminate/session/f2c8c406b90a9fff9aff3552251f556b92421e1a.zip",
+                "sha256": "fedb5b06344fc876129cc3da9526899110b63cef3feb79f2d744be419f2eea34"
             },
             {
                 "package": {
                     "id": -1
                 },
                 "type": "cache",
-                "name": "illuminate_support-9.45.1.0",
+                "name": "illuminate_support-9.52.0.0",
                 "urls": [
-                    "https://api.github.com/repos/illuminate/support/zipball/d7f7c07e35a2c09cbeeddc0168826cf05a2eeb84"
+                    "https://api.github.com/repos/illuminate/support/zipball/63dcb4523ccdfc01cdf5be17791f07cc20982a1e"
                 ],
-                "cacheFile": "illuminate/support/13ebdd3898bf52dcde91894ece6e7d7bd5da586a.zip",
-                "sha256": "33d507b5c3d7b8afd3a8a23b104995afca7d399667e7498f22d71090e22c086a"
+                "cacheFile": "illuminate/support/4c31d2a870a3f4b36c886ce5a5d6d7baf5ea976d.zip",
+                "sha256": "a3454d92cfe3f350e918c4632b3c8c4f8c8711b37ccdd6c254845e1bf8cfefb8"
             },
             {
                 "package": {
                     "id": -1
                 },
                 "type": "cache",
-                "name": "illuminate_translation-9.45.1.0",
+                "name": "illuminate_translation-9.52.0.0",
                 "urls": [
-                    "https://api.github.com/repos/illuminate/translation/zipball/53d0cd548a8ad64eaf12d539bf39ee4189dcee56"
+                    "https://api.github.com/repos/illuminate/translation/zipball/cc8c7c94cf199077842829a79c2a02ac9146478e"
                 ],
-                "cacheFile": "illuminate/translation/4d884098d898f155018573c240a70466ae426a20.zip",
-                "sha256": "763c454824d61d6a6a231bbacf4d50e044def5b3a270791e58774f20c90db23f"
+                "cacheFile": "illuminate/translation/42130da856e7da78b12fb5cfc1174462b872dd95.zip",
+                "sha256": "38ece95267b420619f3c6d76ab84c63a0f92a0aec40dbfe15a22379b024de03b"
             },
             {
                 "package": {
                     "id": -1
                 },
                 "type": "cache",
-                "name": "illuminate_validation-9.45.1.0",
+                "name": "illuminate_validation-9.52.0.0",
                 "urls": [
-                    "https://api.github.com/repos/illuminate/validation/zipball/a0f19e0bb4b4896b04b34a875d569c61b3b00ace"
+                    "https://api.github.com/repos/illuminate/validation/zipball/8cd6d3c0151b614e46f3a2a9f7fb77566b012cb0"
                 ],
-                "cacheFile": "illuminate/validation/7813d50920d50084dcb6645d8bd3068af3b60b88.zip",
-                "sha256": "7e7d0a21190c59b31df0a7447d75f8bdec9605a661809f3d6e4623b061c78a69"
+                "cacheFile": "illuminate/validation/ff911bf0a415f0aec969987e7601035c00944725.zip",
+                "sha256": "40b4aa8eba67fc6d7a2afbf337a4a777295685cc911bbb17265b7aa8289e7829"
             },
             {
                 "package": {
                     "id": -1
                 },
                 "type": "cache",
-                "name": "monolog_monolog-2.8.0.0",
+                "name": "monolog_monolog-2.9.1.0",
                 "urls": [
-                    "https://api.github.com/repos/Seldaek/monolog/zipball/720488632c590286b88b80e62aa3d3d551ad4a50"
+                    "https://api.github.com/repos/Seldaek/monolog/zipball/f259e2b15fb95494c83f52d3caad003bbf5ffaa1"
                 ],
-                "cacheFile": "monolog/monolog/8be15cb4c5912b19f2b030398fe4b7c51e6d3b5a.zip",
-                "sha256": "c6c5ccd79c8e3b5f16be516bc1facb493ba98c5e5bb1972e332b42f82af0e171"
+                "cacheFile": "monolog/monolog/af7bafa3cdde5eef658108caf24489923a658da0.zip",
+                "sha256": "62ae7992cb222574556c8f276420097d72d5971113fd611881bab315f2a3e753"
             },
             {
                 "package": {
@@ -398,12 +446,12 @@ let
                     "id": -1
                 },
                 "type": "cache",
-                "name": "nesbot_carbon-2.64.0.0",
+                "name": "nesbot_carbon-2.66.0.0",
                 "urls": [
-                    "https://api.github.com/repos/briannesbitt/Carbon/zipball/889546413c97de2d05063b8cb7b193c2531ea211"
+                    "https://api.github.com/repos/briannesbitt/Carbon/zipball/496712849902241f04902033b0441b269effe001"
                 ],
-                "cacheFile": "nesbot/carbon/be5f2779e67997abb68a2aa35696618a18e6ed7f.zip",
-                "sha256": "50f769042e92f9cbff5a7509e4fc93e8dc20b18fb1b1480ae9d7115d8393f866"
+                "cacheFile": "nesbot/carbon/8a5075a6ddae43266cd352e4dcc76e38a5f9673b.zip",
+                "sha256": "1dece0c0233d97157105f55fa02faf1e0a138c6a4368bf0e97dea128195041af"
             },
             {
                 "package": {
@@ -494,36 +542,36 @@ let
                     "id": -1
                 },
                 "type": "cache",
-                "name": "phpstan_phpstan-phpunit-1.3.3.0",
+                "name": "phpstan_phpstan-phpunit-1.3.4.0",
                 "urls": [
-                    "https://api.github.com/repos/phpstan/phpstan-phpunit/zipball/54a24bd23e9e80ee918cdc24f909d376c2e273f7"
+                    "https://api.github.com/repos/phpstan/phpstan-phpunit/zipball/d77af96c1aaec28f7c0293677132eaaad079e01b"
                 ],
-                "cacheFile": "phpstan/phpstan-phpunit/a2b06418ffb3fd0045bc553352792c1c792f2735.zip",
-                "sha256": "ca935892fd5c35ac059543c667e7723008d5e5f93857ee77d9cb89c4168df497"
+                "cacheFile": "phpstan/phpstan-phpunit/094e089a621e8a8f735c95f3823e0ca5a1fc0d47.zip",
+                "sha256": "4616659fcef11c89f6c7dfd7011b382624e816ec3287e0213c23cd5c2623af0f"
             },
             {
                 "package": {
                     "id": -1
                 },
                 "type": "cache",
-                "name": "phpstan_phpstan-strict-rules-1.4.4.0",
+                "name": "phpstan_phpstan-strict-rules-1.4.5.0",
                 "urls": [
-                    "https://api.github.com/repos/phpstan/phpstan-strict-rules/zipball/23e5f377ee6395a1a04842d3d6ed4bd25e7b44a6"
+                    "https://api.github.com/repos/phpstan/phpstan-strict-rules/zipball/361f75b06066f3fdaba87c1f57bdb1ffc28d6f1d"
                 ],
-                "cacheFile": "phpstan/phpstan-strict-rules/997a5c0a09e643195ce794bceaa3be9bc4773446.zip",
-                "sha256": "c0103423e602842128eab01cf11757632b44b1551432aec41ba2db6f7939b4bb"
+                "cacheFile": "phpstan/phpstan-strict-rules/a61fa77a7a0b3524e0a2ea685491e897818d534b.zip",
+                "sha256": "506bc225e063b457682b0b4742ff5bc0900201702dd963ea731e06b1bd001eea"
             },
             {
                 "package": {
                     "id": -1
                 },
                 "type": "cache",
-                "name": "phpunit_php-code-coverage-9.2.22.0",
+                "name": "phpunit_php-code-coverage-9.2.24.0",
                 "urls": [
-                    "https://api.github.com/repos/sebastianbergmann/php-code-coverage/zipball/e4bf60d2220b4baaa0572986b5d69870226b06df"
+                    "https://api.github.com/repos/sebastianbergmann/php-code-coverage/zipball/2cf940ebc6355a9d430462811b5aaa308b174bed"
                 ],
-                "cacheFile": "phpunit/php-code-coverage/bb67af0d46f41b3dbaaf3ecd84a4266f7bf5cc3f.zip",
-                "sha256": "3b198dc52463c9921683f579fa6e717bdda9fe57e837e828b2ed56db3596cbbe"
+                "cacheFile": "phpunit/php-code-coverage/22950ed3ec19594703b2c51ce0c35f7e8c502d87.zip",
+                "sha256": "ea8717edadc67bd1817b2d4a79cedc7e5540b0ff3ae984655df32dc6b13bb2d2"
             },
             {
                 "package": {
@@ -578,12 +626,12 @@ let
                     "id": -1
                 },
                 "type": "cache",
-                "name": "phpunit_phpunit-9.5.27.0",
+                "name": "phpunit_phpunit-9.6.3.0",
                 "urls": [
-                    "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/a2bc7ffdca99f92d959b3f2270529334030bba38"
+                    "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/e7b1615e3e887d6c719121c6d4a44b0ab9645555"
                 ],
-                "cacheFile": "phpunit/phpunit/6acbe1960f94f7c630f0ff374ce6653259ded50e.zip",
-                "sha256": "17c65696011dffae85aacbf4d1995432f70ea02bd0bc15afb1c6c1b0c708e65b"
+                "cacheFile": "phpunit/phpunit/43638934ebf3cb1d505efcd402ac91eee55732e5.zip",
+                "sha256": "7a248a5f760d15264e4cc3b116b5234c9fb5b6f8d9a22c470e5c61d5e97eebdc"
             },
             {
                 "package": {
@@ -710,12 +758,12 @@ let
                     "id": -1
                 },
                 "type": "cache",
-                "name": "sebastian_environment-5.1.4.0",
+                "name": "sebastian_environment-5.1.5.0",
                 "urls": [
-                    "https://api.github.com/repos/sebastianbergmann/environment/zipball/1b5dff7bb151a4db11d49d90e5408e4e938270f7"
+                    "https://api.github.com/repos/sebastianbergmann/environment/zipball/830c43a844f1f8d5b7a1f6d6076b784454d8b7ed"
                 ],
-                "cacheFile": "sebastian/environment/0b7f292f62f46ed49ae0d70b39bfa393b4211611.zip",
-                "sha256": "2119946edb20c6bde2b716a4c85a0ef2e6ec96abc365c50ffc0044986e551762"
+                "cacheFile": "sebastian/environment/2233d3b38ac6d485959f6c153c851f07547fee65.zip",
+                "sha256": "f653465ac3278f2109df985a8cfab6bb8a0524f4f0861d4e993f001b872d0408"
             },
             {
                 "package": {
@@ -782,12 +830,12 @@ let
                     "id": -1
                 },
                 "type": "cache",
-                "name": "sebastian_recursion-context-4.0.4.0",
+                "name": "sebastian_recursion-context-4.0.5.0",
                 "urls": [
-                    "https://api.github.com/repos/sebastianbergmann/recursion-context/zipball/cd9d8cf3c5804de4341c283ed787f099f5506172"
+                    "https://api.github.com/repos/sebastianbergmann/recursion-context/zipball/e75bd0f07204fec2a0af9b0f3cfe97d05f92efc1"
                 ],
-                "cacheFile": "sebastian/recursion-context/6458bc6eb2e2dab0f0e7550c596001dd26243950.zip",
-                "sha256": "fe429b1e155104d66e0a930e44853d0a3daf790965f0a57712c3609e678813cc"
+                "cacheFile": "sebastian/recursion-context/4b7cea85c6a1d0a92ff75035f6b0545625890a5f.zip",
+                "sha256": "8102972caec5c2041cb1b156913ac9a320cca9943dc94cde79be43e7baf6e6a9"
             },
             {
                 "package": {
@@ -806,12 +854,12 @@ let
                     "id": -1
                 },
                 "type": "cache",
-                "name": "sebastian_type-3.2.0.0",
+                "name": "sebastian_type-3.2.1.0",
                 "urls": [
-                    "https://api.github.com/repos/sebastianbergmann/type/zipball/fb3fe09c5f0bae6bc27ef3ce933a1e0ed9464b6e"
+                    "https://api.github.com/repos/sebastianbergmann/type/zipball/75e2c2a32f5e0b3aef905b9ed0b179b953b3d7c7"
                 ],
-                "cacheFile": "sebastian/type/e4452efb1e3255d8306d160c941ba887a0c693b5.zip",
-                "sha256": "67748a67088f019de35d5a1213bb1f4e6954b6b20d62a234fef1cd615f4a95d2"
+                "cacheFile": "sebastian/type/6c52c952769f461058a7bcc9db2baadd3633dfc8.zip",
+                "sha256": "8507e504e5e67b8ac937a96373d980464fd8c1fa7211dd3f14fe2e2cccda6e2f"
             },
             {
                 "package": {
@@ -854,24 +902,12 @@ let
                     "id": -1
                 },
                 "type": "cache",
-                "name": "stephank_composer-plugin-nixify-9999999-dev",
+                "name": "symfony_console-6.0.19.0",
                 "urls": [
-                    "https://api.github.com/repos/stephank/composer-plugin-nixify/zipball/fd8faf5b898f5366c9d107eb407360b41a477b8f"
+                    "https://api.github.com/repos/symfony/console/zipball/c3ebc83d031b71c39da318ca8b7a07ecc67507ed"
                 ],
-                "cacheFile": "stephank/composer-plugin-nixify/8d5ce087690933397df5efce3104979209c2852b.zip",
-                "sha256": "a207d9fc16be8095ab02e3d30cfd3ce5570f675b01fcf3a9b5df66fc4637ace7"
-            },
-            {
-                "package": {
-                    "id": -1
-                },
-                "type": "cache",
-                "name": "symfony_console-6.0.16.0",
-                "urls": [
-                    "https://api.github.com/repos/symfony/console/zipball/be294423f337dda97c810733138c0caec1bb0575"
-                ],
-                "cacheFile": "symfony/console/61b781098586f53d8fb3625580d7eb6fc9a7ef32.zip",
-                "sha256": "0ec520094df50eb67af904c6300249bc7d461000f001b7536047242dcd667606"
+                "cacheFile": "symfony/console/cf1079e94604413572fdb9c8077dac3dca76a928.zip",
+                "sha256": "d786f534c0ae5b1d621b2e5ac30c87145803e2d53a8252113aa923f09ce06def"
             },
             {
                 "package": {
@@ -890,24 +926,24 @@ let
                     "id": -1
                 },
                 "type": "cache",
-                "name": "symfony_error-handler-6.0.15.0",
+                "name": "symfony_error-handler-6.0.19.0",
                 "urls": [
-                    "https://api.github.com/repos/symfony/error-handler/zipball/f000c166cb3ee32c4c822831a79260a135cd59b5"
+                    "https://api.github.com/repos/symfony/error-handler/zipball/c7df52182f43a68522756ac31a532dd5b1e6db67"
                 ],
-                "cacheFile": "symfony/error-handler/952e7bd656f968f5fcaba1e3e850f3ab96b302b0.zip",
-                "sha256": "a06f24d24e4a03ceeb6219f948d6e583109e0861855fc896ddf85af75bcbccae"
+                "cacheFile": "symfony/error-handler/4362d8dc8940e32a8626557fd58d2710814db8a8.zip",
+                "sha256": "889ded73433e7b5b6d6883d7f2fc14cbc7f9f30dffa27eb049b37ec3870519b7"
             },
             {
                 "package": {
                     "id": -1
                 },
                 "type": "cache",
-                "name": "symfony_event-dispatcher-6.0.9.0",
+                "name": "symfony_event-dispatcher-6.0.19.0",
                 "urls": [
-                    "https://api.github.com/repos/symfony/event-dispatcher/zipball/5c85b58422865d42c6eb46f7693339056db098a8"
+                    "https://api.github.com/repos/symfony/event-dispatcher/zipball/2eaf8e63bc5b8cefabd4a800157f0d0c094f677a"
                 ],
-                "cacheFile": "symfony/event-dispatcher/9582bf9033c87449c80df9f02651a526a390d0fa.zip",
-                "sha256": "b78b3945450d3f4b9603ed8e30324ff81abb1df94f40b735fd6d8d61cba6cec5"
+                "cacheFile": "symfony/event-dispatcher/a750d7e7582528dfc9f4323bc9db63e44636ca0e.zip",
+                "sha256": "567bf06bb91ab50220e74d2d66bd80fd07ba21c673c0461f17a0d82060879773"
             },
             {
                 "package": {
@@ -926,60 +962,60 @@ let
                     "id": -1
                 },
                 "type": "cache",
-                "name": "symfony_filesystem-6.0.13.0",
+                "name": "symfony_filesystem-6.0.19.0",
                 "urls": [
-                    "https://api.github.com/repos/symfony/filesystem/zipball/3adca49133bd055ebe6011ed1e012be3c908af79"
+                    "https://api.github.com/repos/symfony/filesystem/zipball/3d49eec03fda1f0fc19b7349fbbe55ebc1004214"
                 ],
-                "cacheFile": "symfony/filesystem/58a3ac94d09d20d7cfec12a5234686f704be5dcd.zip",
-                "sha256": "66144201313e3982400575ca4fac63d829ae29e81df6d5b2d744915a1bbba1a0"
+                "cacheFile": "symfony/filesystem/b192242a5e1939b8aa4a63b9b6ea99ccb9b5feed.zip",
+                "sha256": "deafa5bd6ae0f7479bd02127567a8a095934fe25b003567e2ac3d8548df41636"
             },
             {
                 "package": {
                     "id": -1
                 },
                 "type": "cache",
-                "name": "symfony_finder-6.0.11.0",
+                "name": "symfony_finder-6.0.19.0",
                 "urls": [
-                    "https://api.github.com/repos/symfony/finder/zipball/09cb683ba5720385ea6966e5e06be2a34f2568b1"
+                    "https://api.github.com/repos/symfony/finder/zipball/5cc9cac6586fc0c28cd173780ca696e419fefa11"
                 ],
-                "cacheFile": "symfony/finder/3598a481a079ac63f40f8cf95bf1d2b14764d71d.zip",
-                "sha256": "84d8ef4f701ce9c8c4b3be7163c3be592a3937b69c6f29c82b23e1eb7aa6ba2d"
+                "cacheFile": "symfony/finder/817d215ed4fd7554a45f2763e8517638d731b938.zip",
+                "sha256": "ac898e03564ce34448dc7b4d6ecf7372e6f61dd4593036c0ea3f33fe595f1ab8"
             },
             {
                 "package": {
                     "id": -1
                 },
                 "type": "cache",
-                "name": "symfony_http-foundation-6.0.16.0",
+                "name": "symfony_http-foundation-6.0.20.0",
                 "urls": [
-                    "https://api.github.com/repos/symfony/http-foundation/zipball/86eec2c66d00a2dd03d84352cd10b12df73101ec"
+                    "https://api.github.com/repos/symfony/http-foundation/zipball/e16b2676a4b3b1fa12378a20b29c364feda2a8d6"
                 ],
-                "cacheFile": "symfony/http-foundation/e9cb70a91243f9d51c0b70e601a316cd962d05ed.zip",
-                "sha256": "402226bfcae0c56e32842461008f8bc15a6fada93e918c7e717dd887cc1a0559"
+                "cacheFile": "symfony/http-foundation/45a020b64d79b7780487503081036f1e9c4e436d.zip",
+                "sha256": "4f908b221915c63d4cc65eb64ec3ece19aacdd9de2d140913c589fd8d97f4e34"
             },
             {
                 "package": {
                     "id": -1
                 },
                 "type": "cache",
-                "name": "symfony_http-kernel-6.0.16.0",
+                "name": "symfony_http-kernel-6.0.20.0",
                 "urls": [
-                    "https://api.github.com/repos/symfony/http-kernel/zipball/8ba1344821807ad51f230f0d01e0fa8f366e4abb"
+                    "https://api.github.com/repos/symfony/http-kernel/zipball/6dc70833fd0ef5e861e17c7854c12d7d86679349"
                 ],
-                "cacheFile": "symfony/http-kernel/2088571a4b62f6cc4f7bd206420b5a9b61335816.zip",
-                "sha256": "0d0e20d5d0240b5a29e8c7104b26b729d5c394a23f580e2a4f75e43660f64ef0"
+                "cacheFile": "symfony/http-kernel/6a1c18a8a9008a05ad1e8d8ac14e562b677c4d3e.zip",
+                "sha256": "59480623f65632124f8a9ddb9e1999416294fc790193f0243f5d5bf242483fc8"
             },
             {
                 "package": {
                     "id": -1
                 },
                 "type": "cache",
-                "name": "symfony_mime-6.0.16.0",
+                "name": "symfony_mime-6.0.19.0",
                 "urls": [
-                    "https://api.github.com/repos/symfony/mime/zipball/ad9878bede5707cdf5ff7f5c86d82a921bbbfe1c"
+                    "https://api.github.com/repos/symfony/mime/zipball/d7052547a0070cbeadd474e172b527a00d657301"
                 ],
-                "cacheFile": "symfony/mime/323cc013a76cc14cb3fa67cda87bc32e77ed5b92.zip",
-                "sha256": "0d656364bcebd1dc5ec085479060e511182992cb5dfbb7d841d468528d66c428"
+                "cacheFile": "symfony/mime/97dd79548f9a68459d2c0b3801017bb73992c73e.zip",
+                "sha256": "8a09b1fd03b9b95a6352692798f3b06674192509d0cfb0311617d9c62e73b200"
             },
             {
                 "package": {
@@ -1082,24 +1118,24 @@ let
                     "id": -1
                 },
                 "type": "cache",
-                "name": "symfony_string-6.0.15.0",
+                "name": "symfony_string-6.0.19.0",
                 "urls": [
-                    "https://api.github.com/repos/symfony/string/zipball/51ac0fa0ccf132a00519b87c97e8f775fa14e771"
+                    "https://api.github.com/repos/symfony/string/zipball/d9e72497367c23e08bf94176d2be45b00a9d232a"
                 ],
-                "cacheFile": "symfony/string/4f7de1dbdd0c7e670f6974478d519ae8d8e5a602.zip",
-                "sha256": "53d506d838113fb82b9ebccc7326188309d234ee1f29be7f9c187e39327b2951"
+                "cacheFile": "symfony/string/e796042fe8f8b82e77830831c7c6d53392aef0ef.zip",
+                "sha256": "ee429a33627423a81f054759a7d1683b026b1ab299e0ff50b44ddce624db9b4c"
             },
             {
                 "package": {
                     "id": -1
                 },
                 "type": "cache",
-                "name": "symfony_translation-6.0.14.0",
+                "name": "symfony_translation-6.0.19.0",
                 "urls": [
-                    "https://api.github.com/repos/symfony/translation/zipball/6f99eb179aee4652c0a7cd7c11f2a870d904330c"
+                    "https://api.github.com/repos/symfony/translation/zipball/9c24b3fdbbe9fb2ef3a6afd8bbaadfd72dad681f"
                 ],
-                "cacheFile": "symfony/translation/adf07cd2ec65a8bbfcbb1f40a4e1927969d76c4e.zip",
-                "sha256": "b44295327326b8624987f97a47090df275ae6ef18a986f051c7bc9783b74f900"
+                "cacheFile": "symfony/translation/c54c98fab1ed0ac0cbe6903e9903620c372e606c.zip",
+                "sha256": "a2139db9ba1292d47e2d6266838087c7d00af69d1389dbd133003249cb1c8189"
             },
             {
                 "package": {
@@ -1118,12 +1154,12 @@ let
                     "id": -1
                 },
                 "type": "cache",
-                "name": "symfony_var-dumper-6.0.14.0",
+                "name": "symfony_var-dumper-6.0.19.0",
                 "urls": [
-                    "https://api.github.com/repos/symfony/var-dumper/zipball/72af925ddd41ca0372d166d004bc38a00c4608cc"
+                    "https://api.github.com/repos/symfony/var-dumper/zipball/eb980457fa6899840fe1687e8627a03a7d8a3d52"
                 ],
-                "cacheFile": "symfony/var-dumper/53d632060f1f055efc134d7b728b0f6b274f0875.zip",
-                "sha256": "84758bc5d048dbdcf8bc4f506df4fcdbdd694d0641f9e917d3a3634bd7f4fc2c"
+                "cacheFile": "symfony/var-dumper/90b70e68fa941316917bae41e2d65a393682df40.zip",
+                "sha256": "53b02741e18dfc79c9b2f8f5e037ad0189c55379f7ab837d97749213897e71a0"
             },
             {
                 "package": {
@@ -1142,12 +1178,12 @@ let
                     "id": -1
                 },
                 "type": "cache",
-                "name": "vimeo_psalm-5.4.0.0",
+                "name": "vimeo_psalm-5.6.0.0",
                 "urls": [
-                    "https://api.github.com/repos/vimeo/psalm/zipball/62db5d4f6a7ae0a20f7cc5a4952d730272fc0863"
+                    "https://api.github.com/repos/vimeo/psalm/zipball/e784128902dfe01d489c4123d69918a9f3c1eac5"
                 ],
-                "cacheFile": "vimeo/psalm/773cbf6daa8f49db6c1488bec2fa0de84047f44c.zip",
-                "sha256": "1914382b1eedd050d9b517e0c0f3ca31e2109d7a1316eb858ee9a06935794fa9"
+                "cacheFile": "vimeo/psalm/cc6eb1638a99e71b38c90a484071cc0d9d557f25.zip",
+                "sha256": "c476ca6edad1cc54238b322442f730fea95e88ee917410e645001e5c8b57e728"
             },
             {
                 "package": {
