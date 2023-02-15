@@ -47,11 +47,6 @@ jobs:
                       ${{ runner.os }}-php-
 
             - name: Install dependencies
-              if: ${{ matrix.php-version == '8.0' }}
-              run: composer upgrade --prefer-dist --no-progress
-
-            - name: Install dependencies
-              if: ${{ matrix.php-version != '8.0' }}
               run: composer install --prefer-dist --no-progress
 
             - name: phpcs
@@ -89,11 +84,6 @@ jobs:
                       ${{ runner.os }}-php-
 
             - name: Install dependencies
-              if: ${{ matrix.php-version == '8.0' }}
-              run: composer upgrade --prefer-dist --no-progress
-
-            - name: Install dependencies
-              if: ${{ matrix.php-version != '8.0' }}
               run: composer install --prefer-dist --no-progress
 
             - name: Run test suite
