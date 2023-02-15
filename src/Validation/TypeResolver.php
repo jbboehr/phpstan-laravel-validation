@@ -151,11 +151,16 @@ final class TypeResolver
             ),
 
             // We can't use numeric ranges here because laravel doesn't cast it to an integer or float
-            "Digits", "DigitsBetween", "Decimal", "Integer", "MaxDigits", "MinDigits", "MultipleOf",
+            "Digits", "DigitsBetween", "Decimal", "MaxDigits", "MinDigits", "MultipleOf",
             "Numeric" => Type\TypeCombinator::union(
                 new AccessoryNumericStringType(),
                 new Type\IntegerType(),
                 new Type\FloatType()
+            ),
+
+            "Integer" => Type\TypeCombinator::union(
+                new AccessoryNumericStringType(),
+                new Type\IntegerType()
             ),
 
             "Dimensions", "File", "Image", "Mimetypes",
