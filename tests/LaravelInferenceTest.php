@@ -63,7 +63,10 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
      */
     public function laravelExportProvider(): array
     {
-        return require __DIR__ . '/fixtures/laravel-export.php';
+        return array_merge(
+            require __DIR__ . '/fixtures/laravel-export-v9.php',
+            require __DIR__ . '/fixtures/laravel-export-v10.php'
+        );
     }
 
     private function convertToType(mixed $data): Type\Type
