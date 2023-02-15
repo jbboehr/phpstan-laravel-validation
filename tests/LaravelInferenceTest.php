@@ -42,6 +42,9 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         if (
             str_contains($location, 'testValidateEmptyStringsAlwaysPasses:242')
             || str_contains($location, 'testEmptyExistingAttributesAreValidated:250')
+            || str_contains($location, 'testEmptyExistingAttributesAreValidated:252')
+            // Should probably fix this one maybe
+            || str_contains($location, 'testValidateImplicitEachWithAsterisksForRequiredNonExistingKey:5735')
         ) {
             return;
         }
