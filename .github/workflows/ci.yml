@@ -119,6 +119,16 @@ jobs:
             - name: Run test suite with coverage
               run: php vendor/bin/phpunit --coverage-text
 
+            - name: Upload code coverage
+              # https://github.com/paambaati/codeclimate-action/issues/638#issuecomment-1363476627
+              uses: paambaati/codeclimate-action@v3.2.0
+              env:
+                  CC_TEST_REPORTER_ID: 3f8f6d064fc0b063230c71511f07aec326a2eb84f3c5653161b5f087aae315f9
+              with:
+                  coverageCommand: "true"
+                  coverageLocations: |
+                      clover.xml:clover
+
     nix:
         runs-on: ubuntu-latest
         steps:
