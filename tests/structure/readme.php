@@ -17,6 +17,6 @@ $data = $request->validate([
     'person.*.email' => 'required|email|unique:users',
     'person.*.first_name' => 'required|string',
     'person.*.age' => 'required|integer|string',
-])->validated();
+]);
 
 assertType('array{person: array<int|string, array{email: non-empty-string, first_name: string, age: numeric-string}>}', $data);
