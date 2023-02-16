@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace jbboehr\PhpstanLaravelValidation\Extension;
 
+use Illuminate\Foundation\Validation\ValidatesRequests;
 use jbboehr\PhpstanLaravelValidation\Evaluator\UnsafeConstExprEvaluator;
 use jbboehr\PhpstanLaravelValidation\Validation\RuleParser;
 use jbboehr\PhpstanLaravelValidation\ShouldNotHappenException;
@@ -13,7 +14,7 @@ use PHPStan\Analyser\Scope;
 use PHPStan\Reflection\MethodReflection;
 use PHPStan\Type\DynamicMethodReturnTypeExtension;
 
-final class RequestValidateExtension implements DynamicMethodReturnTypeExtension
+final class ControllerValidateExtension implements DynamicMethodReturnTypeExtension
 {
     private UnsafeConstExprEvaluator $constExprEvaluator;
 
@@ -25,7 +26,8 @@ final class RequestValidateExtension implements DynamicMethodReturnTypeExtension
 
     public function getClass(): string
     {
-        return \Illuminate\Http\Request::class;
+        return \Illuminate\Routing\Controller::class;
+//        return \App\Http\Controllers\Controller::class;
     }
 
     public function isMethodSupported(MethodReflection $methodReflection): bool
@@ -39,11 +41,15 @@ final class RequestValidateExtension implements DynamicMethodReturnTypeExtension
         Scope $scope
     ): ?\PHPStan\Type\Type {
         try {
-            if (count($methodCall->getArgs()) < 1) {
+            if (!$methodReflection->getDeclaringClass()->hasTraitUse(ValidatesRequests::class)) {
                 return null;
             }
 
-            $rulesArg = $methodCall->getArgs()[0];
+            if (count($methodCall->getArgs()) < 2) {
+                return null;
+            }
+
+            $rulesArg = $methodCall->getArgs()[1];
             $rulesValue = $this->constExprEvaluator->evaluate($rulesArg->value, $scope);
 
             $validatorRules = RuleParser::parse($rulesValue);

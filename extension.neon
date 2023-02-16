@@ -1,5 +1,11 @@
 services:
   - class: jbboehr\PhpstanLaravelValidation\Evaluator\UnsafeConstExprEvaluator
+  - class: jbboehr\PhpstanLaravelValidation\Extension\ControllerValidateExtension
+    tags:
+      - phpstan.broker.dynamicMethodReturnTypeExtension
+  - class: jbboehr\PhpstanLaravelValidation\Extension\ControllerValidateWithExtension
+    tags:
+      - phpstan.broker.dynamicMethodReturnTypeExtension
   - class: jbboehr\PhpstanLaravelValidation\Extension\FacadeMakeExtension
     tags:
       - phpstan.broker.dynamicStaticMethodReturnTypeExtension

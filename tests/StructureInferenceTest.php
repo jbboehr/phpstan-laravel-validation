@@ -12,6 +12,7 @@ class StructureInferenceTest extends \PHPStan\Testing\TypeInferenceTestCase
     public function dataFileAsserts(): iterable
     {
         yield from $this->gatherAssertTypes(__DIR__ . '/structure/array.php');
+        yield from $this->gatherAssertTypes(__DIR__ . '/structure/controller.php');
         yield from $this->gatherAssertTypes(__DIR__ . '/structure/factory.php');
         yield from $this->gatherAssertTypes(__DIR__ . '/structure/function.php');
         yield from $this->gatherAssertTypes(__DIR__ . '/structure/map.php');

@@ -86,6 +86,9 @@ final class RuleParser
         return Rule::create(self::normalizeName($ruleName), array_slice($rule, 1));
     }
 
+    /**
+     * @psalm-suppress PossiblyUndefinedArrayOffset
+     */
     public static function parseStringRule(string $rule): Rule
     {
         if (str_contains($rule, ':')) {

@@ -302,6 +302,42 @@ let
                     "id": -1
                 },
                 "type": "cache",
+                "name": "guzzlehttp_guzzle-7.5.0.0",
+                "urls": [
+                    "https://api.github.com/repos/guzzle/guzzle/zipball/b50a2a1251152e43f6a37f0fa053e730a67d25ba"
+                ],
+                "cacheFile": "guzzlehttp/guzzle/01743f83cc505a0464ba7a1a4507444403a079c7.zip",
+                "sha256": "37ddb40b16d8df64994dd3cdd41011109fe34ff02c4c00252adda9093212c833"
+            },
+            {
+                "package": {
+                    "id": -1
+                },
+                "type": "cache",
+                "name": "guzzlehttp_promises-1.5.2.0",
+                "urls": [
+                    "https://api.github.com/repos/guzzle/promises/zipball/b94b2807d85443f9719887892882d0329d1e2598"
+                ],
+                "cacheFile": "guzzlehttp/promises/691eab84bb1e9e2a0b452c7fed0eb1f67862a516.zip",
+                "sha256": "e8efd4c91f3b0302c055cfcbeba9d869a93db8aad2b7f3242e257555fc616aef"
+            },
+            {
+                "package": {
+                    "id": -1
+                },
+                "type": "cache",
+                "name": "guzzlehttp_psr7-2.4.3.0",
+                "urls": [
+                    "https://api.github.com/repos/guzzle/psr7/zipball/67c26b443f348a51926030c83481b85718457d3d"
+                ],
+                "cacheFile": "guzzlehttp/psr7/f029e31b3f0f082aed4213b0cf7953278f2018b2.zip",
+                "sha256": "8fa79e2da503be7c4b1a91aeafa1bf303b7f3d48fca7dd8bba8efffa7b815b25"
+            },
+            {
+                "package": {
+                    "id": -1
+                },
+                "type": "cache",
                 "name": "guzzlehttp_uri-template-1.0.1.0",
                 "urls": [
                     "https://api.github.com/repos/guzzle/uri-template/zipball/b945d74a55a25a949158444f09ec0d3c120d69e2"
@@ -314,12 +350,36 @@ let
                     "id": -1
                 },
                 "type": "cache",
-                "name": "laravel_framework-9.52.0.0",
+                "name": "laravel_framework-10.0.0.0",
                 "urls": [
-                    "https://api.github.com/repos/laravel/framework/zipball/eb85cd9d72e5bfa54b4d0d9040786f26d6184a9e"
+                    "https://api.github.com/repos/laravel/framework/zipball/be2ddb5c31b0b9ebc2738d9f37a9d4c960aa3199"
                 ],
-                "cacheFile": "laravel/framework/1faf5ada09af4a224cd81bf4be17966eb133c579.zip",
-                "sha256": "925da285d508e445965000e2be89b0496bae25ead8d23a96eb119c9660024a39"
+                "cacheFile": "laravel/framework/5b574a1a77ccc6d6b0d573708e7f3a1d12ebd620.zip",
+                "sha256": "5ba0879ac12255590796f52aa9bc766f75041193bfa90f40fa2aa4242c3c227d"
+            },
+            {
+                "package": {
+                    "id": -1
+                },
+                "type": "cache",
+                "name": "laravel_laravel-10.0.0.0",
+                "urls": [
+                    "https://api.github.com/repos/laravel/laravel/zipball/acd0f29ac7699d9cc9fb279c435c158d117bd3cd"
+                ],
+                "cacheFile": "laravel/laravel/145eff1832bbb2fc4219048fbb61a1dbfe801f08.zip",
+                "sha256": "5f83f6b38ddc6c80f8c0ef186affcea42c41af9f5ae937177a231e50cf87abff"
+            },
+            {
+                "package": {
+                    "id": -1
+                },
+                "type": "cache",
+                "name": "laravel_sanctum-3.2.1.0",
+                "urls": [
+                    "https://api.github.com/repos/laravel/sanctum/zipball/d09d69bac55708fcd4a3b305d760e673d888baf9"
+                ],
+                "cacheFile": "laravel/sanctum/de1cb70f17f0a3e08acd33f022a21530fedfcda7.zip",
+                "sha256": "05b2cb3153f22730c95676a6a4a3d017e9cffab55fcdf2c8d032a2b678e80a5e"
             },
             {
                 "package": {
@@ -332,6 +392,18 @@ let
                 ],
                 "cacheFile": "laravel/serializable-closure/728814a9e03933b6eed6a78910a61878db473045.zip",
                 "sha256": "b4a13fa026d52a40e069eb16158536f2e3f8670f8ba867e8338b065ce0c5db37"
+            },
+            {
+                "package": {
+                    "id": -1
+                },
+                "type": "cache",
+                "name": "laravel_tinker-2.8.0.0",
+                "urls": [
+                    "https://api.github.com/repos/laravel/tinker/zipball/74d0b287cc4ae65d15c368dd697aae71d62a73ad"
+                ],
+                "cacheFile": "laravel/tinker/ce372cf05ff2444815a3e9bc4ee2498b37097225.zip",
+                "sha256": "ab9f1950272ab6a239c60c7836f9b259fecc6183a845a8e45287fcff49bb17e6"
             },
             {
                 "package": {
@@ -386,12 +458,12 @@ let
                     "id": -1
                 },
                 "type": "cache",
-                "name": "monolog_monolog-2.9.1.0",
+                "name": "monolog_monolog-3.3.1.0",
                 "urls": [
-                    "https://api.github.com/repos/Seldaek/monolog/zipball/f259e2b15fb95494c83f52d3caad003bbf5ffaa1"
+                    "https://api.github.com/repos/Seldaek/monolog/zipball/9b5daeaffce5b926cac47923798bba91059e60e2"
                 ],
-                "cacheFile": "monolog/monolog/af7bafa3cdde5eef658108caf24489923a658da0.zip",
-                "sha256": "62ae7992cb222574556c8f276420097d72d5971113fd611881bab315f2a3e753"
+                "cacheFile": "monolog/monolog/29bc45a7b7916554a231d448e3c7dd5f20d91989.zip",
+                "sha256": "638852f6758d081265cec318944a3319e3693f25f7fdc705afbf40672ea1d4a2"
             },
             {
                 "package": {
@@ -674,6 +746,42 @@ let
                     "id": -1
                 },
                 "type": "cache",
+                "name": "psr_http-client-1.0.1.0",
+                "urls": [
+                    "https://api.github.com/repos/php-fig/http-client/zipball/2dfb5f6c5eff0e91e20e913f8c5452ed95b86621"
+                ],
+                "cacheFile": "psr/http-client/9ef0ac1a0bb8280477e24c9232fac374ed3024ac.zip",
+                "sha256": "fb98c497fe0d21d34c55622f687766e22198037a3c073fec44394439948bb332"
+            },
+            {
+                "package": {
+                    "id": -1
+                },
+                "type": "cache",
+                "name": "psr_http-factory-1.0.1.0",
+                "urls": [
+                    "https://api.github.com/repos/php-fig/http-factory/zipball/12ac7fcd07e5b077433f5f2bee95b3a771bf61be"
+                ],
+                "cacheFile": "psr/http-factory/554dafa2f4680a78fa693cedcbe62bc6873809db.zip",
+                "sha256": "baedc0aa21248f8a0316a8b78c98754cf7c4b3fe8ab7a4da5ad0adc22eb6cb46"
+            },
+            {
+                "package": {
+                    "id": -1
+                },
+                "type": "cache",
+                "name": "psr_http-message-1.0.1.0",
+                "urls": [
+                    "https://api.github.com/repos/php-fig/http-message/zipball/f6561bf28d520154e4b0ec72be95418abe6d9363"
+                ],
+                "cacheFile": "psr/http-message/cc1d4e9ee13f2053b80c08976256789bf3be5256.zip",
+                "sha256": "8538467ca2665fe15574f4d2506871823f71fd24b9a9284aae2ba90d8f69ada4"
+            },
+            {
+                "package": {
+                    "id": -1
+                },
+                "type": "cache",
                 "name": "psr_log-3.0.0.0",
                 "urls": [
                     "https://api.github.com/repos/php-fig/log/zipball/fe5ea303b0887d5caefd3d431c3e61ad47037001"
@@ -692,6 +800,30 @@ let
                 ],
                 "cacheFile": "psr/simple-cache/f30344b376a5fb0289c0491e8df6aba973ba12aa.zip",
                 "sha256": "e899e363a85c26b3f1a621182b6eed2a37a71d823410ac949a1cbfd4b655ec41"
+            },
+            {
+                "package": {
+                    "id": -1
+                },
+                "type": "cache",
+                "name": "psy_psysh-0.11.12.0",
+                "urls": [
+                    "https://api.github.com/repos/bobthecow/psysh/zipball/52cb7c47d403c31c0adc9bf7710fc355f93c20f7"
+                ],
+                "cacheFile": "psy/psysh/1da33c5576663102ff368350b12e4ad38017a91c.zip",
+                "sha256": "0674f39a530ec91747523f86bf140469081ec0b45e54a644758f1eb8f0759c85"
+            },
+            {
+                "package": {
+                    "id": -1
+                },
+                "type": "cache",
+                "name": "ralouphie_getallheaders-3.0.3.0",
+                "urls": [
+                    "https://api.github.com/repos/ralouphie/getallheaders/zipball/120b605dfeb996808c31b6477290a714d356e822"
+                ],
+                "cacheFile": "ralouphie/getallheaders/ddc5f4c7ab3d868f5060717336a0d93475d53175.zip",
+                "sha256": "ef0165da5690da666ab4cb88bb4cec0d50372e3e7c922532c5795a3567b367af"
             },
             {
                 "package": {
