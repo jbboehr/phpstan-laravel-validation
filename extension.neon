@@ -9,6 +9,9 @@ services:
   - class: jbboehr\PhpstanLaravelValidation\Extension\RequestValidateExtension
     tags:
       - phpstan.broker.dynamicMethodReturnTypeExtension
+  - class: jbboehr\PhpstanLaravelValidation\Extension\ValidatorFunctionExtension
+    tags:
+      - phpstan.broker.dynamicFunctionReturnTypeExtension
   - class: jbboehr\PhpstanLaravelValidation\Extension\ValidatorValidatedExtension
     tags:
       - phpstan.broker.dynamicMethodReturnTypeExtension
