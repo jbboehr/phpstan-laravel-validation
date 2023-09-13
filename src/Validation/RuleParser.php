@@ -59,7 +59,7 @@ final class RuleParser
     public static function parseRule(mixed $rule): ?Rule
     {
         if (is_array($rule)) {
-            return self::parseArrayRule($rule);
+            return self::parseArrayRule(array_values($rule));
         } elseif (is_string($rule)) {
             return self::parseStringRule($rule);
         }

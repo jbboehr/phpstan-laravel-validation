@@ -51,12 +51,15 @@ class UnsafeConstExprEvaluator
      */
     private function getValueFromType(Type\Type $type): mixed
     {
-        if ($type instanceof Type\ConstantScalarType) {
-            return $type->getValue();
-        } elseif ($type instanceof Type\Constant\ConstantArrayType) {
+        if ($type->isConstantScalarValue()->yes()) {
+            if (count($values = $type->getConstantScalarValues()) === 1) {
+                return $values[0];
+            }
+        } elseif (count($constantArrayTypes = $type->getConstantArrays()) === 1) {
+            $constantArrayType = $constantArrayTypes[0];
             $arr = [];
-            foreach ($type->getKeyTypes() as $keyType) {
-                $valueType = $type->getOffsetValueType($keyType);
+            foreach ($constantArrayType->getKeyTypes() as $keyType) {
+                $valueType = $constantArrayType->getOffsetValueType($keyType);
                 $arr[$this->getValueFromType($keyType)] = $this->getValueFromType($valueType);
             }
             return $arr;
