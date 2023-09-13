@@ -1,13 +1,12 @@
 {
   description = "jbboehr/laravel-validator-phpstan-plugin";
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-23.05";
     flake-utils = {
       url = "github:numtide/flake-utils";
     };
     pre-commit-hooks = {
-      # url = "github:cachix/pre-commit-hooks.nix";
-      url = "github:jbboehr/pre-commit-hooks.nix/phpstan-psalm";
+      url = "github:cachix/pre-commit-hooks.nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     gitignore = {
@@ -19,8 +18,9 @@
   outputs = { self, nixpkgs, flake-utils, pre-commit-hooks, gitignore }:
     flake-utils.lib.eachDefaultSystem (system:
       let
+        buildEnv = php: php.buildEnv { extraConfig = "memory_limit = 2G"; };
         pkgs = nixpkgs.legacyPackages.${system};
-        php = pkgs.php81;
+        php = buildEnv pkgs.php81;
         phpstan = pkgs.callPackage ./nix/phpstan.nix { inherit (pkgs.stdenv) mkDerivation; };
         psalm = pkgs.callPackage ./nix/psalm.nix { inherit (pkgs.stdenv) mkDerivation; };
         phpWithPcov = php.withExtensions ({ enabled, all }: enabled ++ [ all.pcov ]);
@@ -32,8 +32,8 @@
           phpPackages = php.packages;
         }) src;
 
-        php81Package = makePackage pkgs.php81;
-        php82Package = makePackage pkgs.php82;
+        php81Package = makePackage (buildEnv pkgs.php81);
+        php82Package = makePackage (buildEnv pkgs.php82);
 
         pre-commit-check = pre-commit-hooks.lib.${system}.run {
           src = "${php81Package}/libexec/source";
@@ -41,17 +41,9 @@
             actionlint.enable = true;
             nixpkgs-fmt.enable = true;
             nixpkgs-fmt.excludes = [ "\/vendor\/" ];
-            phpcs.enable = true;
-            psalm.enable = true;
-            phpstan.enable = true;
+            # https://github.com/cachix/pre-commit-hooks.nix/pull/344
+            #phpcs.enable = true;
             shellcheck.enable = true;
-          };
-          settings = {
-            phpstan.binPath = "${php}/bin/php -d phar.require_hash=0 ${phpstan}/bin/phpstan";
-            psalm.binPath = "${php}/bin/php -d phar.require_hash=0 ${psalm}/bin/psalm --no-cache";
-            # these are not currently working
-            #psalm.binPath = "${php}/bin/php -d phar.require_hash=0 ${php81Package}/libexec/source/vendor/bin/psalm";
-            #phpstan.binPath = "${php}/bin/php -d phar.require_hash=0 ${php81Package}/libexec/source/vendor/bin/phpstan";
           };
         };
 
