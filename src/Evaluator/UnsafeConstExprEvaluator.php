@@ -32,7 +32,7 @@ class UnsafeConstExprEvaluator
     {
         // Only works on very simple constant expressions
         try {
-            return $this->getValueFromType($scope->getType($expr));
+            return $this->getValueFromType($scope->getType($expr), $scope);
         } catch (ConstExprEvaluationException) {
         }
 
@@ -49,7 +49,7 @@ class UnsafeConstExprEvaluator
      * @return mixed
      * @throws ConstExprEvaluationException
      */
-    private function getValueFromType(Type\Type $type): mixed
+    private function getValueFromType(Type\Type $type, Scope $scope): mixed
     {
         if ($type->isConstantScalarValue()->yes()) {
             if (count($values = $type->getConstantScalarValues()) === 1) {
@@ -60,11 +60,34 @@ class UnsafeConstExprEvaluator
             $arr = [];
             foreach ($constantArrayType->getKeyTypes() as $keyType) {
                 $valueType = $constantArrayType->getOffsetValueType($keyType);
-                $arr[$this->getValueFromType($keyType)] = $this->getValueFromType($valueType);
+                $valueFromType = $this->getValueFromType($valueType, $scope);
+                $arr[$this->getValueFromType($keyType, $scope)] = $valueFromType;
             }
             return $arr;
         }
+        if ($type instanceof \PHPStan\Type\ObjectType) {
+            if (is_subclass_of($type->getClassName(), \Illuminate\Contracts\Validation\ValidationRule::class)) {
+                
+                $reflection = $type->getClassReflection();
+                $method = $reflection->getMethod('validate', $scope);
+                $typeAssert = $method->getAsserts()->getAsserts();
 
+                $validAssert = null;
+                foreach ($typeAssert as $typeAssert2) {
+                    if ($typeAssert2->getParameter()->getParameterName() !== '$value') {
+                        continue;
+                    }
+                    if ($validAssert === null) {
+                        $validAssert = $typeAssert2;
+                    } else {
+                        $validAssert = $typeAssert2->withType($validAssert->getType());
+                    }
+                }
+                if ($validAssert !== null) {
+                    return 'PHPStanType:' . serialize($validAssert->getType());
+                }
+            }
+        }
         throw new ConstExprEvaluationException();
     }
 
