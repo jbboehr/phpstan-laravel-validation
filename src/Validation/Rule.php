@@ -18,6 +18,7 @@ final class Rule
     public const RULE_SOMETIMES = "Sometimes";
     public const RULE_ARRAY = "Array";
     public const RULE_NUMERIC = "Numeric";
+    public const RULE_PHPSTANTYPE = "PHPStanType";
 
     public const RULES = [
         self::RULE_ACCEPTED_IF => self::RULE_ACCEPTED_IF,
