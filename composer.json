@@ -13,7 +13,7 @@
     "require": {
         "php": "^8.0",
         "phpstan/phpstan": "^1.9",
-        "nikic/php-parser": "^4.15"
+        "nikic/php-parser": "^4.15 || ^5.1"
     },
     "require-dev": {
         "brick/varexporter": "^0.3.7",
