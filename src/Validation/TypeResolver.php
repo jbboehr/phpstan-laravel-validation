@@ -133,7 +133,10 @@ final class TypeResolver
 
             "After", "Before", "BeforeOrEqual", "Date", "DateEquals" => Type\TypeCombinator::union(
                 new Type\ObjectType(\DateTimeInterface::class),
-                new AccessoryNonEmptyStringType()
+                new IntersectionType([
+                    new StringType(),
+                    new AccessoryNonEmptyStringType(),
+                ])
             ),
 
             "Ascii", "Lowercase", "String", "Uppercase" => new Type\StringType(),
