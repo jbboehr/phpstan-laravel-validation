@@ -109,7 +109,10 @@ final class TypeResolver
 
             "ActiveUrl", "Alpha", "AlphaDash", "AlphaNum", "CurrentPassword", "DateFormat",
             "Email", "Ip", "Ipv4", "Ipv6", "Json", "MacAddress", "Timezone", "Url", "Ulid",
-            "Uuid" => new AccessoryNonEmptyStringType(),
+            "Uuid" => new IntersectionType([ 
+                new StringType(), 
+                new AccessoryNonEmptyStringType(), 
+            ]),
 
             "After", "Before", "BeforeOrEqual", "Date", "DateEquals" => Type\TypeCombinator::union(
                 new Type\ObjectType(\DateTimeInterface::class),
