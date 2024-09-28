@@ -100,6 +100,7 @@ final class RuleTreeNode implements IteratorAggregate, \Countable
         $matches = null;
         $pos = false;
         if (preg_match('/[^\\\]\./', $key, $matches, PREG_OFFSET_CAPTURE) > 0) {
+            assert(isset($matches[0][1]));
             $pos = $matches[0][1] + 1;
         }
 
