@@ -242,6 +242,18 @@ let
                     "id": -1
                 },
                 "type": "cache",
+                "name": "fakerphp_faker-1.23.0.0",
+                "urls": [
+                    "https://api.github.com/repos/FakerPHP/Faker/zipball/e3daa170d00fde61ea7719ef47bb09bb8f1d9b01"
+                ],
+                "cacheFile": "fakerphp/faker/05383bd244976e229aa3a55b773aee187013d096.zip",
+                "sha256": "f654dbeea37fbfa33a01e475626a802b241f8b0b32cd71e3f6ac9f71986329d9"
+            },
+            {
+                "package": {
+                    "id": -1
+                },
+                "type": "cache",
                 "name": "felixfbecker_advanced-json-rpc-3.2.1.0",
                 "urls": [
                     "https://api.github.com/repos/felixfbecker/php-advanced-json-rpc/zipball/b5f37dbff9a8ad360ca341f3240dc1c168b45447"
@@ -344,6 +356,18 @@ let
                 ],
                 "cacheFile": "guzzlehttp/uri-template/845e068bc645dbeb216293a7bb06eb691c7ea7d3.zip",
                 "sha256": "cd14ec973d0cb6f75061f1e386b111b7423e4d2653c8f53456e46f30e602d3c4"
+            },
+            {
+                "package": {
+                    "id": -1
+                },
+                "type": "cache",
+                "name": "hamcrest_hamcrest-php-2.0.1.0",
+                "urls": [
+                    "https://api.github.com/repos/hamcrest/hamcrest-php/zipball/8c3d0a3f6af734494ad8f6fbbee0ba92422859f3"
+                ],
+                "cacheFile": "hamcrest/hamcrest-php/f7a45641934dde6189dd47e6355c3290a81916b1.zip",
+                "sha256": "191a65145df949136993b3b512f78f6c492cc8082e35329c193f3845efadb5c7"
             },
             {
                 "package": {
@@ -482,6 +506,18 @@ let
                     "id": -1
                 },
                 "type": "cache",
+                "name": "mockery_mockery-1.6.6.0",
+                "urls": [
+                    "https://api.github.com/repos/mockery/mockery/zipball/b8e0bb7d8c604046539c1115994632c74dcb361e"
+                ],
+                "cacheFile": "mockery/mockery/db6962d260e7bf39c78ab7c167966ef47bc020de.zip",
+                "sha256": "994a9f679fabaea45538ea3f7f13d332b75bdee89a3f7e6619d63904c0417fb9"
+            },
+            {
+                "package": {
+                    "id": -1
+                },
+                "type": "cache",
                 "name": "monolog_monolog-3.4.0.0",
                 "urls": [
                     "https://api.github.com/repos/Seldaek/monolog/zipball/e2392369686d420ca32df3803de28b5d6f76867d"
@@ -554,12 +590,84 @@ let
                     "id": -1
                 },
                 "type": "cache",
+                "name": "nunomaduro_larastan-2.6.4.0",
+                "urls": [
+                    "https://api.github.com/repos/nunomaduro/larastan/zipball/6c5e8820f3db6397546f3ce48520af9d312aed27"
+                ],
+                "cacheFile": "nunomaduro/larastan/fdb16ecbb8347e22a3657cc21c9f68fb9fe86239.zip",
+                "sha256": "5256eac9c2ad9d7ad2b6fe8e3062311f738e1ade1854f52accd11afec3c685a7"
+            },
+            {
+                "package": {
+                    "id": -1
+                },
+                "type": "cache",
                 "name": "nunomaduro_termwind-1.15.1.0",
                 "urls": [
                     "https://api.github.com/repos/nunomaduro/termwind/zipball/8ab0b32c8caa4a2e09700ea32925441385e4a5dc"
                 ],
                 "cacheFile": "nunomaduro/termwind/639200e9d07a30deac047f3f6a96c3738f7c49e1.zip",
                 "sha256": "87da562a3e28fd7c23da12b61927d561a888d04247ee659a2f9a0470f0dde5bc"
+            },
+            {
+                "package": {
+                    "id": -1
+                },
+                "type": "cache",
+                "name": "orchestra_canvas-8.8.0.0",
+                "urls": [
+                    "https://api.github.com/repos/orchestral/canvas/zipball/63f8c0964d52f32f0790e024b60a83ef3adaf345"
+                ],
+                "cacheFile": "orchestra/canvas/d354ea4d02eb7b2bf648baa606040518fbb2be2c.zip",
+                "sha256": "814f5bd5e8ea99f45f122d41dd25f969be4a79b64e7c267df943eab34439e9a3"
+            },
+            {
+                "package": {
+                    "id": -1
+                },
+                "type": "cache",
+                "name": "orchestra_canvas-core-8.7.0.0",
+                "urls": [
+                    "https://api.github.com/repos/orchestral/canvas-core/zipball/54e75ae77bc2462945399a6e3269ba4f7695e5e0"
+                ],
+                "cacheFile": "orchestra/canvas-core/d8f6e2dc3f4df5777933dad6391b71e8605b7aaf.zip",
+                "sha256": "6d2baeb27b60c1cb2e14636fbe0ed38822260d5a59c9acd7c934047d61391723"
+            },
+            {
+                "package": {
+                    "id": -1
+                },
+                "type": "cache",
+                "name": "orchestra_testbench-8.10.2.0",
+                "urls": [
+                    "https://api.github.com/repos/orchestral/testbench/zipball/55dd97d7a8f7154c5660e71b9222e28485917719"
+                ],
+                "cacheFile": "orchestra/testbench/cfc3c6020dfdbae2199f034fc28e1fcafdf1aa22.zip",
+                "sha256": "179b9112b2ef84db01d6f072027aee74191acad6f3a78e50b0cf142db2f8b692"
+            },
+            {
+                "package": {
+                    "id": -1
+                },
+                "type": "cache",
+                "name": "orchestra_testbench-core-8.10.2.0",
+                "urls": [
+                    "https://api.github.com/repos/orchestral/testbench-core/zipball/54071af200899a22e849aa4abe8019e8a1d8e826"
+                ],
+                "cacheFile": "orchestra/testbench-core/ca92350b9326cfd1cd18f7780efbc74858e94e80.zip",
+                "sha256": "fd77c7bf6e9970b44ca5a64c2be57c30f5b795adac4a1fe7df772f0fb31c8c2d"
+            },
+            {
+                "package": {
+                    "id": -1
+                },
+                "type": "cache",
+                "name": "orchestra_workbench-0.2.6.0",
+                "urls": [
+                    "https://api.github.com/repos/orchestral/workbench/zipball/9cb449695fde6f7150c58dd4b112ff6d162fb66f"
+                ],
+                "cacheFile": "orchestra/workbench/e548bc6720c5ba0867737dccea782e6d92f989ca.zip",
+                "sha256": "ffc7370056c64cc24662ee9269d3b21d9aed0a91e161246fa2df8300fc5c282c"
             },
             {
                 "package": {
@@ -620,6 +728,18 @@ let
                 ],
                 "cacheFile": "phpdocumentor/type-resolver/54657e8aa2841acc10dcce6c3b80dbb2d1134af1.zip",
                 "sha256": "7eb188b01e4c926dd4042cf5a8902fb8e47ee893a792045fc525feb91c14cdf2"
+            },
+            {
+                "package": {
+                    "id": -1
+                },
+                "type": "cache",
+                "name": "phpmyadmin_sql-parser-5.8.1.0",
+                "urls": [
+                    "https://api.github.com/repos/phpmyadmin/sql-parser/zipball/b877ee6262a00f0f498da5e01335e8a5dc01d203"
+                ],
+                "cacheFile": "phpmyadmin/sql-parser/f17cbf64feebcdbe1884a6ac31eca56ecc4d6e7c.zip",
+                "sha256": "730d8c22b3f320b87e97db7f91edc6a4dd8bec073d4b2c76c724c9acd281453c"
             },
             {
                 "package": {
@@ -752,6 +872,18 @@ let
                 ],
                 "cacheFile": "phpunit/phpunit/4f140724fd555f4ec6ffc6d220ba0710abe68942.zip",
                 "sha256": "96bbebc3583648c9af153c16e87b3cf1c07bad0566f9b19f332c89300d6b2092"
+            },
+            {
+                "package": {
+                    "id": -1
+                },
+                "type": "cache",
+                "name": "pimple_pimple-3.5.0.0",
+                "urls": [
+                    "https://api.github.com/repos/silexphp/Pimple/zipball/a94b3a4db7fb774b3d78dad2315ddc07629e1bed"
+                ],
+                "cacheFile": "pimple/pimple/2b779ca4c5368b4bd2cbf2aff634d10a209c763f.zip",
+                "sha256": "f4a26a6a701bdeb7c90c19e8355cb8ea5ffd3a4505c22bf72e45fb873d03b8f1"
             },
             {
                 "package": {
@@ -1106,6 +1238,54 @@ let
                     "id": -1
                 },
                 "type": "cache",
+                "name": "spatie_backtrace-1.5.3.0",
+                "urls": [
+                    "https://api.github.com/repos/spatie/backtrace/zipball/483f76a82964a0431aa836b6ed0edde0c248e3ab"
+                ],
+                "cacheFile": "spatie/backtrace/125cb526151d22857f73a9184b33805687668d31.zip",
+                "sha256": "36c15d0260b3f10c8af9e6812eb2f9b6d84581fb4687057e2c063078c17467d5"
+            },
+            {
+                "package": {
+                    "id": -1
+                },
+                "type": "cache",
+                "name": "spatie_laravel-ray-1.33.0.0",
+                "urls": [
+                    "https://api.github.com/repos/spatie/laravel-ray/zipball/5028ae44a09451b26eb44490e3471998650788e3"
+                ],
+                "cacheFile": "spatie/laravel-ray/51f000ba17f0174b974f92a38caae11509f97f35.zip",
+                "sha256": "640a3489f22b3e6c05e3217d6b8950d946999f54d72394f62641bca8709d7873"
+            },
+            {
+                "package": {
+                    "id": -1
+                },
+                "type": "cache",
+                "name": "spatie_macroable-2.0.0.0",
+                "urls": [
+                    "https://api.github.com/repos/spatie/macroable/zipball/ec2c320f932e730607aff8052c44183cf3ecb072"
+                ],
+                "cacheFile": "spatie/macroable/16c032bbb18e909bae8fd4affb4ab973ffcf6d11.zip",
+                "sha256": "49484ae4277901ec1b077f2dd7501c72bb2c8e21e4779d9324114fb66ddc28ac"
+            },
+            {
+                "package": {
+                    "id": -1
+                },
+                "type": "cache",
+                "name": "spatie_ray-1.38.0.0",
+                "urls": [
+                    "https://api.github.com/repos/spatie/ray/zipball/b77656d7475875375fcbccf28441eedf1596acd5"
+                ],
+                "cacheFile": "spatie/ray/8a384bb2102985f89efa0bf233ea4de0203358f7.zip",
+                "sha256": "79d16a7c93540f0581e433cb609dba48d851e0d2fcdb6d35e7acff2b5242e255"
+            },
+            {
+                "package": {
+                    "id": -1
+                },
+                "type": "cache",
                 "name": "squizlabs_php_codesniffer-3.7.2.0",
                 "urls": [
                     "https://api.github.com/repos/squizlabs/PHP_CodeSniffer/zipball/ed8e00df0a83aa96acf703f8c2979ff33341f879"
@@ -1274,6 +1454,18 @@ let
                     "id": -1
                 },
                 "type": "cache",
+                "name": "symfony_polyfill-iconv-1.28.0.0",
+                "urls": [
+                    "https://api.github.com/repos/symfony/polyfill-iconv/zipball/6de50471469b8c9afc38164452ab2b6170ee71c1"
+                ],
+                "cacheFile": "symfony/polyfill-iconv/04466c1b2230133ae6a3b8ba0f9ba4479b6848af.zip",
+                "sha256": "a124ed12fdd0817bd26384f5330e5d2361c9444fb7e59271d212b160b83ce35e"
+            },
+            {
+                "package": {
+                    "id": -1
+                },
+                "type": "cache",
                 "name": "symfony_polyfill-intl-grapheme-1.28.0.0",
                 "urls": [
                     "https://api.github.com/repos/symfony/polyfill-intl-grapheme/zipball/875e90aeea2777b6f135677f618529449334a612"
@@ -1406,6 +1598,18 @@ let
                     "id": -1
                 },
                 "type": "cache",
+                "name": "symfony_stopwatch-6.3.0.0",
+                "urls": [
+                    "https://api.github.com/repos/symfony/stopwatch/zipball/fc47f1015ec80927ff64ba9094dfe8b9d48fe9f2"
+                ],
+                "cacheFile": "symfony/stopwatch/75d21224658a13a1d4e2e947cc1b8fc797d1d1f9.zip",
+                "sha256": "34f357dddcad03b88db8ab27618cf0c33c6fd1d56d628a994f6910b612f7d73e"
+            },
+            {
+                "package": {
+                    "id": -1
+                },
+                "type": "cache",
                 "name": "symfony_string-6.3.2.0",
                 "urls": [
                     "https://api.github.com/repos/symfony/string/zipball/53d1a83225002635bca3482fcbf963001313fb68"
@@ -1460,6 +1664,18 @@ let
                 ],
                 "cacheFile": "symfony/var-dumper/13e516a4879db7163348c1622e8d86efa3425f7b.zip",
                 "sha256": "5aa474f3ec1f80eb349d965fb00c6f9b302b9dc207a47816d61cda0f2ba149e9"
+            },
+            {
+                "package": {
+                    "id": -1
+                },
+                "type": "cache",
+                "name": "symfony_yaml-6.3.3.0",
+                "urls": [
+                    "https://api.github.com/repos/symfony/yaml/zipball/e23292e8c07c85b971b44c1c4b87af52133e2add"
+                ],
+                "cacheFile": "symfony/yaml/d317d8bd8f713ac38c57c139907e39af72f9cbc8.zip",
+                "sha256": "a3ec1d1d9cb534489a3137521a4a23d90e08d40882299c73b5a5bd030b881ff9"
             },
             {
                 "package": {
@@ -1532,6 +1748,42 @@ let
                 ],
                 "cacheFile": "webmozart/assert/b9bc0224905e92da07bc3de7d205f17c30035a88.zip",
                 "sha256": "3dea7b980d4ba44fca74fbd1d068be28f1a771e1a1cb308e89b773eb83fa11a3"
+            },
+            {
+                "package": {
+                    "id": -1
+                },
+                "type": "cache",
+                "name": "zbateson_mail-mime-parser-2.4.0.0",
+                "urls": [
+                    "https://api.github.com/repos/zbateson/mail-mime-parser/zipball/20b3e48eb799537683780bc8782fbbe9bc25934a"
+                ],
+                "cacheFile": "zbateson/mail-mime-parser/4d64af3634b52558747b81c4791c2390d1d9bed0.zip",
+                "sha256": "4e33a46ce9bad1bc1a0a5d5908094015018abbbd550175f7fa738381f1ee2831"
+            },
+            {
+                "package": {
+                    "id": -1
+                },
+                "type": "cache",
+                "name": "zbateson_mb-wrapper-1.2.0.0",
+                "urls": [
+                    "https://api.github.com/repos/zbateson/mb-wrapper/zipball/faf35dddfacfc5d4d5f9210143eafd7a7fe74334"
+                ],
+                "cacheFile": "zbateson/mb-wrapper/70311ea000441a2181418e62a7980fda719a6b07.zip",
+                "sha256": "941d2749c80f15c66c117ffbba6619df42012ce3223478a7a6bf82243b1f234d"
+            },
+            {
+                "package": {
+                    "id": -1
+                },
+                "type": "cache",
+                "name": "zbateson_stream-decorators-1.2.1.0",
+                "urls": [
+                    "https://api.github.com/repos/zbateson/stream-decorators/zipball/783b034024fda8eafa19675fb2552f8654d3a3e9"
+                ],
+                "cacheFile": "zbateson/stream-decorators/5409fb679d893d7ebd9a2b658ae90b1af6dedc21.zip",
+                "sha256": "28b7969e488430d566ce00dfd1fa5b8762b42afba73d763582a03a13e5ed3516"
             }
         ],
         "projectName": "jbboehr_phpstan-laravel-validation"

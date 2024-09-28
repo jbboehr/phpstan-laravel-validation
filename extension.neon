@@ -1,5 +1,7 @@
 services:
   - class: jbboehr\PhpstanLaravelValidation\Evaluator\UnsafeConstExprEvaluator
+  - class: jbboehr\PhpstanLaravelValidation\Extension\StubFilesExtension
+    tags: [phpstan.stubFilesExtension]
   - class: jbboehr\PhpstanLaravelValidation\Extension\ControllerValidateExtension
     tags:
       - phpstan.broker.dynamicMethodReturnTypeExtension
