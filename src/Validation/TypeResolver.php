@@ -195,6 +195,8 @@ final class TypeResolver
 
             "In" => $this->resolveTypeIn($rule),
 
+            "PHPStanType" => unserialize($rule->getParameters()[0]),
+
             default => $this->resolveDefault($rule),
         };
     }
