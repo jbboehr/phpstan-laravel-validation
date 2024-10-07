@@ -1,14 +1,18 @@
 {
   description = "jbboehr/laravel-validator-phpstan-plugin";
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-23.11";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-24.05";
     nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
+    systems.url = "github:nix-systems/default";
     flake-utils = {
       url = "github:numtide/flake-utils";
+      inputs.systems.follows = "systems";
     };
     pre-commit-hooks = {
       url = "github:cachix/pre-commit-hooks.nix";
       inputs.nixpkgs.follows = "nixpkgs";
+      inputs.nixpkgs-stable.follows = "nixpkgs";
+      inputs.gitignore.follows = "gitignore";
     };
     gitignore = {
       url = "github:hercules-ci/gitignore.nix";
@@ -20,6 +24,7 @@
     self,
     nixpkgs,
     nixpkgs-unstable,
+    systems,
     flake-utils,
     pre-commit-hooks,
     gitignore,
