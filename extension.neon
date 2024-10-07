@@ -9,6 +9,9 @@ services:
   - class: jbboehr\PhpstanLaravelValidation\Extension\FacadeMakeExtension
     tags:
       - phpstan.broker.dynamicStaticMethodReturnTypeExtension
+  - class: jbboehr\PhpstanLaravelValidation\Extension\FacadeValidateExtension
+    tags:
+      - phpstan.broker.dynamicStaticMethodReturnTypeExtension
   - class: jbboehr\PhpstanLaravelValidation\Extension\FactoryMakeExtension
     tags:
       - phpstan.broker.dynamicMethodReturnTypeExtension
