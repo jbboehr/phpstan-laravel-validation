@@ -101,6 +101,8 @@ final class RuleTreeNode implements IteratorAggregate, \Countable
 
                 Rule::RULE_ARRAY => $this->isArray = true,
 
+                Rule::RULE_PHPSTANTYPE => (unserialize($rule->getParameters()[0])->isNull()->no() === true ? $this->nullable = $this->optional = false : $this->nullable = true),
+
                 default => null,
             };
             $this->rules[] = $rule;
