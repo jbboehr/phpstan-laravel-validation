@@ -27,7 +27,7 @@ LARAVEL_PATH="${LARAVEL_PATH:-../laravel-framework}"
 
     $PHP_WITH_UOPZ -d memory_limit=512M \
         ./vendor/bin/phpunit \
-        --prepend "$SCRIPT_PATH/valid-test-extractor.php" \
+        --bootstrap "$SCRIPT_PATH/valid-test-extractor.php" \
         tests/Validation/
 )
 

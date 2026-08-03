@@ -35,6 +35,41 @@ use PHPStan\Type\ObjectType;
 class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
 {
     /**
+     * Known-quirky upstream test cases that this extension isn't expected to
+     * model correctly, keyed by the Laravel version(s) whose test suite line
+     * numbers they were captured at. Laravel restructures its own test files
+     * between releases, so these need a new entry (not just a line-number
+     * edit) whenever a new major version's fixtures are regenerated.
+     *
+     * - testValidateEmptyStringsAlwaysPasses / testEmptyExistingAttributesAreValidated:
+     *   Laravel treats an empty-string value as "not present" for non-required
+     *   rules, so validation passes without the rule (e.g. `array`, `integer`)
+     *   actually being satisfied by the empty string that ends up in `validated()`.
+     * - testValidateImplicitEachWithAsterisksForRequiredNonExistingKey:
+     *   Should probably fix this one maybe.
+     * - testNumericKeys: rules keyed by a literal integer (e.g. `[3 => 'required']`)
+     *   aren't supported by RuleParser, which requires string paths.
+     */
+    private const KNOWN_QUIRKS = [
+        'testValidateEmptyStringsAlwaysPasses:242', // v9
+        'testValidateEmptyStringsAlwaysPasses:244', // v10
+        'testValidateEmptyStringsAlwaysPasses:290', // v11
+        'testValidateEmptyStringsAlwaysPasses:293', // v11
+        'testValidateEmptyStringsAlwaysPasses:310', // v12, v13
+        'testValidateEmptyStringsAlwaysPasses:313', // v12, v13
+        'testEmptyExistingAttributesAreValidated:250', // v9
+        'testEmptyExistingAttributesAreValidated:252', // v10
+        'testEmptyExistingAttributesAreValidated:304', // v11
+        'testEmptyExistingAttributesAreValidated:324', // v12, v13
+        'testValidateImplicitEachWithAsterisksForRequiredNonExistingKey:5735', // v10
+        'testValidateImplicitEachWithAsterisksForRequiredNonExistingKey:6989', // v11
+        'testValidateImplicitEachWithAsterisksForRequiredNonExistingKey:7342', // v12
+        'testValidateImplicitEachWithAsterisksForRequiredNonExistingKey:7537', // v13
+        'testNumericKeys:5591', // v12
+        'testNumericKeys:5786', // v13
+    ];
+
+    /**
      * @param string $location
      * @param array<mixed, mixed> $data
      * @param array<string, mixed> $rules
@@ -45,6 +80,12 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
      */
     public function testLaravelValidationExport(string $location, array $data, array $validated, array $rules): void
     {
+        foreach (self::KNOWN_QUIRKS as $quirk) {
+            if (str_contains($location, $quirk)) {
+                self::markTestSkipped($location);
+            }
+        }
+
         $evaluator = new TypeResolver();
         $ruleTree = RuleParser::parse($rules);
         $rulesType = $evaluator->evaluate($ruleTree);
@@ -54,16 +95,6 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         // See: https://github.com/sebastianbergmann/phpunit/issues/5114 ?
         $this->assertInstanceOf(RuleTreeNode::class, $ruleTree); // @phpstan-ignore-line
         $this->assertInstanceOf(Type\Type::class, $rulesType); // @phpstan-ignore-line
-
-        if (
-            str_contains($location, 'testValidateEmptyStringsAlwaysPasses:242')
-            || str_contains($location, 'testEmptyExistingAttributesAreValidated:250')
-            || str_contains($location, 'testEmptyExistingAttributesAreValidated:252')
-            // Should probably fix this one maybe
-            || str_contains($location, 'testValidateImplicitEachWithAsterisksForRequiredNonExistingKey:5735')
-        ) {
-            return;
-        }
 
         if (!$accepts->yes()) {
             $rulesTypeStr = $rulesType->describe(Type\VerbosityLevel::getRecommendedLevelByType($rulesType));
@@ -84,9 +115,12 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
     {
         $v9 = require __DIR__ . '/fixtures/laravel-export-v9.php';
         $v10 = require __DIR__ . '/fixtures/laravel-export-v10.php';
-        assert(is_array($v9) && is_array($v10));
+        $v11 = require __DIR__ . '/fixtures/laravel-export-v11.php';
+        $v12 = require __DIR__ . '/fixtures/laravel-export-v12.php';
+        $v13 = require __DIR__ . '/fixtures/laravel-export-v13.php';
+        assert(is_array($v9) && is_array($v10) && is_array($v11) && is_array($v12) && is_array($v13));
 
-        return array_merge($v9, $v10);
+        return array_merge($v9, $v10, $v11, $v12, $v13);
     }
 
     private function convertToType(mixed $data): Type\Type

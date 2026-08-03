@@ -17,7 +17,19 @@
  */
 
 require_once './vendor/autoload.php';
-require_once __DIR__ . '/../vendor/autoload.php';
+
+// Composer's generated autoload.php always prepends itself to the SPL
+// autoload stack, so simply requiring our own vendor/autoload.php here
+// would shadow whichever version of a same-named class (e.g. PHPUnit's
+// own classes) the Laravel checkout under test already loaded. Register
+// it appended instead, so our extra dependencies (VarExporter, Monolog)
+// are resolved without stealing class resolution from the Laravel
+// checkout's own dependencies.
+$ourLoader = require_once __DIR__ . '/../vendor/autoload.php';
+if ($ourLoader instanceof \Composer\Autoload\ClassLoader) {
+    spl_autoload_unregister([$ourLoader, 'loadClass']);
+    $ourLoader->register(false);
+}
 
 use Brick\VarExporter\VarExporter;
 
@@ -83,12 +95,43 @@ function all_tests(): ArrayObject
     return $allTests;
 }
 
-function revert_dot_placeholder(mixed $data, string $dotPlaceholder): mixed
+/**
+ * Laravel's dot-placeholder mechanism has changed shape across versions:
+ * - up through Laravel ~10: an instance property `$dotPlaceholder`
+ * - Laravel ~10 (later releases) onward: a static `$placeholderHash`,
+ *   used as the suffix of a fixed `__dot__` prefix
+ * Read whichever is present via reflection instead of hardcoding one shape.
+ */
+function get_dot_placeholder(\Illuminate\Validation\Validator $validator): ?string
 {
+    $ref = new \ReflectionClass($validator);
+
+    if ($ref->hasProperty('dotPlaceholder')) {
+        $prop = $ref->getProperty('dotPlaceholder');
+        $prop->setAccessible(true);
+        return $prop->getValue($validator);
+    }
+
+    if ($ref->hasProperty('placeholderHash')) {
+        $prop = $ref->getProperty('placeholderHash');
+        $prop->setAccessible(true);
+        $hash = $prop->getValue($validator);
+        return $hash === null ? null : '__dot__' . $hash;
+    }
+
+    return null;
+}
+
+function revert_dot_placeholder(mixed $data, ?string $dotPlaceholder): mixed
+{
+    if ($dotPlaceholder === null) {
+        return $data;
+    }
+
     if (is_array($data)) {
         $newData = [];
         foreach ($data as $k => $v) {
-            $newKey = str_replace($dotPlaceholder, '\.', $k);
+            $newKey = is_string($k) ? str_replace($dotPlaceholder, '\.', $k) : $k;
             $newData[$newKey] = revert_dot_placeholder($v, $dotPlaceholder);
         }
         return $newData;
@@ -122,7 +165,7 @@ uopz_set_return(\Illuminate\Validation\Validator::class, 'passes', function () u
     $rules = $this->initialRules;
     $expandedRules = $this->getRules();
     $validated = $this->validated();
-    $dotPlaceholder = $this->dotPlaceholder;
+    $dotPlaceholder = get_dot_placeholder($this);
 
     // extract the test name
     $bt = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
