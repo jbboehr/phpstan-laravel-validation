@@ -112,7 +112,7 @@ final class RuleParser
 
             $parameters = match (strtolower($rule)) {
                 "regex", "not_regex", "notregex" => [$parameter],
-                default => str_getcsv($parameter),
+                default => str_getcsv($parameter, ",", '"', "\\"),
             };
         } else {
             $parameters = [];

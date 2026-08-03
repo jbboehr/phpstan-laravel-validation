@@ -1,18 +1,20 @@
 {
   description = "jbboehr/laravel-validator-phpstan-plugin";
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-24.05";
-    nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-26.05";
     systems.url = "github:nix-systems/default";
     flake-utils = {
       url = "github:numtide/flake-utils";
       inputs.systems.follows = "systems";
     };
-    pre-commit-hooks = {
-      url = "github:cachix/pre-commit-hooks.nix";
+    phps = {
+      url = "github:fossar/nix-phps";
       inputs.nixpkgs.follows = "nixpkgs";
-      inputs.nixpkgs-stable.follows = "nixpkgs";
-      inputs.gitignore.follows = "gitignore";
+      inputs.utils.follows = "flake-utils";
+    };
+    git-hooks = {
+      url = "github:cachix/git-hooks.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
     gitignore = {
       url = "github:hercules-ci/gitignore.nix";
@@ -23,10 +25,10 @@
   outputs = {
     self,
     nixpkgs,
-    nixpkgs-unstable,
     systems,
     flake-utils,
-    pre-commit-hooks,
+    phps,
+    git-hooks,
     gitignore,
   }:
     flake-utils.lib.eachDefaultSystem (system: let
@@ -43,10 +45,9 @@
             enabled ++ (pkgs.lib.optionals withPcov [all.pcov]);
         };
       pkgs = nixpkgs.legacyPackages.${system};
-      pkgs-unstable = nixpkgs-unstable.legacyPackages.${system};
       src = gitignore.lib.gitignoreSource ./.;
 
-      pre-commit-check = pre-commit-hooks.lib.${system}.run {
+      pre-commit-check = git-hooks.lib.${system}.run {
         inherit src;
         hooks = {
           actionlint.enable = true;
@@ -72,8 +73,8 @@
         pkgs.mkShell {
           buildInputs = with pkgs; [
             actionlint
+            alejandra
             mdl
-            nixpkgs-fmt
             php'
             php'.packages.composer
             pre-commit
@@ -82,6 +83,7 @@
             ${pre-commit-check.shellHook}
             export PATH="$PWD/vendor/bin:$PATH"
             export PHP_WITH_UOPZ="${phpWithUopz}/bin/php"
+            export PHP_WITH_PCOV="${php'}/bin/php"
             export PHPUNIT_WITH_PCOV="$PHP_WITH_PCOV -d memory_limit=512M -d pcov.directory=$PWD -dpcov.exclude="~vendor~" ./vendor/bin/phpunit"
           '';
         };
@@ -91,13 +93,11 @@
       };
 
       devShells = rec {
-        php81 = makeShell {php = pkgs.php81;};
+        php81 = makeShell {php = phps.packages.${system}.php81;};
         php82 = makeShell {php = pkgs.php82;};
         php83 = makeShell {php = pkgs.php83;};
-        php84 = makeShell {
-          php = pkgs-unstable.php84;
-          withPcov = false;
-        };
+        php84 = makeShell {php = pkgs.php84;};
+        php85 = makeShell {php = pkgs.php85;};
         default = php81;
       };
 
