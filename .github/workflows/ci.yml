@@ -95,7 +95,7 @@ jobs:
               run: composer install --prefer-dist --no-progress --ignore-platform-req=php+
 
             - name: Install laravel
-              run: composer require --prefer-dist --no-progress --with-all-dependencies --dev --ignore-platform-req=php+ laravel/framework:^${{ matrix.laravel-version }} laravel/laravel:^${{ matrix.laravel-version }}
+              run: composer require --prefer-dist --no-progress --with-all-dependencies --dev --ignore-platform-req=php+ --no-blocking laravel/framework:^${{ matrix.laravel-version }} laravel/laravel:^${{ matrix.laravel-version }}
 
             - name: Run test suite
               run: php vendor/bin/phpunit
@@ -132,15 +132,16 @@ jobs:
             - name: Run test suite with coverage
               run: php vendor/bin/phpunit --coverage-text
 
-            - name: Upload code coverage
-              # https://github.com/paambaati/codeclimate-action/issues/638#issuecomment-1363476627
-              uses: paambaati/codeclimate-action@v9.0.0
-              env:
-                  CC_TEST_REPORTER_ID: 3f8f6d064fc0b063230c71511f07aec326a2eb84f3c5653161b5f087aae315f9
-              with:
-                  coverageCommand: "true"
-                  coverageLocations: |
-                      clover.xml:clover
+            # Code Climate disabled its coverage API in July 2025. Keep this
+            # disabled until coverage reporting is migrated to Qlty.
+            # - name: Upload code coverage
+            #   uses: paambaati/codeclimate-action@v9.0.0
+            #   env:
+            #       CC_TEST_REPORTER_ID: 3f8f6d064fc0b063230c71511f07aec326a2eb84f3c5653161b5f087aae315f9
+            #   with:
+            #       coverageCommand: "true"
+            #       coverageLocations: |
+            #           clover.xml:clover
 
     nix:
         runs-on: ubuntu-latest
