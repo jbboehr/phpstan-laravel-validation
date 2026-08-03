@@ -64,11 +64,11 @@
         withPcov ? true,
       }: let
         php' = buildEnv {inherit php withPcov;};
-        phpWithUopz = php'; # disable this for now
-        #        phpWithUopz = php.withExtensions ({
-        #          enabled,
-        #          all,
-        #        }: enabled ++ [(pkgs.callPackage ./nix/uopz.nix {inherit (php') buildPecl;})]);
+        phpWithUopz = php.withExtensions ({
+          enabled,
+          all,
+        }:
+          enabled ++ [(pkgs.callPackage ./nix/uopz.nix {inherit (php') buildPecl;})]);
       in
         pkgs.mkShell {
           buildInputs = with pkgs; [
