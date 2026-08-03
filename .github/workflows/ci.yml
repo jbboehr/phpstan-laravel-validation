@@ -72,6 +72,20 @@ jobs:
                 laravel-version:
                     - "9"
                     - "10"
+                    - "11"
+                    - "12"
+                    - "13"
+                exclude:
+                    # Laravel 11 and 12 require PHP ^8.2
+                    - php-version: "8.1"
+                      laravel-version: "11"
+                    - php-version: "8.1"
+                      laravel-version: "12"
+                    # Laravel 13 requires PHP ^8.3
+                    - php-version: "8.1"
+                      laravel-version: "13"
+                    - php-version: "8.2"
+                      laravel-version: "13"
         steps:
             - uses: actions/checkout@v7
 
@@ -95,7 +109,7 @@ jobs:
               run: composer install --prefer-dist --no-progress --ignore-platform-req=php+
 
             - name: Install laravel
-              run: composer require --prefer-dist --no-progress --with-all-dependencies --dev --ignore-platform-req=php+ --no-blocking laravel/framework:^${{ matrix.laravel-version }} laravel/laravel:^${{ matrix.laravel-version }}
+              run: composer require --prefer-dist --no-progress --with-all-dependencies --dev --ignore-platform-req=php+ --no-blocking laravel/framework:^${{ matrix.laravel-version }}
 
             - name: Run test suite
               run: php vendor/bin/phpunit

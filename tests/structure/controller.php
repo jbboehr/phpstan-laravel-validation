@@ -3,14 +3,15 @@
 declare(strict_types=1);
 
 use function PHPStan\Testing\assertType;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\TestController;
 
-$controller = new \App\Http\Controllers\Controller();
+$controller = new TestController();
 $validated = $controller->validate(new \Illuminate\Http\Request(), [
     'amount' => 'required|integer',
 ]);
 assertType("int|numeric-string", $validated['amount']);
 
-$controller = new \App\Http\Controllers\Controller();
+$controller = new TestController();
 $validator = \Illuminate\Support\Facades\Validator::make([], [
     'amount' => 'required|integer',
 ]);
