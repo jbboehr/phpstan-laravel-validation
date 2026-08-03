@@ -22,9 +22,8 @@ namespace jbboehr\PhpstanLaravelValidation\Type;
 
 use jbboehr\PhpstanLaravelValidation\Validation\RuleTreeNode;
 use PHPStan\Type\ObjectType;
-use PHPStan\Type\TypeWithClassName;
 
-final class ValidatorType extends ObjectType implements TypeWithClassName
+final class ValidatorType extends ObjectType
 {
     public function __construct(
         private RuleTreeNode $validatorRules

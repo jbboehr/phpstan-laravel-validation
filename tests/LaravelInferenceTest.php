@@ -78,14 +78,15 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
     }
 
     /**
-     * @return array<string, array<string, mixed>>
+     * @return array<mixed>
      */
     public function laravelExportProvider(): array
     {
-        return array_merge(
-            require __DIR__ . '/fixtures/laravel-export-v9.php',
-            require __DIR__ . '/fixtures/laravel-export-v10.php'
-        );
+        $v9 = require __DIR__ . '/fixtures/laravel-export-v9.php';
+        $v10 = require __DIR__ . '/fixtures/laravel-export-v10.php';
+        assert(is_array($v9) && is_array($v10));
+
+        return array_merge($v9, $v10);
     }
 
     private function convertToType(mixed $data): Type\Type

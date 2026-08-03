@@ -39,7 +39,6 @@ class StructureInferenceTest extends \PHPStan\Testing\TypeInferenceTestCase
 
     /**
      * @dataProvider dataFileAsserts
-     * @param array<string, mixed[]> $args
      * @group structure
      */
     public function testFileAsserts(

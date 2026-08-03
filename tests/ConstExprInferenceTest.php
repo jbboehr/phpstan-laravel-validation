@@ -35,7 +35,6 @@ class ConstExprInferenceTest extends TypeInferenceTestCase
 
     /**
      * @dataProvider dataFileAsserts
-     * @param array<string, mixed[]> $args
      * @group const-expr
      */
     public function testConstExprFileAsserts(

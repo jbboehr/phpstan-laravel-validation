@@ -235,13 +235,13 @@ final class TypeResolver
      */
     private function resolveTypeIn(Rule $rule): Type\Type
     {
-        $types = array_map(function ($str) {
+        $types = array_values(array_map(function ($str) {
             if (is_scalar($str)) {
                 return new ConstantStringType((string) $str);
             } else {
                 throw new InvalidRuleException('Cannot have non-scalar key');
             }
-        }, $rule->getParameters());
+        }, $rule->getParameters()));
 
         if (count($types) > 1) {
             return new UnionType($types);

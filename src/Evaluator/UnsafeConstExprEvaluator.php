@@ -77,7 +77,11 @@ class UnsafeConstExprEvaluator
             $arr = [];
             foreach ($constantArrayType->getKeyTypes() as $keyType) {
                 $valueType = $constantArrayType->getOffsetValueType($keyType);
-                $arr[$this->getValueFromType($keyType)] = $this->getValueFromType($valueType);
+                $key = $this->getValueFromType($keyType);
+                if (!is_int($key) && !is_string($key)) {
+                    throw new ConstExprEvaluationException();
+                }
+                $arr[$key] = $this->getValueFromType($valueType);
             }
             return $arr;
         }
