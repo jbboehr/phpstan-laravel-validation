@@ -4,13 +4,19 @@
         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
         beStrictAboutOutputDuringTests="true"
         beStrictAboutChangesToGlobalState="true"
-        beStrictAboutTodoAnnotatedTests="true"
         bootstrap="vendor/autoload.php"
+        cacheDirectory=".phpunit.cache"
         colors="true"
         failOnRisky="true"
         failOnWarning="true"
-        verbose="true"
 >
+    <!--
+    The <coverage><include> below is redundant with <source><include> further
+    down, but is still required to scope coverage to ./src under PHPUnit 9,
+    which doesn't understand <source>. PHPUnit 10+ ignores it (with a harmless
+    schema validation warning) in favor of <source>. Both PHPUnit 9 and 10 are
+    supported, so keep both until PHPUnit 9 support is dropped.
+    -->
     <coverage includeUncoveredFiles="true">
         <include>
             <directory suffix=".php">./src</directory>
@@ -30,4 +36,10 @@
             <directory>./tests</directory>
         </testsuite>
     </testsuites>
+
+    <source>
+        <include>
+            <directory suffix=".php">./src</directory>
+        </include>
+    </source>
 </phpunit>

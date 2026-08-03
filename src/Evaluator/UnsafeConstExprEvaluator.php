@@ -91,7 +91,6 @@ class UnsafeConstExprEvaluator
 
     /**
      * @throws ConstExprEvaluationException
-     * @psalm-suppress UndefinedDocblockClass
      */
     private function getClassConstantValue(Expr\ClassConstFetch $node, Scope $scope): mixed
     {

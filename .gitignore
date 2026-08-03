@@ -1,6 +1,7 @@
 .direnv
 .envrc
 .idea
+.phpunit.cache
 .phpunit.result.cache
 *.log
 clover.xml

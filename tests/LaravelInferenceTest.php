@@ -111,7 +111,7 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
     /**
      * @return array<mixed>
      */
-    public function laravelExportProvider(): array
+    public static function laravelExportProvider(): array
     {
         $v9 = require __DIR__ . '/fixtures/laravel-export-v9.php';
         $v10 = require __DIR__ . '/fixtures/laravel-export-v10.php';
@@ -120,7 +120,14 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         $v13 = require __DIR__ . '/fixtures/laravel-export-v13.php';
         assert(is_array($v9) && is_array($v10) && is_array($v11) && is_array($v12) && is_array($v13));
 
-        return array_merge($v9, $v10, $v11, $v12, $v13);
+        // 'expandedRules' isn't a parameter of testLaravelValidationExport();
+        // drop it so PHPUnit doesn't try (and fail) to match it by name.
+        return array_map(static function ($entry) {
+            if (is_array($entry)) {
+                unset($entry['expandedRules']);
+            }
+            return $entry;
+        }, array_merge($v9, $v10, $v11, $v12, $v13));
     }
 
     private function convertToType(mixed $data): Type\Type

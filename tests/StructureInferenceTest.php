@@ -25,16 +25,16 @@ class StructureInferenceTest extends \PHPStan\Testing\TypeInferenceTestCase
     /**
      * @return iterable<mixed>
      */
-    public function dataFileAsserts(): iterable
+    public static function dataFileAsserts(): iterable
     {
-        yield from $this->gatherAssertTypes(__DIR__ . '/structure/array.php');
-        yield from $this->gatherAssertTypes(__DIR__ . '/structure/controller.php');
-        yield from $this->gatherAssertTypes(__DIR__ . '/structure/facade.php');
-        yield from $this->gatherAssertTypes(__DIR__ . '/structure/factory.php');
-        yield from $this->gatherAssertTypes(__DIR__ . '/structure/function.php');
-        yield from $this->gatherAssertTypes(__DIR__ . '/structure/map.php');
-        yield from $this->gatherAssertTypes(__DIR__ . '/structure/readme.php');
-        yield from $this->gatherAssertTypes(__DIR__ . '/structure/request.php');
+        yield from self::gatherAssertTypes(__DIR__ . '/structure/array.php');
+        yield from self::gatherAssertTypes(__DIR__ . '/structure/controller.php');
+        yield from self::gatherAssertTypes(__DIR__ . '/structure/facade.php');
+        yield from self::gatherAssertTypes(__DIR__ . '/structure/factory.php');
+        yield from self::gatherAssertTypes(__DIR__ . '/structure/function.php');
+        yield from self::gatherAssertTypes(__DIR__ . '/structure/map.php');
+        yield from self::gatherAssertTypes(__DIR__ . '/structure/readme.php');
+        yield from self::gatherAssertTypes(__DIR__ . '/structure/request.php');
     }
 
     /**
