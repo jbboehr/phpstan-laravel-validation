@@ -18,6 +18,7 @@
 
 declare(strict_types=1);
 
+use Brick\VarExporter\VarExporter;
 use Illuminate\Validation\ValidationRuleParser;
 use Illuminate\Validation\Validator;
 
@@ -113,4 +114,56 @@ function revert_validator_placeholders(mixed $data, array $placeholders): mixed
     }
 
     return $newData;
+}
+
+/**
+ * Build a stable identity for an exported validation result.
+ *
+ * @param array<mixed, mixed> $data
+ * @param array<mixed, mixed> $validated
+ * @param array<mixed, mixed> $rules
+ * @param array<mixed, mixed> $expandedRules
+ */
+function validation_fixture_hash(
+    string $location,
+    array $data,
+    array $validated,
+    array $rules,
+    array $expandedRules
+): string {
+    $contents = implode('', [
+        $location,
+        VarExporter::export(normalize_validation_fixture_hash_value($rules), VarExporter::ADD_RETURN),
+        VarExporter::export(normalize_validation_fixture_hash_value($expandedRules), VarExporter::ADD_RETURN),
+        VarExporter::export(normalize_validation_fixture_hash_value($data), VarExporter::ADD_RETURN),
+        VarExporter::export(normalize_validation_fixture_hash_value($validated), VarExporter::ADD_RETURN),
+    ]);
+
+    return sodium_bin2base64(md5($contents, true), SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING);
+}
+
+/**
+ * Remove runtime-only state from values before hashing them.
+ */
+function normalize_validation_fixture_hash_value(mixed $value): mixed
+{
+    if ($value instanceof DateTimeInterface) {
+        return [
+            '__validation_fixture_datetime__' => [
+                'class' => get_class($value),
+                'date' => $value->format('Y-m-d H:i:s.u'),
+                'timezone' => $value->getTimezone()->getName(),
+            ],
+        ];
+    }
+
+    if (is_array($value)) {
+        $normalized = [];
+        foreach ($value as $key => $item) {
+            $normalized[$key] = normalize_validation_fixture_hash_value($item);
+        }
+        return $normalized;
+    }
+
+    return $value;
 }

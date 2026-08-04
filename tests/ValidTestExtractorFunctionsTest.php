@@ -20,6 +20,7 @@ declare(strict_types=1);
 
 namespace jbboehr\PhpstanLaravelValidation\Test;
 
+use Illuminate\Support\Carbon;
 use Illuminate\Translation\ArrayLoader;
 use Illuminate\Translation\Translator;
 use Illuminate\Validation\Validator;
@@ -119,6 +120,39 @@ class ValidTestExtractorFunctionsTest extends TestCase
                 ['literallegacy-placeholdername' => ['__asterisk__' => 'valid']],
                 $placeholders
             )
+        );
+    }
+
+    public function testEffectiveRulesArePartOfFixtureHash(): void
+    {
+        $baseHash = \validation_fixture_hash(
+            'ValidationTest::testExample:1',
+            ['name' => 'valid'],
+            ['name' => 'valid'],
+            ['name' => 'string'],
+            ['name' => ['string']]
+        );
+        $mutatedHash = \validation_fixture_hash(
+            'ValidationTest::testExample:1',
+            ['name' => 'valid'],
+            ['name' => 'valid'],
+            ['name' => 'string'],
+            ['name' => ['string', 'required']]
+        );
+
+        self::assertNotSame($baseHash, $mutatedHash);
+        self::assertSame(22, strlen($baseHash));
+    }
+
+    public function testRuntimeDateObjectStateDoesNotAffectFixtureHash(): void
+    {
+        $first = Carbon::parse('2000-01-01 12:00:00', 'UTC');
+        $second = Carbon::parse('2000-01-01 12:00:00', 'UTC');
+
+        self::assertNotSame($first, $second);
+        self::assertSame(
+            \validation_fixture_hash('location', ['date' => $first], [], [], []),
+            \validation_fixture_hash('location', ['date' => $second], [], [], [])
         );
     }
 

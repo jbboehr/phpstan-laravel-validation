@@ -182,16 +182,11 @@ uopz_set_return(\Illuminate\Validation\Validator::class, 'passes', function () u
         return $passes;
     }
 
-    $dataExported = VarExporter::export($data, true);
-    $rulesExported = VarExporter::export($rules, true);
-    $validatedExported = VarExporter::export($validated, true);
+    $dataExported = VarExporter::export($data, VarExporter::ADD_RETURN);
+    $rulesExported = VarExporter::export($rules, VarExporter::ADD_RETURN);
+    $validatedExported = VarExporter::export($validated, VarExporter::ADD_RETURN);
 
-    $hash = sodium_bin2base64(sodium_hex2bin(md5(join([
-        $testName,
-        $rulesExported,
-        $dataExported,
-        $validatedExported
-    ]))), SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING);
+    $hash = validation_fixture_hash($testName, $data, $validated, $rules, $expandedRules);
 
     $log->debug('data ' . $dataExported);
     $log->debug('rules ' . $rulesExported);
