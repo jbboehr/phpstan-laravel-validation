@@ -35,6 +35,7 @@ function is_exportable(mixed $expr): bool
             return !is_exportable($key) || !is_exportable($value);
         }, ARRAY_FILTER_USE_BOTH)) === 0,
         'object' => match (true) {
+            $expr instanceof PHPUnit\Framework\MockObject\MockObject => false,
             $expr instanceof DateTimeInterface,
             $expr instanceof Symfony\Component\HttpFoundation\File\File => !is_anonymous_class($expr),
             default => false,

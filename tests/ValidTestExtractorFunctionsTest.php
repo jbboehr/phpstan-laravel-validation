@@ -26,6 +26,7 @@ use Illuminate\Translation\ArrayLoader;
 use Illuminate\Translation\Translator;
 use Illuminate\Validation\Validator;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\HttpFoundation\File\File;
 
 class ValidTestExtractorFunctionsTest extends TestCase
 {
@@ -49,6 +50,7 @@ class ValidTestExtractorFunctionsTest extends TestCase
     public function testSupportedObjectSubclassesAreExportable(): void
     {
         self::assertTrue(\is_exportable(CarbonImmutable::parse('2000-01-01', 'UTC')));
+        self::assertFalse(\is_exportable($this->createMock(File::class)));
         self::assertFalse(\is_exportable(new \stdClass()));
     }
 
