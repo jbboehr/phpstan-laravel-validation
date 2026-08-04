@@ -156,6 +156,30 @@ class ValidTestExtractorFunctionsTest extends TestCase
         );
     }
 
+    public function testValidationLocationAcceptsTestsOutsideIlluminateNamespace(): void
+    {
+        self::assertSame(
+            self::class . '::testExample:123',
+            \validation_test_location([
+                ['function' => 'passes'],
+                ['class' => Validator::class, 'function' => 'validate', 'line' => 123],
+                ['class' => self::class, 'function' => 'testExample', 'line' => 999],
+            ])
+        );
+    }
+
+    public function testValidationLocationSafelyIgnoresIncompleteAndNonTestFrames(): void
+    {
+        self::assertSame(
+            'unknown',
+            \validation_test_location([
+                [],
+                ['function' => 'testHelper'],
+                ['class' => Validator::class, 'function' => 'testInternalHelper'],
+            ])
+        );
+    }
+
     /**
      * @param array<mixed, mixed> $data
      * @param array<mixed, mixed> $rules

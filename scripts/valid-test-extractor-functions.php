@@ -167,3 +167,34 @@ function normalize_validation_fixture_hash_value(mixed $value): mixed
 
     return $value;
 }
+
+/**
+ * Find the PHPUnit test and source line responsible for a validation call.
+ *
+ * @param list<array<mixed, mixed>> $backtrace
+ */
+function validation_test_location(array $backtrace): string
+{
+    $previousTrace = null;
+
+    foreach ($backtrace as $trace) {
+        $class = $trace['class'] ?? null;
+        $function = $trace['function'] ?? null;
+
+        if (
+            is_string($class)
+            && is_string($function)
+            && str_starts_with($function, 'test')
+            && is_a($class, PHPUnit\Framework\TestCase::class, true)
+        ) {
+            $line = $previousTrace['line'] ?? $trace['line'] ?? null;
+            $suffix = is_int($line) ? ':' . $line : '';
+
+            return $class . '::' . $function . $suffix;
+        }
+
+        $previousTrace = $trace;
+    }
+
+    return 'unknown';
+}

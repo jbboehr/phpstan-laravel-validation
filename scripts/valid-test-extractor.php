@@ -127,19 +127,7 @@ uopz_set_return(\Illuminate\Validation\Validator::class, 'passes', function () u
 
     // extract the test name
     $bt = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
-    $testName = 'unknown';
-    $lastTrace = null;
-    foreach ($bt as $trace) {
-        if (
-            str_contains($trace['class'], 'Illuminate\\Tests\\Validation') &&
-            str_starts_with($trace['function'], 'test')
-        ) {
-            $testName = $trace['class'] . '::' . $trace['function'] . ':' . ($lastTrace['line'] ?? $trace['line']);
-            break;
-        } else {
-            $lastTrace = $trace;
-        }
-    }
+    $testName = validation_test_location($bt);
     $log = $log->withName($testName);
 
     $rules = revert_validator_placeholders($rules, $placeholders);
