@@ -1,3 +1,7 @@
+parameters:
+  stubFiles:
+    - stubs/Validator.stub
+
 services:
   - class: jbboehr\PhpstanLaravelValidation\Evaluator\UnsafeConstExprEvaluator
   - class: jbboehr\PhpstanLaravelValidation\Extension\ControllerValidateExtension
@@ -21,6 +25,9 @@ services:
   - class: jbboehr\PhpstanLaravelValidation\Extension\ValidatorFunctionExtension
     tags:
       - phpstan.broker.dynamicFunctionReturnTypeExtension
+  - class: jbboehr\PhpstanLaravelValidation\Extension\ValidatorSetRulesExtension
+    tags:
+      - phpstan.broker.dynamicMethodReturnTypeExtension
   - class: jbboehr\PhpstanLaravelValidation\Extension\ValidatorValidatedExtension
     tags:
       - phpstan.broker.dynamicMethodReturnTypeExtension

@@ -1,0 +1,72 @@
+<?php
+/**
+ * Copyright (c) anno Domini nostri Jesu Christi MMXXIV John Boehr & contributors
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+declare(strict_types=1);
+
+namespace jbboehr\PhpstanLaravelValidation\Extension;
+
+use jbboehr\PhpstanLaravelValidation\Evaluator\UnsafeConstExprEvaluator;
+use jbboehr\PhpstanLaravelValidation\ShouldNotHappenException;
+use jbboehr\PhpstanLaravelValidation\Type\ValidatorType;
+use jbboehr\PhpstanLaravelValidation\Validation\RuleParser;
+use PhpParser\ConstExprEvaluationException;
+use PhpParser\Node\Expr\MethodCall;
+use PHPStan\Analyser\Scope;
+use PHPStan\Reflection\MethodReflection;
+use PHPStan\Type\DynamicMethodReturnTypeExtension;
+
+final class ValidatorSetRulesExtension implements DynamicMethodReturnTypeExtension
+{
+    private UnsafeConstExprEvaluator $constExprEvaluator;
+
+    public function __construct(
+        UnsafeConstExprEvaluator $constExprEvaluator
+    ) {
+        $this->constExprEvaluator = $constExprEvaluator;
+    }
+
+    public function getClass(): string
+    {
+        return \Illuminate\Validation\Validator::class;
+    }
+
+    public function isMethodSupported(MethodReflection $methodReflection): bool
+    {
+        return $methodReflection->getName() === 'setRules';
+    }
+
+    public function getTypeFromMethodCall(
+        MethodReflection $methodReflection,
+        MethodCall $methodCall,
+        Scope $scope
+    ): ?\PHPStan\Type\Type {
+        try {
+            if (count($methodCall->getArgs()) < 1) {
+                return null;
+            }
+
+            $rulesValue = $this->constExprEvaluator->evaluate($methodCall->getArgs()[0]->value, $scope);
+
+            return new ValidatorType(RuleParser::parse($rulesValue));
+        } catch (ConstExprEvaluationException $e) {
+            return null;
+        } catch (\Throwable $e) {
+            throw new ShouldNotHappenException($e->getMessage(), $e);
+        }
+    }
+}
