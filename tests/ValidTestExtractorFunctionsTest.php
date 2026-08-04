@@ -27,6 +27,7 @@ use Illuminate\Translation\Translator;
 use Illuminate\Validation\Validator;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\File\File;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 class ValidTestExtractorFunctionsTest extends TestCase
 {
@@ -174,6 +175,34 @@ class ValidTestExtractorFunctionsTest extends TestCase
         self::assertSame(
             \validation_fixture_hash('location', ['date' => $first], [], [], []),
             \validation_fixture_hash('location', ['date' => $second], [], [], [])
+        );
+    }
+
+    public function testRuntimeFileObjectImplementationStateDoesNotAffectFixtureHash(): void
+    {
+        $first = new class (__FILE__, 'fixture.txt', 'text/plain', UPLOAD_ERR_OK, true) extends UploadedFile {
+            public string $runtimeState = 'first';
+        };
+        $second = clone $first;
+        $second->runtimeState = 'second';
+
+        self::assertSame(
+            [
+                '__validation_fixture_file__' => [
+                    'class' => get_class($first),
+                    'properties' => [
+                        'originalName' => 'fixture.txt',
+                        'mimeType' => 'text/plain',
+                        'error' => UPLOAD_ERR_OK,
+                        'test' => true,
+                    ],
+                ],
+            ],
+            \normalize_validation_fixture_hash_value($first)
+        );
+        self::assertSame(
+            \validation_fixture_hash('location', ['file' => $first], [], [], []),
+            \validation_fixture_hash('location', ['file' => $second], [], [], [])
         );
     }
 

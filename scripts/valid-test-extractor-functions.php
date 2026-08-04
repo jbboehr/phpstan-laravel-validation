@@ -209,6 +209,40 @@ function normalize_validation_fixture_hash_value(mixed $value): mixed
         ];
     }
 
+    if ($value instanceof Symfony\Component\HttpFoundation\File\File) {
+        $properties = [];
+
+        foreach (['originalName', 'mimeType', 'error', 'test'] as $propertyName) {
+            $class = new ReflectionObject($value);
+
+            do {
+                foreach ($class->getProperties() as $property) {
+                    if (
+                        $property->getName() !== $propertyName
+                        || $property->getDeclaringClass()->getName() !== $class->getName()
+                    ) {
+                        continue;
+                    }
+
+                    if ($property->isInitialized($value)) {
+                        $properties[$propertyName] = normalize_validation_fixture_hash_value(
+                            $property->getValue($value)
+                        );
+                    }
+
+                    break 2;
+                }
+            } while (($class = $class->getParentClass()) !== false);
+        }
+
+        return [
+            '__validation_fixture_file__' => [
+                'class' => get_class($value),
+                'properties' => $properties,
+            ],
+        ];
+    }
+
     if (is_array($value)) {
         $normalized = [];
         foreach ($value as $key => $item) {
