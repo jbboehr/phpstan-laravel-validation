@@ -25,8 +25,8 @@ use PHPUnit\Framework\TestCase;
 class LaravelFixtureIntegrityTest extends TestCase
 {
     private const FIXTURES = [
-        9 => ['version' => '9.45.1', 'commit' => '99263998eb4e4b5cd0d536737c00cb4ba5f36ff0'],
-        10 => ['version' => '10.0.0', 'commit' => 'be2ddb5c31b0b9ebc2738d9f37a9d4c960aa3199'],
+        9 => ['version' => '9.52.21', 'commit' => '6055d9594c9da265ddbf1e27e7dd8f09624568bc'],
+        10 => ['version' => '10.50.2', 'commit' => '3ff39b7a9b83e633383ec9b019827ed54b6d38bc'],
         11 => ['version' => '11.55.0', 'commit' => 'dc7ec34ae95bacf4a63b96ec81482b4f3e702289'],
         12 => ['version' => '12.64.0', 'commit' => '727a8ea2949c23ca8b5316b86a00984b6017b7a0'],
         13 => ['version' => '13.23.0', 'commit' => '92a707229148e57f08a249211c8a5a194159c619'],

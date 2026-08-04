@@ -37,6 +37,31 @@ LARAVEL_PATH="${LARAVEL_PATH:-../laravel-framework}"
     fi
 
     LARAVEL_MAJOR="${BASH_REMATCH[1]}"
+    # The dollar-prefixed expressions below are PHP variables, not shell variables.
+    # shellcheck disable=SC2016
+    LATEST_LARAVEL_VERSION=$(
+        composer show laravel/framework --all --format=json |
+            "$PHP_WITH_UOPZ" -r '
+                require $argv[1];
+                $metadata = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
+                $versions = $metadata["versions"] ?? null;
+                if (!is_array($versions)) {
+                    fwrite(STDERR, "Unable to read available Laravel versions\n");
+                    exit(1);
+                }
+                $latest = latest_stable_laravel_version($versions, (int) $argv[2]);
+                if ($latest === null) {
+                    fwrite(STDERR, "Unable to find the latest Laravel release\n");
+                    exit(1);
+                }
+                echo $latest;
+            ' "$SCRIPT_PATH/valid-test-extractor-functions.php" "$LARAVEL_MAJOR"
+    )
+    if [[ "$LARAVEL_VERSION" != "$LATEST_LARAVEL_VERSION" ]]; then
+        echo "Laravel $LARAVEL_VERSION is stale; checkout $LATEST_LARAVEL_VERSION before exporting" >&2
+        exit 1
+    fi
+
     EXPORT_DIRECTORY="${LARAVEL_EXPORT_DIRECTORY:-$SCRIPT_PATH/../tests/fixtures}"
     EXPORT_DIRECTORY=$(cd -- "$EXPORT_DIRECTORY" && pwd -P)
     FINAL_EXPORT_FILE="$EXPORT_DIRECTORY/laravel-export-v$LARAVEL_MAJOR.php"

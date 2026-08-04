@@ -54,6 +54,18 @@ class ValidTestExtractorFunctionsTest extends TestCase
         self::assertFalse(\is_exportable(new \stdClass()));
     }
 
+    public function testLatestStableLaravelVersionSelectsTheNewestReleaseInTheMajor(): void
+    {
+        self::assertSame(
+            '10.50.2',
+            \latest_stable_laravel_version(
+                ['10.x-dev', 'v10.50.1', '10.50.2', 'v10.51.0-beta.1', 'v11.0.0', null],
+                10
+            )
+        );
+        self::assertNull(\latest_stable_laravel_version(['10.x-dev', 'v11.0.0'], 10));
+    }
+
     public function testRulesAddedWithSometimesAreReportedAsMutated(): void
     {
         $validator = $this->validator(['name' => 'valid'], []);

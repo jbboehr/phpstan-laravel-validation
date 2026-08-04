@@ -45,6 +45,36 @@ function is_exportable(mixed $expr): bool
 }
 
 /**
+ * @param list<mixed> $versions
+ */
+function latest_stable_laravel_version(array $versions, int $major): ?string
+{
+    $matchingVersions = [];
+
+    foreach ($versions as $version) {
+        if (!is_string($version)) {
+            continue;
+        }
+
+        $version = ltrim($version, 'v');
+        if (preg_match('/^' . preg_quote((string) $major, '/') . '\.\d+\.\d+$/D', $version) === 1) {
+            $matchingVersions[] = $version;
+        }
+    }
+
+    if ($matchingVersions === []) {
+        return null;
+    }
+
+    usort(
+        $matchingVersions,
+        static fn (string $left, string $right): int => version_compare($left, $right)
+    );
+
+    return $matchingVersions[count($matchingVersions) - 1];
+}
+
+/**
  * Determine whether rules were added to or otherwise changed on a validator
  * after its source rules were installed by Validator::setRules().
  *

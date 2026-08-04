@@ -47,7 +47,8 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
      *   aren't supported by RuleParser, which requires string paths.
      */
     private const KNOWN_QUIRKS = [
-        'testValidateImplicitEachWithAsterisksForRequiredNonExistingKey:5735', // v10
+        'testValidateImplicitEachWithAsterisksForRequiredNonExistingKey:5777', // v9
+        'testValidateImplicitEachWithAsterisksForRequiredNonExistingKey:6709', // v10
         'testValidateImplicitEachWithAsterisksForRequiredNonExistingKey:6989', // v11
         'testValidateImplicitEachWithAsterisksForRequiredNonExistingKey:7342', // v12
         'testValidateImplicitEachWithAsterisksForRequiredNonExistingKey:7537', // v13
