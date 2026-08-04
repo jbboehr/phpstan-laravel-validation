@@ -53,32 +53,6 @@ if (!is_dir(dirname($testExportFile))) {
     mkdir(dirname($testExportFile)) or die('failed to create output directory');
 }
 
-function is_anonymous_class(object|string $instance)
-{
-    $testInstance = new \ReflectionClass($instance);
-    return $testInstance->isAnonymous();
-}
-
-function is_exportable(mixed $expr): bool
-{
-    return match (gettype($expr)) {
-        "boolean", "integer", "double", "float", "string", "NULL" => true,
-        "array" => count(array_filter($expr, function ($v, $k) {
-            return !is_exportable($k) || !is_exportable($v);
-        }, ARRAY_FILTER_USE_BOTH)) === 0,
-        "object" => match (get_class($expr)) {
-            DateTime::class,
-            DateTimeImmutable::class,
-            "Symfony\\Component\\HttpFoundation\\File\\File",
-            "Symfony\\Component\\HttpFoundation\\File\\UploadedFile",
-            "Illuminate\\Support\\Carbon",
-            "Illuminate\\Http\\Testing\\File" => !is_anonymous_class($expr),
-            default => false,
-        },
-        default => false,
-    };
-}
-
 function is_constant_expression(mixed $expr): bool
 {
     if (is_array($expr)) {

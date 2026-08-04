@@ -20,6 +20,7 @@ declare(strict_types=1);
 
 namespace jbboehr\PhpstanLaravelValidation\Test;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Carbon;
 use Illuminate\Translation\ArrayLoader;
 use Illuminate\Translation\Translator;
@@ -43,6 +44,12 @@ class ValidTestExtractorFunctionsTest extends TestCase
         );
 
         self::assertFalse(\validator_rules_were_mutated($validator));
+    }
+
+    public function testSupportedObjectSubclassesAreExportable(): void
+    {
+        self::assertTrue(\is_exportable(CarbonImmutable::parse('2000-01-01', 'UTC')));
+        self::assertFalse(\is_exportable(new \stdClass()));
     }
 
     public function testRulesAddedWithSometimesAreReportedAsMutated(): void

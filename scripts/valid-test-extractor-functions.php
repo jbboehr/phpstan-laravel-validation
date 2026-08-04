@@ -22,6 +22,27 @@ use Brick\VarExporter\VarExporter;
 use Illuminate\Validation\ValidationRuleParser;
 use Illuminate\Validation\Validator;
 
+function is_anonymous_class(object $instance): bool
+{
+    return (new ReflectionClass($instance))->isAnonymous();
+}
+
+function is_exportable(mixed $expr): bool
+{
+    return match (gettype($expr)) {
+        'boolean', 'integer', 'double', 'string', 'NULL' => true,
+        'array' => count(array_filter($expr, function ($value, $key) {
+            return !is_exportable($key) || !is_exportable($value);
+        }, ARRAY_FILTER_USE_BOTH)) === 0,
+        'object' => match (true) {
+            $expr instanceof DateTimeInterface,
+            $expr instanceof Symfony\Component\HttpFoundation\File\File => !is_anonymous_class($expr),
+            default => false,
+        },
+        default => false,
+    };
+}
+
 /**
  * Determine whether rules were added to or otherwise changed on a validator
  * after its source rules were installed by Validator::setRules().
