@@ -16759,7 +16759,7 @@ c,d"'
             'foo\\.bar' => 'required'
         ],
         'expandedRules' => [
-            'foo__dot__sRm5TMlx2G2NxYqkbar' => [
+            'foo\\.bar' => [
                 'required'
             ]
         ]
@@ -16776,7 +16776,7 @@ c,d"'
             'foo\\.bar' => 'required'
         ],
         'expandedRules' => [
-            'foo__dot__sRm5TMlx2G2NxYqkbar' => [
+            'foo\\.bar' => [
                 'required'
             ]
         ]
@@ -16795,7 +16795,7 @@ c,d"'
             ]
         ],
         'expandedRules' => [
-            'foo__dot__sRm5TMlx2G2NxYqkbar' => [
+            'foo\\.bar' => [
                 'required'
             ]
         ]
@@ -16960,7 +16960,7 @@ c,d"'
             'foo\\.bar' => 'required|in:valid'
         ],
         'expandedRules' => [
-            'foo__dot__sRm5TMlx2G2NxYqkbar' => [
+            'foo\\.bar' => [
                 'required',
                 'in:valid'
             ]

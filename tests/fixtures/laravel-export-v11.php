@@ -16442,7 +16442,7 @@ c,d"'
             'foo\\.bar' => 'required'
         ],
         'expandedRules' => [
-            'foo__dot__nDjJYWFFeQ7gAeF9bar' => [
+            'foo\\.bar' => [
                 'required'
             ]
         ]
@@ -16607,7 +16607,7 @@ c,d"'
             'foo\\.bar' => 'required|in:valid'
         ],
         'expandedRules' => [
-            'foo__dot__nDjJYWFFeQ7gAeF9bar' => [
+            'foo\\.bar' => [
                 'required',
                 'in:valid'
             ]

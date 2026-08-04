@@ -14071,7 +14071,7 @@ c,d"'
             'foo\\.bar' => 'required'
         ],
         'expandedRules' => [
-            'fooNV1Tsay1tkFYG9rWbar' => [
+            'foo\\.bar' => [
                 'required'
             ]
         ]
@@ -14236,7 +14236,7 @@ c,d"'
             'foo\\.bar' => 'required|in:valid'
         ],
         'expandedRules' => [
-            'fooWrp7ABVg1kFy5ZhVbar' => [
+            'foo\\.bar' => [
                 'required',
                 'in:valid'
             ]

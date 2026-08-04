@@ -97,50 +97,6 @@ function all_tests(): ArrayObject
     return $allTests;
 }
 
-/**
- * Laravel's dot-placeholder mechanism has changed shape across versions:
- * - up through Laravel ~10: an instance property `$dotPlaceholder`
- * - Laravel ~10 (later releases) onward: a static `$placeholderHash`,
- *   used as the suffix of a fixed `__dot__` prefix
- * Read whichever is present via reflection instead of hardcoding one shape.
- */
-function get_dot_placeholder(\Illuminate\Validation\Validator $validator): ?string
-{
-    $ref = new \ReflectionClass($validator);
-
-    if ($ref->hasProperty('dotPlaceholder')) {
-        $prop = $ref->getProperty('dotPlaceholder');
-        $prop->setAccessible(true);
-        return $prop->getValue($validator);
-    }
-
-    if ($ref->hasProperty('placeholderHash')) {
-        $prop = $ref->getProperty('placeholderHash');
-        $prop->setAccessible(true);
-        $hash = $prop->getValue($validator);
-        return $hash === null ? null : '__dot__' . $hash;
-    }
-
-    return null;
-}
-
-function revert_dot_placeholder(mixed $data, ?string $dotPlaceholder): mixed
-{
-    if ($dotPlaceholder === null) {
-        return $data;
-    }
-
-    if (is_array($data)) {
-        $newData = [];
-        foreach ($data as $k => $v) {
-            $newKey = is_string($k) ? str_replace($dotPlaceholder, '\.', $k) : $k;
-            $newData[$newKey] = revert_dot_placeholder($v, $dotPlaceholder);
-        }
-        return $newData;
-    }
-    return $data;
-}
-
 register_shutdown_function(function () use ($testExportFile) {
     file_put_contents(
         $testExportFile,
@@ -167,7 +123,7 @@ uopz_set_return(\Illuminate\Validation\Validator::class, 'passes', function () u
     $rules = $this->initialRules;
     $expandedRules = $this->getRules();
     $validated = $this->validated();
-    $dotPlaceholder = get_dot_placeholder($this);
+    $placeholders = get_validator_placeholders($this);
 
     // extract the test name
     $bt = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
@@ -186,9 +142,10 @@ uopz_set_return(\Illuminate\Validation\Validator::class, 'passes', function () u
     }
     $log = $log->withName($testName);
 
-    $rules = revert_dot_placeholder($rules, $dotPlaceholder);
-    $data = revert_dot_placeholder($data, $dotPlaceholder);
-    $validated = revert_dot_placeholder($validated, $dotPlaceholder);
+    $rules = revert_validator_placeholders($rules, $placeholders);
+    $expandedRules = revert_validator_placeholders($expandedRules, $placeholders);
+    $data = revert_validator_placeholders($data, $placeholders);
+    $validated = revert_validator_placeholders($validated, $placeholders);
 
     $isRulesConstExpr = is_constant_expression($rules);
     $isExpandedRulesConstExpr = is_constant_expression($expandedRules);
@@ -199,7 +156,7 @@ uopz_set_return(\Illuminate\Validation\Validator::class, 'passes', function () u
     $log->debug('rules const expr ' . $isRulesConstExpr);
     $log->debug('data exportable ' . $isDataExportable);
     $log->debug('validated exportable ' . $isValidatedExportable);
-    $log->debug('dot placeholder ' . $dotPlaceholder);
+    $log->debug('dot placeholder ' . $placeholders['dot']);
 
     if (!$isRulesConstExpr || !$isDataExportable || !$isValidatedExportable || !$isExpandedRulesConstExpr) {
         $log->info('skipping, not const expr');

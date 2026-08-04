@@ -46,3 +46,71 @@ function validator_rules_were_mutated(Validator $validator): bool
 
     return $expectedRules !== $validator->getRules();
 }
+
+/**
+ * Get Laravel's internal placeholders for literal dots and asterisks in
+ * attribute names.
+ *
+ * @return array{dot: string|null, asterisk: string|null}
+ */
+function get_validator_placeholders(Validator $validator): array
+{
+    $reflection = new ReflectionClass($validator);
+
+    if ($reflection->hasProperty('dotPlaceholder')) {
+        $property = $reflection->getProperty('dotPlaceholder');
+        $property->setAccessible(true);
+        $dotPlaceholder = $property->getValue($validator);
+
+        return [
+            'dot' => is_string($dotPlaceholder) ? $dotPlaceholder : null,
+            'asterisk' => '__asterisk__',
+        ];
+    }
+
+    if ($reflection->hasProperty('placeholderHash')) {
+        $property = $reflection->getProperty('placeholderHash');
+        $property->setAccessible(true);
+        $placeholderHash = $property->getValue($validator);
+
+        if (is_string($placeholderHash)) {
+            return [
+                'dot' => '__dot__' . $placeholderHash,
+                'asterisk' => '__asterisk__' . $placeholderHash,
+            ];
+        }
+    }
+
+    return ['dot' => null, 'asterisk' => null];
+}
+
+/**
+ * Restore attribute keys that Laravel encoded before validation.
+ *
+ * Literal dots remain escaped so they cannot be mistaken for Laravel's dot
+ * path separator when a fixture is consumed later. Literal asterisks are
+ * restored to the attribute character that Laravel originally encoded.
+ *
+ * @param array{dot: string|null, asterisk: string|null} $placeholders
+ */
+function revert_validator_placeholders(mixed $data, array $placeholders): mixed
+{
+    if (!is_array($data)) {
+        return $data;
+    }
+
+    $newData = [];
+    foreach ($data as $key => $value) {
+        if (is_string($key)) {
+            if ($placeholders['dot'] !== null) {
+                $key = str_replace($placeholders['dot'], '\\.', $key);
+            }
+            if ($placeholders['asterisk'] !== null) {
+                $key = str_replace($placeholders['asterisk'], '*', $key);
+            }
+        }
+        $newData[$key] = revert_validator_placeholders($value, $placeholders);
+    }
+
+    return $newData;
+}

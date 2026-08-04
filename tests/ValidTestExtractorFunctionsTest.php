@@ -73,6 +73,55 @@ class ValidTestExtractorFunctionsTest extends TestCase
         self::assertFalse(\validator_rules_were_mutated($validator));
     }
 
+    public function testRuntimePlaceholdersAreRevertedInNestedKeys(): void
+    {
+        $validator = $this->validator(
+            ['literal.name' => ['*' => 'valid']],
+            ['literal\.name.*' => 'required']
+        );
+        $placeholders = \get_validator_placeholders($validator);
+
+        self::assertIsString($placeholders['dot']);
+        self::assertNotSame('', $placeholders['dot']);
+        self::assertStringStartsWith('__asterisk__', $placeholders['asterisk'] ?? '');
+        self::assertSame(
+            ['literal\.name' => ['*' => 'valid']],
+            \revert_validator_placeholders($validator->getData(), $placeholders)
+        );
+        self::assertSame(
+            ['literal\.name.*' => ['required']],
+            \revert_validator_placeholders($validator->getRules(), $placeholders)
+        );
+    }
+
+    public function testLegacyPlaceholdersAreReverted(): void
+    {
+        $validator = new class (
+            new Translator(new ArrayLoader(), 'en'),
+            [],
+            []
+        ) extends Validator {
+            /** @var string */
+            protected $dotPlaceholder = 'legacy-placeholder';
+        };
+        $property = (new \ReflectionClass($validator))->getProperty('dotPlaceholder');
+        $property->setAccessible(true);
+        $property->setValue($validator, 'legacy-placeholder');
+        $placeholders = \get_validator_placeholders($validator);
+
+        self::assertSame(
+            ['dot' => 'legacy-placeholder', 'asterisk' => '__asterisk__'],
+            $placeholders
+        );
+        self::assertSame(
+            ['literal\.name' => ['*' => 'valid']],
+            \revert_validator_placeholders(
+                ['literallegacy-placeholdername' => ['__asterisk__' => 'valid']],
+                $placeholders
+            )
+        );
+    }
+
     /**
      * @param array<mixed, mixed> $data
      * @param array<mixed, mixed> $rules
