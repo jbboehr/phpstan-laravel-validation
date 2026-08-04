@@ -13,6 +13,7 @@ If the rules given to a laravel validator are a constant expression, then the sh
 $request = new \Illuminate\Http\Request();
 
 $data = \Illuminate\Support\Facades\Validator::make($request->all(), [
+    'person' => 'required|array',
     'person.*.email' => 'required|email|unique:users',
     'person.*.first_name' => 'required|string',
     'person.*.age' => 'required|integer|string',
@@ -22,6 +23,7 @@ $data = \Illuminate\Support\Facades\Validator::make($request->all(), [
 // array{person: array<int|string, array{email: non-empty-string, first_name: string, age: numeric-string}>}
 
 $data = $request->validate([
+    'person' => 'required|array',
     'person.*.email' => 'required|email|unique:users',
     'person.*.first_name' => 'required|string',
     'person.*.age' => 'required|integer|string',
@@ -30,6 +32,8 @@ $data = $request->validate([
 \PHPStan\dumpType($data);
 // array{person: array<int|string, array{email: non-empty-string, first_name: string, age: numeric-string}>}
 ```
+
+The explicit `person` rule makes that offset required. Without it, wildcard rules only constrain matching elements, so the inferred shape uses `person?`: the offset may be absent, but its value is still a non-null array when present.
 
 If the input data does not match the rules array, an `\Illuminate\Validation\ValidationException` is thrown, thus preserving type safety.
 
@@ -55,7 +59,7 @@ includes:
 ## Caveats
 
 * Laravel's validation does not cast anything, so, for example, `numeric` produces the type union `int|float|numeric-string`. If you know it will always be a string, you can refine the type by using `numeric|string` and get a plain `numeric-string`.
-* Wildcards must be indexed by integer and can't be mixed with non-wildcard rules.
+* Wildcard collections may have integer or string keys. Wildcard rules can't currently be mixed with non-wildcard rules beneath the same parent.
 * Custom validation rules, implicit rules, and enums are not currently supported.
 
 ## License

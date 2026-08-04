@@ -41,16 +41,10 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
      * between releases, so these need a new entry (not just a line-number
      * edit) whenever a new major version's fixtures are regenerated.
      *
-     * - testValidateImplicitEachWithAsterisksForRequiredNonExistingKey:
-     *   Should probably fix this one maybe.
      * - testNumericKeys: rules keyed by a literal integer (e.g. `[3 => 'required']`)
      *   aren't supported by RuleParser, which requires string paths.
      */
     private const KNOWN_QUIRKS = [
-        'testValidateImplicitEachWithAsterisksForRequiredNonExistingKey:6709', // v10
-        'testValidateImplicitEachWithAsterisksForRequiredNonExistingKey:6989', // v11
-        'testValidateImplicitEachWithAsterisksForRequiredNonExistingKey:7342', // v12
-        'testValidateImplicitEachWithAsterisksForRequiredNonExistingKey:7537', // v13
         'testNumericKeys:5591', // v12
         'testNumericKeys:5786', // v13
     ];

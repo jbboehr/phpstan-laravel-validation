@@ -58,4 +58,53 @@ final class RuleTreeNodeTest extends TestCase
 
         self::assertSame($expected, $node->allowsBlankStringBypass());
     }
+
+    public function testRequiredWildcardDescendantDoesNotRequireParent(): void
+    {
+        $tree = RuleParser::parse(['names.*.first' => 'required|string']);
+
+        self::assertTrue($tree->resolvePath('names')->isOptional());
+        self::assertFalse($tree->resolvePath('names.*')->isOptional());
+        self::assertFalse($tree->resolvePath('names.*.first')->isOptional());
+    }
+
+    public function testExplicitRequiredWildcardParentRemainsRequired(): void
+    {
+        $tree = RuleParser::parse([
+            'names' => 'required|array',
+            'names.*.first' => 'required|string',
+        ]);
+
+        self::assertFalse($tree->resolvePath('names')->isOptional());
+    }
+
+    public function testRequiredNamedDescendantRequiresParent(): void
+    {
+        $tree = RuleParser::parse(['names.named.first' => 'required|string']);
+
+        self::assertFalse($tree->resolvePath('names')->isOptional());
+        self::assertFalse($tree->resolvePath('names.named')->isOptional());
+    }
+
+    public function testNestedWildcardsStopRequirednessAtEachWildcardBoundary(): void
+    {
+        $tree = RuleParser::parse(['people.*.cars.*.model' => 'required|string']);
+
+        self::assertTrue($tree->resolvePath('people')->isOptional());
+        self::assertTrue($tree->resolvePath('people.*.cars')->isOptional());
+        self::assertFalse($tree->resolvePath('people.*.cars.*')->isOptional());
+        self::assertFalse($tree->resolvePath('people.*.cars.*.model')->isOptional());
+    }
+
+    public function testRequiredNamedChildStillPropagatesAlongsideWildcardChild(): void
+    {
+        $tree = RuleParser::parse([
+            'items.*.name' => 'required|string',
+            'items.named.label' => 'required|string',
+        ]);
+
+        self::assertFalse($tree->resolvePath('items')->isOptional());
+        self::assertFalse($tree->resolvePath('items.*.name')->isOptional());
+        self::assertFalse($tree->resolvePath('items.named.label')->isOptional());
+    }
 }

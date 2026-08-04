@@ -151,8 +151,13 @@ final class RuleTreeNode implements IteratorAggregate, \Countable
         }
 
         $isRequired = false;
-        foreach ($this->children as $child) {
-            $isRequired = $isRequired || !$child->resolveOptional();
+        foreach ($this->children as $key => $child) {
+            $childOptional = $child->resolveOptional();
+            // A required wildcard applies only to elements that exist; it does
+            // not require the collection itself to be present.
+            if ($key !== '*') {
+                $isRequired = $isRequired || !$childOptional;
+            }
         }
         $this->hasRequiredChild = $isRequired;
         return $this->isOptional();
