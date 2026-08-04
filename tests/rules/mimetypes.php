@@ -13,7 +13,7 @@ $validator = \Illuminate\Support\Facades\Validator::make([], [
 assertType('Illuminate\\Validation\\Validator', $validator);
 
 $validated = $validator->validated();
-assertType('array{required_value: Symfony\\Component\\HttpFoundation\\File\\File, optional_value?: Symfony\\Component\\HttpFoundation\\File\\File, deduplicated_value: Symfony\\Component\\HttpFoundation\\File\\File}', $validated);
+assertType('array{required_value: Symfony\\Component\\HttpFoundation\\File\\File, optional_value?: string|Symfony\\Component\\HttpFoundation\\File\\File, deduplicated_value: Symfony\\Component\\HttpFoundation\\File\\File}', $validated);
 assertType('Symfony\\Component\\HttpFoundation\\File\\File', $validated['required_value']);
-assertType('Symfony\\Component\\HttpFoundation\\File\\File', $validated['optional_value']);
+assertType('string|Symfony\\Component\\HttpFoundation\\File\\File', $validated['optional_value']);
 assertType('Symfony\\Component\\HttpFoundation\\File\\File', $validated['deduplicated_value']);

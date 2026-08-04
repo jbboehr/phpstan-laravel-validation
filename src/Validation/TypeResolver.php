@@ -96,15 +96,28 @@ final class TypeResolver
 
     public function evaluateLeaf(RuleTreeNode $node): Type\Type
     {
-        $types = array_values(array_filter(array_map(function ($rule) {
+        $types = array_values(array_filter(array_map(function ($rule) use ($node) {
+            // Laravel applies `in` to every element when the value also has an
+            // `array` rule. The scalar `in` resolver cannot model that safely,
+            // so retain the array rule's conservative value type instead.
+            if ($node->isArray() && $rule->getRuleName() === 'In') {
+                return null;
+            }
+
             return $this->resolveType($rule);
         }, $node->getRules())));
 
         if (count($types) <= 0) {
-            return new MixedType();
+            $type = new MixedType();
         } else {
-            return Type\TypeCombinator::intersect(...$types);
+            $type = Type\TypeCombinator::intersect(...$types);
         }
+
+        if ($node->allowsBlankStringBypass()) {
+            $type = Type\TypeCombinator::union($type, new StringType());
+        }
+
+        return $type;
     }
 
     /**

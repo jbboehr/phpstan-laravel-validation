@@ -12,6 +12,6 @@ $validator = \Illuminate\Support\Facades\Validator::make([], [
 assertType('Illuminate\\Validation\\Validator', $validator);
 
 $validated = $validator->validated();
-assertType("array{required_value: numeric-string, optional_value?: numeric-string}", $validated);
+assertType("array{required_value: numeric-string, optional_value?: string}", $validated);
 assertType("numeric-string", $validated['required_value']);
-assertType("numeric-string", $validated['optional_value']);
+assertType("string", $validated['optional_value']);

@@ -199,6 +199,34 @@ final class RuleTreeNode implements IteratorAggregate, \Countable
         return $this->nullable;
     }
 
+    /**
+     * Laravel skips non-implicit rules for blank strings. Since PHPStan has no
+     * whitespace-only string type, a node that permits this bypass must include
+     * the general string type in its result.
+     */
+    public function allowsBlankStringBypass(): bool
+    {
+        if (!$this->isOptional()) {
+            return false;
+        }
+
+        foreach ($this->rules as $rule) {
+            if (
+                in_array($rule->getRuleName(), [
+                Rule::RULE_ACCEPTED,
+                Rule::RULE_DECLINED,
+                Rule::RULE_FILLED,
+                Rule::RULE_MISSING,
+                Rule::RULE_REQUIRED,
+                ], true)
+            ) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     public function count(): int
     {
         return count($this->children);

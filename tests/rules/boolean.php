@@ -12,6 +12,6 @@ $validator = \Illuminate\Support\Facades\Validator::make([], [
 assertType('Illuminate\\Validation\\Validator', $validator);
 
 $validated = $validator->validated();
-assertType("array{required_boolean: 0|1|'0'|'1'|bool, optional_boolean?: 0|1|'0'|'1'|bool}", $validated);
+assertType("array{required_boolean: 0|1|'0'|'1'|bool, optional_boolean?: 0|1|bool|string}", $validated);
 assertType("0|1|'0'|'1'|bool", $validated['required_boolean']);
-assertType("0|1|'0'|'1'|bool", $validated['optional_boolean']);
+assertType("0|1|bool|string", $validated['optional_boolean']);

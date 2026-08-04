@@ -22,8 +22,12 @@ namespace jbboehr\PhpstanLaravelValidation\Validation;
 
 final class Rule
 {
+    public const RULE_ACCEPTED = "Accepted";
     public const RULE_ACCEPTED_IF = "AcceptedIf";
+    public const RULE_DECLINED = "Declined";
     public const RULE_DECLINED_IF = "DeclinedIf";
+    public const RULE_FILLED = "Filled";
+    public const RULE_MISSING = "Missing";
     public const RULE_REQUIRED = "Required";
     public const RULE_EXCLUDE = "Exclude";
     public const RULE_EXCLUDE_IF = "ExcludeIf";
@@ -36,8 +40,12 @@ final class Rule
     public const RULE_NUMERIC = "Numeric";
 
     public const RULES = [
+        self::RULE_ACCEPTED => self::RULE_ACCEPTED,
         self::RULE_ACCEPTED_IF => self::RULE_ACCEPTED_IF,
+        self::RULE_DECLINED => self::RULE_DECLINED,
         self::RULE_DECLINED_IF => self::RULE_DECLINED_IF,
+        self::RULE_FILLED => self::RULE_FILLED,
+        self::RULE_MISSING => self::RULE_MISSING,
         self::RULE_REQUIRED => self::RULE_REQUIRED,
         self::RULE_EXCLUDE => self::RULE_EXCLUDE,
         self::RULE_EXCLUDE_IF => self::RULE_EXCLUDE_IF,

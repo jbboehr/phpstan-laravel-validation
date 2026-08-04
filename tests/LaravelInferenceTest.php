@@ -41,26 +41,12 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
      * between releases, so these need a new entry (not just a line-number
      * edit) whenever a new major version's fixtures are regenerated.
      *
-     * - testValidateEmptyStringsAlwaysPasses / testEmptyExistingAttributesAreValidated:
-     *   Laravel treats an empty-string value as "not present" for non-required
-     *   rules, so validation passes without the rule (e.g. `array`, `integer`)
-     *   actually being satisfied by the empty string that ends up in `validated()`.
      * - testValidateImplicitEachWithAsterisksForRequiredNonExistingKey:
      *   Should probably fix this one maybe.
      * - testNumericKeys: rules keyed by a literal integer (e.g. `[3 => 'required']`)
      *   aren't supported by RuleParser, which requires string paths.
      */
     private const KNOWN_QUIRKS = [
-        'testValidateEmptyStringsAlwaysPasses:242', // v9
-        'testValidateEmptyStringsAlwaysPasses:244', // v10
-        'testValidateEmptyStringsAlwaysPasses:290', // v11
-        'testValidateEmptyStringsAlwaysPasses:293', // v11
-        'testValidateEmptyStringsAlwaysPasses:310', // v12, v13
-        'testValidateEmptyStringsAlwaysPasses:313', // v12, v13
-        'testEmptyExistingAttributesAreValidated:250', // v9
-        'testEmptyExistingAttributesAreValidated:252', // v10
-        'testEmptyExistingAttributesAreValidated:304', // v11
-        'testEmptyExistingAttributesAreValidated:324', // v12, v13
         'testValidateImplicitEachWithAsterisksForRequiredNonExistingKey:5735', // v10
         'testValidateImplicitEachWithAsterisksForRequiredNonExistingKey:6989', // v11
         'testValidateImplicitEachWithAsterisksForRequiredNonExistingKey:7342', // v12
@@ -106,6 +92,45 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
 //            $dataTypeStr = $validatedType->describe(Type\VerbosityLevel::getRecommendedLevelByType($validatedType));
 //            $this->addWarning($rulesTypeStr . ' matches ' . $dataTypeStr);
         }
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function blankStringProvider(): iterable
+    {
+        foreach (
+            [
+            'empty' => '',
+            'space' => ' ',
+            'tab-and-newline' => "\t\n",
+            ] as $description => $value
+        ) {
+            foreach (['array', 'email', 'integer'] as $rule) {
+                yield $description . '-' . $rule => [$value, $rule];
+            }
+        }
+    }
+
+    /**
+     * @dataProvider blankStringProvider
+     */
+    public function testBlankStringBypassesOptionalNonImplicitRules(string $value, string $rule): void
+    {
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $validator = $factory->make(['value' => $value], ['value' => $rule]);
+
+        self::assertTrue($validator->passes());
+        self::assertSame(['value' => $value], $validator->validated());
+
+        $rulesType = (new TypeResolver())->evaluate(RuleParser::parse(['value' => $rule]));
+        $validatedType = $this->convertToType($validator->validated());
+        self::assertTrue($rulesType->accepts($validatedType, true)->yes());
     }
 
     /**
