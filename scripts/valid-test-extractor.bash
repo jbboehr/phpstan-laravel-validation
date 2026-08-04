@@ -22,13 +22,40 @@ LARAVEL_PATH="${LARAVEL_PATH:-../laravel-framework}"
 
 (
     cd "$LARAVEL_PATH"
-    LARAVEL_COMMIT=$(git log HEAD -n1 -q --pretty=format:"%h" --no-patch)
-    export LARAVEL_COMMIT
+    LARAVEL_COMMIT=$(git rev-parse HEAD)
+    LARAVEL_VERSION=$("$PHP_WITH_UOPZ" -r 'require "vendor/autoload.php"; echo Illuminate\Foundation\Application::VERSION;')
 
-    $PHP_WITH_UOPZ -d memory_limit=512M \
+    if [[ ! "$LARAVEL_VERSION" =~ ^([0-9]+)\. ]]; then
+        echo "Unable to determine Laravel major version from: $LARAVEL_VERSION" >&2
+        exit 1
+    fi
+
+    LARAVEL_MAJOR="${BASH_REMATCH[1]}"
+    EXPORT_DIRECTORY="${LARAVEL_EXPORT_DIRECTORY:-$SCRIPT_PATH/../tests/fixtures}"
+    EXPORT_DIRECTORY=$(cd -- "$EXPORT_DIRECTORY" && pwd -P)
+    FINAL_EXPORT_FILE="$EXPORT_DIRECTORY/laravel-export-v$LARAVEL_MAJOR.php"
+    TEMPORARY_EXPORT_FILE=$(mktemp "$EXPORT_DIRECTORY/.laravel-export-v$LARAVEL_MAJOR.XXXXXX")
+
+    cleanup() {
+        if [[ -n "$TEMPORARY_EXPORT_FILE" && -e "$TEMPORARY_EXPORT_FILE" ]]; then
+            rm -f -- "$TEMPORARY_EXPORT_FILE"
+        fi
+    }
+    trap cleanup EXIT
+
+    export LARAVEL_COMMIT LARAVEL_VERSION
+    export LARAVEL_EXPORT_FILE="$TEMPORARY_EXPORT_FILE"
+
+    "$PHP_WITH_UOPZ" -d memory_limit=512M \
         ./vendor/bin/phpunit \
         --bootstrap "$SCRIPT_PATH/valid-test-extractor.php" \
         tests/Validation/
+
+    mv -- "$TEMPORARY_EXPORT_FILE" "$FINAL_EXPORT_FILE"
+    TEMPORARY_EXPORT_FILE=""
+    cleanup
+    trap - EXIT
+    echo "Exported Laravel $LARAVEL_VERSION validation fixtures to $FINAL_EXPORT_FILE"
 )
 
 exit 0

@@ -180,6 +180,43 @@ class ValidTestExtractorFunctionsTest extends TestCase
         );
     }
 
+    public function testFixtureContentsIncludeValidatedSourceMetadata(): void
+    {
+        $contents = \validation_fixture_contents(
+            ['fixture-hash' => ['location' => 'ValidationTest::testExample:1']],
+            '13.23.0',
+            '92a707229148e57f08a249211c8a5a194159c619'
+        );
+
+        self::assertStringStartsWith(
+            '<?php /* laravel 13.23.0 commit 92a707229148e57f08a249211c8a5a194159c619 */ return [',
+            $contents
+        );
+        self::assertStringEndsWith('];', $contents);
+    }
+
+    /**
+     * @dataProvider invalidFixtureMetadataProvider
+     */
+    public function testFixtureContentsRejectInvalidSourceMetadata(string $version, string $commit): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        \validation_fixture_contents([], $version, $commit);
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function invalidFixtureMetadataProvider(): iterable
+    {
+        yield 'comment injection through version' => [
+            '13.23.0 */ return []; /*',
+            '92a707229148e57f08a249211c8a5a194159c619',
+        ];
+        yield 'abbreviated commit' => ['13.23.0', '92a7072291'];
+    }
+
     /**
      * @param array<mixed, mixed> $data
      * @param array<mixed, mixed> $rules

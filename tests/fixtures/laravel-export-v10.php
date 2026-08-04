@@ -1,4 +1,4 @@
-<?php /* laravel commit be2ddb5c31 */ return [
+<?php /* laravel 10.0.0 commit be2ddb5c31b0b9ebc2738d9f37a9d4c960aa3199 */ return [
     'qcoWx2Jx2b9Fup5UtNVB_g' => [
         'location' => 'Illuminate\\Tests\\Validation\\ValidationExceptionTest::testExceptionSummarizesZeroErrors:15',
         'data' => [],

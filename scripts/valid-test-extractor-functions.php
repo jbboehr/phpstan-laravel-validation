@@ -198,3 +198,22 @@ function validation_test_location(array $backtrace): string
 
     return 'unknown';
 }
+
+/**
+ * Render a complete validation fixture with reproducible source metadata.
+ *
+ * @param array<string, array<mixed, mixed>> $tests
+ */
+function validation_fixture_contents(array $tests, string $laravelVersion, string $laravelCommit): string
+{
+    if (preg_match('/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/D', $laravelVersion) !== 1) {
+        throw new InvalidArgumentException('Invalid Laravel version: ' . $laravelVersion);
+    }
+    if (preg_match('/^[0-9a-f]{40}$/D', $laravelCommit) !== 1) {
+        throw new InvalidArgumentException('Invalid Laravel commit: ' . $laravelCommit);
+    }
+
+    return '<?php /* laravel ' . $laravelVersion . ' commit ' . $laravelCommit . ' */ return '
+        . VarExporter::export($tests)
+        . ';';
+}

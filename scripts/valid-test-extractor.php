@@ -35,8 +35,16 @@ require_once __DIR__ . '/valid-test-extractor-functions.php';
 
 use Brick\VarExporter\VarExporter;
 
-$outputDirectory = __DIR__ . '/../tests/laravel';
-$testExportFile = __DIR__ . '/../tests/fixtures/laravel-export.php';
+$testExportFile = getenv('LARAVEL_EXPORT_FILE');
+$laravelVersion = getenv('LARAVEL_VERSION');
+$laravelCommit = getenv('LARAVEL_COMMIT');
+
+if (!is_string($testExportFile) || $testExportFile === '') {
+    throw new \RuntimeException('LARAVEL_EXPORT_FILE must name the temporary fixture output');
+}
+if (!is_string($laravelVersion) || !is_string($laravelCommit)) {
+    throw new \RuntimeException('LARAVEL_VERSION and LARAVEL_COMMIT must describe the checkout under test');
+}
 
 $log = new \Monolog\Logger('');
 $log->pushHandler(new \Monolog\Handler\StreamHandler(__DIR__ . '/valid-test-extractor.log', 'debug'));
@@ -97,14 +105,16 @@ function all_tests(): ArrayObject
     return $allTests;
 }
 
-register_shutdown_function(function () use ($testExportFile) {
-    file_put_contents(
-        $testExportFile,
-        '<?php /* laravel commit ' . getenv('LARAVEL_COMMIT') . ' */ return ' . VarExporter::export(all_tests()->getArrayCopy()) . ';'
-    );
+register_shutdown_function(function () use ($testExportFile, $laravelVersion, $laravelCommit) {
+    $contents = validation_fixture_contents(all_tests()->getArrayCopy(), $laravelVersion, $laravelCommit);
+    $bytesWritten = file_put_contents($testExportFile, $contents);
+
+    if ($bytesWritten !== strlen($contents)) {
+        throw new \RuntimeException('Failed to write complete Laravel validation fixture');
+    }
 });
 
-uopz_set_return(\Illuminate\Validation\Validator::class, 'passes', function () use ($log, $outputDirectory) {
+uopz_set_return(\Illuminate\Validation\Validator::class, 'passes', function () use ($log) {
     if (!isset($this)) { // @phpstan-ignore-line
         return false;
     }
