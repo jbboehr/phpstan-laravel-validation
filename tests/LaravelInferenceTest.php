@@ -127,6 +127,39 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         self::assertTrue($rulesType->accepts($validatedType, true)->yes());
     }
 
+    public function testConfirmedComparisonFieldIsOnlyValidatedWhenItHasRules(): void
+    {
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $data = [
+            'password' => 'secret',
+            'password_confirmation' => 'secret',
+            'pin' => '1234',
+            'pin_confirmation' => '1234',
+        ];
+        $rules = [
+            'password' => 'required|string|confirmed',
+            'pin' => 'required|string|confirmed',
+            'pin_confirmation' => 'required|string',
+        ];
+        $validator = $factory->make($data, $rules);
+
+        self::assertTrue($validator->passes());
+        self::assertSame([
+            'password' => 'secret',
+            'pin' => '1234',
+            'pin_confirmation' => '1234',
+        ], $validator->validated());
+
+        $rulesType = (new TypeResolver())->evaluate(RuleParser::parse($rules));
+        $validatedType = $this->convertToType($validator->validated());
+        self::assertTrue($rulesType->accepts($validatedType, true)->yes());
+    }
+
     /**
      * @return array<mixed>
      */

@@ -68,14 +68,6 @@ final class TypeResolver
                 $type,
                 $value->isOptional()
             );
-
-            if ($value->hasConfirmation()) {
-                $builder->setOffsetValueType(
-                    new ConstantStringType($key . '_confirmation'),
-                    $type,
-                    $value->isOptional()
-                );
-            }
         }
 
         return $builder->getArray();

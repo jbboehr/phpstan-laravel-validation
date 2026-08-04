@@ -168,17 +168,6 @@ final class RuleTreeNode implements IteratorAggregate, \Countable
         return count($this->children) > 0;
     }
 
-    public function hasConfirmation(): bool
-    {
-        foreach ($this->rules as $rule) {
-            if ($rule->getRuleName() === 'Confirmed') {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     public function isArray(): bool
     {
         return $this->isArray;
