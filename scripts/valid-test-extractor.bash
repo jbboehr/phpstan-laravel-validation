@@ -22,6 +22,12 @@ LARAVEL_PATH="${LARAVEL_PATH:-../laravel-framework}"
 
 (
     cd "$LARAVEL_PATH"
+
+    if [[ -n "$(git status --porcelain)" ]]; then
+        echo "Laravel checkout must be clean before exporting validation fixtures" >&2
+        exit 1
+    fi
+
     LARAVEL_COMMIT=$(git rev-parse HEAD)
     LARAVEL_VERSION=$("$PHP_WITH_UOPZ" -r 'require "vendor/autoload.php"; echo Illuminate\Foundation\Application::VERSION;')
 
@@ -50,6 +56,14 @@ LARAVEL_PATH="${LARAVEL_PATH:-../laravel-framework}"
         ./vendor/bin/phpunit \
         --bootstrap "$SCRIPT_PATH/valid-test-extractor.php" \
         tests/Validation/
+
+    # The dollar-prefixed expressions below are PHP variables, not shell variables.
+    # shellcheck disable=SC2016
+    "$PHP_WITH_UOPZ" -r '
+        require "vendor/autoload.php";
+        $fixtures = require $argv[1];
+        exit(is_array($fixtures) && $fixtures !== [] ? 0 : 1);
+    ' "$TEMPORARY_EXPORT_FILE"
 
     mv -- "$TEMPORARY_EXPORT_FILE" "$FINAL_EXPORT_FILE"
     TEMPORARY_EXPORT_FILE=""
