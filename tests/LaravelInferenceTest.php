@@ -47,7 +47,6 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
      *   aren't supported by RuleParser, which requires string paths.
      */
     private const KNOWN_QUIRKS = [
-        'testValidateImplicitEachWithAsterisksForRequiredNonExistingKey:5777', // v9
         'testValidateImplicitEachWithAsterisksForRequiredNonExistingKey:6709', // v10
         'testValidateImplicitEachWithAsterisksForRequiredNonExistingKey:6989', // v11
         'testValidateImplicitEachWithAsterisksForRequiredNonExistingKey:7342', // v12
@@ -139,12 +138,11 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
      */
     public static function laravelExportProvider(): array
     {
-        $v9 = require __DIR__ . '/fixtures/laravel-export-v9.php';
         $v10 = require __DIR__ . '/fixtures/laravel-export-v10.php';
         $v11 = require __DIR__ . '/fixtures/laravel-export-v11.php';
         $v12 = require __DIR__ . '/fixtures/laravel-export-v12.php';
         $v13 = require __DIR__ . '/fixtures/laravel-export-v13.php';
-        assert(is_array($v9) && is_array($v10) && is_array($v11) && is_array($v12) && is_array($v13));
+        assert(is_array($v10) && is_array($v11) && is_array($v12) && is_array($v13));
 
         // 'expandedRules' isn't a parameter of testLaravelValidationExport();
         // drop it so PHPUnit doesn't try (and fail) to match it by name.
@@ -153,7 +151,7 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
                 unset($entry['expandedRules']);
             }
             return $entry;
-        }, array_merge($v9, $v10, $v11, $v12, $v13));
+        }, array_merge($v10, $v11, $v12, $v13));
     }
 
     private function convertToType(mixed $data): Type\Type
