@@ -161,6 +161,71 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
     }
 
     /**
+     * @return iterable<string, array{array<mixed>, array<string, string>, array<mixed>}>
+     */
+    public static function parentAndChildRulesProvider(): iterable
+    {
+        yield 'required string parent' => [
+            ['foo' => 'value'],
+            ['foo' => 'required|string', 'foo.bar' => 'sometimes|string'],
+            ['foo' => 'value'],
+        ];
+        yield 'required untyped parent' => [
+            ['foo' => 7],
+            ['foo' => 'required', 'foo.bar' => 'sometimes|string'],
+            ['foo' => 7],
+        ];
+        yield 'required array with no validated children' => [
+            ['foo' => ['extra' => 42]],
+            ['foo' => 'required|array', 'foo.bar' => 'sometimes|string'],
+            [],
+        ];
+        yield 'required array with required child' => [
+            ['foo' => ['bar' => 'value', 'extra' => 42]],
+            ['foo' => 'required|array', 'foo.bar' => 'required|string'],
+            ['foo' => ['bar' => 'value']],
+        ];
+        yield 'required array with required wildcard child' => [
+            ['foo' => [['bar' => 'value', 'extra' => 42]]],
+            ['foo' => 'required|array', 'foo.*.bar' => 'required|string'],
+            ['foo' => [['bar' => 'value']]],
+        ];
+        yield 'nested required arrays with no validated leaf' => [
+            ['foo' => ['bar' => ['extra' => 42]]],
+            [
+                'foo' => 'required|array',
+                'foo.bar' => 'required|array',
+                'foo.bar.baz' => 'sometimes|string',
+            ],
+            [],
+        ];
+    }
+
+    /**
+     * @param array<mixed> $data
+     * @param array<string, string> $rules
+     * @param array<mixed> $validated
+     * @dataProvider parentAndChildRulesProvider
+     */
+    public function testParentAndChildRulesAcceptRuntimeOutput(array $data, array $rules, array $validated): void
+    {
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $validator = $factory->make($data, $rules);
+
+        self::assertTrue($validator->passes());
+        self::assertSame($validated, $validator->validated());
+
+        $rulesType = (new TypeResolver())->evaluate(RuleParser::parse($rules));
+        $validatedType = $this->convertToType($validator->validated());
+        self::assertTrue($rulesType->accepts($validatedType, true)->yes());
+    }
+
+    /**
      * @return array<mixed>
      */
     public static function laravelExportProvider(): array

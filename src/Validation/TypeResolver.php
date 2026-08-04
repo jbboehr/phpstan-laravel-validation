@@ -45,6 +45,15 @@ final class TypeResolver
             $type = $this->evaluateLeaf($node);
         }
 
+        // Non-array parent rules can cause validated() to return the complete
+        // parent value even when nested rules are also present.
+        if ($node->hasChildren() && !$node->isArray() && count($node->getRules()) > 0) {
+            $leafType = $this->evaluateLeaf($node);
+            $type = $leafType->isArray()->no()
+                ? $leafType
+                : Type\TypeCombinator::union($type, $leafType);
+        }
+
         if ($node->isNullable()) {
             $type = Type\TypeCombinator::addNull($type);
         }
@@ -66,7 +75,7 @@ final class TypeResolver
             $builder->setOffsetValueType(
                 is_int($key) ? new ConstantIntegerType($key) : new ConstantStringType($key),
                 $type,
-                $value->isOptional()
+                $this->isOutputOptional($value)
             );
         }
 
@@ -110,6 +119,28 @@ final class TypeResolver
         }
 
         return $type;
+    }
+
+    private function isOutputOptional(RuleTreeNode $node): bool
+    {
+        if ($node->isOptional()) {
+            return true;
+        }
+
+        if (!$node->isArray() || !$node->hasChildren()) {
+            return false;
+        }
+
+        // Laravel omits an array parent that has nested rules and rebuilds its
+        // output from those children, so the parent is guaranteed only when a
+        // child is guaranteed to emit a value.
+        foreach ($node as $child) {
+            if (!$child->isExcluded() && !$this->isOutputOptional($child)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

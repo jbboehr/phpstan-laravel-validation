@@ -34,6 +34,7 @@ class StructureInferenceTest extends \PHPStan\Testing\TypeInferenceTestCase
         yield from self::gatherAssertTypes(__DIR__ . '/structure/factory.php');
         yield from self::gatherAssertTypes(__DIR__ . '/structure/function.php');
         yield from self::gatherAssertTypes(__DIR__ . '/structure/map.php');
+        yield from self::gatherAssertTypes(__DIR__ . '/structure/parent-rules.php');
         yield from self::gatherAssertTypes(__DIR__ . '/structure/readme.php');
         yield from self::gatherAssertTypes(__DIR__ . '/structure/request.php');
         yield from self::gatherAssertTypes(__DIR__ . '/structure/wildcard.php');
