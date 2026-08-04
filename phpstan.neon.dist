@@ -8,6 +8,7 @@ parameters:
     level: max
     paths:
         - src
+        - scripts/valid-test-extractor-functions.php
         - tests
     excludePaths:
         - tests/fixtures

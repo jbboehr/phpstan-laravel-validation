@@ -14208,54 +14208,6 @@ c,d"'
             ]
         ]
     ],
-    'XuHznt1829_QYM18DVlc4Q' => [
-        'location' => 'Illuminate\\Tests\\Validation\\ValidationValidatorTest::testMergeRules:5802',
-        'data' => [
-            'x' => 'asl',
-            'a' => [
-                1,
-                4
-            ]
-        ],
-        'validated' => [
-            'x' => 'asl',
-            'a' => [
-                1,
-                4
-            ]
-        ],
-        'rules' => [
-            'x' => [
-                'alpha',
-                [
-                    'min',
-                    3
-                ]
-            ],
-            'a.*' => 'integer'
-        ],
-        'expandedRules' => [
-            'x' => [
-                'alpha',
-                [
-                    'min',
-                    3
-                ],
-                'required',
-                [
-                    'max',
-                    10
-                ]
-            ],
-            'a.0' => [
-                'integer'
-            ],
-            'a.1' => [
-                'integer',
-                'digits:1'
-            ]
-        ]
-    ],
     'dGX1zsKxYy-g-KupJIxYDQ' => [
         'location' => 'Illuminate\\Tests\\Validation\\ValidationValidatorTest::testValidateAlpha:5809',
         'data' => [
@@ -16778,78 +16730,6 @@ c,d"'
             ]
         ]
     ],
-    'EwD28ohaV6DCYF1sCERS-Q' => [
-        'location' => 'Illuminate\\Tests\\Validation\\ValidationValidatorTest::testValidateSometimesImplicitEachWithAsterisksBeforeAndAfter:7286',
-        'data' => [
-            'foo' => [
-                [
-                    'start' => '2016-04-19',
-                    'end' => '2017-04-19'
-                ]
-            ]
-        ],
-        'validated' => [
-            'foo' => [
-                [
-                    'start' => '2016-04-19'
-                ]
-            ]
-        ],
-        'rules' => [],
-        'expandedRules' => [
-            'foo.0.start' => [
-                'before:foo.*.end'
-            ]
-        ]
-    ],
-    'K9YFuwngK9o3D2MTuqwWKA' => [
-        'location' => 'Illuminate\\Tests\\Validation\\ValidationValidatorTest::testValidateSometimesImplicitEachWithAsterisksBeforeAndAfter:7296',
-        'data' => [
-            'foo' => [
-                [
-                    'start' => '2016-04-19',
-                    'end' => '2017-04-19'
-                ]
-            ]
-        ],
-        'validated' => [
-            'foo' => [
-                [
-                    'start' => '2016-04-19'
-                ]
-            ]
-        ],
-        'rules' => [],
-        'expandedRules' => [
-            'foo.0.start' => [
-                'before:foo.*.end'
-            ]
-        ]
-    ],
-    'lAKtEkCVyo1pymo4-7qP2w' => [
-        'location' => 'Illuminate\\Tests\\Validation\\ValidationValidatorTest::testValidateSometimesImplicitEachWithAsterisksBeforeAndAfter:7317',
-        'data' => [
-            'foo' => [
-                [
-                    'start' => '2016-04-19',
-                    'end' => '2017-04-19'
-                ]
-            ]
-        ],
-        'validated' => [
-            'foo' => [
-                [
-                    'end' => '2017-04-19'
-                ]
-            ]
-        ],
-        'rules' => [],
-        'expandedRules' => [
-            'foo.0.end' => [
-                'after:foo.*.start'
-            ]
-        ]
-    ],
     'hW1HA5B_360h6ZomMMVnoQ' => [
         'location' => 'Illuminate\\Tests\\Validation\\ValidationValidatorTest::testCustomImplicitValidators:7410',
         'data' => [],
@@ -17152,21 +17032,6 @@ c,d"'
                 'required'
             ]
         ],
-        'expandedRules' => [
-            'foo__dot__DGQTjSOtJbDhHUiLbar' => [
-                'required'
-            ]
-        ]
-    ],
-    'MZoO7jgRphLLJ58xA7hkGg' => [
-        'location' => 'Illuminate\\Tests\\Validation\\ValidationValidatorTest::testParsingArrayKeysWithDot:7628',
-        'data' => [
-            'foo\\.bar' => 'valid'
-        ],
-        'validated' => [
-            'foo.bar' => 'valid'
-        ],
-        'rules' => [],
         'expandedRules' => [
             'foo__dot__DGQTjSOtJbDhHUiLbar' => [
                 'required'

@@ -31,6 +31,8 @@ if ($ourLoader instanceof \Composer\Autoload\ClassLoader) {
     $ourLoader->register(false);
 }
 
+require_once __DIR__ . '/valid-test-extractor-functions.php';
+
 use Brick\VarExporter\VarExporter;
 
 $outputDirectory = __DIR__ . '/../tests/laravel';
@@ -201,6 +203,11 @@ uopz_set_return(\Illuminate\Validation\Validator::class, 'passes', function () u
 
     if (!$isRulesConstExpr || !$isDataExportable || !$isValidatedExportable || !$isExpandedRulesConstExpr) {
         $log->info('skipping, not const expr');
+        return $passes;
+    }
+
+    if (validator_rules_were_mutated($this)) {
+        $log->info('skipping, effective rules differ from source rules');
         return $passes;
     }
 
