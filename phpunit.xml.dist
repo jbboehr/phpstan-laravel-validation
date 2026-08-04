@@ -10,16 +10,7 @@
         failOnRisky="true"
         failOnWarning="true"
 >
-    <coverage includeUncoveredFiles="true">
-        <report>
-            <clover outputFile="clover.xml"/>
-            <text
-                outputFile="php://stdout"
-                showUncoveredFiles="true"
-                showOnlySummary="true"
-            />
-        </report>
-    </coverage>
+    <coverage includeUncoveredFiles="true"/>
 
     <testsuites>
         <testsuite name="Test Suite">

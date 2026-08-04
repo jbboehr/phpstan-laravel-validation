@@ -143,7 +143,12 @@ jobs:
               run: composer install --prefer-dist --no-progress
 
             - name: Run test suite with coverage
-              run: php vendor/bin/phpunit --coverage-text
+              run: >-
+                  php vendor/bin/phpunit
+                  --coverage-clover clover.xml
+                  --coverage-text
+                  --show-uncovered-for-coverage-text
+                  --only-summary-for-coverage-text
 
             # Code Climate disabled its coverage API in July 2025. Keep this
             # disabled until coverage reporting is migrated to Qlty.
