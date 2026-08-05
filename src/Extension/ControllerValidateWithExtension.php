@@ -21,11 +21,8 @@ declare(strict_types=1);
 namespace jbboehr\PhpstanLaravelValidation\Extension;
 
 use Illuminate\Foundation\Validation\ValidatesRequests;
-use jbboehr\PhpstanLaravelValidation\Evaluator\UnsafeConstExprEvaluator;
 use jbboehr\PhpstanLaravelValidation\ShouldNotHappenException;
-use jbboehr\PhpstanLaravelValidation\Type\ValidatorType;
-use jbboehr\PhpstanLaravelValidation\Validation\TypeResolver;
-use PhpParser\ConstExprEvaluationException;
+use jbboehr\PhpstanLaravelValidation\Type\ValidatorTypeHelper;
 use PhpParser\Node\Expr\MethodCall;
 use PHPStan\Analyser\Scope;
 use PHPStan\Reflection\MethodReflection;
@@ -33,6 +30,11 @@ use PHPStan\Type\DynamicMethodReturnTypeExtension;
 
 final class ControllerValidateWithExtension implements DynamicMethodReturnTypeExtension
 {
+    public function __construct(
+        private ValidatorTypeHelper $validatorTypeHelper
+    ) {
+    }
+
     public function getClass(): string
     {
         return \Illuminate\Routing\Controller::class;
@@ -59,16 +61,7 @@ final class ControllerValidateWithExtension implements DynamicMethodReturnTypeEx
             }
 
             $validatorType = $scope->getType($methodCall->getArgs()[0]->value);
-            if (!($validatorType instanceof ValidatorType)) {
-                return null;
-            }
-
-            $validatorRules = $validatorType->getValidatorRules();
-            $evaluator = new TypeResolver();
-            return $evaluator->evaluate($validatorRules);
-        } catch (ConstExprEvaluationException $e) {
-            // @todo log or error?
-            return null;
+            return $this->validatorTypeHelper->resolveValidatedType($validatorType);
         } catch (\Throwable $e) {
             throw new ShouldNotHappenException($e->getMessage(), $e);
         }

@@ -20,9 +20,8 @@ declare(strict_types=1);
 
 namespace jbboehr\PhpstanLaravelValidation\Extension;
 
-use jbboehr\PhpstanLaravelValidation\Validation\TypeResolver;
 use jbboehr\PhpstanLaravelValidation\ShouldNotHappenException;
-use jbboehr\PhpstanLaravelValidation\Type\ValidatorType;
+use jbboehr\PhpstanLaravelValidation\Type\ValidatorTypeHelper;
 use PhpParser\Node\Expr\MethodCall;
 use PHPStan\Analyser\Scope;
 use PHPStan\Reflection\MethodReflection;
@@ -30,6 +29,11 @@ use PHPStan\Type\DynamicMethodReturnTypeExtension;
 
 final class ValidatorValidatedExtension implements DynamicMethodReturnTypeExtension
 {
+    public function __construct(
+        private ValidatorTypeHelper $validatorTypeHelper
+    ) {
+    }
+
     public function getClass(): string
     {
         return \Illuminate\Validation\Validator::class;
@@ -47,13 +51,7 @@ final class ValidatorValidatedExtension implements DynamicMethodReturnTypeExtens
     ): ?\PHPStan\Type\Type {
         try {
             $validatorType = $scope->getType($methodCall->var);
-            if (!($validatorType instanceof ValidatorType)) {
-                return null;
-            }
-
-            $validatorRules = $validatorType->getValidatorRules();
-            $evaluator = new TypeResolver();
-            return $evaluator->evaluate($validatorRules);
+            return $this->validatorTypeHelper->resolveValidatedType($validatorType);
         } catch (\Throwable $e) {
             throw new ShouldNotHappenException($e->getMessage(), $e);
         }

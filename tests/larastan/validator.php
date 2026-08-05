@@ -25,3 +25,8 @@ assertType('array{after: int|numeric-string}', $chained);
 $reassigned = $factory->make([], ['before' => 'required|string']);
 $reassigned = $reassigned->setRules(['after' => 'required|integer']);
 assertType('array{after: int|numeric-string}', $reassigned->validated());
+
+$union = random_int(0, 1) === 1
+    ? $factory->make([], ['name' => 'required|string'])
+    : $factory->make([], ['age' => 'required|integer']);
+assertType('array{age: int|numeric-string}|array{name: string}', $union->validated());

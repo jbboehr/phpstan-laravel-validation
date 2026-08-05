@@ -4,6 +4,8 @@ parameters:
 
 services:
   - class: jbboehr\PhpstanLaravelValidation\Evaluator\UnsafeConstExprEvaluator
+  - class: jbboehr\PhpstanLaravelValidation\Validation\TypeResolver
+  - class: jbboehr\PhpstanLaravelValidation\Type\ValidatorTypeHelper
   - class: jbboehr\PhpstanLaravelValidation\Extension\ControllerValidateExtension
     tags:
       - phpstan.broker.dynamicMethodReturnTypeExtension
