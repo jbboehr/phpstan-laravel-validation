@@ -5,16 +5,30 @@
 [![License: AGPL v3+](https://img.shields.io/badge/License-AGPL_v3%2b-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 ![stability-experimental](https://img.shields.io/badge/stability-experimental-orange.svg)
 
+> [!CAUTION]
+>
+> ## CONSIDER AN ALTERNATIVE FOR NEW CODE
+>
+> Laravel validation is not a typed data boundary. Successful validation commonly preserves original values rather than producing the native PHP types suggested by rule names. Presence conditions, cross-field rules, wildcards, exclusions, and nested projection can also change the returned shape in surprising ways.
+>
+> `phpstan-laravel-validation` aims to recover sound and useful structural types from that behavior. Some inferred types are necessarily broader than expected because they describe what Laravel can actually return.
+>
+> For new type-conscious code, consider a boundary with an explicit, normalized output contract, such as [`cuyz/valinor`](https://github.com/CuyZ/Valinor), typed DTOs, schema objects, or explicit parsers.
+>
+> See [Laravel validation and type safety](docs/laravel-validation-and-type-safety.md) for verified examples and the detailed rationale.
+>
+> **This library is a mitigation, not an endorsement of Laravel validation for new code.**
+
 ## Explanation
 
-If the rules given to a laravel validator are a constant expression, then the shape of the array returned by `\Illuminate\Validation\Validator::validated()` is known at compile-time, and can be statically analyzed.
+For constant, supported rule sets, this extension aims to infer a sound type for Laravel's validated output. The inferred type may be broader than expected because Laravel preserves input types and can produce dynamic output shapes.
 
 ```php
 $request = new \Illuminate\Http\Request();
 
 $data = \Illuminate\Support\Facades\Validator::make($request->all(), [
     'person' => 'required|array',
-    'person.*.email' => 'required|email|unique:users',
+    'person.*.email' => 'required|string|email|unique:users',
     'person.*.first_name' => 'required|string',
     'person.*.age' => 'required|integer|string',
 ])->validated();
@@ -24,7 +38,7 @@ $data = \Illuminate\Support\Facades\Validator::make($request->all(), [
 
 $data = $request->validate([
     'person' => 'required|array',
-    'person.*.email' => 'required|email|unique:users',
+    'person.*.email' => 'required|string|email|unique:users',
     'person.*.first_name' => 'required|string',
     'person.*.age' => 'required|integer|string',
 ]);
@@ -35,7 +49,7 @@ $data = $request->validate([
 
 The explicit `person` rule makes that offset required. Without it, wildcard rules only constrain matching elements, so the inferred shape uses `person?`: the offset may be absent, but its value is still a non-null array when present.
 
-If the input data does not match the rules array, an `\Illuminate\Validation\ValidationException` is thrown, thus preserving type safety.
+If the input data does not match the rules array, an `\Illuminate\Validation\ValidationException` is thrown. For successful input, this extension conservatively infers the values and shape Laravel may preserve in the validated output.
 
 ## Installation
 
@@ -58,7 +72,7 @@ includes:
 
 ## Caveats
 
-* Laravel's validation does not cast anything, so, for example, `numeric` produces the type union `int|float|numeric-string`. If you know it will always be a string, you can refine the type by using `numeric|string` and get a plain `numeric-string`.
+* Laravel validation generally does not normalize returned values, so, for example, `numeric` produces the type union `int|float|numeric-string`. If you know it will always be a string, you can refine the type by using `numeric|string` and get a plain `numeric-string`.
 * Wildcard collections may have integer or string keys. Wildcard rules can't currently be mixed with non-wildcard rules beneath the same parent.
 * Larastan provides its own stub for `Illuminate\Validation\Validator`, and PHPStan does not merge multiple stubs for the same class. When both extensions are installed, Larastan's stub takes precedence, so an ignored `setRules()` return can leave the validator's previously inferred rules in place. Chain the call (`$validator->setRules($rules)->validated()`) or assign its return value (`$validator = $validator->setRules($rules)`) to infer constant replacement rules correctly.
 * Custom validation rules, implicit rules, and enums are not currently supported.

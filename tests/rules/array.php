@@ -15,3 +15,8 @@ $validated = $validator->validated();
 assertType('array{required_value: array{name?: mixed, username?: mixed}, optional_value?: array{name?: mixed, username?: mixed}|string}', $validated);
 assertType('array{name?: mixed, username?: mixed}', $validated['required_value']);
 assertType('array{name?: mixed, username?: mixed}|string', $validated['optional_value']);
+
+$unrestricted = \Illuminate\Support\Facades\Validator::make([], [
+    'value' => 'required|array',
+])->validated();
+assertType('array{value: array}', $unrestricted);

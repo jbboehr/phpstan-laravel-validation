@@ -127,6 +127,35 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         self::assertTrue($rulesType->accepts($validatedType, true)->yes());
     }
 
+    /**
+     * @return iterable<string, array{mixed}>
+     */
+    public static function nonIntegerValuesAcceptedByIntegerProvider(): iterable
+    {
+        yield 'float' => [1.0];
+        yield 'boolean' => [true];
+    }
+
+    /**
+     * @dataProvider nonIntegerValuesAcceptedByIntegerProvider
+     */
+    public function testIntegerRuleCanPreserveNonIntegerValues(mixed $value): void
+    {
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $validator = $factory->make(
+            ['value' => $value],
+            ['value' => 'required|integer']
+        );
+
+        self::assertTrue($validator->passes());
+        self::assertSame(['value' => $value], $validator->validated());
+    }
+
     public function testConfirmedComparisonFieldIsOnlyValidatedWhenItHasRules(): void
     {
         $factory = new \Illuminate\Validation\Factory(
@@ -204,6 +233,62 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
             $validatedType = $this->convertToType($validator->validated());
             self::assertTrue($rulesType->accepts($validatedType, true)->yes());
         }
+    }
+
+    public function testConditionalExclusionChangesTheValidatedShape(): void
+    {
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $rules = [
+            'kind' => 'required|string',
+            'value' => 'required|string|exclude_if:kind,guest',
+        ];
+
+        $excluded = $factory->make([
+            'kind' => 'guest',
+            'value' => 'secret',
+        ], $rules);
+        self::assertTrue($excluded->passes());
+        self::assertSame(['kind' => 'guest'], $excluded->validated());
+
+        $included = $factory->make([
+            'kind' => 'member',
+            'value' => 'visible',
+        ], $rules);
+        self::assertTrue($included->passes());
+        self::assertSame([
+            'kind' => 'member',
+            'value' => 'visible',
+        ], $included->validated());
+
+        $rulesType = (new TypeResolver())->evaluate(RuleParser::parse($rules));
+        foreach ([$excluded, $included] as $validator) {
+            $validatedType = $this->convertToType($validator->validated());
+            self::assertTrue($rulesType->accepts($validatedType, true)->yes());
+        }
+    }
+
+    public function testRequiredWildcardDescendantDoesNotRequireMissingParent(): void
+    {
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $rules = ['person.*.email' => 'required|string|email'];
+        $validator = $factory->make([], $rules);
+
+        self::assertTrue($validator->passes());
+        self::assertSame([], $validator->validated());
+
+        $rulesType = (new TypeResolver())->evaluate(RuleParser::parse($rules));
+        $validatedType = $this->convertToType($validator->validated());
+        self::assertTrue($rulesType->accepts($validatedType, true)->yes());
     }
 
     /**
@@ -358,6 +443,50 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         } finally {
             fclose($resource);
         }
+    }
+
+    public function testArrayRuleWithoutKeyParametersPreservesNestedKeys(): void
+    {
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $data = [
+            'user' => [
+                'name' => 'Ada',
+                'admin' => true,
+                'metadata' => ['source' => 'import'],
+            ],
+        ];
+        $rules = ['user' => 'required|array'];
+        $validator = $factory->make($data, $rules);
+
+        self::assertTrue($validator->passes());
+        self::assertSame($data, $validator->validated());
+
+        $rulesType = (new TypeResolver())->evaluate(RuleParser::parse($rules));
+        $validatedType = $this->convertToType($validator->validated());
+        self::assertTrue($rulesType->accepts($validatedType, true)->yes());
+    }
+
+    public function testArrayRuleKeyParametersRejectUndeclaredNestedKeys(): void
+    {
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $validator = $factory->make([
+            'user' => [
+                'name' => 'Ada',
+                'admin' => true,
+            ],
+        ], ['user' => 'required|array:name']);
+
+        self::assertFalse($validator->passes());
     }
 
     /**
