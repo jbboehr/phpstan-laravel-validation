@@ -132,8 +132,23 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
      */
     public static function nonIntegerValuesAcceptedByIntegerProvider(): iterable
     {
-        yield 'float' => [1.0];
+        yield 'zero integral float' => [0.0];
+        yield 'positive integral float' => [1.0];
+        yield 'negative integral float' => [-1.0];
         yield 'boolean' => [true];
+        yield 'stringable object' => [new \Illuminate\Support\Stringable('1')];
+    }
+
+    /**
+     * @return iterable<string, array{mixed, bool}>
+     */
+    public static function nonIntegerValuesForStrictIntegerProvider(): iterable
+    {
+        $supportsStrict = self::supportsStrictIntegerRule();
+
+        foreach (self::nonIntegerValuesAcceptedByIntegerProvider() as $description => [$value]) {
+            yield $description => [$value, $supportsStrict];
+        }
     }
 
     /**
@@ -154,6 +169,82 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
 
         self::assertTrue($validator->passes());
         self::assertSame(['value' => $value], $validator->validated());
+
+        $rulesType = (new TypeResolver())->evaluate(RuleParser::parse([
+            'value' => 'required|integer',
+        ]));
+        $validatedType = $this->convertToType($validator->validated());
+        self::assertTrue($rulesType->accepts($validatedType, true)->yes());
+    }
+
+    /**
+     * @dataProvider nonIntegerValuesForStrictIntegerProvider
+     */
+    public function testIntegerStrictRuleFollowsRuntimeSupport(mixed $value, bool $supportsStrict): void
+    {
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $validator = $factory->make(
+            ['value' => $value],
+            ['value' => 'required|integer:strict']
+        );
+
+        if ($supportsStrict) {
+            self::assertFalse($validator->passes());
+            return;
+        }
+
+        self::assertTrue($validator->passes());
+        self::assertSame(['value' => $value], $validator->validated());
+
+        $rulesType = (new TypeResolver())->evaluate(RuleParser::parse([
+            'value' => 'required|integer:strict',
+        ]));
+        $validatedType = $this->convertToType($validator->validated());
+        self::assertTrue($rulesType->accepts($validatedType, true)->yes());
+    }
+
+    public function testIntegerStrictRuleAcceptsAndPreservesNativeInteger(): void
+    {
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $validator = $factory->make(
+            ['value' => 1],
+            ['value' => 'required|integer:strict']
+        );
+
+        self::assertTrue($validator->passes());
+        self::assertSame(['value' => 1], $validator->validated());
+
+        $rulesType = (new TypeResolver())->evaluate(RuleParser::parse([
+            'value' => 'required|integer:strict',
+        ]));
+        $validatedType = $this->convertToType($validator->validated());
+        self::assertTrue($rulesType->accepts($validatedType, true)->yes());
+    }
+
+    private static function supportsStrictIntegerRule(): bool
+    {
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $validator = $factory->make(
+            ['value' => '1'],
+            ['value' => 'required|integer:strict']
+        );
+
+        return !$validator->passes();
     }
 
     public function testConfirmedComparisonFieldIsOnlyValidatedWhenItHasRules(): void

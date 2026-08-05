@@ -19,6 +19,8 @@ assertType("string", $validated['optional_digits']);
 # gh-2
 $validator = \Illuminate\Support\Facades\Validator::make([], [
     'amount' => 'required|integer',
+    'strict_amount' => 'required|integer:strict',
 ]);
 $validated = $validator->validated();
-assertType("int|numeric-string", $validated['amount']);
+assertType("float|int|numeric-string|Stringable|true", $validated['amount']);
+assertType("float|int|numeric-string|Stringable|true", $validated['strict_amount']);

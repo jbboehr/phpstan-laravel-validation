@@ -221,12 +221,22 @@ final class TypeResolver
                 new Type\FloatType()
             ),
 
+            // Laravel delegates the non-strict integer rule to
+            // FILTER_VALIDATE_INT, then preserves the original value. That
+            // accepts integral floats, true, and compatible Stringable
+            // objects in addition to integers and numeric strings. Laravel
+            // 12.22+ supports integer:strict, but earlier supported releases
+            // ignore that parameter, so version-independent inference must
+            // retain this union.
             "Integer" => Type\TypeCombinator::union(
                 new IntersectionType([
                     new StringType(),
                     new AccessoryNumericStringType(),
                 ]),
-                new Type\IntegerType()
+                new Type\IntegerType(),
+                new Type\FloatType(),
+                new Type\ObjectType(\Stringable::class),
+                new ConstantBooleanType(true),
             ),
 
             "Dimensions", "File", "Image", "Mimetypes",

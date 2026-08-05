@@ -78,7 +78,8 @@ final class TypeResolverTest extends PHPStanTestCase
             yield $rule => [$rule, 'float|int|numeric-string'];
         }
 
-        yield 'integer' => ['integer', 'int|numeric-string'];
+        yield 'integer' => ['integer', 'float|int|numeric-string|Stringable|true'];
+        yield 'integer strict' => ['integer:strict', 'float|int|numeric-string|Stringable|true'];
 
         foreach (['dimensions:min_width=1', 'file', 'image', 'mimetypes:text/plain', 'mimes:txt'] as $rule) {
             yield $rule => [$rule, 'Symfony\\Component\\HttpFoundation\\File\\File'];

@@ -20,13 +20,13 @@ $chained = $factory
     ->make([], ['before' => 'required|string'])
     ->setRules(['after' => 'required|integer'])
     ->validated();
-assertType('array{after: int|numeric-string}', $chained);
+assertType('array{after: float|int|numeric-string|Stringable|true}', $chained);
 
 $reassigned = $factory->make([], ['before' => 'required|string']);
 $reassigned = $reassigned->setRules(['after' => 'required|integer']);
-assertType('array{after: int|numeric-string}', $reassigned->validated());
+assertType('array{after: float|int|numeric-string|Stringable|true}', $reassigned->validated());
 
 $union = random_int(0, 1) === 1
     ? $factory->make([], ['name' => 'required|string'])
     : $factory->make([], ['age' => 'required|integer']);
-assertType('array{age: int|numeric-string}|array{name: string}', $union->validated());
+assertType('array{age: float|int|numeric-string|Stringable|true}|array{name: string}', $union->validated());

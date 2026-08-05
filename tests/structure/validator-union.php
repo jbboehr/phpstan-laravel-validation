@@ -14,10 +14,10 @@ $nameValidator = $factory->make([], ['name' => 'required|string']);
 $ageValidator = $factory->make([], ['age' => 'required|integer']);
 
 $validator = $condition ? $nameValidator : $ageValidator;
-assertType('array{age: int|numeric-string}|array{name: string}', $validator->validated());
+assertType('array{age: float|int|numeric-string|Stringable|true}|array{name: string}', $validator->validated());
 
 $validatorInReverseOrder = $condition ? $ageValidator : $nameValidator;
-assertType('array{age: int|numeric-string}|array{name: string}', $validatorInReverseOrder->validated());
+assertType('array{age: float|int|numeric-string|Stringable|true}|array{name: string}', $validatorInReverseOrder->validated());
 
 $threeBranchValidator = match (random_int(0, 2)) {
     0 => $nameValidator,
@@ -25,7 +25,7 @@ $threeBranchValidator = match (random_int(0, 2)) {
     default => $factory->make([], ['email' => 'required|email']),
 };
 assertType(
-    'array{age: int|numeric-string}|array{email: non-empty-string}|array{name: string}',
+    'array{age: float|int|numeric-string|Stringable|true}|array{email: non-empty-string}|array{name: string}',
     $threeBranchValidator->validated()
 );
 
@@ -36,7 +36,7 @@ assertType('array{name: string}', $sameValidator->validated());
 
 $controller = new TestController();
 assertType(
-    'array{age: int|numeric-string}|array{name: string}',
+    'array{age: float|int|numeric-string|Stringable|true}|array{name: string}',
     $controller->validateWith($validator, new \Illuminate\Http\Request())
 );
 
@@ -46,7 +46,7 @@ $integerValidator = $factory->make([], ['before' => 'required|string']);
 $integerValidator = $integerValidator->setRules(['count' => 'required|integer']);
 $replacementValidator = $condition ? $stringValidator : $integerValidator;
 assertType(
-    'array{count: int|numeric-string}|array{email: non-empty-string}',
+    'array{count: float|int|numeric-string|Stringable|true}|array{email: non-empty-string}',
     $replacementValidator->validated()
 );
 

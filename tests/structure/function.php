@@ -13,4 +13,4 @@ $validator = validator([], [
 assertType('Illuminate\\Validation\\Validator', $validator);
 
 $validated = $validator->validated();
-assertType("int|numeric-string", $validated['amount']);
+assertType("float|int|numeric-string|Stringable|true", $validated['amount']);

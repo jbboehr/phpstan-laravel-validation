@@ -16,11 +16,11 @@ $chained = $factory
     ->make([], ['before' => 'required|string'])
     ->setRules(['after' => 'required|integer'])
     ->validated();
-assertType('array{after: int|numeric-string}', $chained);
+assertType('array{after: float|int|numeric-string|Stringable|true}', $chained);
 
 $reassigned = $factory->make([], ['before' => 'required|string']);
 $reassigned = $reassigned->setRules(['after' => 'required|integer']);
-assertType('array{after: int|numeric-string}', $reassigned->validated());
+assertType('array{after: float|int|numeric-string|Stringable|true}', $reassigned->validated());
 
 $validateWithDynamicReplacementRules = static function (Factory $factory, array $rules): void {
     $validator = $factory->make([], ['before' => 'required|string']);

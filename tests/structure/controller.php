@@ -9,11 +9,11 @@ $controller = new TestController();
 $validated = $controller->validate(new \Illuminate\Http\Request(), [
     'amount' => 'required|integer',
 ]);
-assertType("int|numeric-string", $validated['amount']);
+assertType("float|int|numeric-string|Stringable|true", $validated['amount']);
 
 $controller = new TestController();
 $validator = \Illuminate\Support\Facades\Validator::make([], [
     'amount' => 'required|integer',
 ]);
 $validated = $controller->validateWith($validator, new \Illuminate\Http\Request());
-assertType("int|numeric-string", $validated['amount']);
+assertType("float|int|numeric-string|Stringable|true", $validated['amount']);

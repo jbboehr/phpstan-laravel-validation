@@ -42,10 +42,28 @@ Validator::make(
 // ['value' => true]
 ```
 
+A `Stringable` object returning an accepted integer string also passes and is
+returned as the same object. The sound inferred value type is therefore:
+
+```php
+float|int|numeric-string|Stringable|true
+```
+
 The `integer` rule has not produced an `int`. It has accepted values that PHP's
 filter semantics consider integer-like and then preserved their original
-native types. Similarly, `required|numeric` may return an `int`, a `float`, or
-a `numeric-string`; it does not produce one canonical numeric representation.
+native types. The union necessarily includes all floats and all `Stringable`
+objects because PHPStan cannot express “an integral float” or “an object whose
+string representation passes this PHP filter.” It is broader than Laravel's
+accepted subset, but narrowing it would exclude successful output. Similarly,
+`required|numeric` may return an `int`, a `float`, or a `numeric-string`; it
+does not produce one canonical numeric representation.
+
+Strict integer validation first appeared in Laravel 12.22 and is also present
+in Laravel 13. It accepts only native integers. Laravel 10, Laravel 11, and
+Laravel 12.0 through 12.21 accept the same rule spelling but ignore the
+`strict` parameter and retain the broader filter behavior. The extension's
+version-independent inference therefore keeps the conservative cross-version
+union for `integer:strict` as well.
 
 Laravel validation can still enforce runtime domain constraints such as email
 syntax, ranges, and membership. The problem is not that predicates are useless.
@@ -346,6 +364,7 @@ Laravel's semantics force some types to be broad or optional:
 
 | Situation | Honest structural description | Why |
 | --- | --- | --- |
+| `required\|integer` | `float\|int\|numeric-string\|Stringable\|true` | PHP's integer filter accepts several preserved native types. |
 | `required\|in:1` | `float\|int\|numeric-string\|Stringable\|true` | Coercive comparison accepts multiple preserved native types. |
 | optional `array` | optional `array\|string` | A blank string can bypass the predicate. |
 | conditional acceptance | a broad value when the branch is unknown | The inactive branch accepts values excluded by the active branch. |
@@ -400,11 +419,6 @@ and useful structural types and provides sound inference for supported
 combinations covered by adversarial conformance tests. It remains experimental;
 finite fixtures and tests do not prove every Laravel rule, custom extension, or
 runtime configuration universally sound.
-
-The `integer` preservation examples earlier in this document illustrate that
-boundary. They are covered by a Laravel runtime regression test, but the
-current inferred type does not yet include every verified non-integer value.
-They are evidence about Laravel, not a claim of completed inference support.
 
 ### Additional sources of static information
 
@@ -486,7 +500,8 @@ documented claims map to the following persistent coverage:
 
 | Claim | Laravel runtime coverage | PHPStan inference coverage |
 | --- | --- | --- |
-| `integer` can preserve non-integers | `LaravelInferenceTest::testIntegerRuleCanPreserveNonIntegerValues` | Known inference gap; no sound static assertion yet |
+| `integer` can preserve non-integers | `LaravelInferenceTest::testIntegerRuleCanPreserveNonIntegerValues` | [`tests/rules/integer.php`](../tests/rules/integer.php) |
+| `integer:strict` differs by Laravel release | `LaravelInferenceTest::testIntegerStrictRuleFollowsRuntimeSupport` and `testIntegerStrictRuleAcceptsAndPreservesNativeInteger` | Conservative cross-version coverage in [`tests/rules/integer.php`](../tests/rules/integer.php) |
 | Scalar `in` preserves coercible inputs | `LaravelInferenceTest::testScalarInRuleAcceptsRuntimeValues` | [`tests/rules/in.php`](../tests/rules/in.php) |
 | Optional blanks bypass non-implicit rules | `LaravelInferenceTest::testBlankStringBypassesOptionalNonImplicitRules` | [`tests/structure/empty-string.php`](../tests/structure/empty-string.php) |
 | Conditional acceptance broadens values | `LaravelInferenceTest::testConditionalValueRulesRemainConservative` | [`tests/rules/accepted-if.php`](../tests/rules/accepted-if.php) |
