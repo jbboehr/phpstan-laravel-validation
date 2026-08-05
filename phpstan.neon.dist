@@ -12,5 +12,6 @@ parameters:
         - tests
     excludePaths:
         - tests/fixtures
+        - tests/larastan
         - tests/rules
         - tests/structure

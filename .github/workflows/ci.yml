@@ -161,6 +161,46 @@ jobs:
             #       coverageLocations: |
             #           clover.xml:clover
 
+    larastan:
+        runs-on: ubuntu-latest
+        name: "Larastan compatibility | PHP 8.5 | Laravel 13"
+        steps:
+            - uses: actions/checkout@v7
+
+            - name: Install PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  coverage: "none"
+                  php-version: "8.5"
+                  tools: composer:v2
+
+            - name: Cache Composer packages
+              id: composer-cache
+              uses: actions/cache@v6
+              with:
+                  path: vendor
+                  key: ${{ runner.os }}-php-8.5-larastan-${{ hashFiles('**/composer.lock') }}
+                  restore-keys: |
+                      ${{ runner.os }}-php-8.5-larastan-
+
+            - name: Install dependencies
+              run: composer install --prefer-dist --no-progress --ignore-platform-req=php+
+
+            - name: Install Larastan and Laravel
+              run: >-
+                  composer require
+                  --prefer-dist
+                  --no-progress
+                  --with-all-dependencies
+                  --dev
+                  --ignore-platform-req=php+
+                  --no-blocking
+                  larastan/larastan:^3.0
+                  laravel/framework:^13.0
+
+            - name: Run Larastan compatibility tests
+              run: php vendor/bin/phpunit --group larastan --fail-on-skipped
+
     nix:
         runs-on: ubuntu-latest
         steps:

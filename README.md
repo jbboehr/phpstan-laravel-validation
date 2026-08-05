@@ -60,6 +60,7 @@ includes:
 
 * Laravel's validation does not cast anything, so, for example, `numeric` produces the type union `int|float|numeric-string`. If you know it will always be a string, you can refine the type by using `numeric|string` and get a plain `numeric-string`.
 * Wildcard collections may have integer or string keys. Wildcard rules can't currently be mixed with non-wildcard rules beneath the same parent.
+* Larastan provides its own stub for `Illuminate\Validation\Validator`, and PHPStan does not merge multiple stubs for the same class. When both extensions are installed, Larastan's stub takes precedence, so an ignored `setRules()` return can leave the validator's previously inferred rules in place. Chain the call (`$validator->setRules($rules)->validated()`) or assign its return value (`$validator = $validator->setRules($rules)`) to infer constant replacement rules correctly.
 * Custom validation rules, implicit rules, and enums are not currently supported.
 
 ## License
