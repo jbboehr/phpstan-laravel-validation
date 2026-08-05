@@ -40,11 +40,19 @@ final class TypeResolverTest extends PHPStanTestCase
 
         foreach (
             [
-            'active_url', 'alpha', 'alpha_dash', 'alpha_num', 'current_password', 'date_format:Y-m-d',
+            'active_url', 'alpha', 'current_password', 'date_format:Y-m-d',
             'email', 'ip', 'ipv4', 'ipv6', 'json', 'mac_address', 'timezone', 'url', 'ulid', 'uuid',
             ] as $rule
         ) {
             yield $rule => [$rule, 'non-empty-string'];
+        }
+
+        foreach (['alpha_dash', 'alpha_dash:ascii'] as $rule) {
+            yield $rule => [$rule, 'float|int|non-empty-string'];
+        }
+
+        foreach (['alpha_num', 'alpha_num:ascii'] as $rule) {
+            yield $rule => [$rule, 'float|int<0, max>|non-empty-string'];
         }
 
         foreach (['after:today', 'before:today', 'before_or_equal:today', 'date', 'date_equals:today'] as $rule) {

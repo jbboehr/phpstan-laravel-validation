@@ -231,6 +231,67 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         self::assertTrue($rulesType->accepts($validatedType, true)->yes());
     }
 
+    /**
+     * @return iterable<string, array{mixed, string}>
+     */
+    public static function numericValueAcceptedByAlphaRuleProvider(): iterable
+    {
+        foreach (['alpha_num', 'alpha_num:ascii', 'alpha_dash', 'alpha_dash:ascii'] as $rule) {
+            yield $rule . ' integer' => [1, $rule];
+            yield $rule . ' float' => [1.0, $rule];
+        }
+
+        yield 'alpha_dash negative integer' => [-1, 'alpha_dash'];
+        yield 'alpha_dash negative float in ASCII mode' => [-1.0, 'alpha_dash:ascii'];
+    }
+
+    /**
+     * @dataProvider numericValueAcceptedByAlphaRuleProvider
+     */
+    public function testAlphaRulesCanPreserveNumericValues(mixed $value, string $rule): void
+    {
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $rules = ['value' => 'required|' . $rule];
+        $validator = $factory->make(['value' => $value], $rules);
+
+        self::assertTrue($validator->passes());
+        self::assertSame(['value' => $value], $validator->validated());
+
+        $rulesType = (new TypeResolver())->evaluate(RuleParser::parse($rules));
+        $validatedType = $this->convertToType($validator->validated());
+        self::assertTrue($rulesType->accepts($validatedType, true)->yes());
+    }
+
+    /**
+     * @dataProvider alphaNumRuleProvider
+     */
+    public function testAlphaNumRejectsNegativeIntegers(string $rule): void
+    {
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $validator = $factory->make(['value' => -1], ['value' => 'required|' . $rule]);
+
+        self::assertFalse($validator->passes());
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function alphaNumRuleProvider(): iterable
+    {
+        yield 'Unicode' => ['alpha_num'];
+        yield 'ASCII' => ['alpha_num:ascii'];
+    }
+
     private static function supportsStrictIntegerRule(): bool
     {
         $factory = new \Illuminate\Validation\Factory(

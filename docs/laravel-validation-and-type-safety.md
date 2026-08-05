@@ -58,6 +58,33 @@ accepted subset, but narrowing it would exclude successful output. Similarly,
 `required|numeric` may return an `int`, a `float`, or a `numeric-string`; it
 does not produce one canonical numeric representation.
 
+Even the apparently textual `alpha_num` and `alpha_dash` rules accept numeric
+scalars. Laravel first permits any string or value for which `is_numeric()` is
+true, passes that value to a regular expression as a string, and then returns
+the unconverted input. Both of these results therefore preserve a float:
+
+```php
+Validator::make(
+    ['value' => 1.0],
+    ['value' => 'required|alpha_num'],
+)->validated();
+// ['value' => 1.0]
+
+Validator::make(
+    ['value' => -1.0],
+    ['value' => 'required|alpha_dash:ascii'],
+)->validated();
+// ['value' => -1.0]
+```
+
+The sound structural value type for `alpha_dash` is consequently
+`float|int|non-empty-string` in both Unicode and ASCII modes. `alpha_num` can
+narrow the integer branch to `int<0, max>`, but its complete type still needs
+the broad `float` branch because PHPStan cannot express only those floats whose
+string representation matches Laravel's regular expression. Once again, the
+rule tests a coercively viewed representation but returns the original native
+value.
+
 Strict integer validation first appeared in Laravel 12.22 and is also present
 in Laravel 13. It accepts only native integers. Laravel 10, Laravel 11, and
 Laravel 12.0 through 12.21 accept the same rule spelling but ignore the
@@ -365,6 +392,7 @@ Laravel's semantics force some types to be broad or optional:
 | Situation | Honest structural description | Why |
 | --- | --- | --- |
 | `required\|integer` | `float\|int\|numeric-string\|Stringable\|true` | PHP's integer filter accepts several preserved native types. |
+| `required\|alpha_num` | `float\|int<0, max>\|non-empty-string` | Laravel applies a string regex to strings and numeric scalars, then preserves the original value. |
 | `required\|in:1` | `float\|int\|numeric-string\|Stringable\|true` | Coercive comparison accepts multiple preserved native types. |
 | optional `array` | optional `array\|string` | A blank string can bypass the predicate. |
 | conditional acceptance | a broad value when the branch is unknown | The inactive branch accepts values excluded by the active branch. |
@@ -502,6 +530,7 @@ documented claims map to the following persistent coverage:
 | --- | --- | --- |
 | `integer` can preserve non-integers | `LaravelInferenceTest::testIntegerRuleCanPreserveNonIntegerValues` | [`tests/rules/integer.php`](../tests/rules/integer.php) |
 | `integer:strict` differs by Laravel release | `LaravelInferenceTest::testIntegerStrictRuleFollowsRuntimeSupport` and `testIntegerStrictRuleAcceptsAndPreservesNativeInteger` | Conservative cross-version coverage in [`tests/rules/integer.php`](../tests/rules/integer.php) |
+| `alpha_num` and `alpha_dash` preserve numeric scalars | `LaravelInferenceTest::testAlphaRulesCanPreserveNumericValues` | [`tests/rules/alpha-num.php`](../tests/rules/alpha-num.php) and [`tests/rules/alpha-dash.php`](../tests/rules/alpha-dash.php) |
 | Scalar `in` preserves coercible inputs | `LaravelInferenceTest::testScalarInRuleAcceptsRuntimeValues` | [`tests/rules/in.php`](../tests/rules/in.php) |
 | Optional blanks bypass non-implicit rules | `LaravelInferenceTest::testBlankStringBypassesOptionalNonImplicitRules` | [`tests/structure/empty-string.php`](../tests/structure/empty-string.php) |
 | Conditional acceptance broadens values | `LaravelInferenceTest::testConditionalValueRulesRemainConservative` | [`tests/rules/accepted-if.php`](../tests/rules/accepted-if.php) |

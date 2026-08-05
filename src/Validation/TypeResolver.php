@@ -159,12 +159,32 @@ final class TypeResolver
                 new ConstantBooleanType(true),
             ),
 
-            "ActiveUrl", "Alpha", "AlphaDash", "AlphaNum", "CurrentPassword", "DateFormat",
+            "ActiveUrl", "Alpha", "CurrentPassword", "DateFormat",
             "Email", "Ip", "Ipv4", "Ipv6", "Json", "MacAddress", "Timezone", "Url", "Ulid",
             "Uuid" => new IntersectionType([
                 new StringType(),
                 new AccessoryNonEmptyStringType(),
             ]),
+
+            // Laravel admits numeric scalars before applying these regexes,
+            // then preserves the original value in validated output.
+            "AlphaDash" => Type\TypeCombinator::union(
+                new Type\FloatType(),
+                new Type\IntegerType(),
+                new IntersectionType([
+                    new StringType(),
+                    new AccessoryNonEmptyStringType(),
+                ]),
+            ),
+
+            "AlphaNum" => Type\TypeCombinator::union(
+                new Type\FloatType(),
+                Type\IntegerRangeType::fromInterval(0, null),
+                new IntersectionType([
+                    new StringType(),
+                    new AccessoryNonEmptyStringType(),
+                ]),
+            ),
 
             "After", "Before", "BeforeOrEqual", "Date", "DateEquals" => Type\TypeCombinator::union(
                 new Type\ObjectType(\DateTimeInterface::class),
