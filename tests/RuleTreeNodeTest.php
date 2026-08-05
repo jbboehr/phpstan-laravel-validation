@@ -20,11 +20,31 @@ declare(strict_types=1);
 
 namespace jbboehr\PhpstanLaravelValidation\Test;
 
+use ErrorException;
+use jbboehr\PhpstanLaravelValidation\Validation\Rule;
 use jbboehr\PhpstanLaravelValidation\Validation\RuleParser;
+use jbboehr\PhpstanLaravelValidation\Validation\RuleTreeNode;
 use PHPUnit\Framework\TestCase;
 
 final class RuleTreeNodeTest extends TestCase
 {
+    public function testResolvesSimplePathWithoutWarnings(): void
+    {
+        set_error_handler(
+            static function (int $severity, string $message, string $file, int $line): never {
+                throw new ErrorException($message, 0, $severity, $file, $line);
+            }
+        );
+
+        try {
+            $node = (new RuleTreeNode(''))->resolvePath('person');
+        } finally {
+            restore_error_handler();
+        }
+
+        self::assertSame('person', $node->getPath());
+    }
+
     /**
      * @return iterable<string, array{string, bool}>
      */
@@ -106,5 +126,102 @@ final class RuleTreeNodeTest extends TestCase
         self::assertFalse($tree->resolvePath('items')->isOptional());
         self::assertFalse($tree->resolvePath('items.*.name')->isOptional());
         self::assertFalse($tree->resolvePath('items.named.label')->isOptional());
+    }
+
+    public function testResolvedPathsRetainTheirFullNames(): void
+    {
+        $tree = RuleParser::parse([
+            'person.name.first' => 'required|string',
+            'settings.timezone\.name' => 'string',
+        ]);
+
+        self::assertSame('person', $tree->resolvePath('person')->getPath());
+        self::assertSame('person.name', $tree->resolvePath('person.name')->getPath());
+        self::assertSame('person.name.first', $tree->resolvePath('person.name.first')->getPath());
+        self::assertSame('settings.timezone.name', $tree->resolvePath('settings.timezone\.name')->getPath());
+
+        $escapedSegment = $tree->resolvePath('settings.timezone\.name.label');
+        self::assertSame('settings.timezone.name.label', $escapedSegment->getPath());
+    }
+
+    public function testReportsWhetherItHasChildren(): void
+    {
+        $tree = RuleParser::parse([]);
+
+        self::assertFalse($tree->hasChildren());
+        $tree->resolvePath('child');
+        self::assertTrue($tree->hasChildren());
+    }
+
+    public function testLeafOptionalityResolutionReturnsItsState(): void
+    {
+        $required = RuleParser::parse(['value' => 'required'])->resolvePath('value');
+        $sometimes = RuleParser::parse(['value' => 'required|sometimes'])->resolvePath('value');
+
+        self::assertFalse($required->resolveOptional());
+        self::assertTrue($sometimes->resolveOptional());
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function conditionalOptionalRuleProvider(): iterable
+    {
+        yield 'accepted if' => ['accepted_if:other,value'];
+        yield 'declined if' => ['declined_if:other,value'];
+        yield 'exclude if' => ['exclude_if:other,value'];
+        yield 'exclude unless' => ['exclude_unless:other,value'];
+        yield 'exclude with' => ['exclude_with:other'];
+        yield 'exclude without' => ['exclude_without:other'];
+    }
+
+    /**
+     * @dataProvider conditionalOptionalRuleProvider
+     */
+    public function testConditionalRulesOverrideRequiredness(string $conditionalRule): void
+    {
+        $node = RuleParser::parse([
+            'value' => 'required|' . $conditionalRule,
+        ])->resolvePath('value');
+
+        self::assertTrue($node->isOptional());
+    }
+
+    public function testRequirednessPropagationIsIndependentOfChildOrder(): void
+    {
+        $optionalThenRequired = RuleParser::parse([
+            'parent.optional' => 'string',
+            'parent.required' => 'required|string',
+        ]);
+        $requiredThenOptional = RuleParser::parse([
+            'parent.required' => 'required|string',
+            'parent.optional' => 'string',
+        ]);
+
+        self::assertFalse($optionalThenRequired->resolvePath('parent')->isOptional());
+        self::assertFalse($requiredThenOptional->resolvePath('parent')->isOptional());
+    }
+
+    public function testParentWithRequiredChildDoesNotAllowBlankStringBypass(): void
+    {
+        $parent = RuleParser::parse([
+            'parent.child' => 'required|string',
+        ])->resolvePath('parent');
+
+        self::assertFalse($parent->allowsBlankStringBypass());
+    }
+
+    public function testInsertsRuleAtPath(): void
+    {
+        $tree = new RuleTreeNode('');
+
+        self::assertSame($tree, $tree->insert('person.name', Rule::create(Rule::RULE_REQUIRED)));
+        self::assertSame(
+            [Rule::RULE_REQUIRED],
+            array_map(
+                static fn (Rule $rule): string => $rule->getRuleName(),
+                $tree->resolvePath('person.name')->getRules()
+            )
+        );
     }
 }

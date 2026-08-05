@@ -25,6 +25,8 @@ use jbboehr\PhpstanLaravelValidation\Type\ValidatorType;
 use jbboehr\PhpstanLaravelValidation\Validation\RuleParser;
 use PHPStan\Testing\PHPStanTestCase;
 use PHPStan\Type\ObjectType;
+use PHPStan\Type\IntegerType;
+use PHPStan\Type\StringType;
 use PHPStan\Type\TypeCombinator;
 use PHPStan\Type\UnionType;
 use PHPStan\Type\VerbosityLevel;
@@ -40,6 +42,7 @@ final class ValidatorTypeTest extends PHPStanTestCase
 
         self::assertTrue($nameType->isSuperTypeOf($ageType)->no());
         self::assertTrue($ageType->isSuperTypeOf($nameType)->no());
+        self::assertFalse($nameType->equals($ageType));
 
         $union = TypeCombinator::union($nameType, $ageType);
         self::assertInstanceOf(UnionType::class, $union);
@@ -84,6 +87,103 @@ final class ValidatorTypeTest extends PHPStanTestCase
             $nameType->describe(VerbosityLevel::cache()),
             $ageType->describe(VerbosityLevel::cache())
         );
+    }
+
+    public function testPayloadIsNotEqualToGenericValidatorType(): void
+    {
+        self::getContainer();
+
+        $payloadType = self::createValidatorType(['name' => 'required|string']);
+
+        self::assertFalse($payloadType->equals(new ObjectType(Validator::class)));
+    }
+
+    public function testChangesSubtractedTypeOnlyWhenNecessary(): void
+    {
+        self::getContainer();
+
+        $type = self::createValidatorType(['name' => 'required|string']);
+        $validatorRules = $type->getValidatorRules();
+        $stringType = new StringType();
+
+        self::assertSame($type, $type->changeSubtractedType(null));
+
+        $withSubtractedType = $type->changeSubtractedType($stringType);
+        self::assertInstanceOf(ValidatorType::class, $withSubtractedType);
+        self::assertNotSame($type, $withSubtractedType);
+        self::assertSame($validatorRules, $withSubtractedType->getValidatorRules());
+        $subtractedType = $withSubtractedType->getSubtractedType();
+        self::assertNotNull($subtractedType);
+        self::assertTrue($stringType->equals($subtractedType));
+        self::assertSame($withSubtractedType, $withSubtractedType->changeSubtractedType(new StringType()));
+
+        $withoutSubtractedType = $withSubtractedType->changeSubtractedType(null);
+        self::assertInstanceOf(ValidatorType::class, $withoutSubtractedType);
+        self::assertNotSame($withSubtractedType, $withoutSubtractedType);
+        self::assertSame($validatorRules, $withoutSubtractedType->getValidatorRules());
+        self::assertNull($withoutSubtractedType->getSubtractedType());
+    }
+
+    public function testExposesValidatorRules(): void
+    {
+        self::getContainer();
+
+        $validatorRules = RuleParser::parse(['name' => 'required|string']);
+        $type = new ValidatorType($validatorRules);
+
+        self::assertSame($validatorRules, $type->getValidatorRules());
+    }
+
+    public function testAcceptsOnlyCompatibleValidatorPayloads(): void
+    {
+        self::getContainer();
+
+        $nameType = self::createValidatorType(['name' => 'required|string']);
+        $sameNameType = self::createValidatorType(['name' => 'required|string']);
+        $ageType = self::createValidatorType(['age' => 'required|integer']);
+
+        self::assertTrue($nameType->accepts($sameNameType, true)->yes());
+        self::assertTrue($nameType->accepts($ageType, true)->no());
+        self::assertTrue($nameType->accepts(new StringType(), true)->no());
+        self::assertTrue($nameType->accepts(new ObjectType(Validator::class), true)->no());
+    }
+
+    public function testTraversesSubtractedType(): void
+    {
+        self::getContainer();
+
+        $type = self::createValidatorType(['name' => 'required|string']);
+        self::assertSame($type, $type->traverse(static function (): never {
+            self::fail('Callback must not run without a subtracted type');
+        }));
+
+        $withStringSubtracted = $type->changeSubtractedType(new StringType());
+        $withIntegerSubtracted = $withStringSubtracted->traverse(
+            static fn (): IntegerType => new IntegerType()
+        );
+        self::assertInstanceOf(ValidatorType::class, $withIntegerSubtracted);
+        self::assertSame($type->getValidatorRules(), $withIntegerSubtracted->getValidatorRules());
+        self::assertInstanceOf(IntegerType::class, $withIntegerSubtracted->getSubtractedType());
+    }
+
+    public function testSimultaneousTraversalDropsExistingSubtractedType(): void
+    {
+        self::getContainer();
+
+        $type = self::createValidatorType(['name' => 'required|string']);
+        self::assertSame(
+            $type,
+            $type->traverseSimultaneously(new StringType(), static fn (): StringType => new StringType())
+        );
+
+        $withSubtractedType = $type->changeSubtractedType(new StringType());
+        $traversed = $withSubtractedType->traverseSimultaneously(
+            new StringType(),
+            static fn (): StringType => new StringType()
+        );
+        self::assertInstanceOf(ValidatorType::class, $traversed);
+        self::assertSame($type->getValidatorRules(), $traversed->getValidatorRules());
+        self::assertNull($traversed->getSubtractedType());
     }
 
     /**
