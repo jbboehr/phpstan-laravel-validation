@@ -84,7 +84,7 @@ final class TypeResolverTest extends PHPStanTestCase
             yield $rule => [$rule, 'Symfony\\Component\\HttpFoundation\\File\\File'];
         }
 
-        yield 'in' => ['in:one,two', "'one'|'two'"];
+        yield 'in' => ['in:one,two', "'one'|'two'|Stringable"];
     }
 
     /**
@@ -106,8 +106,26 @@ final class TypeResolverTest extends PHPStanTestCase
 
     public function testEvaluatesLeafAndSingleValueInRulesExactly(): void
     {
-        self::assertSame("array{value: 'only'}", self::resolve([
+        self::assertSame("array{value: 'only'|Stringable}", self::resolve([
             'value' => 'required|in:only',
+        ]));
+        self::assertSame('array{value: float|int|numeric-string|Stringable|true}', self::resolve([
+            'value' => 'required|in:1',
+        ]));
+        self::assertSame('array{value: float|int|numeric-string|Stringable}', self::resolve([
+            'value' => 'required|in:2',
+        ]));
+        self::assertSame('array{value?: string|Stringable|false|null}', self::resolve([
+            'value' => 'in:',
+        ]));
+        self::assertSame('array{value: *NEVER*}', self::resolve([
+            'value' => 'required|in',
+        ]));
+        self::assertSame("array{value: 'xResource id #1'|Stringable}", self::resolve([
+            'value' => 'required|in:xResource id #1',
+        ]));
+        self::assertSame("array{value: 'Resource id #1x'|Stringable}", self::resolve([
+            'value' => 'required|in:Resource id #1x',
         ]));
         self::assertSame('array{value: string}', self::resolve([
             'value' => 'required|string',
@@ -178,6 +196,19 @@ final class TypeResolverTest extends PHPStanTestCase
         $this->expectException(InvalidRuleException::class);
         $this->expectExceptionMessage('Cannot have non-scalar key');
         (new TypeResolver())->evaluateLeaf($node);
+    }
+
+    public function testCastsScalarInValuesToStrings(): void
+    {
+        self::getContainer();
+        $node = RuleParser::parse([])->resolvePath('value');
+        $node->push(Rule::create(Rule::RULE_REQUIRED));
+        $node->push(Rule::create('In', [1]));
+
+        self::assertSame(
+            'float|int|numeric-string|Stringable|true',
+            (new TypeResolver())->evaluateLeaf($node)->describe(VerbosityLevel::precise())
+        );
     }
 
     /**

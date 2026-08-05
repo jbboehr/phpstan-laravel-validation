@@ -31,7 +31,6 @@ use PHPStan\Type\Constant\ConstantStringType;
 use PHPStan\Type\IntersectionType;
 use PHPStan\Type\MixedType;
 use PHPStan\Type\StringType;
-use PHPStan\Type\UnionType;
 
 final class TypeResolver
 {
@@ -267,25 +266,68 @@ final class TypeResolver
         return $builder->getArray();
     }
 
-    /**
-     * @todo incorrect for array rules
-     */
     private function resolveTypeIn(Rule $rule): Type\Type
     {
-        $types = array_values(array_map(function ($str) {
-            if (is_scalar($str)) {
-                return new ConstantStringType((string) $str);
-            } else {
+        $parameters = array_map(function ($parameter): string {
+            // PHP's CSV parser represents the sole empty value in `in:` as
+            // null, while Laravel's loose comparison treats it like ''.
+            if ($parameter === null) {
+                return '';
+            }
+
+            if (!is_scalar($parameter)) {
                 throw new InvalidRuleException('Cannot have non-scalar key');
             }
-        }, $rule->getParameters()));
 
-        if (count($types) > 1) {
-            return new UnionType($types);
-        } elseif (count($types) === 1) {
-            return $types[0];
-        } else {
+            return (string) $parameter;
+        }, $rule->getParameters());
+
+        if (count($parameters) === 0) {
             return new Type\NeverType();
         }
+
+        // Laravel casts every non-array value to string and then performs a
+        // non-strict in_array() comparison. Stringable objects can therefore
+        // satisfy every non-empty parameter list.
+        $types = [new Type\ObjectType(\Stringable::class)];
+        $hasNumericParameter = false;
+        $acceptsTrue = false;
+
+        foreach ($parameters as $parameter) {
+            if (is_numeric($parameter)) {
+                $hasNumericParameter = true;
+                $acceptsTrue = $acceptsTrue || (float) $parameter === 1.0;
+            } else {
+                $types[] = new ConstantStringType($parameter);
+            }
+
+            if (in_array($parameter, ['INF', '-INF', 'NAN'], true)) {
+                $types[] = new Type\FloatType();
+            }
+
+            if (preg_match('/^Resource id #\d+$/', $parameter) === 1) {
+                $types[] = new Type\ResourceType();
+            }
+        }
+
+        if ($hasNumericParameter) {
+            $types[] = new IntersectionType([
+                new StringType(),
+                new AccessoryNumericStringType(),
+            ]);
+            $types[] = new Type\IntegerType();
+            $types[] = new Type\FloatType();
+        }
+
+        if ($acceptsTrue) {
+            $types[] = new ConstantBooleanType(true);
+        }
+
+        if (in_array('', $parameters, true)) {
+            $types[] = new ConstantBooleanType(false);
+            $types[] = new Type\NullType();
+        }
+
+        return Type\TypeCombinator::union(...$types);
     }
 }

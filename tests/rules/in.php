@@ -12,6 +12,10 @@ $validator = \Illuminate\Support\Facades\Validator::make([], [
 assertType('Illuminate\\Validation\\Validator', $validator);
 
 $validated = $validator->validated();
-assertType("array{required_value: '1'|'2'|'3'|'4'|'5', optional_value?: string}", $validated);
-assertType("'1'|'2'|'3'|'4'|'5'", $validated['required_value']);
-assertType('string', $validated['optional_value']);
+assertType(
+    'array{required_value: float|int|numeric-string|Stringable|true, '
+        . 'optional_value?: float|int|string|Stringable|true}',
+    $validated
+);
+assertType('float|int|numeric-string|Stringable|true', $validated['required_value']);
+assertType('float|int|string|Stringable|true', $validated['optional_value']);

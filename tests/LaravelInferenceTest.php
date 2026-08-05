@@ -207,6 +207,160 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
     }
 
     /**
+     * @return iterable<string, array{mixed, string}>
+     */
+    public static function scalarInValueProvider(): iterable
+    {
+        yield 'literal string' => ['1', 'in:1'];
+        yield 'integer' => [1, 'in:1'];
+        yield 'float' => [1.0, 'in:1'];
+        yield 'boolean' => [true, 'in:1'];
+        yield 'boolean with equivalent integer parameter' => [true, 'in:01'];
+        yield 'boolean with equivalent exponent parameter' => [true, 'in:1e0'];
+        yield 'equivalent integer string' => ['01', 'in:1'];
+        yield 'equivalent float string' => ['1.0', 'in:1'];
+        yield 'equivalent exponent string' => ['1e0', 'in:1'];
+        yield 'stringable object' => [new \Illuminate\Support\Stringable('one'), 'in:one'];
+        yield 'false for empty parameter' => [false, 'in:'];
+    }
+
+    /**
+     * @dataProvider scalarInValueProvider
+     */
+    public function testScalarInRuleAcceptsRuntimeValues(mixed $value, string $rule): void
+    {
+        self::getContainer();
+
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $rules = ['value' => 'required|' . $rule];
+        $validator = $factory->make(['value' => $value], $rules);
+
+        self::assertTrue($validator->passes());
+        self::assertSame(['value' => $value], $validator->validated());
+
+        $rulesType = (new TypeResolver())->evaluate(RuleParser::parse($rules));
+        $validatedType = $this->convertToType($validator->validated());
+        self::assertTrue($rulesType->accepts($validatedType, true)->yes());
+    }
+
+    public function testScalarInRuleAcceptsPresentNullForAnEmptyParameter(): void
+    {
+        self::getContainer();
+
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $rules = ['value' => 'in:'];
+        $validator = $factory->make(['value' => null], $rules);
+
+        self::assertTrue($validator->passes());
+        self::assertSame(['value' => null], $validator->validated());
+
+        $rulesType = (new TypeResolver())->evaluate(RuleParser::parse($rules));
+        $validatedType = $this->convertToType($validator->validated());
+        self::assertTrue($rulesType->accepts($validatedType, true)->yes());
+    }
+
+    /**
+     * @return iterable<string, array{mixed, string}>
+     */
+    public static function rejectedScalarInValueProvider(): iterable
+    {
+        yield 'true for another numeric parameter' => [true, 'required|in:2'];
+        yield 'value for no parameters' => ['value', 'required|in'];
+    }
+
+    /**
+     * @dataProvider rejectedScalarInValueProvider
+     */
+    public function testScalarInRuleRejectsValuesOutsideItsLooseComparison(mixed $value, string $rule): void
+    {
+        self::getContainer();
+
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $rules = ['value' => $rule];
+        $validator = $factory->make(['value' => $value], $rules);
+
+        self::assertFalse($validator->passes());
+    }
+
+    public function testScalarInRuleAcceptsAResourceWithTheSameStringValue(): void
+    {
+        self::getContainer();
+
+        $resource = fopen('php://memory', 'r');
+        if ($resource === false) {
+            self::fail('Unable to open an in-memory stream');
+        }
+
+        try {
+            $factory = new \Illuminate\Validation\Factory(
+                new \Illuminate\Translation\Translator(
+                    new \Illuminate\Translation\ArrayLoader(),
+                    'en'
+                )
+            );
+            $rules = ['value' => 'required|in:' . (string) $resource];
+            $validator = $factory->make(['value' => $resource], $rules);
+
+            self::assertTrue($validator->passes());
+            self::assertSame(['value' => $resource], $validator->validated());
+
+            $rulesType = (new TypeResolver())->evaluate(RuleParser::parse($rules));
+            $validatedType = $this->convertToType($validator->validated());
+            self::assertTrue($rulesType->accepts($validatedType, true)->yes());
+        } finally {
+            fclose($resource);
+        }
+    }
+
+    public function testScalarInRuleRejectsResourcesWhenTheParameterOnlyContainsTheirStringValue(): void
+    {
+        self::getContainer();
+
+        $resource = fopen('php://memory', 'r');
+        if ($resource === false) {
+            self::fail('Unable to open an in-memory stream');
+        }
+
+        try {
+            $factory = new \Illuminate\Validation\Factory(
+                new \Illuminate\Translation\Translator(
+                    new \Illuminate\Translation\ArrayLoader(),
+                    'en'
+                )
+            );
+            $resourceString = (string) $resource;
+
+            foreach (['prefix' . $resourceString, $resourceString . 'suffix'] as $parameter) {
+                $rules = ['value' => 'required|in:' . $parameter];
+                $validator = $factory->make(['value' => $resource], $rules);
+
+                self::assertFalse($validator->passes());
+
+                $rulesType = (new TypeResolver())->evaluate(RuleParser::parse($rules));
+                $inputType = $this->convertToType(['value' => $resource]);
+                self::assertTrue($rulesType->accepts($inputType, true)->no());
+            }
+        } finally {
+            fclose($resource);
+        }
+    }
+
+    /**
      * @return iterable<string, array{array<mixed>, array<string, string>, array<mixed>}>
      */
     public static function parentAndChildRulesProvider(): iterable
@@ -302,6 +456,7 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
             "array" => $this->convertArrayToType($data),
             "object" => new ObjectType(get_class($data)),
             "NULL" => new NullType(),
+            "resource" => new Type\ResourceType(),
             "unknown type" => new Type\MixedType(),
             default => new Type\MixedType(),
         };
