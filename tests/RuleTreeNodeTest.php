@@ -165,10 +165,29 @@ final class RuleTreeNodeTest extends TestCase
     /**
      * @return iterable<string, array{string}>
      */
-    public static function conditionalOptionalRuleProvider(): iterable
+    public static function conditionalAcceptanceRuleProvider(): iterable
     {
         yield 'accepted if' => ['accepted_if:other,value'];
         yield 'declined if' => ['declined_if:other,value'];
+    }
+
+    /**
+     * @dataProvider conditionalAcceptanceRuleProvider
+     */
+    public function testConditionalAcceptanceDoesNotOverrideRequiredness(string $conditionalRule): void
+    {
+        $node = RuleParser::parse([
+            'value' => 'required|' . $conditionalRule,
+        ])->resolvePath('value');
+
+        self::assertFalse($node->isOptional());
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function conditionalExclusionRuleProvider(): iterable
+    {
         yield 'exclude if' => ['exclude_if:other,value'];
         yield 'exclude unless' => ['exclude_unless:other,value'];
         yield 'exclude with' => ['exclude_with:other'];
@@ -176,9 +195,9 @@ final class RuleTreeNodeTest extends TestCase
     }
 
     /**
-     * @dataProvider conditionalOptionalRuleProvider
+     * @dataProvider conditionalExclusionRuleProvider
      */
-    public function testConditionalRulesOverrideRequiredness(string $conditionalRule): void
+    public function testConditionalExclusionOverridesRequiredness(string $conditionalRule): void
     {
         $node = RuleParser::parse([
             'value' => 'required|' . $conditionalRule,

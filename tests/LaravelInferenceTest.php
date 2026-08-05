@@ -161,6 +161,52 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
     }
 
     /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function conditionalValueRuleProvider(): iterable
+    {
+        yield 'accepted if' => ['accepted_if:other,match', 'yes'];
+        yield 'declined if' => ['declined_if:other,match', 'no'];
+    }
+
+    /**
+     * @dataProvider conditionalValueRuleProvider
+     */
+    public function testConditionalValueRulesRemainConservative(string $rule, string $matchingValue): void
+    {
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $rules = ['value' => 'required|' . $rule];
+
+        $nonMatchingCondition = $factory->make([
+            'other' => 'different',
+            'value' => 42,
+        ], $rules);
+        self::assertTrue($nonMatchingCondition->passes());
+        self::assertSame(['value' => 42], $nonMatchingCondition->validated());
+
+        $matchingCondition = $factory->make([
+            'other' => 'match',
+            'value' => $matchingValue,
+        ], $rules);
+        self::assertTrue($matchingCondition->passes());
+        self::assertSame(['value' => $matchingValue], $matchingCondition->validated());
+
+        $missingValue = $factory->make(['other' => 'different'], $rules);
+        self::assertFalse($missingValue->passes());
+
+        $rulesType = (new TypeResolver())->evaluate(RuleParser::parse($rules));
+        foreach ([$nonMatchingCondition, $matchingCondition] as $validator) {
+            $validatedType = $this->convertToType($validator->validated());
+            self::assertTrue($rulesType->accepts($validatedType, true)->yes());
+        }
+    }
+
+    /**
      * @return iterable<string, array{array<mixed>, array<string, string>, array<mixed>}>
      */
     public static function parentAndChildRulesProvider(): iterable

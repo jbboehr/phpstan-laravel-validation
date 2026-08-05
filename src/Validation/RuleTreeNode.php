@@ -89,8 +89,6 @@ final class RuleTreeNode implements IteratorAggregate, \Countable
                 Rule::RULE_EXCLUDE => $this->excluded = true,
 
                 // These force the node to be optional
-                Rule::RULE_ACCEPTED_IF,
-                Rule::RULE_DECLINED_IF,
                 Rule::RULE_EXCLUDE_IF,
                 Rule::RULE_EXCLUDE_UNLESS,
                 Rule::RULE_EXCLUDE_WITH,

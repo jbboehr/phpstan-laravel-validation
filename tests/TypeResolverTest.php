@@ -35,9 +35,8 @@ final class TypeResolverTest extends PHPStanTestCase
      */
     public static function resolvedRuleTypeProvider(): iterable
     {
-        foreach (['accepted', 'accepted_if:other,value'] as $rule) {
-            yield $rule => [$rule, "1|'1'|'on'|'true'|'yes'|true"];
-        }
+        yield 'accepted' => ['accepted', "1|'1'|'on'|'true'|'yes'|true"];
+        yield 'accepted if' => ['accepted_if:other,value', 'mixed'];
 
         foreach (
             [
@@ -63,9 +62,8 @@ final class TypeResolverTest extends PHPStanTestCase
         yield 'array' => ['array', 'array'];
         yield 'boolean' => ['boolean', "0|1|'0'|'1'|bool"];
 
-        foreach (['declined', 'declined_if:other,value'] as $rule) {
-            yield $rule => [$rule, "0|'0'|'false'|'no'|'off'|false"];
-        }
+        yield 'declined' => ['declined', "0|'0'|'false'|'no'|'off'|false"];
+        yield 'declined if' => ['declined_if:other,value', 'mixed'];
 
         $numericRules = [
             'digits:2',

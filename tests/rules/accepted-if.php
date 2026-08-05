@@ -12,6 +12,6 @@ $validator = \Illuminate\Support\Facades\Validator::make([], [
 assertType('Illuminate\\Validation\\Validator', $validator);
 
 $validated = $validator->validated();
-assertType("array{required_value?: 1|'1'|'on'|'true'|'yes'|true, optional_value?: 1|string|true}", $validated);
-assertType("1|'1'|'on'|'true'|'yes'|true", $validated['required_value']);
-assertType("1|string|true", $validated['optional_value']);
+assertType('array{required_value: mixed, optional_value?: mixed}', $validated);
+assertType('mixed', $validated['required_value']);
+assertType('mixed', $validated['optional_value']);

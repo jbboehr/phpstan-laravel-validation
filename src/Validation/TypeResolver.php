@@ -151,7 +151,7 @@ final class TypeResolver
         // Currently unsupported: Enum, Present, RequiredArrayKeys
 
         return match ($rule->getRuleName()) {
-            "Accepted", "AcceptedIf" => Type\TypeCombinator::union(
+            "Accepted" => Type\TypeCombinator::union(
                 new ConstantStringType("yes"),
                 new ConstantStringType("on"),
                 new ConstantStringType("1"),
@@ -187,7 +187,8 @@ final class TypeResolver
             "Array" => $this->resolveTypeArray($rule),
 
             "Bail", "Confirmed", "Between", "Different", "Distinct", "DoesntStartWith", "DoesntEndWith",
-            "EndsWith", "Exists", "Filled", "Gt", "Gte", "InArray", "Lt", "Lte", "Max", "Min", "NotIn", "Exclude",
+            "AcceptedIf", "DeclinedIf", "EndsWith", "Exists", "Filled", "Gt", "Gte", "InArray", "Lt", "Lte",
+            "Max", "Min", "NotIn", "Exclude",
             "ExcludeIf", "ExcludeUnless", "ExcludeWith", "ExcludeWithout", "Nullable", "Required", "Password",
             "Prohibited", "ProhibitedIf", "ProhibitedUnless", "Prohibits", "RequiredIf", "RequiredUnless",
             "RequiredWith", "RequiredWithAll", "RequiredWithout", "RequiredWithoutAll", "Same", "Size", "Sometimes",
@@ -201,7 +202,7 @@ final class TypeResolver
                 new ConstantStringType('1'),
             ),
 
-            "Declined", "DeclinedIf" => Type\TypeCombinator::union(
+            "Declined" => Type\TypeCombinator::union(
                 new ConstantStringType("no"),
                 new ConstantStringType("off"),
                 new ConstantStringType("0"),
