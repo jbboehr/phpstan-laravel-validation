@@ -16,7 +16,7 @@
         "nikic/php-parser": "^4.15 || ^5.1"
     },
     "require-dev": {
-        "brick/varexporter": "^0.3.7",
+        "brick/varexporter": "^0.6.0",
         "illuminate/http": "^10.0 || ^11.0 || ^12.0 || ^13.0",
         "illuminate/validation": "^10.0 || ^11.0 || ^12.0 || ^13.0",
         "laravel/framework": "^10.0 || ^11.0 || ^12.0 || ^13.0",
@@ -34,6 +34,9 @@
         "psr-4": {
             "jbboehr\\PhpstanLaravelValidation\\Test\\": "tests/"
         }
+    },
+    "scripts": {
+        "infection": "@php tools/infection/vendor/bin/infection --only-covering-test-cases --with-uncovered"
     },
     "config": {
         "sort-packages": true,

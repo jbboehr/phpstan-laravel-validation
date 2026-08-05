@@ -1,0 +1,24 @@
+{
+    "$schema": "./tools/infection/vendor/infection/infection/resources/schema.json",
+    "source": {
+        "directories": [
+            "src"
+        ]
+    },
+    // PHPStan fixture tests spawn analyzer processes and can take materially
+    // longer on shared CI runners than they do locally.
+    "timeout": 60,
+    "threads": 1,
+    "minMsi": 50,
+    "minCoveredMsi": 80,
+    "timeoutsAsEscaped": true,
+    "maxTimeouts": 10,
+    "logs": {
+        "text": "infection.log",
+        "summary": "infection-summary.log"
+    },
+    "mutators": {
+        "@default": true
+    },
+    "testFramework": "phpunit"
+}

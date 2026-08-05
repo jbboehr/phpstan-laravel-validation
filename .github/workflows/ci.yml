@@ -161,6 +161,38 @@ jobs:
             #       coverageLocations: |
             #           clover.xml:clover
 
+    infection:
+        runs-on: ubuntu-latest
+        name: "Mutation testing | PHP 8.5"
+        steps:
+            - uses: actions/checkout@v7
+
+            - name: Install PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  coverage: pcov
+                  php-version: "8.5"
+                  tools: composer:v2
+
+            - name: Cache Composer packages
+              uses: actions/cache@v6
+              with:
+                  path: |
+                      vendor
+                      tools/infection/vendor
+                  key: ${{ runner.os }}-php-8.5-infection-${{ hashFiles('composer.lock', 'tools/infection/composer.lock') }}
+                  restore-keys: |
+                      ${{ runner.os }}-php-8.5-infection-
+
+            - name: Install project dependencies
+              run: composer install --prefer-dist --no-progress
+
+            - name: Install Infection
+              run: composer --working-dir=tools/infection install --prefer-dist --no-progress
+
+            - name: Run mutation tests
+              run: composer infection -- --logger-github=false
+
     larastan:
         runs-on: ubuntu-latest
         name: "Larastan compatibility | PHP 8.5 | Laravel 13"

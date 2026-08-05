@@ -63,6 +63,24 @@ includes:
 * Larastan provides its own stub for `Illuminate\Validation\Validator`, and PHPStan does not merge multiple stubs for the same class. When both extensions are installed, Larastan's stub takes precedence, so an ignored `setRules()` return can leave the validator's previously inferred rules in place. Chain the call (`$validator->setRules($rules)->validated()`) or assign its return value (`$validator = $validator->setRules($rules)`) to infer constant replacement rules correctly.
 * Custom validation rules, implicit rules, and enums are not currently supported.
 
+## Development
+
+Install the project dependencies and run the test suite with:
+
+```bash
+composer install
+composer exec phpunit
+```
+
+Mutation testing uses an isolated toolchain because Infection requires PHP 8.3 or newer while this package supports PHP 8.1. Install it and run it from the project root with:
+
+```bash
+composer --working-dir=tools/infection install
+composer infection
+```
+
+The PHPStan type-inference test cases execute analysis in the PHPUnit process, so Infection can exercise them normally. A coverage driver supported by Infection, such as PCOV, is required; the `php85` Nix development shell includes PCOV.
+
 ## License
 
 This project is licensed under the [AGPL v3+](https://www.gnu.org/licenses/agpl-3.0) License - see the LICENSE.md file for details.
