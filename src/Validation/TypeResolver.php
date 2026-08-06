@@ -20,7 +20,6 @@ declare(strict_types=1);
 
 namespace jbboehr\PhpstanLaravelValidation\Validation;
 
-use jbboehr\PhpstanLaravelValidation\ShouldNotHappenException;
 use PHPStan\Type;
 use PHPStan\Type\Accessory\AccessoryNonEmptyStringType;
 use PHPStan\Type\Accessory\AccessoryNumericStringType;
@@ -93,14 +92,25 @@ final class TypeResolver
 
     public function evaluateWildcard(RuleTreeNode $node, bool $assumeHttpInputNormalization = false): Type\Type
     {
-        $children = $node->getIterator();
-        if ($children->count() !== 1) {
-            // @todo don't throw
-            throw new ShouldNotHappenException('wildcard mixed with non-wildcard rules');
+        $valueTypes = [];
+        foreach ($node as $child) {
+            if ($child->isExcluded()) {
+                continue;
+            }
+
+            $valueTypes[] = $this->evaluate($child, $assumeHttpInputNormalization);
         }
+
+        // A wildcard and explicitly named children can select overlapping
+        // paths. PHPStan cannot express every resulting key correlation, so
+        // retain the union of every value shape that Laravel may project.
+        $valueType = count($valueTypes) > 0
+            ? Type\TypeCombinator::union(...$valueTypes)
+            : new MixedType();
+
         return new Type\ArrayType(
             Type\TypeCombinator::union(new Type\IntegerType(), new Type\StringType()),
-            $this->evaluate($children->current(), $assumeHttpInputNormalization)
+            $valueType
         );
     }
 

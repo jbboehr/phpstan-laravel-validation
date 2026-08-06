@@ -568,6 +568,83 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         self::assertTrue($rulesType->accepts($validatedType, true)->yes());
     }
 
+    public function testWildcardAndNamedRulesProjectOverlappingScalarValues(): void
+    {
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $rules = [
+            'items.*' => 'string',
+            'items.named' => 'required|string',
+        ];
+        $validator = $factory->make([
+            'items' => [
+                'first' => 'one',
+                'named' => 'two',
+            ],
+        ], $rules);
+
+        self::assertTrue($validator->passes());
+        self::assertSame([
+            'items' => [
+                'named' => 'two',
+                'first' => 'one',
+            ],
+        ], $validator->validated());
+
+        $missingNamed = $factory->make(['items' => ['first' => 'one']], $rules);
+        self::assertFalse($missingNamed->passes());
+
+        $rulesType = (new TypeResolver())->evaluate(RuleParser::parse($rules));
+        $validatedType = $this->convertToType($validator->validated());
+        self::assertTrue($rulesType->accepts($validatedType, true)->yes());
+    }
+
+    public function testWildcardAndNamedRulesProjectOverlappingNestedValues(): void
+    {
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $rules = [
+            'items.*.name' => 'required|string',
+            'items.named.label' => 'required|string',
+        ];
+        $validator = $factory->make([
+            'items' => [
+                'first' => [
+                    'name' => 'First',
+                    'extra' => 'discarded',
+                ],
+                'named' => [
+                    'name' => 'Named',
+                    'label' => 'Label',
+                    'extra' => 'discarded',
+                ],
+            ],
+        ], $rules);
+
+        self::assertTrue($validator->passes());
+        self::assertSame([
+            'items' => [
+                'named' => [
+                    'label' => 'Label',
+                    'name' => 'Named',
+                ],
+                'first' => ['name' => 'First'],
+            ],
+        ], $validator->validated());
+
+        $rulesType = (new TypeResolver())->evaluate(RuleParser::parse($rules));
+        $validatedType = $this->convertToType($validator->validated());
+        self::assertTrue($rulesType->accepts($validatedType, true)->yes());
+    }
+
     /**
      * @return iterable<string, array{mixed, string}>
      */

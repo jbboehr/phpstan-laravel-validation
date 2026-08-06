@@ -33,3 +33,21 @@ assertType(
     'array{people?: array<int|string, array{cars?: array<int|string, array{model: string}>}>}',
     $nestedWildcards
 );
+
+$mixedScalarChildren = \Illuminate\Support\Facades\Validator::make([], [
+    'items.*' => 'string',
+    'items.named' => 'required|integer',
+])->validated();
+assertType(
+    'array{items: array<int|string, float|int|string|Stringable|true>}',
+    $mixedScalarChildren
+);
+
+$mixedNestedChildren = \Illuminate\Support\Facades\Validator::make([], [
+    'items.*.name' => 'required|string',
+    'items.named.label' => 'required|string',
+])->validated();
+assertType(
+    'array{items: array<int|string, array{label: string}|array{name: string}>}',
+    $mixedNestedChildren
+);

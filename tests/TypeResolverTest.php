@@ -20,7 +20,6 @@ declare(strict_types=1);
 
 namespace jbboehr\PhpstanLaravelValidation\Test;
 
-use jbboehr\PhpstanLaravelValidation\ShouldNotHappenException;
 use jbboehr\PhpstanLaravelValidation\Validation\InvalidRuleException;
 use jbboehr\PhpstanLaravelValidation\Validation\Rule;
 use jbboehr\PhpstanLaravelValidation\Validation\RuleParser;
@@ -223,16 +222,60 @@ final class TypeResolverTest extends PHPStanTestCase
         ]));
     }
 
-    public function testRejectsWildcardMixedWithNamedChildren(): void
+    public function testEvaluatesWildcardMixedWithNamedChildrenConservatively(): void
     {
         self::getContainer();
         $node = RuleParser::parse([
             'items.*' => 'string',
-            'items.named' => 'string',
+            'items.named' => 'required|integer',
         ])->resolvePath('items');
 
-        $this->expectException(ShouldNotHappenException::class);
-        (new TypeResolver())->evaluateWildcard($node);
+        self::assertSame(
+            'array<int|string, float|int|string|Stringable|true>',
+            (new TypeResolver())->evaluateWildcard($node)->describe(VerbosityLevel::precise())
+        );
+    }
+
+    public function testEvaluatesNestedWildcardAndNamedChildrenConservatively(): void
+    {
+        self::getContainer();
+        $node = RuleParser::parse([
+            'items.*.name' => 'required|string',
+            'items.named.label' => 'required|string',
+        ])->resolvePath('items');
+
+        self::assertSame(
+            'array<int|string, array{label: string}|array{name: string}>',
+            (new TypeResolver())->evaluateWildcard($node)->describe(VerbosityLevel::precise())
+        );
+    }
+
+    public function testExcludedWildcardDoesNotHideNamedChildType(): void
+    {
+        self::getContainer();
+        $node = RuleParser::parse([
+            'items.*' => 'exclude',
+            'items.named' => 'required|string',
+        ])->resolvePath('items');
+
+        self::assertSame(
+            'array<int|string, string>',
+            (new TypeResolver())->evaluateWildcard($node)->describe(VerbosityLevel::precise())
+        );
+    }
+
+    public function testAllExcludedWildcardChildrenFallBackToMixedValues(): void
+    {
+        self::getContainer();
+        $node = RuleParser::parse([
+            'items.*' => 'exclude',
+            'items.named' => 'exclude',
+        ])->resolvePath('items');
+
+        self::assertSame(
+            'array<int|string, mixed>',
+            (new TypeResolver())->evaluateWildcard($node)->describe(VerbosityLevel::precise())
+        );
     }
 
     public function testRejectsNonScalarArrayKey(): void
