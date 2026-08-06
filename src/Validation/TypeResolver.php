@@ -194,11 +194,26 @@ final class TypeResolver
             ),
 
             "ActiveUrl", "Alpha", "CurrentPassword", "DateFormat",
-            "Email", "Ip", "Ipv4", "Ipv6", "Json", "MacAddress", "Timezone", "Url", "Ulid",
+            "Email", "Ip", "Ipv4", "Ipv6", "MacAddress", "Timezone", "Url", "Ulid",
             "Uuid" => new IntersectionType([
                 new StringType(),
                 new AccessoryNonEmptyStringType(),
             ]),
+
+            // Laravel admits any scalar or Stringable value to its JSON check,
+            // then preserves the original native value. False and
+            // non-finite floats fail at runtime, but PHPStan cannot express
+            // the accepted float subset.
+            "Json" => Type\TypeCombinator::union(
+                new Type\FloatType(),
+                new Type\IntegerType(),
+                new IntersectionType([
+                    new StringType(),
+                    new AccessoryNonEmptyStringType(),
+                ]),
+                new Type\ObjectType(\Stringable::class),
+                new ConstantBooleanType(true),
+            ),
 
             // Laravel admits numeric scalars before applying these regexes,
             // then preserves the original value in validated output.

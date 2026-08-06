@@ -40,7 +40,7 @@ final class TypeResolverTest extends PHPStanTestCase
         foreach (
             [
             'active_url', 'alpha', 'current_password', 'date_format:Y-m-d',
-            'email', 'ip', 'ipv4', 'ipv6', 'json', 'mac_address', 'timezone', 'url', 'ulid', 'uuid',
+            'email', 'ip', 'ipv4', 'ipv6', 'mac_address', 'timezone', 'url', 'ulid', 'uuid',
             ] as $rule
         ) {
             yield $rule => [$rule, 'non-empty-string'];
@@ -87,6 +87,7 @@ final class TypeResolverTest extends PHPStanTestCase
 
         yield 'integer' => ['integer', 'float|int|numeric-string|Stringable|true'];
         yield 'integer strict' => ['integer:strict', 'float|int|numeric-string|Stringable|true'];
+        yield 'json' => ['json', 'float|int|non-empty-string|Stringable|true'];
 
         foreach (['dimensions:min_width=1', 'file', 'image', 'mimetypes:text/plain', 'mimes:txt'] as $rule) {
             yield $rule => [$rule, 'Symfony\\Component\\HttpFoundation\\File\\File'];

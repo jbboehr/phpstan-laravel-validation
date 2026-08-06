@@ -100,7 +100,7 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
             'tab-and-newline' => "\t\n",
             ] as $description => $value
         ) {
-            foreach (['array', 'email', 'integer'] as $rule) {
+            foreach (['array', 'email', 'integer', 'json'] as $rule) {
                 yield $description . '-' . $rule => [$value, $rule];
             }
         }
@@ -111,6 +111,8 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
      */
     public function testBlankStringBypassesOptionalNonImplicitRules(string $value, string $rule): void
     {
+        self::getContainer();
+
         $factory = new \Illuminate\Validation\Factory(
             new \Illuminate\Translation\Translator(
                 new \Illuminate\Translation\ArrayLoader(),
@@ -377,6 +379,73 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         $rulesType = (new TypeResolver())->evaluate(RuleParser::parse($rules));
         $validatedType = $this->convertToType($validator->validated());
         self::assertTrue($rulesType->accepts($validatedType, true)->yes());
+    }
+
+    /**
+     * @return iterable<string, array{mixed}>
+     */
+    public static function jsonValueProvider(): iterable
+    {
+        yield 'object string' => ['{"value":1}'];
+        yield 'numeric string' => ['1'];
+        yield 'integer' => [1];
+        yield 'negative integer' => [-1];
+        yield 'float' => [1.5];
+        yield 'true' => [true];
+        yield 'stringable object' => [new \Illuminate\Support\Stringable('{"value":1}')];
+    }
+
+    /**
+     * @dataProvider jsonValueProvider
+     */
+    public function testJsonRuleCanPreserveNonStringValues(mixed $value): void
+    {
+        self::getContainer();
+
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $rules = ['value' => 'required|json'];
+        $validator = $factory->make(['value' => $value], $rules);
+
+        self::assertTrue($validator->passes());
+        self::assertSame(['value' => $value], $validator->validated());
+
+        $rulesType = (new TypeResolver())->evaluate(RuleParser::parse($rules));
+        $validatedType = $this->convertToType($validator->validated());
+        self::assertTrue($rulesType->accepts($validatedType, true)->yes());
+    }
+
+    /**
+     * @return iterable<string, array{mixed}>
+     */
+    public static function rejectedJsonValueProvider(): iterable
+    {
+        yield 'false' => [false];
+        yield 'null' => [null];
+        yield 'infinity' => [INF];
+        yield 'array' => [['value' => 1]];
+        yield 'ordinary object' => [new \stdClass()];
+        yield 'invalid stringable object' => [new \Illuminate\Support\Stringable('invalid')];
+    }
+
+    /**
+     * @dataProvider rejectedJsonValueProvider
+     */
+    public function testJsonRuleRejectsValuesOutsideItsCoerciveContract(mixed $value): void
+    {
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $validator = $factory->make(['value' => $value], ['value' => 'json']);
+
+        self::assertFalse($validator->passes());
     }
 
     /**

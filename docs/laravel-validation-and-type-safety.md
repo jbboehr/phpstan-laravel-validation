@@ -85,6 +85,26 @@ string representation matches Laravel's regular expression. Once again, the
 rule tests a coercively viewed representation but returns the original native
 value.
 
+The `json` rule repeats the pattern with an especially misleading boundary.
+Laravel admits any scalar or `Stringable` value to PHP's JSON validator using
+its coerced string representation. An integer, float, `true`, or compatible
+`Stringable` object can therefore pass and remain unchanged:
+
+```php
+Validator::make(
+    ['value' => new Stringable('{"valid":true}')],
+    ['value' => 'required|json'],
+)->validated();
+// ['value' => Stringable object]
+```
+
+The sound expressible type is
+`float|int|non-empty-string|Stringable|true`. The `float` branch is broader
+than Laravel's successful values because PHPStan cannot exclude `INF` and
+`NAN`; Laravel rejects both. Again, validation checks a coerced representation
+and returns the original value rather than a canonical JSON string or decoded
+value.
+
 Strict integer validation first appeared in Laravel 12.22 and is also present
 in Laravel 13. It accepts only native integers. Laravel 10, Laravel 11, and
 Laravel 12.0 through 12.21 accept the same rule spelling but ignore the
@@ -555,6 +575,7 @@ documented claims map to the following persistent coverage:
 | `integer` can preserve non-integers | `LaravelInferenceTest::testIntegerRuleCanPreserveNonIntegerValues` | [`tests/rules/integer.php`](../tests/rules/integer.php) |
 | `integer:strict` differs by Laravel release | `LaravelInferenceTest::testIntegerStrictRuleFollowsRuntimeSupport` and `testIntegerStrictRuleAcceptsAndPreservesNativeInteger` | Conservative cross-version coverage in [`tests/rules/integer.php`](../tests/rules/integer.php) |
 | `alpha_num` and `alpha_dash` preserve numeric scalars | `LaravelInferenceTest::testAlphaRulesCanPreserveNumericValues` | [`tests/rules/alpha-num.php`](../tests/rules/alpha-num.php) and [`tests/rules/alpha-dash.php`](../tests/rules/alpha-dash.php) |
+| `json` preserves accepted scalars and stringable objects | `LaravelInferenceTest::testJsonRuleCanPreserveNonStringValues` | [`tests/rules/json.php`](../tests/rules/json.php) |
 | Scalar `in` preserves coercible inputs | `LaravelInferenceTest::testScalarInRuleAcceptsRuntimeValues` | [`tests/rules/in.php`](../tests/rules/in.php) |
 | Optional blanks bypass non-implicit rules | `LaravelInferenceTest::testBlankStringBypassesOptionalNonImplicitRules` | [`tests/structure/empty-string.php`](../tests/structure/empty-string.php) |
 | `TrimStrings` alone does not eliminate blank bypass | `LaravelInferenceTest::testTrimStringsAloneDoesNotEliminateBlankStringBypass` | Raw request coverage in [`tests/structure/request.php`](../tests/structure/request.php) |
@@ -562,6 +583,7 @@ documented claims map to the following persistent coverage:
 | Conditional acceptance broadens values | `LaravelInferenceTest::testConditionalValueRulesRemainConservative` | [`tests/rules/accepted-if.php`](../tests/rules/accepted-if.php) |
 | Conditional exclusion changes shape | `LaravelInferenceTest::testConditionalExclusionChangesTheValidatedShape` | [`tests/rules/exclude-if.php`](../tests/rules/exclude-if.php) |
 | Required wildcard descendants may match nothing | `LaravelInferenceTest::testRequiredWildcardDescendantDoesNotRequireMissingParent` | [`tests/structure/wildcard.php`](../tests/structure/wildcard.php) |
+| Wildcard and named paths can project overlapping values | `LaravelInferenceTest::testWildcardAndNamedRulesProjectOverlappingScalarValues` and `testWildcardAndNamedRulesProjectOverlappingNestedValues` | [`tests/structure/wildcard.php`](../tests/structure/wildcard.php) |
 | Bare arrays preserve nested keys | `LaravelInferenceTest::testArrayRuleWithoutKeyParametersPreservesNestedKeys` | [`tests/rules/array.php`](../tests/rules/array.php) |
 | Array key lists reject undeclared keys | `LaravelInferenceTest::testArrayRuleKeyParametersRejectUndeclaredNestedKeys` | [`tests/rules/array.php`](../tests/rules/array.php) |
 | Nested child rules project validated keys | `LaravelInferenceTest::testParentAndChildRulesAcceptRuntimeOutput` | [`tests/structure/parent-rules.php`](../tests/structure/parent-rules.php) |
