@@ -86,9 +86,9 @@ rule tests a coercively viewed representation but returns the original native
 value.
 
 The `ascii` rule adds release-dependent behavior to the same design problem.
-Laravel 10 through 12 unconditionally cast the value to a string for the ASCII
-predicate, then preserve the original value. This succeeds without producing a
-string:
+Laravel 10 through 13.3 unconditionally cast the value to a string for the
+ASCII predicate, then preserve the original value. This succeeds without
+producing a string:
 
 ```php
 Validator::make(
@@ -100,9 +100,9 @@ Validator::make(
 
 Those releases also accept numeric scalars, `null`, compatible `Stringable`
 objects, resources, and arrays when PHP warnings are not escalated to
-exceptions. Laravel 13 added an `is_string()` guard and rejects those values.
-Because this project supports all four majors without version-specific result
-types, the honest compatibility type remains
+exceptions. Laravel 13.4 added an `is_string()` guard and rejects those values.
+Because this project supports releases on both sides of that boundary without
+version-specific result types, the honest compatibility type remains
 `array|bool|float|int|resource|string|Stringable|null`. The array and resource
 branches are edge cases; ordinary booleans and numbers already demonstrate the
 underlying failure. A rule named `ascii` described how Laravel inspected the
@@ -609,8 +609,11 @@ itself rather than inferred from rule names. The repository supports Laravel
 | 13 | 13.23.0 | [`92a707229148`](https://github.com/laravel/framework/commit/92a707229148e57f08a249211c8a5a194159c619) |
 
 The [CI matrix](../.github/workflows/ci.yml) installs every supported Laravel
-major and runs the complete PHPUnit suite. Runtime methods in the table below
-are defined in
+major, its first release, and known semantic boundary releases, then runs the
+complete PHPUnit suite. The separate
+[Laravel-version inference audit](laravel-version-inference-audit.md) records
+the boundary profiles, runtime snapshots, and audit limitations. Runtime
+methods in the table below are defined in
 [`tests/LaravelInferenceTest.php`](../tests/LaravelInferenceTest.php). The main
 documented claims map to the following persistent coverage:
 

@@ -1,0 +1,289 @@
+<?php
+/**
+ * Copyright (c) anno Domini nostri Jesu Christi MMXXIV John Boehr & contributors
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+declare(strict_types=1);
+
+namespace jbboehr\PhpstanLaravelValidation\Test\Support;
+
+use Composer\InstalledVersions;
+use Illuminate\Translation\ArrayLoader;
+use Illuminate\Translation\Translator;
+use Illuminate\Validation\Factory;
+use jbboehr\PhpstanLaravelValidation\Validation\RuleParser;
+use jbboehr\PhpstanLaravelValidation\Validation\TypeResolver;
+use PHPStan\Type;
+use PHPStan\Type\Constant\ConstantArrayTypeBuilder;
+use PHPStan\Type\Constant\ConstantBooleanType;
+use PHPStan\Type\Constant\ConstantFloatType;
+use PHPStan\Type\Constant\ConstantIntegerType;
+use PHPStan\Type\Constant\ConstantStringType;
+use PHPStan\Type\NullType;
+use PHPStan\Type\ObjectType;
+use PHPStan\Type\VerbosityLevel;
+
+final class InferenceAudit
+{
+    /**
+     * @param array<string, array{
+     *     rules: array<string, mixed>|\Closure(array<mixed, mixed>): array<string, mixed>,
+     *     data: array<mixed, mixed>|\Closure(): array<mixed, mixed>,
+     *     concern: string
+     * }> $cases
+     * @return array{
+     *     laravel: string,
+     *     cases: array<string, array{
+     *         concern: string,
+     *         rules: array<string, mixed>,
+     *         input: array<mixed>|bool|float|int|string|null,
+     *         runtime: array{
+     *             outcome: string,
+     *             output: array<mixed>|bool|float|int|string|null,
+     *             warnings: list<string>,
+     *             exception: string|null
+     *         },
+     *         inference: array{
+     *             type: string|null,
+     *             outputType: string|null,
+     *             acceptsOutput: string|null,
+     *             exception: string|null,
+     *             classification: string
+     *         }
+     *     }>
+     * }
+     */
+    public static function run(array $cases): array
+    {
+        $factory = new Factory(new Translator(new ArrayLoader(), 'en'));
+        $results = [];
+
+        foreach ($cases as $id => $case) {
+            $data = $case['data'] instanceof \Closure ? $case['data']() : $case['data'];
+            $rules = $case['rules'] instanceof \Closure ? $case['rules']($data) : $case['rules'];
+            $warnings = [];
+            $passes = null;
+            $validated = null;
+            $runtimeException = null;
+
+            set_error_handler(
+                static function (int $severity, string $message) use (&$warnings): bool {
+                    $warning = self::normalizeWarning($severity, $message);
+                    if ($warning !== null) {
+                        $warnings[] = $warning;
+                    }
+                    return true;
+                }
+            );
+
+            try {
+                $validator = $factory->make($data, $rules);
+                $passes = $validator->passes();
+                if ($passes) {
+                    $validated = $validator->validated();
+                }
+            } catch (\Throwable $throwable) {
+                $runtimeException = $throwable::class;
+            } finally {
+                restore_error_handler();
+            }
+
+            $inferredType = null;
+            $outputType = null;
+            $acceptance = null;
+            $inferenceException = null;
+
+            try {
+                $inferred = (new TypeResolver())->evaluate(RuleParser::parse($rules));
+                $inferredType = $inferred->describe(VerbosityLevel::precise());
+
+                if ($validated !== null) {
+                    $actual = self::toType($validated);
+                    $outputType = $actual->describe(VerbosityLevel::precise());
+                    $result = $inferred->accepts($actual, true);
+                    $acceptance = $result->yes() ? 'yes' : ($result->no() ? 'no' : 'maybe');
+                }
+            } catch (\Throwable $throwable) {
+                $inferenceException = $throwable::class;
+            }
+
+            $results[$id] = [
+                'concern' => $case['concern'],
+                'rules' => $rules,
+                'input' => self::normalizeValue($data),
+                'runtime' => [
+                    'outcome' => $runtimeException !== null ? 'exception' : ($passes ? 'passed' : 'failed'),
+                    'output' => $validated === null ? null : self::normalizeValue($validated),
+                    'warnings' => array_values(array_unique($warnings)),
+                    'exception' => $runtimeException,
+                ],
+                'inference' => [
+                    'type' => $inferredType,
+                    'outputType' => $outputType,
+                    'acceptsOutput' => $acceptance,
+                    'exception' => $inferenceException,
+                    'classification' => self::classify(
+                        $runtimeException,
+                        $passes,
+                        $inferenceException,
+                        $acceptance
+                    ),
+                ],
+            ];
+
+            self::closeResources($data);
+        }
+
+        return [
+            'laravel' => self::frameworkVersion(),
+            'cases' => $results,
+        ];
+    }
+
+    private static function frameworkVersion(): string
+    {
+        $version = InstalledVersions::getPrettyVersion('laravel/framework');
+
+        return $version === null
+            ? \Illuminate\Foundation\Application::VERSION
+            : ltrim($version, 'v');
+    }
+
+    /**
+     * @return array<mixed, mixed>|bool|float|int|string|null
+     */
+    public static function normalizeValue(mixed $value): array|bool|float|int|string|null
+    {
+        if (is_float($value) && !is_finite($value)) {
+            return ['type' => 'float', 'value' => match (true) {
+                is_nan($value) => 'NAN',
+                $value > 0 => 'INF',
+                default => '-INF',
+            }];
+        }
+
+        if (is_resource($value)) {
+            return ['type' => 'resource'];
+        }
+
+        if ($value instanceof \DateTimeInterface) {
+            return [
+                'type' => 'object',
+                'class' => $value::class,
+                'value' => $value->format('Y-m-d H:i:s.uP'),
+            ];
+        }
+
+        if (is_object($value)) {
+            $normalized = ['type' => 'object', 'class' => $value::class];
+            if ($value instanceof \Stringable) {
+                $normalized['value'] = (string) $value;
+            }
+            return $normalized;
+        }
+
+        if (is_array($value)) {
+            $normalized = [];
+            foreach ($value as $key => $item) {
+                $normalized[$key] = self::normalizeValue($item);
+            }
+            return $normalized;
+        }
+
+        return match (true) {
+            is_bool($value), is_float($value), is_int($value), is_string($value), $value === null => $value,
+            default => throw new \LogicException('Unsupported audit value type'),
+        };
+    }
+
+    private static function normalizeWarning(int $severity, string $message): ?string
+    {
+        if ($severity === E_DEPRECATED || $severity === E_USER_DEPRECATED) {
+            return null;
+        }
+
+        if (str_contains($message, 'Array to string conversion')) {
+            return 'array-to-string';
+        }
+
+        return 'php-' . $severity;
+    }
+
+    private static function closeResources(mixed $value): void
+    {
+        if (is_resource($value)) {
+            fclose($value);
+            return;
+        }
+
+        if (!is_array($value)) {
+            return;
+        }
+
+        foreach ($value as $item) {
+            self::closeResources($item);
+        }
+    }
+
+    private static function classify(
+        ?string $runtimeException,
+        ?bool $passes,
+        ?string $inferenceException,
+        ?string $acceptance
+    ): string {
+        if ($inferenceException !== null) {
+            return 'inference-error';
+        }
+        if ($runtimeException !== null) {
+            return 'runtime-exception';
+        }
+        if ($passes !== true) {
+            return 'no-successful-output';
+        }
+        if ($acceptance === 'yes') {
+            return 'observed-sound';
+        }
+
+        return 'observed-unsound';
+    }
+
+    private static function toType(mixed $data): Type\Type
+    {
+        return match (gettype($data)) {
+            'boolean' => new ConstantBooleanType($data),
+            'integer' => new ConstantIntegerType($data),
+            'double' => new ConstantFloatType($data),
+            'string' => new ConstantStringType($data),
+            'array' => self::arrayToType($data),
+            'object' => new ObjectType($data::class),
+            'NULL' => new NullType(),
+            'resource' => new Type\ResourceType(),
+            default => new Type\MixedType(),
+        };
+    }
+
+    /**
+     * @param array<mixed, mixed> $data
+     */
+    private static function arrayToType(array $data): Type\Type
+    {
+        $builder = ConstantArrayTypeBuilder::createEmpty();
+        foreach ($data as $key => $value) {
+            $builder->setOffsetValueType(self::toType($key), self::toType($value));
+        }
+        return $builder->getArray();
+    }
+}

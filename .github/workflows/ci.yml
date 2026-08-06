@@ -59,7 +59,7 @@ jobs:
 
     test:
         runs-on: ubuntu-latest
-        name: "Test | PHP ${{ matrix.php-version }} | Laravel ${{ matrix.laravel-version }}"
+        name: "Test | PHP ${{ matrix.php-version }} | Laravel ${{ matrix.laravel-profile }}"
         strategy:
             fail-fast: false
             matrix:
@@ -69,22 +69,75 @@ jobs:
                     - "8.3"
                     - "8.4"
                     - "8.5"
-                laravel-version:
-                    - "10"
-                    - "11"
-                    - "12"
-                    - "13"
+                laravel-profile:
+                    - "10.0.0"
+                    - "10-latest"
+                    - "11.0.0"
+                    - "11-latest"
+                    - "12.0.0"
+                    - "12.21.0"
+                    - "12.22.0"
+                    - "12-latest"
+                    - "13.0.0"
+                    - "13.3.0"
+                    - "13.4.0"
+                    - "13-latest"
+                include:
+                    - laravel-profile: "10.0.0"
+                      laravel-constraint: "10.0.0"
+                    - laravel-profile: "10-latest"
+                      laravel-constraint: "^10.0"
+                    - laravel-profile: "11.0.0"
+                      laravel-constraint: "11.0.0"
+                    - laravel-profile: "11-latest"
+                      laravel-constraint: "^11.0"
+                    - laravel-profile: "12.0.0"
+                      laravel-constraint: "12.0.0"
+                    - laravel-profile: "12.21.0"
+                      laravel-constraint: "12.21.0"
+                    - laravel-profile: "12.22.0"
+                      laravel-constraint: "12.22.0"
+                    - laravel-profile: "12-latest"
+                      laravel-constraint: "^12.0"
+                    - laravel-profile: "13.0.0"
+                      laravel-constraint: "13.0.0"
+                    - laravel-profile: "13.3.0"
+                      laravel-constraint: "13.3.0"
+                    - laravel-profile: "13.4.0"
+                      laravel-constraint: "13.4.0"
+                    - laravel-profile: "13-latest"
+                      laravel-constraint: "^13.0"
                 exclude:
                     # Laravel 11 and 12 require PHP ^8.2
                     - php-version: "8.1"
-                      laravel-version: "11"
+                      laravel-profile: "11.0.0"
                     - php-version: "8.1"
-                      laravel-version: "12"
+                      laravel-profile: "11-latest"
+                    - php-version: "8.1"
+                      laravel-profile: "12.0.0"
+                    - php-version: "8.1"
+                      laravel-profile: "12.21.0"
+                    - php-version: "8.1"
+                      laravel-profile: "12.22.0"
+                    - php-version: "8.1"
+                      laravel-profile: "12-latest"
                     # Laravel 13 requires PHP ^8.3
                     - php-version: "8.1"
-                      laravel-version: "13"
+                      laravel-profile: "13.0.0"
                     - php-version: "8.2"
-                      laravel-version: "13"
+                      laravel-profile: "13.0.0"
+                    - php-version: "8.1"
+                      laravel-profile: "13.3.0"
+                    - php-version: "8.2"
+                      laravel-profile: "13.3.0"
+                    - php-version: "8.1"
+                      laravel-profile: "13.4.0"
+                    - php-version: "8.2"
+                      laravel-profile: "13.4.0"
+                    - php-version: "8.1"
+                      laravel-profile: "13-latest"
+                    - php-version: "8.2"
+                      laravel-profile: "13-latest"
         steps:
             - uses: actions/checkout@v7
 
@@ -100,17 +153,19 @@ jobs:
               uses: actions/cache@v6
               with:
                   path: vendor
-                  key: ${{ runner.os }}-php-${{ matrix.php-version }}-laravel-${{ matrix.laravel-version }}-${{ hashFiles('**/composer.lock') }}
+                  key: ${{ runner.os }}-php-${{ matrix.php-version }}-laravel-${{ matrix.laravel-profile }}-${{ hashFiles('**/composer.lock') }}
                   restore-keys: |
-                      ${{ runner.os }}-php-${{ matrix.php-version }}-laravel-${{ matrix.laravel-version }}-
+                      ${{ runner.os }}-php-${{ matrix.php-version }}-laravel-${{ matrix.laravel-profile }}-
 
             - name: Install dependencies
               run: composer install --prefer-dist --no-progress --ignore-platform-req=php+
 
             - name: Install laravel
-              run: composer require --prefer-dist --no-progress --with-all-dependencies --dev --ignore-platform-req=php+ --no-blocking laravel/framework:^${{ matrix.laravel-version }}
+              run: composer require --prefer-dist --no-progress --with-all-dependencies --dev --ignore-platform-req=php+ --no-blocking laravel/framework:${{ matrix.laravel-constraint }}
 
             - name: Run test suite
+              env:
+                  LARAVEL_AUDIT_BASELINE: ${{ matrix.laravel-profile }}
               run: php vendor/bin/phpunit
 
     coverage:

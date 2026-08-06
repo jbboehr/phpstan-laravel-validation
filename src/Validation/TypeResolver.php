@@ -259,10 +259,10 @@ final class TypeResolver
                 ])
             ),
 
-            // Laravel 10-12 cast arbitrary values to string for the ASCII
-            // predicate and preserve the original value. Laravel 13 requires
-            // a native string, but version-independent inference must retain
-            // the successful outputs from every supported major.
+            // Laravel 10 through 13.3 cast arbitrary values to string for the
+            // ASCII predicate and preserve the original value. Laravel 13.4+
+            // requires a native string, but version-independent inference
+            // must retain the successful outputs from every supported release.
             "Ascii" => Type\TypeCombinator::union(
                 new Type\ArrayType(new MixedType(), new MixedType()),
                 new Type\BooleanType(),

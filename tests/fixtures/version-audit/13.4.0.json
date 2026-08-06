@@ -1,0 +1,2207 @@
+{
+    "profile": "13.4.0",
+    "constraint": "13.4.0",
+    "recordedVersion": "13.4.0",
+    "commit": "912de244f88a69742b76e8a2807f6765947776da",
+    "cases": {
+        "accepted.true": {
+            "concern": "native value",
+            "rules": {
+                "value": "accepted"
+            },
+            "input": {
+                "value": true
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": true
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value?: 1|'1'|'on'|'true'|'yes'|true}",
+                "outputType": "array{value: true}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "accepted.string": {
+            "concern": "native value",
+            "rules": {
+                "value": "accepted"
+            },
+            "input": {
+                "value": "yes"
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": "yes"
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value?: 1|'1'|'on'|'true'|'yes'|true}",
+                "outputType": "array{value: 'yes'}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "accepted_if.inactive": {
+            "concern": "conditional predicate inactive branch",
+            "rules": {
+                "other": "required|string",
+                "value": "required|accepted_if:other,match"
+            },
+            "input": {
+                "other": "different",
+                "value": 42
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "other": "different",
+                    "value": 42
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{other: string, value: mixed}",
+                "outputType": "array{other: 'different', value: 42}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "declined.false": {
+            "concern": "native value",
+            "rules": {
+                "value": "declined"
+            },
+            "input": {
+                "value": false
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": false
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value?: 0|'0'|'false'|'no'|'off'|false}",
+                "outputType": "array{value: false}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "declined_if.inactive": {
+            "concern": "conditional predicate inactive branch",
+            "rules": {
+                "other": "required|string",
+                "value": "required|declined_if:other,match"
+            },
+            "input": {
+                "other": "different",
+                "value": 42
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "other": "different",
+                    "value": 42
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{other: string, value: mixed}",
+                "outputType": "array{other: 'different', value: 42}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "boolean.native": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|boolean"
+            },
+            "input": {
+                "value": true
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": true
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: 0|1|'0'|'1'|bool}",
+                "outputType": "array{value: true}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "boolean.integer": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|boolean"
+            },
+            "input": {
+                "value": 1
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": 1
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: 0|1|'0'|'1'|bool}",
+                "outputType": "array{value: 1}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "boolean.string": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|boolean"
+            },
+            "input": {
+                "value": "1"
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": "1"
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: 0|1|'0'|'1'|bool}",
+                "outputType": "array{value: '1'}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "integer.native": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|integer"
+            },
+            "input": {
+                "value": 1
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": 1
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|numeric-string|Stringable|true}",
+                "outputType": "array{value: 1}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "integer.float": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|integer"
+            },
+            "input": {
+                "value": 1.0
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": 1.0
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|numeric-string|Stringable|true}",
+                "outputType": "array{value: 1.0}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "integer.true": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|integer"
+            },
+            "input": {
+                "value": true
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": true
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|numeric-string|Stringable|true}",
+                "outputType": "array{value: true}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "integer.stringable": {
+            "concern": "coercive integer predicate",
+            "rules": {
+                "value": "required|integer"
+            },
+            "input": {
+                "value": {
+                    "type": "object",
+                    "class": "Illuminate\\Support\\Stringable",
+                    "value": "1"
+                }
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": {
+                        "type": "object",
+                        "class": "Illuminate\\Support\\Stringable",
+                        "value": "1"
+                    }
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|numeric-string|Stringable|true}",
+                "outputType": "array{value: Illuminate\\Support\\Stringable}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "integer_strict.string": {
+            "concern": "minor-version strict mode",
+            "rules": {
+                "value": "required|integer:strict"
+            },
+            "input": {
+                "value": "1"
+            },
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|numeric-string|Stringable|true}",
+                "outputType": null,
+                "acceptsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            }
+        },
+        "integer_strict.float": {
+            "concern": "minor-version strict mode",
+            "rules": {
+                "value": "required|integer:strict"
+            },
+            "input": {
+                "value": 1.0
+            },
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|numeric-string|Stringable|true}",
+                "outputType": null,
+                "acceptsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            }
+        },
+        "numeric.integer": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|numeric"
+            },
+            "input": {
+                "value": 1
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": 1
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|numeric-string}",
+                "outputType": "array{value: 1}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "numeric.float": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|numeric"
+            },
+            "input": {
+                "value": 1.5
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": 1.5
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|numeric-string}",
+                "outputType": "array{value: 1.5}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "numeric.string": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|numeric"
+            },
+            "input": {
+                "value": "1e2"
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": "1e2"
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|numeric-string}",
+                "outputType": "array{value: '1e2'}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "digits.string": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|digits:2"
+            },
+            "input": {
+                "value": "12"
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": "12"
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|numeric-string}",
+                "outputType": "array{value: '12'}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "digits.integer": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|digits:2"
+            },
+            "input": {
+                "value": 12
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": 12
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|numeric-string}",
+                "outputType": "array{value: 12}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "digits_between.integer": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|digits_between:1,3"
+            },
+            "input": {
+                "value": 12
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": 12
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|numeric-string}",
+                "outputType": "array{value: 12}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "decimal.string": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|decimal:2"
+            },
+            "input": {
+                "value": "1.25"
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": "1.25"
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|numeric-string}",
+                "outputType": "array{value: '1.25'}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "multiple_of.float": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|multiple_of:0.5"
+            },
+            "input": {
+                "value": 1.5
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": 1.5
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|numeric-string}",
+                "outputType": "array{value: 1.5}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "max_digits.integer": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|max_digits:3"
+            },
+            "input": {
+                "value": 12
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": 12
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|numeric-string}",
+                "outputType": "array{value: 12}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "min_digits.integer": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|min_digits:2"
+            },
+            "input": {
+                "value": 12
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": 12
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|numeric-string}",
+                "outputType": "array{value: 12}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "alpha.string": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|alpha"
+            },
+            "input": {
+                "value": "abc"
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": "abc"
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: non-empty-string}",
+                "outputType": "array{value: 'abc'}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "alpha_num.integer": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|alpha_num"
+            },
+            "input": {
+                "value": 123
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": 123
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int<0, max>|non-empty-string}",
+                "outputType": "array{value: 123}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "alpha_num.negative": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|alpha_num"
+            },
+            "input": {
+                "value": -1
+            },
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int<0, max>|non-empty-string}",
+                "outputType": null,
+                "acceptsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            }
+        },
+        "alpha_dash.float": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|alpha_dash:ascii"
+            },
+            "input": {
+                "value": -1.5
+            },
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|non-empty-string}",
+                "outputType": null,
+                "acceptsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            }
+        },
+        "ascii.string": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|ascii"
+            },
+            "input": {
+                "value": "plain"
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": "plain"
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: array|bool|float|int|resource|string|Stringable|null}",
+                "outputType": "array{value: 'plain'}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "ascii.integer": {
+            "concern": "major-version coercion",
+            "rules": {
+                "value": "ascii"
+            },
+            "input": {
+                "value": 123
+            },
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value?: array|bool|float|int|resource|string|Stringable|null}",
+                "outputType": null,
+                "acceptsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            }
+        },
+        "ascii.true": {
+            "concern": "major-version coercion",
+            "rules": {
+                "value": "ascii"
+            },
+            "input": {
+                "value": true
+            },
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value?: array|bool|float|int|resource|string|Stringable|null}",
+                "outputType": null,
+                "acceptsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            }
+        },
+        "ascii.null": {
+            "concern": "major-version coercion",
+            "rules": {
+                "value": "ascii"
+            },
+            "input": {
+                "value": null
+            },
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value?: array|bool|float|int|resource|string|Stringable|null}",
+                "outputType": null,
+                "acceptsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            }
+        },
+        "ascii.stringable": {
+            "concern": "major-version coercion",
+            "rules": {
+                "value": "ascii"
+            },
+            "input": {
+                "value": {
+                    "type": "object",
+                    "class": "Illuminate\\Support\\Stringable",
+                    "value": "plain"
+                }
+            },
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value?: array|bool|float|int|resource|string|Stringable|null}",
+                "outputType": null,
+                "acceptsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            }
+        },
+        "ascii.resource": {
+            "concern": "major-version coercion",
+            "rules": {
+                "value": "ascii"
+            },
+            "input": {
+                "value": {
+                    "type": "resource"
+                }
+            },
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value?: array|bool|float|int|resource|string|Stringable|null}",
+                "outputType": null,
+                "acceptsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            }
+        },
+        "ascii.array": {
+            "concern": "warning-sensitive coercion",
+            "rules": {
+                "value": "ascii"
+            },
+            "input": {
+                "value": {
+                    "key": "value"
+                }
+            },
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value?: array|bool|float|int|resource|string|Stringable|null}",
+                "outputType": null,
+                "acceptsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            }
+        },
+        "string.native": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|string"
+            },
+            "input": {
+                "value": "plain"
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": "plain"
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: string}",
+                "outputType": "array{value: 'plain'}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "string.integer": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|string"
+            },
+            "input": {
+                "value": 123
+            },
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: string}",
+                "outputType": null,
+                "acceptsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            }
+        },
+        "lowercase.string": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|lowercase"
+            },
+            "input": {
+                "value": "plain"
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": "plain"
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: string}",
+                "outputType": "array{value: 'plain'}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "lowercase.integer": {
+            "concern": "native value",
+            "rules": {
+                "value": "lowercase"
+            },
+            "input": {
+                "value": 123
+            },
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value?: string}",
+                "outputType": null,
+                "acceptsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            }
+        },
+        "uppercase.string": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|uppercase"
+            },
+            "input": {
+                "value": "PLAIN"
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": "PLAIN"
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: string}",
+                "outputType": "array{value: 'PLAIN'}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "uppercase.integer": {
+            "concern": "native value",
+            "rules": {
+                "value": "uppercase"
+            },
+            "input": {
+                "value": 123
+            },
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value?: string}",
+                "outputType": null,
+                "acceptsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            }
+        },
+        "json.string": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|json"
+            },
+            "input": {
+                "value": "{\"value\":1}"
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": "{\"value\":1}"
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|non-empty-string|Stringable|true}",
+                "outputType": "array{value: '{\"value\":1}'}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "json.integer": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|json"
+            },
+            "input": {
+                "value": 1
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": 1
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|non-empty-string|Stringable|true}",
+                "outputType": "array{value: 1}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "json.true": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|json"
+            },
+            "input": {
+                "value": true
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": true
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|non-empty-string|Stringable|true}",
+                "outputType": "array{value: true}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "json.false": {
+            "concern": "native value",
+            "rules": {
+                "value": "json"
+            },
+            "input": {
+                "value": false
+            },
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value?: float|int|string|Stringable|true}",
+                "outputType": null,
+                "acceptsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            }
+        },
+        "json.stringable": {
+            "concern": "coercive JSON predicate",
+            "rules": {
+                "value": "required|json"
+            },
+            "input": {
+                "value": {
+                    "type": "object",
+                    "class": "Illuminate\\Support\\Stringable",
+                    "value": "{\"value\":1}"
+                }
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": {
+                        "type": "object",
+                        "class": "Illuminate\\Support\\Stringable",
+                        "value": "{\"value\":1}"
+                    }
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|non-empty-string|Stringable|true}",
+                "outputType": "array{value: Illuminate\\Support\\Stringable}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "date.integer": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|date"
+            },
+            "input": {
+                "value": 20240101
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": 20240101
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: DateTimeInterface|float|int|non-empty-string}",
+                "outputType": "array{value: 20240101}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "date_format.integer": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|date_format:Ymd"
+            },
+            "input": {
+                "value": 20240101
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": 20240101
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|non-empty-string}",
+                "outputType": "array{value: 20240101}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "date_format.float": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|date_format:Ymd"
+            },
+            "input": {
+                "value": 20240101.0
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": 20240101.0
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|non-empty-string}",
+                "outputType": "array{value: 20240101.0}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "date.object": {
+            "concern": "date object preservation",
+            "rules": {
+                "value": "required|date"
+            },
+            "input": {
+                "value": {
+                    "type": "object",
+                    "class": "DateTimeImmutable",
+                    "value": "2024-01-01 00:00:00.000000+00:00"
+                }
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": {
+                        "type": "object",
+                        "class": "DateTimeImmutable",
+                        "value": "2024-01-01 00:00:00.000000+00:00"
+                    }
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: DateTimeInterface|float|int|non-empty-string}",
+                "outputType": "array{value: DateTimeImmutable}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "before.integer": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|date_format:Ymd|before:20250101"
+            },
+            "input": {
+                "value": 20240101
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": 20240101
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|non-empty-string}",
+                "outputType": "array{value: 20240101}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "after_or_equal.object": {
+            "concern": "date comparison object preservation",
+            "rules": {
+                "value": "required|after_or_equal:2024-01-01"
+            },
+            "input": {
+                "value": {
+                    "type": "object",
+                    "class": "DateTimeImmutable",
+                    "value": "2024-01-01 00:00:00.000000+00:00"
+                }
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": {
+                        "type": "object",
+                        "class": "DateTimeImmutable",
+                        "value": "2024-01-01 00:00:00.000000+00:00"
+                    }
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: DateTimeInterface|float|int|non-empty-string}",
+                "outputType": "array{value: DateTimeImmutable}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "email.string": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|email"
+            },
+            "input": {
+                "value": "person@example.com"
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": "person@example.com"
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: non-empty-string}",
+                "outputType": "array{value: 'person@example.com'}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "ip.string": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|ip"
+            },
+            "input": {
+                "value": "127.0.0.1"
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": "127.0.0.1"
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: non-empty-string}",
+                "outputType": "array{value: '127.0.0.1'}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "ipv4.string": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|ipv4"
+            },
+            "input": {
+                "value": "127.0.0.1"
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": "127.0.0.1"
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: non-empty-string}",
+                "outputType": "array{value: '127.0.0.1'}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "ipv6.string": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|ipv6"
+            },
+            "input": {
+                "value": "2001:db8::1"
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": "2001:db8::1"
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: non-empty-string}",
+                "outputType": "array{value: '2001:db8::1'}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "mac.string": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|mac_address"
+            },
+            "input": {
+                "value": "00:11:22:33:44:55"
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": "00:11:22:33:44:55"
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: non-empty-string}",
+                "outputType": "array{value: '00:11:22:33:44:55'}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "timezone.string": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|timezone"
+            },
+            "input": {
+                "value": "UTC"
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": "UTC"
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: non-empty-string}",
+                "outputType": "array{value: 'UTC'}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "url.string": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|url"
+            },
+            "input": {
+                "value": "https://example.com"
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": "https://example.com"
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: non-empty-string}",
+                "outputType": "array{value: 'https://example.com'}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "uuid.string": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|uuid"
+            },
+            "input": {
+                "value": "550e8400-e29b-41d4-a716-446655440000"
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: non-empty-string}",
+                "outputType": "array{value: '550e8400-e29b-41d4-a716-446655440000'}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "ulid.string": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|ulid"
+            },
+            "input": {
+                "value": "01ARZ3NDEKTSV4RRFFQ69G5FAV"
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": "01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: non-empty-string}",
+                "outputType": "array{value: '01ARZ3NDEKTSV4RRFFQ69G5FAV'}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "regex.integer": {
+            "concern": "native value",
+            "rules": {
+                "value": [
+                    "required",
+                    "regex:/^123$/"
+                ]
+            },
+            "input": {
+                "value": 123
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": 123
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: bool|float|int|string}",
+                "outputType": "array{value: 123}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "not_regex.boolean": {
+            "concern": "native value",
+            "rules": {
+                "value": [
+                    "required",
+                    "not_regex:/^false$/"
+                ]
+            },
+            "input": {
+                "value": true
+            },
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: bool|float|int|string}",
+                "outputType": null,
+                "acceptsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            }
+        },
+        "in.string": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|in:one,two"
+            },
+            "input": {
+                "value": "one"
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": "one"
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: 'one'|'two'|Stringable}",
+                "outputType": "array{value: 'one'}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "in.integer": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|in:1"
+            },
+            "input": {
+                "value": 1
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": 1
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|numeric-string|Stringable|true}",
+                "outputType": "array{value: 1}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "in.float": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|in:1"
+            },
+            "input": {
+                "value": 1.0
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": 1.0
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|numeric-string|Stringable|true}",
+                "outputType": "array{value: 1.0}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "in.true": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|in:1"
+            },
+            "input": {
+                "value": true
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": true
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|numeric-string|Stringable|true}",
+                "outputType": "array{value: true}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "in.numeric_string": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|in:1"
+            },
+            "input": {
+                "value": "01"
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": "01"
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|numeric-string|Stringable|true}",
+                "outputType": "array{value: '01'}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "in.stringable": {
+            "concern": "coercive membership predicate",
+            "rules": {
+                "value": "required|in:one"
+            },
+            "input": {
+                "value": {
+                    "type": "object",
+                    "class": "Illuminate\\Support\\Stringable",
+                    "value": "one"
+                }
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": {
+                        "type": "object",
+                        "class": "Illuminate\\Support\\Stringable",
+                        "value": "one"
+                    }
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: 'one'|Stringable}",
+                "outputType": "array{value: Illuminate\\Support\\Stringable}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "array.bare": {
+            "concern": "nested key retention",
+            "rules": {
+                "user": "required|array"
+            },
+            "input": {
+                "user": {
+                    "name": "Ada",
+                    "admin": true
+                }
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "user": {
+                        "name": "Ada",
+                        "admin": true
+                    }
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{user: array}",
+                "outputType": "array{user: array{name: 'Ada', admin: true}}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "array.allowed_keys": {
+            "concern": "allowed-key rejection",
+            "rules": {
+                "user": "required|array:name"
+            },
+            "input": {
+                "user": {
+                    "name": "Ada",
+                    "admin": true
+                }
+            },
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{user: array{name?: mixed}}",
+                "outputType": null,
+                "acceptsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            }
+        },
+        "array.child_projection": {
+            "concern": "nested projection",
+            "rules": {
+                "user": "required|array",
+                "user.name": "required|string"
+            },
+            "input": {
+                "user": {
+                    "name": "Ada",
+                    "admin": true
+                }
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "user": {
+                        "name": "Ada"
+                    }
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{user: array{name: string}}",
+                "outputType": "array{user: array{name: 'Ada'}}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "array.required_keys": {
+            "concern": "unsupported required array keys",
+            "rules": {
+                "user": "required|array|required_array_keys:name"
+            },
+            "input": {
+                "user": {
+                    "name": "Ada"
+                }
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "user": {
+                        "name": "Ada"
+                    }
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{user: array}",
+                "outputType": "array{user: array{name: 'Ada'}}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "optional.blank_integer": {
+            "concern": "optional blank bypass",
+            "rules": {
+                "value": "integer"
+            },
+            "input": {
+                "value": ""
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": ""
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value?: float|int|string|Stringable|true}",
+                "outputType": "array{value: ''}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "optional.whitespace_email": {
+            "concern": "optional blank bypass",
+            "rules": {
+                "value": "email"
+            },
+            "input": {
+                "value": "   "
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": "   "
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value?: string}",
+                "outputType": "array{value: '   '}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "nullable.required_null": {
+            "concern": "required and nullable interaction",
+            "rules": {
+                "value": "required|nullable|string"
+            },
+            "input": {
+                "value": null
+            },
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value?: string|null}",
+                "outputType": null,
+                "acceptsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            }
+        },
+        "nullable.optional_null": {
+            "concern": "nullable output",
+            "rules": {
+                "value": "nullable|string"
+            },
+            "input": {
+                "value": null
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": null
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value?: string|null}",
+                "outputType": "array{value: null}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "present.value": {
+            "concern": "unsupported presence rule",
+            "rules": {
+                "value": "present|string"
+            },
+            "input": {
+                "value": "value"
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": "value"
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value?: string}",
+                "outputType": "array{value: 'value'}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "present.missing": {
+            "concern": "unsupported presence rule",
+            "rules": {
+                "value": "present|string"
+            },
+            "input": [],
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value?: string}",
+                "outputType": null,
+                "acceptsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            }
+        },
+        "confirmed.dependency": {
+            "concern": "validation dependency projection",
+            "rules": {
+                "value": "required|string|confirmed"
+            },
+            "input": {
+                "value": "secret",
+                "value_confirmation": "secret"
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": "secret"
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: string}",
+                "outputType": "array{value: 'secret'}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "required_if.active": {
+            "concern": "cross-field presence",
+            "rules": {
+                "kind": "required|string",
+                "value": "required_if:kind,person|string"
+            },
+            "input": {
+                "kind": "person",
+                "value": "name"
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "kind": "person",
+                    "value": "name"
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{kind: string, value?: string}",
+                "outputType": "array{kind: 'person', value: 'name'}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "required_if.inactive": {
+            "concern": "cross-field presence",
+            "rules": {
+                "kind": "required|string",
+                "value": "required_if:kind,person|string"
+            },
+            "input": {
+                "kind": "company"
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "kind": "company"
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{kind: string, value?: string}",
+                "outputType": "array{kind: 'company'}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "exclude_if.active": {
+            "concern": "conditional output projection",
+            "rules": {
+                "kind": "required|string",
+                "value": "required|string|exclude_if:kind,guest"
+            },
+            "input": {
+                "kind": "guest",
+                "value": "secret"
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "kind": "guest"
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{kind: string, value?: string}",
+                "outputType": "array{kind: 'guest'}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "exclude_if.inactive": {
+            "concern": "conditional output projection",
+            "rules": {
+                "kind": "required|string",
+                "value": "required|string|exclude_if:kind,guest"
+            },
+            "input": {
+                "kind": "member",
+                "value": "visible"
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "kind": "member",
+                    "value": "visible"
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{kind: string, value?: string}",
+                "outputType": "array{kind: 'member', value: 'visible'}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "wildcard.missing_parent": {
+            "concern": "zero-match wildcard",
+            "rules": {
+                "person.*.email": "required|string|email"
+            },
+            "input": [],
+            "runtime": {
+                "outcome": "passed",
+                "output": [],
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{person?: array<int|string, array{email: non-empty-string}>}",
+                "outputType": "array{}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "wildcard.string_key": {
+            "concern": "wildcard key domain",
+            "rules": {
+                "person.*.email": "required|string|email"
+            },
+            "input": {
+                "person": {
+                    "named": {
+                        "email": "person@example.com"
+                    }
+                }
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "person": {
+                        "named": {
+                            "email": "person@example.com"
+                        }
+                    }
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{person?: array<int|string, array{email: non-empty-string}>}",
+                "outputType": "array{person: array{named: array{email: 'person@example.com'}}}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "wildcard.mixed_named": {
+            "concern": "overlapping wildcard projection",
+            "rules": {
+                "items.*": "required|string",
+                "items.named": "required|string"
+            },
+            "input": {
+                "items": {
+                    "named": "value",
+                    "0": "other"
+                }
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "items": {
+                        "named": "value",
+                        "0": "other"
+                    }
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{items: array<int|string, string>}",
+                "outputType": "array{items: array{named: 'value', 0: 'other'}}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "parent.scalar_with_child": {
+            "concern": "parent rules with children",
+            "rules": {
+                "foo": "required|string",
+                "foo.bar": "sometimes|string"
+            },
+            "input": {
+                "foo": "value"
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "foo": "value"
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{foo: string}",
+                "outputType": "array{foo: 'value'}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        },
+        "unknown_rule.fallback": {
+            "concern": "non-narrowing fallback",
+            "rules": {
+                "value": "required|filled"
+            },
+            "input": {
+                "value": "value"
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": "value"
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: mixed}",
+                "outputType": "array{value: 'value'}",
+                "acceptsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            }
+        }
+    }
+}
