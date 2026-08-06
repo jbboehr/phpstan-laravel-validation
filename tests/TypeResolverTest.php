@@ -39,7 +39,7 @@ final class TypeResolverTest extends PHPStanTestCase
 
         foreach (
             [
-            'active_url', 'alpha', 'current_password', 'date_format:Y-m-d',
+            'active_url', 'alpha', 'current_password',
             'email', 'ip', 'ipv4', 'ipv6', 'mac_address', 'timezone', 'url', 'ulid', 'uuid',
             ] as $rule
         ) {
@@ -54,8 +54,15 @@ final class TypeResolverTest extends PHPStanTestCase
             yield $rule => [$rule, 'float|int<0, max>|non-empty-string'];
         }
 
-        foreach (['after:today', 'before:today', 'before_or_equal:today', 'date', 'date_equals:today'] as $rule) {
-            yield $rule => [$rule, 'DateTimeInterface|non-empty-string'];
+        yield 'date format' => ['date_format:Y-m-d', 'float|int|non-empty-string'];
+
+        foreach (
+            [
+            'after:today', 'after_or_equal:today', 'before:today',
+            'before_or_equal:today', 'date', 'date_equals:today',
+            ] as $rule
+        ) {
+            yield $rule => [$rule, 'DateTimeInterface|float|int|non-empty-string'];
         }
 
         foreach (['ascii', 'lowercase', 'string', 'uppercase'] as $rule) {

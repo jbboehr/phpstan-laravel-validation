@@ -5,9 +5,9 @@ declare(strict_types=1);
 use function PHPStan\Testing\assertType;
 
 $validator = \Illuminate\Support\Facades\Validator::make([], [
-    'required_value' => 'required|before:yesterday',
-    'optional_value' => 'before:yesterday',
-    'excluded_value' => 'required|exclude|before:yesterday',
+    'required_value' => 'required|after_or_equal:2022-12-24',
+    'optional_value' => 'after_or_equal:2022-12-24',
+    'excluded_value' => 'required|exclude|after_or_equal:2022-12-24',
 ]);
 assertType('Illuminate\\Validation\\Validator', $validator);
 

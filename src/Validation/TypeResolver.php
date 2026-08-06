@@ -193,12 +193,23 @@ final class TypeResolver
                 new ConstantBooleanType(true),
             ),
 
-            "ActiveUrl", "Alpha", "CurrentPassword", "DateFormat",
+            "ActiveUrl", "Alpha", "CurrentPassword",
             "Email", "Ip", "Ipv4", "Ipv6", "MacAddress", "Timezone", "Url", "Ulid",
             "Uuid" => new IntersectionType([
                 new StringType(),
                 new AccessoryNonEmptyStringType(),
             ]),
+
+            // DateTime::createFromFormat accepts numeric scalars through weak
+            // string coercion, and Laravel preserves the original value.
+            "DateFormat" => Type\TypeCombinator::union(
+                new Type\FloatType(),
+                new Type\IntegerType(),
+                new IntersectionType([
+                    new StringType(),
+                    new AccessoryNonEmptyStringType(),
+                ]),
+            ),
 
             // Laravel admits any scalar or Stringable value to its JSON check,
             // then preserves the original native value. False and
@@ -235,8 +246,13 @@ final class TypeResolver
                 ]),
             ),
 
-            "After", "Before", "BeforeOrEqual", "Date", "DateEquals" => Type\TypeCombinator::union(
+            // Laravel's date and comparison rules admit numeric scalars and
+            // DateTimeInterface objects, then preserve their native values.
+            "After", "AfterOrEqual", "Before", "BeforeOrEqual", "Date", "DateEquals" =>
+            Type\TypeCombinator::union(
                 new Type\ObjectType(\DateTimeInterface::class),
+                new Type\FloatType(),
+                new Type\IntegerType(),
                 new IntersectionType([
                     new StringType(),
                     new AccessoryNonEmptyStringType(),

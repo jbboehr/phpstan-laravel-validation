@@ -12,6 +12,10 @@ $validator = \Illuminate\Support\Facades\Validator::make([], [
 assertType('Illuminate\\Validation\\Validator', $validator);
 
 $validated = $validator->validated();
-assertType('array{required_value: non-empty-string, optional_value?: non-empty-string}', $validated);
-assertType('non-empty-string', $validated['required_value']);
-assertType('non-empty-string', $validated['optional_value']);
+assertType(
+    'array{required_value: DateTimeInterface|float|int|non-empty-string, '
+        . 'optional_value?: DateTimeInterface|float|int|string}',
+    $validated
+);
+assertType('DateTimeInterface|float|int|non-empty-string', $validated['required_value']);
+assertType('DateTimeInterface|float|int|string', $validated['optional_value']);

@@ -30,6 +30,8 @@ class RulesInferenceTest extends \PHPStan\Testing\TypeInferenceTestCase
         yield from self::gatherAssertTypes(__DIR__ . '/rules/accepted.php');
         yield from self::gatherAssertTypes(__DIR__ . '/rules/accepted-if.php');
         yield from self::gatherAssertTypes(__DIR__ . '/rules/active-url.php');
+        yield from self::gatherAssertTypes(__DIR__ . '/rules/after.php');
+        yield from self::gatherAssertTypes(__DIR__ . '/rules/after-or-equal.php');
         yield from self::gatherAssertTypes(__DIR__ . '/rules/alpha.php');
         yield from self::gatherAssertTypes(__DIR__ . '/rules/alpha-dash.php');
         yield from self::gatherAssertTypes(__DIR__ . '/rules/alpha-num.php');

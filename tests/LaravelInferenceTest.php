@@ -449,6 +449,124 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
     }
 
     /**
+     * @return iterable<string, array{int|float, string}>
+     */
+    public static function numericDateRuleProvider(): iterable
+    {
+        $rules = [
+            'date' => 'required|date',
+            'date format' => 'required|date_format:Ymd',
+            'before' => 'required|date_format:Ymd|before:20250101',
+            'before or equal' => 'required|date_format:Ymd|before_or_equal:20240101',
+            'after' => 'required|date_format:Ymd|after:20230101',
+            'after or equal' => 'required|date_format:Ymd|after_or_equal:20240101',
+            'date equals' => 'required|date_format:Ymd|date_equals:20240101',
+        ];
+
+        foreach ($rules as $description => $rule) {
+            yield $description . ' integer' => [20240101, $rule];
+            yield $description . ' float' => [20240101.0, $rule];
+        }
+    }
+
+    /**
+     * @dataProvider numericDateRuleProvider
+     */
+    public function testDateRulesCanPreserveNumericScalars(int|float $value, string $rule): void
+    {
+        self::getContainer();
+
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $rules = ['value' => $rule];
+        $validator = $factory->make(['value' => $value], $rules);
+
+        self::assertTrue($validator->passes());
+        self::assertSame(['value' => $value], $validator->validated());
+
+        $rulesType = (new TypeResolver())->evaluate(RuleParser::parse($rules));
+        $validatedType = $this->convertToType($validator->validated());
+        self::assertTrue($rulesType->accepts($validatedType, true)->yes());
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function dateTimeRuleProvider(): iterable
+    {
+        yield 'date' => ['required|date'];
+        yield 'before' => ['required|before:2025-01-01'];
+        yield 'before or equal' => ['required|before_or_equal:2024-01-01'];
+        yield 'after' => ['required|after:2023-01-01'];
+        yield 'after or equal' => ['required|after_or_equal:2024-01-01'];
+        yield 'date equals' => ['required|date_equals:2024-01-01'];
+    }
+
+    /**
+     * @dataProvider dateTimeRuleProvider
+     */
+    public function testDateAndComparisonRulesPreserveDateTimeObjects(string $rule): void
+    {
+        self::getContainer();
+
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $value = new \DateTimeImmutable('2024-01-01');
+        $rules = ['value' => $rule];
+        $validator = $factory->make(['value' => $value], $rules);
+
+        self::assertTrue($validator->passes());
+        self::assertSame(['value' => $value], $validator->validated());
+
+        $rulesType = (new TypeResolver())->evaluate(RuleParser::parse($rules));
+        $validatedType = $this->convertToType($validator->validated());
+        self::assertTrue($rulesType->accepts($validatedType, true)->yes());
+    }
+
+    /**
+     * @return iterable<string, array{mixed, string}>
+     */
+    public static function rejectedDateValueProvider(): iterable
+    {
+        yield 'date stringable' => [new \Illuminate\Support\Stringable('2024-01-01'), 'required|date'];
+        yield 'date format stringable' => [
+            new \Illuminate\Support\Stringable('20240101'),
+            'required|date_format:Ymd',
+        ];
+        yield 'before stringable' => [
+            new \Illuminate\Support\Stringable('2024-01-01'),
+            'required|before:2025-01-01',
+        ];
+        yield 'date true' => [true, 'required|date'];
+        yield 'date format true' => [true, 'required|date_format:Ymd'];
+        yield 'before true' => [true, 'required|before:2025-01-01'];
+    }
+
+    /**
+     * @dataProvider rejectedDateValueProvider
+     */
+    public function testDateRulesRejectNonNumericNonDateValues(mixed $value, string $rule): void
+    {
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $validator = $factory->make(['value' => $value], ['value' => $rule]);
+
+        self::assertFalse($validator->passes());
+    }
+
+    /**
      * @dataProvider alphaNumRuleProvider
      */
     public function testAlphaNumRejectsNegativeIntegers(string $rule): void

@@ -105,6 +105,27 @@ than Laravel's successful values because PHPStan cannot exclude `INF` and
 and returns the original value rather than a canonical JSON string or decoded
 value.
 
+Date validation is no cleaner. Laravel's `date` and `date_format` rules admit
+numeric scalars before passing their coerced representation to PHP's date
+parsers. Date comparison rules do the same and additionally admit
+`DateTimeInterface` objects. Successful output still contains the original
+native value:
+
+```php
+Validator::make(
+    ['value' => 20240101],
+    ['value' => 'required|date_format:Ymd|before:20250101'],
+)->validated();
+// ['value' => 20240101]
+```
+
+Consequently, `required|date_format:Ymd` needs the structural value type
+`float|int|non-empty-string`. The `date`, `before`, `before_or_equal`, `after`,
+`after_or_equal`, and `date_equals` rules additionally need
+`DateTimeInterface`. These unions are necessarily broader than the values that
+any specific format or comparison accepts; Laravel exposes runtime predicates,
+not normalized date values.
+
 Strict integer validation first appeared in Laravel 12.22 and is also present
 in Laravel 13. It accepts only native integers. Laravel 10, Laravel 11, and
 Laravel 12.0 through 12.21 accept the same rule spelling but ignore the
@@ -576,6 +597,7 @@ documented claims map to the following persistent coverage:
 | `integer:strict` differs by Laravel release | `LaravelInferenceTest::testIntegerStrictRuleFollowsRuntimeSupport` and `testIntegerStrictRuleAcceptsAndPreservesNativeInteger` | Conservative cross-version coverage in [`tests/rules/integer.php`](../tests/rules/integer.php) |
 | `alpha_num` and `alpha_dash` preserve numeric scalars | `LaravelInferenceTest::testAlphaRulesCanPreserveNumericValues` | [`tests/rules/alpha-num.php`](../tests/rules/alpha-num.php) and [`tests/rules/alpha-dash.php`](../tests/rules/alpha-dash.php) |
 | `json` preserves accepted scalars and stringable objects | `LaravelInferenceTest::testJsonRuleCanPreserveNonStringValues` | [`tests/rules/json.php`](../tests/rules/json.php) |
+| Date rules preserve numeric scalars and date objects | `LaravelInferenceTest::testDateRulesCanPreserveNumericScalars` and `testDateAndComparisonRulesPreserveDateTimeObjects` | [`tests/rules/date.php`](../tests/rules/date.php), [`tests/rules/date-format.php`](../tests/rules/date-format.php), and comparison fixtures under [`tests/rules`](../tests/rules) |
 | Scalar `in` preserves coercible inputs | `LaravelInferenceTest::testScalarInRuleAcceptsRuntimeValues` | [`tests/rules/in.php`](../tests/rules/in.php) |
 | Optional blanks bypass non-implicit rules | `LaravelInferenceTest::testBlankStringBypassesOptionalNonImplicitRules` | [`tests/structure/empty-string.php`](../tests/structure/empty-string.php) |
 | `TrimStrings` alone does not eliminate blank bypass | `LaravelInferenceTest::testTrimStringsAloneDoesNotEliminateBlankStringBypass` | Raw request coverage in [`tests/structure/request.php`](../tests/structure/request.php) |
