@@ -134,6 +134,10 @@ leave it disabled.
 ## Caveats
 
 * Laravel validation generally does not normalize returned values, so, for example, `numeric` produces the type union `int|float|numeric-string`. If you know it will always be a string, you can refine the type by using `numeric|string` and get a plain `numeric-string`.
+* Literal integer rule keys are version-dependent: Laravel 10 and 11 reindex
+  them from `0`, while Laravel 12 and later preserve them. The extension follows
+  the detected or configured Laravel version and falls back to a conservative
+  array type when that version is unavailable.
 * Wildcard collections may have integer or string keys. When wildcard and named rules share a parent, inference conservatively unions their possible projected value types because it cannot preserve every key correlation.
 * Larastan provides its own stub for `Illuminate\Validation\Validator`, and PHPStan does not merge multiple stubs for the same class. When both extensions are installed, Larastan's stub takes precedence, so an ignored `setRules()` return can leave the validator's previously inferred rules in place. Chain the call (`$validator->setRules($rules)->validated()`) or assign its return value (`$validator = $validator->setRules($rules)`) to infer constant replacement rules correctly.
 * Custom validation rules, implicit rules, and enums are not currently supported.

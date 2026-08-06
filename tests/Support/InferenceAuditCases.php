@@ -24,7 +24,7 @@ final class InferenceAuditCases
 {
     /**
      * @return array<string, array{
-     *     rules: array<string, mixed>|\Closure(array<mixed, mixed>): array<string, mixed>,
+     *     rules: array<array-key, mixed>|\Closure(array<mixed, mixed>): array<array-key, mixed>,
      *     data: array<mixed, mixed>|\Closure(): array<mixed, mixed>,
      *     concern: string,
      *     precision?: bool
@@ -84,6 +84,38 @@ final class InferenceAuditCases
             'numeric.integer' => $case(1, 'required|numeric'),
             'numeric.float' => $case(1.5, 'required|numeric'),
             'numeric.string' => $case('1e2', 'required|numeric'),
+            'numeric_path.single' => [
+                'data' => [0 => 'legacy', 3 => 'preserved'],
+                'rules' => [3 => 'required|string'],
+                'concern' => 'major-version numeric rule-key projection',
+            ],
+            'numeric_path.sparse' => [
+                'data' => [0 => 'zero', 1 => 'one', 3 => 'three', 5 => 'five'],
+                'rules' => [3 => 'required|string', 5 => 'required|string'],
+                'concern' => 'major-version sparse numeric rule-key projection',
+            ],
+            'numeric_path.mixed' => [
+                'data' => [
+                    'name' => 'named',
+                    0 => 'legacy-three',
+                    1 => 'legacy-five',
+                    3 => 'preserved-three',
+                    5 => 'preserved-five',
+                    'email' => 'email@example.com',
+                ],
+                'rules' => [
+                    'name' => 'required|string',
+                    3 => 'required|string',
+                    'email' => 'required|email',
+                    5 => 'required|string',
+                ],
+                'concern' => 'major-version mixed numeric rule-key projection',
+            ],
+            'numeric_path.negative' => [
+                'data' => [0 => 'legacy', -2 => 'preserved'],
+                'rules' => [-2 => 'required|string'],
+                'concern' => 'major-version negative numeric rule-key projection',
+            ],
             'digits.string' => $case('12', 'required|digits:2'),
             'digits.integer' => $case(12, 'required|digits:2'),
             'digits.float' => $case(1.5, 'required|digits:2', 'expressiveness limit'),
@@ -352,6 +384,8 @@ final class InferenceAuditCases
                 'status' => 'probed',
                 'evidence' => [
                     'array.bare', 'array.allowed_keys', 'array.child_projection', 'array.required_keys',
+                    'numeric_path.single', 'numeric_path.sparse', 'numeric_path.mixed',
+                    'numeric_path.negative',
                     'wildcard.missing_parent', 'wildcard.string_key', 'wildcard.mixed_named',
                     'parent.scalar_with_child',
                 ],

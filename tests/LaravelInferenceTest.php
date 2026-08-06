@@ -37,39 +37,25 @@ use PHPStan\Type\ObjectType;
 class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
 {
     /**
-     * Known-quirky upstream test cases that this extension isn't expected to
-     * model correctly, keyed by the Laravel version(s) whose test suite line
-     * numbers they were captured at. Laravel restructures its own test files
-     * between releases, so these need a new entry (not just a line-number
-     * edit) whenever a new major version's fixtures are regenerated.
-     *
-     * - testNumericKeys: rules keyed by a literal integer (e.g. `[3 => 'required']`)
-     *   aren't supported by RuleParser, which requires string paths.
-     */
-    private const KNOWN_QUIRKS = [
-        'testNumericKeys:5591', // v12
-        'testNumericKeys:5786', // v13
-    ];
-
-    /**
      * @param string $location
      * @param array<mixed, mixed> $data
-     * @param array<string, mixed> $rules
+     * @param array<array-key, mixed> $rules
      * @param array<mixed, mixed> $validated
      * @return void
      * @dataProvider laravelExportProvider
      * @group laravel
      */
-    public function testLaravelValidationExport(string $location, array $data, array $validated, array $rules): void
-    {
-        foreach (self::KNOWN_QUIRKS as $quirk) {
-            if (str_contains($location, $quirk)) {
-                self::markTestSkipped($location);
-            }
-        }
-
-        $evaluator = new TypeResolver();
-        $ruleTree = RuleParser::parse($rules);
+    public function testLaravelValidationExport(
+        string $location,
+        array $data,
+        array $validated,
+        array $rules,
+        string $laravelVersion
+    ): void {
+        self::getContainer();
+        $context = new LaravelVersionContext('', $laravelVersion);
+        $evaluator = new TypeResolver($context);
+        $ruleTree = RuleParser::parse($rules, $context);
         $rulesType = $evaluator->evaluate($ruleTree);
         $validatedType = $this->convertToType($validated);
         $accepts = $rulesType->accepts($validatedType, true);
@@ -1267,14 +1253,29 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         $v13 = require __DIR__ . '/fixtures/laravel-export-v13.php';
         assert(is_array($v10) && is_array($v11) && is_array($v12) && is_array($v13));
 
-        // 'expandedRules' isn't a parameter of testLaravelValidationExport();
-        // drop it so PHPUnit doesn't try (and fail) to match it by name.
-        return array_map(static function ($entry) {
+        return array_merge(
+            self::withLaravelVersion($v10, '10.50.2'),
+            self::withLaravelVersion($v11, '11.55.0'),
+            self::withLaravelVersion($v12, '12.64.0'),
+            self::withLaravelVersion($v13, '13.23.0')
+        );
+    }
+
+    /**
+     * @param array<mixed> $entries
+     * @return array<mixed>
+     */
+    private static function withLaravelVersion(array $entries, string $laravelVersion): array
+    {
+        return array_map(static function ($entry) use ($laravelVersion) {
             if (is_array($entry)) {
+                // expandedRules isn't a test parameter; replace it with the
+                // version whose upstream suite produced this fixture.
                 unset($entry['expandedRules']);
+                $entry['laravelVersion'] = $laravelVersion;
             }
             return $entry;
-        }, array_merge($v10, $v11, $v12, $v13));
+        }, $entries);
     }
 
     private function convertToType(mixed $data): Type\Type

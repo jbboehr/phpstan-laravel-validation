@@ -21,6 +21,7 @@ declare(strict_types=1);
 namespace jbboehr\PhpstanLaravelValidation\Extension;
 
 use jbboehr\PhpstanLaravelValidation\Evaluator\UnsafeConstExprEvaluator;
+use jbboehr\PhpstanLaravelValidation\Validation\LaravelVersionContext;
 use jbboehr\PhpstanLaravelValidation\Validation\RuleParser;
 use jbboehr\PhpstanLaravelValidation\ShouldNotHappenException;
 use jbboehr\PhpstanLaravelValidation\Type\ValidatorType;
@@ -35,7 +36,8 @@ final class FacadeMakeExtension implements DynamicStaticMethodReturnTypeExtensio
     private UnsafeConstExprEvaluator $constExprEvaluator;
 
     public function __construct(
-        UnsafeConstExprEvaluator $constExprEvaluator
+        UnsafeConstExprEvaluator $constExprEvaluator,
+        private LaravelVersionContext $laravelVersionContext
     ) {
         $this->constExprEvaluator = $constExprEvaluator;
     }
@@ -63,7 +65,7 @@ final class FacadeMakeExtension implements DynamicStaticMethodReturnTypeExtensio
             $rulesArg = $methodCall->getArgs()[1];
             $rulesValue = $this->constExprEvaluator->evaluate($rulesArg->value, $scope);
 
-            return new ValidatorType(RuleParser::parse($rulesValue));
+            return new ValidatorType(RuleParser::parse($rulesValue, $this->laravelVersionContext));
         } catch (ConstExprEvaluationException $e) {
             // @todo log or error?
             return null;

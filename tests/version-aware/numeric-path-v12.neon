@@ -1,0 +1,3 @@
+parameters:
+  phpstanLaravelValidation:
+    laravelVersion: '12.0.0'

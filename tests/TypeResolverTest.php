@@ -383,6 +383,41 @@ final class TypeResolverTest extends PHPStanTestCase
         );
     }
 
+    public function testNumericRulePathsFollowLaravelKeyPreservationBoundary(): void
+    {
+        self::assertSame(
+            'array{string, string}',
+            self::resolveNumericPathsForVersion('11.0.0')
+        );
+        self::assertSame(
+            'array{3: string, 5: string}',
+            self::resolveNumericPathsForVersion('12.0.0')
+        );
+    }
+
+    public function testNumericRulePathsAreConservativeWithoutAVersion(): void
+    {
+        self::getContainer();
+        $tree = RuleParser::parse([3 => 'required|string']);
+
+        self::assertSame(
+            'array<int|string, mixed>',
+            (new TypeResolver())->evaluate($tree)->describe(VerbosityLevel::precise())
+        );
+    }
+
+    public function testNumericStringPathSegmentsRemainLiteral(): void
+    {
+        self::getContainer();
+        $context = new LaravelVersionContext('', '10.0.0');
+        $tree = RuleParser::parse(['items.3.name' => 'required|string'], $context);
+
+        self::assertSame(
+            'array{items: array{3: array{name: string}}}',
+            (new TypeResolver($context))->evaluate($tree)->describe(VerbosityLevel::precise())
+        );
+    }
+
     /**
      * @param array<string, string> $rules
      */
@@ -408,10 +443,23 @@ final class TypeResolverTest extends PHPStanTestCase
     ): string {
         self::getContainer();
 
-        $resolver = new TypeResolver(new LaravelVersionContext('', $laravelVersion));
+        $context = new LaravelVersionContext('', $laravelVersion);
+        $resolver = new TypeResolver($context);
 
         return $resolver
-            ->evaluateMap(RuleParser::parse($rules), $assumeHttpInputNormalization)
+            ->evaluateMap(RuleParser::parse($rules, $context), $assumeHttpInputNormalization)
             ->describe(VerbosityLevel::precise());
+    }
+
+    private static function resolveNumericPathsForVersion(string $laravelVersion): string
+    {
+        self::getContainer();
+        $context = new LaravelVersionContext('', $laravelVersion);
+        $tree = RuleParser::parse([
+            3 => 'required|string',
+            5 => 'required|string',
+        ], $context);
+
+        return (new TypeResolver($context))->evaluate($tree)->describe(VerbosityLevel::precise());
     }
 }

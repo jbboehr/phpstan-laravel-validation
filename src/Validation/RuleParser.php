@@ -27,17 +27,31 @@ final class RuleParser
      * @return RuleTreeNode
      * @throws InvalidRuleException
      */
-    public static function parse(mixed $rules): RuleTreeNode
-    {
+    public static function parse(
+        mixed $rules,
+        ?LaravelVersionContext $laravelVersionContext = null
+    ): RuleTreeNode {
         $node = new RuleTreeNode('');
 
         if (!is_array($rules)) {
             return $node;
         }
 
+        $legacyNumericIndex = 0;
         foreach ($rules as $path => $ruleDef) {
-            if (!is_string($path)) {
-                throw new InvalidRuleException("Invalid rule path: " . var_export($path, true));
+            if (is_int($path)) {
+                if ($laravelVersionContext === null || !$laravelVersionContext->isSupported()) {
+                    // Laravel 10 and 11 reindex top-level numeric rule keys,
+                    // while Laravel 12 and later preserve them. Without a
+                    // supported version, retain only a conservative unknown
+                    // output key and value rather than guessing either shape.
+                    $node->resolvePath('*');
+                    continue;
+                }
+
+                $path = $laravelVersionContext->isAtLeast('12.0.0')
+                    ? (string) $path
+                    : (string) $legacyNumericIndex++;
             }
 
             $child = $node->resolvePath($path);

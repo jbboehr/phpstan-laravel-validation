@@ -41,7 +41,7 @@ final class InferenceAudit
 {
     /**
      * @param array<string, array{
-     *     rules: array<string, mixed>|\Closure(array<mixed, mixed>): array<string, mixed>,
+     *     rules: array<array-key, mixed>|\Closure(array<mixed, mixed>): array<array-key, mixed>,
      *     data: array<mixed, mixed>|\Closure(): array<mixed, mixed>,
      *     concern: string,
      *     precision?: bool
@@ -50,7 +50,7 @@ final class InferenceAudit
      *     laravel: string,
      *     cases: array<string, array{
      *         concern: string,
-     *         rules: array<string, mixed>,
+     *         rules: array<array-key, mixed>,
      *         input: array<mixed>|bool|float|int|string|null,
      *         runtime: array{
      *             outcome: string,
@@ -78,7 +78,8 @@ final class InferenceAudit
     {
         $factory = new Factory(new Translator(new ArrayLoader(), 'en'));
         $laravelVersion = self::frameworkVersion();
-        $typeResolver = new TypeResolver(new LaravelVersionContext('', $laravelVersion));
+        $laravelVersionContext = new LaravelVersionContext('', $laravelVersion);
+        $typeResolver = new TypeResolver($laravelVersionContext);
         $results = [];
 
         foreach ($cases as $id => $case) {
@@ -120,7 +121,7 @@ final class InferenceAudit
             $precisionProbe = $case['precision'] ?? false;
 
             try {
-                $inferred = $typeResolver->evaluate(RuleParser::parse($rules));
+                $inferred = $typeResolver->evaluate(RuleParser::parse($rules, $laravelVersionContext));
                 $inferredType = $inferred->describe(VerbosityLevel::precise());
 
                 if ($precisionProbe) {

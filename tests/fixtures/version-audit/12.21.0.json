@@ -656,6 +656,144 @@
                 "classification": "observed-realizable"
             }
         },
+        "numeric_path.single": {
+            "concern": "major-version numeric rule-key projection",
+            "rules": {
+                "3": "required|string"
+            },
+            "input": {
+                "0": "legacy",
+                "3": "preserved"
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "3": "preserved"
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{3: string}",
+                "outputType": "array{3: 'preserved'}",
+                "containsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            },
+            "precision": {
+                "candidateOutputType": null,
+                "containedByInference": null,
+                "preservedOnSuccess": null,
+                "classification": "not-probed"
+            }
+        },
+        "numeric_path.sparse": {
+            "concern": "major-version sparse numeric rule-key projection",
+            "rules": {
+                "3": "required|string",
+                "5": "required|string"
+            },
+            "input": {
+                "0": "zero",
+                "1": "one",
+                "3": "three",
+                "5": "five"
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "3": "three",
+                    "5": "five"
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{3: string, 5: string}",
+                "outputType": "array{3: 'three', 5: 'five'}",
+                "containsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            },
+            "precision": {
+                "candidateOutputType": null,
+                "containedByInference": null,
+                "preservedOnSuccess": null,
+                "classification": "not-probed"
+            }
+        },
+        "numeric_path.mixed": {
+            "concern": "major-version mixed numeric rule-key projection",
+            "rules": {
+                "name": "required|string",
+                "3": "required|string",
+                "email": "required|email",
+                "5": "required|string"
+            },
+            "input": {
+                "name": "named",
+                "0": "legacy-three",
+                "1": "legacy-five",
+                "3": "preserved-three",
+                "5": "preserved-five",
+                "email": "email@example.com"
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "name": "named",
+                    "3": "preserved-three",
+                    "email": "email@example.com",
+                    "5": "preserved-five"
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{name: string, 3: string, email: non-empty-string, 5: string}",
+                "outputType": "array{name: 'named', 3: 'preserved-three', email: 'email@example.com', 5: 'preserved-five'}",
+                "containsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            },
+            "precision": {
+                "candidateOutputType": null,
+                "containedByInference": null,
+                "preservedOnSuccess": null,
+                "classification": "not-probed"
+            }
+        },
+        "numeric_path.negative": {
+            "concern": "major-version negative numeric rule-key projection",
+            "rules": {
+                "-2": "required|string"
+            },
+            "input": {
+                "0": "legacy",
+                "-2": "preserved"
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "-2": "preserved"
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{-2: string}",
+                "outputType": "array{-2: 'preserved'}",
+                "containsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            },
+            "precision": {
+                "candidateOutputType": null,
+                "containedByInference": null,
+                "preservedOnSuccess": null,
+                "classification": "not-probed"
+            }
+        },
         "digits.string": {
             "concern": "native value",
             "rules": {

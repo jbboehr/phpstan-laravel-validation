@@ -22,6 +22,7 @@ namespace jbboehr\PhpstanLaravelValidation\Test;
 
 use jbboehr\PhpstanLaravelValidation\Validation\Rule;
 use jbboehr\PhpstanLaravelValidation\Validation\InvalidRuleException;
+use jbboehr\PhpstanLaravelValidation\Validation\LaravelVersionContext;
 use jbboehr\PhpstanLaravelValidation\Validation\RuleParser;
 use PHPUnit\Framework\TestCase;
 
@@ -90,12 +91,66 @@ final class RuleParserTest extends TestCase
         self::assertCount(0, RuleParser::parse(null));
     }
 
-    public function testRejectsNonStringRulePath(): void
+    public function testNumericRulePathsAreReindexedBeforeLaravelTwelve(): void
     {
-        $this->expectException(InvalidRuleException::class);
-        $this->expectExceptionMessage('Invalid rule path: 0');
+        $tree = RuleParser::parse([
+            3 => 'required|string',
+            5 => 'required|integer',
+        ], self::version('11.0.0'));
 
-        RuleParser::parse([0 => 'required']);
+        self::assertSame([0, 1], array_keys(iterator_to_array($tree)));
+        self::assertSame('0', $tree->resolvePath('0')->getPath());
+        self::assertSame('1', $tree->resolvePath('1')->getPath());
+    }
+
+    public function testNumericRulePathsArePreservedFromLaravelTwelve(): void
+    {
+        $tree = RuleParser::parse([
+            -2 => 'required|string',
+            3 => 'required|integer',
+        ], self::version('12.0.0'));
+
+        self::assertSame([-2, 3], array_keys(iterator_to_array($tree)));
+        self::assertSame('-2', $tree->resolvePath('-2')->getPath());
+        self::assertSame('3', $tree->resolvePath('3')->getPath());
+    }
+
+    public function testNumericRulePathsRemainConservativeWithoutASupportedVersion(): void
+    {
+        $tree = RuleParser::parse([
+            3 => 'required|string',
+            'name' => 'required|string',
+            5 => 'required|integer',
+        ]);
+
+        self::assertSame(['*', 'name'], array_keys(iterator_to_array($tree)));
+        self::assertSame([], $tree->resolvePath('*')->getRules());
+        self::assertCount(2, $tree->resolvePath('name')->getRules());
+    }
+
+    public function testNumericSegmentsInStringPathsAreNotReindexed(): void
+    {
+        $tree = RuleParser::parse([
+            'items.3.name' => 'required|string',
+            'items.03.code' => 'required|string',
+        ], self::version('10.0.0'));
+
+        $items = $tree->resolvePath('items');
+        self::assertSame([3, '03'], array_keys(iterator_to_array($items)));
+        self::assertSame('items.3.name', $items->resolvePath('3.name')->getPath());
+        self::assertSame('items.03.code', $items->resolvePath('03.code')->getPath());
+    }
+
+    public function testMixedStringAndNumericRulePathsPreserveEncounterOrder(): void
+    {
+        $tree = RuleParser::parse([
+            'name' => 'required|string',
+            3 => 'required|string',
+            'email' => 'required|email',
+            5 => 'required|string',
+        ], self::version('10.0.0'));
+
+        self::assertSame(['name', 0, 'email', 1], array_keys(iterator_to_array($tree)));
     }
 
     public function testRejectsInvalidRuleDefinition(): void
@@ -112,5 +167,10 @@ final class RuleParserTest extends TestCase
         $this->expectExceptionMessage('Invalid rule type: boolean true');
 
         RuleParser::parseRule(true);
+    }
+
+    private static function version(string $version): LaravelVersionContext
+    {
+        return new LaravelVersionContext('', $version);
     }
 }

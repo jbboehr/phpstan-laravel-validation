@@ -23,6 +23,7 @@ namespace jbboehr\PhpstanLaravelValidation\Extension;
 use jbboehr\PhpstanLaravelValidation\Evaluator\UnsafeConstExprEvaluator;
 use jbboehr\PhpstanLaravelValidation\ShouldNotHappenException;
 use jbboehr\PhpstanLaravelValidation\Type\ValidatorType;
+use jbboehr\PhpstanLaravelValidation\Validation\LaravelVersionContext;
 use jbboehr\PhpstanLaravelValidation\Validation\RuleParser;
 use PhpParser\ConstExprEvaluationException;
 use PhpParser\Node\Expr\MethodCall;
@@ -35,7 +36,8 @@ final class ValidatorSetRulesExtension implements DynamicMethodReturnTypeExtensi
     private UnsafeConstExprEvaluator $constExprEvaluator;
 
     public function __construct(
-        UnsafeConstExprEvaluator $constExprEvaluator
+        UnsafeConstExprEvaluator $constExprEvaluator,
+        private LaravelVersionContext $laravelVersionContext
     ) {
         $this->constExprEvaluator = $constExprEvaluator;
     }
@@ -62,7 +64,7 @@ final class ValidatorSetRulesExtension implements DynamicMethodReturnTypeExtensi
 
             $rulesValue = $this->constExprEvaluator->evaluate($methodCall->getArgs()[0]->value, $scope);
 
-            return new ValidatorType(RuleParser::parse($rulesValue));
+            return new ValidatorType(RuleParser::parse($rulesValue, $this->laravelVersionContext));
         } catch (ConstExprEvaluationException $e) {
             return null;
         } catch (\Throwable $e) {

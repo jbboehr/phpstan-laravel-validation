@@ -22,6 +22,7 @@ namespace jbboehr\PhpstanLaravelValidation\Extension;
 
 use Illuminate\Foundation\Validation\ValidatesRequests;
 use jbboehr\PhpstanLaravelValidation\Evaluator\UnsafeConstExprEvaluator;
+use jbboehr\PhpstanLaravelValidation\Validation\LaravelVersionContext;
 use jbboehr\PhpstanLaravelValidation\Validation\RuleParser;
 use jbboehr\PhpstanLaravelValidation\ShouldNotHappenException;
 use jbboehr\PhpstanLaravelValidation\Validation\TypeResolver;
@@ -39,6 +40,7 @@ final class ControllerValidateExtension implements DynamicMethodReturnTypeExtens
     public function __construct(
         UnsafeConstExprEvaluator $constExprEvaluator,
         private TypeResolver $typeResolver,
+        private LaravelVersionContext $laravelVersionContext,
         bool $assumeHttpInputNormalization
     ) {
         $this->constExprEvaluator = $constExprEvaluator;
@@ -73,7 +75,7 @@ final class ControllerValidateExtension implements DynamicMethodReturnTypeExtens
             $rulesArg = $methodCall->getArgs()[1];
             $rulesValue = $this->constExprEvaluator->evaluate($rulesArg->value, $scope);
 
-            $validatorRules = RuleParser::parse($rulesValue);
+            $validatorRules = RuleParser::parse($rulesValue, $this->laravelVersionContext);
             return $this->typeResolver->evaluate($validatorRules, $this->assumeHttpInputNormalization);
         } catch (ConstExprEvaluationException $e) {
             // @todo log or error?

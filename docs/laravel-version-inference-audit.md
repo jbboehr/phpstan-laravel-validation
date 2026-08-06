@@ -6,8 +6,10 @@ version-aware inferred types continue to contain every successful output
 observed at those releases.
 
 No successful output in the portable audit corpus falls outside the inferred
-type. Two release boundaries change the native values accepted by Laravel:
+type. Three release boundaries change the inferred output contract:
 
+- top-level numeric rule keys are reindexed by Laravel 10 and 11 but preserved
+  from Laravel 12;
 - `integer:strict` begins enforcing native integers in Laravel 12.22; and
 - `ascii` begins requiring a native string in Laravel 13.4.
 
@@ -97,7 +99,7 @@ are omitted from the snapshot.
 | Text predicates | `alpha*`, `ascii.*`, `string`, `lowercase`, `uppercase`, `regex`, `not_regex` | `ascii` boundary at 13.4 |
 | JSON, dates, and membership | `json.*`, `date*`, comparisons, scalar `in` | No observed release difference |
 | Network and identifiers | `email`, `ip`, `ipv4`, `ipv6`, `mac_address`, `timezone`, `url`, `uuid`, `ulid` | No observed release difference |
-| Arrays and projection | bare and keyed arrays, nested child projection, required keys, wildcards, parent-plus-child rules | No observed release difference |
+| Arrays and projection | bare and keyed arrays, numeric rule keys, nested child projection, required keys, wildcards, parent-plus-child rules | Numeric rule-key boundary at Laravel 12 |
 | Presence and conditions | optional blanks, nullable, present, confirmed, `required_if`, `exclude_if` | No observed release difference |
 | Default HTTP middleware | password-path trimming before validation | Laravel 10 versus 11+ boundary covered by the cross-profile PHPUnit suite |
 | Static entry points | facade, factory, request, controller, helper, validator unions, constant `setRules()` | Covered by the existing PHPStan fixture suite |
@@ -111,6 +113,40 @@ missing wildcard parents, and undeclared nested keys are included because
 ordinary happy-path strings do not reveal Laravel's native output contract.
 
 ## Findings
+
+### Laravel 12 preserves top-level numeric rule keys
+
+Laravel 10 and 11 pass parsed rules through `array_merge_recursive()` when
+adding them to the validator. PHP reindexes numeric keys during that merge, so
+this apparently literal rule path:
+
+```php
+[
+    3 => 'required|string',
+]
+```
+
+actually validates and returns key `0`. Multiple sparse keys such as `3` and
+`5` become `0` and `1` in encounter order. Negative integer keys are reindexed
+the same way. Laravel 12 replaced that merge with per-key assignment in
+[`83e28d065b7b`](https://github.com/laravel/framework/commit/83e28d065b7bc53f3e53a5c188806844eee30161),
+so Laravel 12 and 13 preserve the original integer keys.
+
+The corresponding sound types are therefore version-dependent:
+
+```php
+// Laravel 10 and 11
+array{string}
+
+// Laravel 12 and 13
+array{3: string}
+```
+
+This applies only to literal integer keys in the top-level rule map. Numeric
+segments in string paths such as `items.3.name` remain literal path segments
+on every supported release. When the Laravel version is unavailable or
+unsupported, the extension uses a general array shape rather than guessing
+which output key Laravel will produce.
 
 ### Laravel 12.22 changes `integer:strict`
 
@@ -332,9 +368,10 @@ and fall back to `illuminate/validation` for rule-level behavior. An explicit
 monorepos and other layouts where the working directory is not the relevant
 Composer project root.
 
-One shared context is injected into the resolver used by validator, facade,
-request, and controller inference. The resolver specializes `integer:strict`,
-`ascii`, and default HTTP normalization only at the verified boundaries above.
+One shared context is injected into the rule parser and resolver used by
+validator, facade, request, and controller inference. The parser normalizes
+numeric rule keys, while the resolver specializes `integer:strict`, `ascii`,
+and default HTTP normalization only at the verified boundaries above.
 It ignores installed-package datasets belonging to unrelated project roots,
 so a globally installed tool or another registered autoloader cannot silently
 select the Laravel contract. The same context contributes its effective
