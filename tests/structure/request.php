@@ -15,3 +15,8 @@ if (isset($validated['person'][0])) {
     assertType('non-empty-string', $validated['person'][0]['email']);
     assertType('string', $validated['person'][0]['first_name']);
 }
+
+$rawOptional = $request->validate([
+    'value' => 'array',
+]);
+assertType('array{value?: array|string}', $rawOptional);

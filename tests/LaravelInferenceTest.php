@@ -127,6 +127,118 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         self::assertTrue($rulesType->accepts($validatedType, true)->yes());
     }
 
+    public function testTrimStringsAloneDoesNotEliminateBlankStringBypass(): void
+    {
+        \Illuminate\Foundation\Http\Middleware\TrimStrings::flushState();
+
+        try {
+            $request = \Illuminate\Http\Request::create('/', 'POST', ['value' => '   ']);
+            (new \Illuminate\Foundation\Http\Middleware\TrimStrings())->handle(
+                $request,
+                static fn ($request) => $request
+            );
+
+            self::assertSame('', $request->input('value'));
+
+            $factory = new \Illuminate\Validation\Factory(
+                new \Illuminate\Translation\Translator(
+                    new \Illuminate\Translation\ArrayLoader(),
+                    'en'
+                )
+            );
+            $rules = ['value' => 'array'];
+            $validator = $factory->make($request->all(), $rules);
+
+            self::assertTrue($validator->passes());
+            self::assertSame(['value' => ''], $validator->validated());
+
+            $rulesType = (new TypeResolver())->evaluate(RuleParser::parse($rules));
+            $validatedType = $this->convertToType($validator->validated());
+            self::assertTrue($rulesType->accepts($validatedType, true)->yes());
+        } finally {
+            \Illuminate\Foundation\Http\Middleware\TrimStrings::flushState();
+        }
+    }
+
+    public function testDefaultHttpInputNormalizationChangesOptionalBlankBehavior(): void
+    {
+        \Illuminate\Foundation\Http\Middleware\TrimStrings::flushState();
+        \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::flushState();
+
+        try {
+            $request = \Illuminate\Http\Request::create('/', 'POST', [
+                'non_nullable' => '   ',
+                'nullable' => '   ',
+            ]);
+            self::applyDefaultHttpInputNormalization($request);
+
+            self::assertNull($request->input('non_nullable'));
+            self::assertNull($request->input('nullable'));
+
+            $factory = new \Illuminate\Validation\Factory(
+                new \Illuminate\Translation\Translator(
+                    new \Illuminate\Translation\ArrayLoader(),
+                    'en'
+                )
+            );
+
+            $nonNullable = $factory->make(
+                ['value' => $request->input('non_nullable')],
+                ['value' => 'array']
+            );
+            self::assertFalse($nonNullable->passes());
+
+            $rules = ['value' => 'nullable|array'];
+            $nullable = $factory->make(['value' => $request->input('nullable')], $rules);
+            self::assertTrue($nullable->passes());
+            self::assertSame(['value' => null], $nullable->validated());
+
+            $rulesType = (new TypeResolver())->evaluate(RuleParser::parse($rules), true);
+            $validatedType = $this->convertToType($nullable->validated());
+            self::assertTrue($rulesType->accepts($validatedType, true)->yes());
+        } finally {
+            \Illuminate\Foundation\Http\Middleware\TrimStrings::flushState();
+            \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::flushState();
+        }
+    }
+
+    public function testDefaultPasswordTrimExceptionVariesByLaravelMajor(): void
+    {
+        \Illuminate\Foundation\Http\Middleware\TrimStrings::flushState();
+        \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::flushState();
+
+        try {
+            $request = \Illuminate\Http\Request::create('/', 'POST', ['password' => '   ']);
+            self::applyDefaultHttpInputNormalization($request);
+
+            $factory = new \Illuminate\Validation\Factory(
+                new \Illuminate\Translation\Translator(
+                    new \Illuminate\Translation\ArrayLoader(),
+                    'en'
+                )
+            );
+            $rules = ['password' => 'array'];
+            $validator = $factory->make($request->all(), $rules);
+
+            if (method_exists(\Illuminate\Foundation\Http\Middleware\TrimStrings::class, 'except')) {
+                self::assertSame('   ', $request->input('password'));
+                self::assertTrue($validator->passes());
+                self::assertSame(['password' => '   '], $validator->validated());
+
+                $rulesType = (new TypeResolver())->evaluate(RuleParser::parse($rules), true);
+                $validatedType = $this->convertToType($validator->validated());
+                self::assertTrue($rulesType->accepts($validatedType, true)->yes());
+                return;
+            }
+
+            self::assertNull($request->input('password'));
+            self::assertFalse($validator->passes());
+        } finally {
+            \Illuminate\Foundation\Http\Middleware\TrimStrings::flushState();
+            \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::flushState();
+        }
+    }
+
     /**
      * @return iterable<string, array{mixed}>
      */
@@ -306,6 +418,19 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         );
 
         return !$validator->passes();
+    }
+
+    private static function applyDefaultHttpInputNormalization(\Illuminate\Http\Request $request): void
+    {
+        (new \Illuminate\Foundation\Http\Middleware\TrimStrings())->handle(
+            $request,
+            static function (\Illuminate\Http\Request $request) {
+                return (new \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull())->handle(
+                    $request,
+                    static fn ($request) => $request
+                );
+            }
+        );
     }
 
     public function testConfirmedComparisonFieldIsOnlyValidatedWhenItHasRules(): void

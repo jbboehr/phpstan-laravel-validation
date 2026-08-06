@@ -1,12 +1,21 @@
 parameters:
   stubFiles:
     - stubs/Validator.stub
+  phpstanLaravelValidation:
+    assumeHttpInputNormalization: false
+
+parametersSchema:
+  phpstanLaravelValidation: structure([
+    assumeHttpInputNormalization: bool()
+  ])
 
 services:
   - class: jbboehr\PhpstanLaravelValidation\Evaluator\UnsafeConstExprEvaluator
   - class: jbboehr\PhpstanLaravelValidation\Validation\TypeResolver
   - class: jbboehr\PhpstanLaravelValidation\Type\ValidatorTypeHelper
   - class: jbboehr\PhpstanLaravelValidation\Extension\ControllerValidateExtension
+    arguments:
+      assumeHttpInputNormalization: %phpstanLaravelValidation.assumeHttpInputNormalization%
     tags:
       - phpstan.broker.dynamicMethodReturnTypeExtension
   - class: jbboehr\PhpstanLaravelValidation\Extension\ControllerValidateWithExtension
@@ -22,6 +31,8 @@ services:
     tags:
       - phpstan.broker.dynamicMethodReturnTypeExtension
   - class: jbboehr\PhpstanLaravelValidation\Extension\RequestValidateExtension
+    arguments:
+      assumeHttpInputNormalization: %phpstanLaravelValidation.assumeHttpInputNormalization%
     tags:
       - phpstan.broker.dynamicMethodReturnTypeExtension
   - class: jbboehr\PhpstanLaravelValidation\Extension\ValidatorFunctionExtension

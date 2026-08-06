@@ -181,6 +181,30 @@ assembled data, and customized middleware stacks still expose the underlying
 validator behavior. Static reasoning about the validator cannot assume that a
 particular application middleware pipeline always ran first.
 
+Applications that guarantee the standard middleware pair runs before
+request-sourced validation can make that assumption explicit:
+
+```neon
+parameters:
+    phpstanLaravelValidation:
+        assumeHttpInputNormalization: true
+```
+
+For `Request::validate()` and controller `validate()` calls, the extension can
+then omit the blank-string bypass from non-exempt fields. The earlier optional
+`array` example becomes `array{filters?: array}`; `nullable|array` becomes
+`array{filters?: array|null}`. Direct validators retain the broader validator
+semantics regardless of this setting.
+
+This is an assertion about application behavior, not middleware detection.
+Both `TrimStrings` and `ConvertEmptyStringsToNull` must run: trimming alone
+turns whitespace into an empty string that still bypasses the rule. Laravel
+also supports middleware skip callbacks and trimming exceptions, and request
+code can mutate input afterward. Laravel 11 through 13 exclude
+`current_password`, `password`, and `password_confirmation` from trimming by
+default; the extension conservatively preserves the blank-string branch for
+those paths across every supported major.
+
 ## Validation rules also control output projection
 
 Laravel's rule array is not merely a set of acceptance predicates. It is also a
@@ -533,6 +557,8 @@ documented claims map to the following persistent coverage:
 | `alpha_num` and `alpha_dash` preserve numeric scalars | `LaravelInferenceTest::testAlphaRulesCanPreserveNumericValues` | [`tests/rules/alpha-num.php`](../tests/rules/alpha-num.php) and [`tests/rules/alpha-dash.php`](../tests/rules/alpha-dash.php) |
 | Scalar `in` preserves coercible inputs | `LaravelInferenceTest::testScalarInRuleAcceptsRuntimeValues` | [`tests/rules/in.php`](../tests/rules/in.php) |
 | Optional blanks bypass non-implicit rules | `LaravelInferenceTest::testBlankStringBypassesOptionalNonImplicitRules` | [`tests/structure/empty-string.php`](../tests/structure/empty-string.php) |
+| `TrimStrings` alone does not eliminate blank bypass | `LaravelInferenceTest::testTrimStringsAloneDoesNotEliminateBlankStringBypass` | Raw request coverage in [`tests/structure/request.php`](../tests/structure/request.php) |
+| Default HTTP normalization changes blank behavior | `LaravelInferenceTest::testDefaultHttpInputNormalizationChangesOptionalBlankBehavior` and `testDefaultPasswordTrimExceptionVariesByLaravelMajor` | Opt-in coverage in [`tests/normalized/request.php`](../tests/normalized/request.php) |
 | Conditional acceptance broadens values | `LaravelInferenceTest::testConditionalValueRulesRemainConservative` | [`tests/rules/accepted-if.php`](../tests/rules/accepted-if.php) |
 | Conditional exclusion changes shape | `LaravelInferenceTest::testConditionalExclusionChangesTheValidatedShape` | [`tests/rules/exclude-if.php`](../tests/rules/exclude-if.php) |
 | Required wildcard descendants may match nothing | `LaravelInferenceTest::testRequiredWildcardDescendantDoesNotRequireMissingParent` | [`tests/structure/wildcard.php`](../tests/structure/wildcard.php) |

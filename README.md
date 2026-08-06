@@ -70,6 +70,35 @@ includes:
     - vendor/jbboehr/phpstan-laravel-validation/extension.neon
 ```
 
+### HTTP input normalization
+
+By default, the extension models the validator itself and therefore includes
+blank strings that can bypass optional non-implicit rules. Applications whose
+request validation is guaranteed to run after Laravel's standard
+`TrimStrings` and `ConvertEmptyStringsToNull` middleware may opt into narrower
+request types:
+
+```neon
+parameters:
+    phpstanLaravelValidation:
+        assumeHttpInputNormalization: true
+```
+
+This option affects `Request::validate()` and controller `validate()` calls.
+It does not affect direct validators, factories, facades, or validators passed
+to `validateWith()`.
+
+For example, an optional `array` field normally has the value type
+`array|string` because a blank string may bypass the rule. With this option it
+has type `array`; `nullable|array` has type `array|null`. Laravel's standard
+untrimmed request keys (`current_password`, `password`, and
+`password_confirmation`) remain conservatively widened to include strings.
+
+Enable this option only if neither middleware is skipped or removed and
+validation cannot observe values introduced afterward by request mutation.
+Projects with custom trimming exceptions or `skipWhen()` callbacks should
+leave it disabled.
+
 ## Caveats
 
 * Laravel validation generally does not normalize returned values, so, for example, `numeric` produces the type union `int|float|numeric-string`. If you know it will always be a string, you can refine the type by using `numeric|string` and get a plain `numeric-string`.

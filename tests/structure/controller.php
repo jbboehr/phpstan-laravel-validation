@@ -11,6 +11,11 @@ $validated = $controller->validate(new \Illuminate\Http\Request(), [
 ]);
 assertType("float|int|numeric-string|Stringable|true", $validated['amount']);
 
+$rawOptional = $controller->validate(new \Illuminate\Http\Request(), [
+    'value' => 'array',
+]);
+assertType('array{value?: array|string}', $rawOptional);
+
 $controller = new TestController();
 $validator = \Illuminate\Support\Facades\Validator::make([], [
     'amount' => 'required|integer',

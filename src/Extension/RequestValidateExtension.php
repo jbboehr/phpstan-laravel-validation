@@ -33,11 +33,14 @@ use PHPStan\Type\DynamicMethodReturnTypeExtension;
 final class RequestValidateExtension implements DynamicMethodReturnTypeExtension
 {
     private UnsafeConstExprEvaluator $constExprEvaluator;
+    private bool $assumeHttpInputNormalization;
 
     public function __construct(
-        UnsafeConstExprEvaluator $constExprEvaluator
+        UnsafeConstExprEvaluator $constExprEvaluator,
+        bool $assumeHttpInputNormalization
     ) {
         $this->constExprEvaluator = $constExprEvaluator;
+        $this->assumeHttpInputNormalization = $assumeHttpInputNormalization;
     }
 
     public function getClass(): string
@@ -65,7 +68,7 @@ final class RequestValidateExtension implements DynamicMethodReturnTypeExtension
 
             $validatorRules = RuleParser::parse($rulesValue);
             $evaluator = new TypeResolver();
-            return $evaluator->evaluate($validatorRules);
+            return $evaluator->evaluate($validatorRules, $this->assumeHttpInputNormalization);
         } catch (ConstExprEvaluationException $e) {
             // @todo log or error?
             return null;

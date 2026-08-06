@@ -141,6 +141,56 @@ final class TypeResolverTest extends PHPStanTestCase
         ]));
     }
 
+    public function testNormalizedHttpInputSuppressesBlankStringBypass(): void
+    {
+        self::assertSame('array{value?: array}', self::resolve([
+            'value' => 'array',
+        ], true));
+        self::assertSame('array{value?: array|null}', self::resolve([
+            'value' => 'nullable|array',
+        ], true));
+        self::assertSame('array{value?: non-empty-string}', self::resolve([
+            'value' => 'email',
+        ], true));
+        self::assertSame(
+            'array{people?: array<int|string, array{email?: non-empty-string}>}',
+            self::resolve(['people.*.email' => 'email'], true)
+        );
+    }
+
+    public function testNormalizedHttpInputRetainsDefaultUntrimmedPaths(): void
+    {
+        foreach (['current_password', 'password', 'password_confirmation'] as $path) {
+            self::assertSame(
+                'array{' . $path . '?: array|string}',
+                self::resolve([$path => 'array'], true)
+            );
+        }
+    }
+
+    public function testHttpInputNormalizationDefaultsToRawValidatorSemantics(): void
+    {
+        self::getContainer();
+        $resolver = new TypeResolver();
+        $tree = RuleParser::parse([
+            'value' => 'array',
+            'items.*' => 'array',
+        ]);
+
+        self::assertSame(
+            'array{value?: array|string, items?: array<int|string, array|string>}',
+            $resolver->evaluateMap($tree)->describe(VerbosityLevel::precise())
+        );
+        self::assertSame(
+            'array<int|string, array|string>',
+            $resolver->evaluateWildcard($tree->resolvePath('items'))->describe(VerbosityLevel::precise())
+        );
+        self::assertSame(
+            'array|string',
+            $resolver->evaluateLeaf($tree->resolvePath('value'))->describe(VerbosityLevel::precise())
+        );
+    }
+
     public function testNonArrayParentRuleTakesPrecedenceOverNestedShape(): void
     {
         self::assertSame('array{foo: string}', self::resolve([
@@ -223,12 +273,15 @@ final class TypeResolverTest extends PHPStanTestCase
     /**
      * @param array<string, string> $rules
      */
-    private static function resolve(array $rules): string
+    private static function resolve(array $rules, bool $assumeHttpInputNormalization = false): string
     {
         self::getContainer();
 
-        return (new TypeResolver())
-            ->evaluateMap(RuleParser::parse($rules))
+        $resolver = new TypeResolver();
+        $tree = RuleParser::parse($rules);
+
+        return $resolver
+            ->evaluateMap($tree, $assumeHttpInputNormalization)
             ->describe(VerbosityLevel::precise());
     }
 }

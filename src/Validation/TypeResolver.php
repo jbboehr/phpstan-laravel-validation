@@ -34,20 +34,30 @@ use PHPStan\Type\StringType;
 
 final class TypeResolver
 {
-    public function evaluate(RuleTreeNode $node): Type\Type
+    /**
+     * Laravel 11 and later exclude these root request keys from TrimStrings.
+     * Retaining the exception for every supported major is conservative.
+     */
+    private const DEFAULT_UNTRIMMED_PATHS = [
+        'current_password',
+        'password',
+        'password_confirmation',
+    ];
+
+    public function evaluate(RuleTreeNode $node, bool $assumeHttpInputNormalization = false): Type\Type
     {
         if ($node->isWildcard()) {
-            $type = $this->evaluateWildcard($node);
+            $type = $this->evaluateWildcard($node, $assumeHttpInputNormalization);
         } elseif ($node->hasChildren()) {
-            $type = $this->evaluateMap($node);
+            $type = $this->evaluateMap($node, $assumeHttpInputNormalization);
         } else {
-            $type = $this->evaluateLeaf($node);
+            $type = $this->evaluateLeaf($node, $assumeHttpInputNormalization);
         }
 
         // Non-array parent rules can cause validated() to return the complete
         // parent value even when nested rules are also present.
         if ($node->hasChildren() && !$node->isArray() && count($node->getRules()) > 0) {
-            $leafType = $this->evaluateLeaf($node);
+            $leafType = $this->evaluateLeaf($node, $assumeHttpInputNormalization);
             $type = $leafType->isArray()->no()
                 ? $leafType
                 : Type\TypeCombinator::union($type, $leafType);
@@ -60,7 +70,7 @@ final class TypeResolver
         return $type;
     }
 
-    public function evaluateMap(RuleTreeNode $node): Type\Type
+    public function evaluateMap(RuleTreeNode $node, bool $assumeHttpInputNormalization = false): Type\Type
     {
         $builder = ConstantArrayTypeBuilder::createEmpty();
 
@@ -69,7 +79,7 @@ final class TypeResolver
                 continue;
             }
 
-            $type = $this->evaluate($value);
+            $type = $this->evaluate($value, $assumeHttpInputNormalization);
 
             $builder->setOffsetValueType(
                 is_int($key) ? new ConstantIntegerType($key) : new ConstantStringType($key),
@@ -81,7 +91,7 @@ final class TypeResolver
         return $builder->getArray();
     }
 
-    public function evaluateWildcard(RuleTreeNode $node): Type\Type
+    public function evaluateWildcard(RuleTreeNode $node, bool $assumeHttpInputNormalization = false): Type\Type
     {
         $children = $node->getIterator();
         if ($children->count() !== 1) {
@@ -90,11 +100,11 @@ final class TypeResolver
         }
         return new Type\ArrayType(
             Type\TypeCombinator::union(new Type\IntegerType(), new Type\StringType()),
-            $this->evaluate($children->current())
+            $this->evaluate($children->current(), $assumeHttpInputNormalization)
         );
     }
 
-    public function evaluateLeaf(RuleTreeNode $node): Type\Type
+    public function evaluateLeaf(RuleTreeNode $node, bool $assumeHttpInputNormalization = false): Type\Type
     {
         $types = array_values(array_filter(array_map(function ($rule) use ($node) {
             // Laravel applies `in` to every element when the value also has an
@@ -113,11 +123,25 @@ final class TypeResolver
             $type = Type\TypeCombinator::intersect(...$types);
         }
 
-        if ($node->allowsBlankStringBypass()) {
+        if (
+            $node->allowsBlankStringBypass()
+            && $this->blankStringCanReachValidation($node, $assumeHttpInputNormalization)
+        ) {
             $type = Type\TypeCombinator::union($type, new StringType());
         }
 
         return $type;
+    }
+
+    private function blankStringCanReachValidation(
+        RuleTreeNode $node,
+        bool $assumeHttpInputNormalization
+    ): bool {
+        if (!$assumeHttpInputNormalization) {
+            return true;
+        }
+
+        return in_array($node->getPath(), self::DEFAULT_UNTRIMMED_PATHS, true);
     }
 
     private function isOutputOptional(RuleTreeNode $node): bool
