@@ -65,7 +65,9 @@ final class TypeResolverTest extends PHPStanTestCase
             yield $rule => [$rule, 'DateTimeInterface|float|int|non-empty-string'];
         }
 
-        foreach (['ascii', 'lowercase', 'string', 'uppercase'] as $rule) {
+        yield 'ascii' => ['ascii', 'array|bool|float|int|resource|string|Stringable|null'];
+
+        foreach (['lowercase', 'string', 'uppercase'] as $rule) {
             yield $rule => [$rule, 'string'];
         }
 

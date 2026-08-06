@@ -384,6 +384,127 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
     /**
      * @return iterable<string, array{mixed}>
      */
+    public static function asciiCoercibleValueProvider(): iterable
+    {
+        yield 'integer' => [123];
+        yield 'float' => [1.5];
+        yield 'infinity' => [INF];
+        yield 'true' => [true];
+        yield 'false' => [false];
+        yield 'null' => [null];
+        yield 'stringable object' => [new \Illuminate\Support\Stringable('plain')];
+    }
+
+    /**
+     * @dataProvider asciiCoercibleValueProvider
+     */
+    public function testAsciiRuleCoercionFollowsRuntimeSupport(mixed $value): void
+    {
+        self::getContainer();
+
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $rules = ['value' => 'ascii'];
+        $validator = $factory->make(['value' => $value], $rules);
+
+        if (self::asciiRuleRequiresNativeString()) {
+            self::assertFalse($validator->passes());
+            return;
+        }
+
+        self::assertTrue($validator->passes());
+        self::assertSame(['value' => $value], $validator->validated());
+
+        $rulesType = (new TypeResolver())->evaluate(RuleParser::parse($rules));
+        $validatedType = $this->convertToType($validator->validated());
+        self::assertTrue($rulesType->accepts($validatedType, true)->yes());
+    }
+
+    public function testAsciiRuleCanPreserveResourcesOnCoerciveVersions(): void
+    {
+        self::getContainer();
+
+        $resource = fopen('php://memory', 'r');
+        if ($resource === false) {
+            self::fail('Could not open test resource');
+        }
+
+        try {
+            $factory = new \Illuminate\Validation\Factory(
+                new \Illuminate\Translation\Translator(
+                    new \Illuminate\Translation\ArrayLoader(),
+                    'en'
+                )
+            );
+            $rules = ['value' => 'ascii'];
+            $validator = $factory->make(['value' => $resource], $rules);
+
+            if (self::asciiRuleRequiresNativeString()) {
+                self::assertFalse($validator->passes());
+                return;
+            }
+
+            self::assertTrue($validator->passes());
+            self::assertSame(['value' => $resource], $validator->validated());
+
+            $rulesType = (new TypeResolver())->evaluate(RuleParser::parse($rules));
+            $validatedType = $this->convertToType($validator->validated());
+            self::assertTrue($rulesType->accepts($validatedType, true)->yes());
+        } finally {
+            fclose($resource);
+        }
+    }
+
+    public function testAsciiRuleCanPreserveArraysWhenWarningsAreHandled(): void
+    {
+        self::getContainer();
+
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $value = ['key' => 'value'];
+        $rules = ['value' => 'ascii'];
+        $warnings = [];
+
+        set_error_handler(
+            static function (int $severity, string $message, string $file, int $line) use (&$warnings): bool {
+                $warnings[] = $message;
+                return true;
+            }
+        );
+
+        try {
+            $validator = $factory->make(['value' => $value], $rules);
+            $passes = $validator->passes();
+        } finally {
+            restore_error_handler();
+        }
+
+        if (self::asciiRuleRequiresNativeString()) {
+            self::assertSame([], $warnings);
+            self::assertFalse($passes);
+            return;
+        }
+
+        self::assertNotEmpty($warnings);
+        self::assertTrue($passes);
+        self::assertSame(['value' => $value], $validator->validated());
+
+        $rulesType = (new TypeResolver())->evaluate(RuleParser::parse($rules));
+        $validatedType = $this->convertToType($validator->validated());
+        self::assertTrue($rulesType->accepts($validatedType, true)->yes());
+    }
+
+    /**
+     * @return iterable<string, array{mixed}>
+     */
     public static function jsonValueProvider(): iterable
     {
         yield 'object string' => ['{"value":1}'];
@@ -602,6 +723,22 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         $validator = $factory->make(
             ['value' => '1'],
             ['value' => 'required|integer:strict']
+        );
+
+        return !$validator->passes();
+    }
+
+    private static function asciiRuleRequiresNativeString(): bool
+    {
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $validator = $factory->make(
+            ['value' => 1],
+            ['value' => 'required|ascii']
         );
 
         return !$validator->passes();

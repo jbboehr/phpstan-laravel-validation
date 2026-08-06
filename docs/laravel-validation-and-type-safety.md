@@ -85,6 +85,29 @@ string representation matches Laravel's regular expression. Once again, the
 rule tests a coercively viewed representation but returns the original native
 value.
 
+The `ascii` rule adds release-dependent behavior to the same design problem.
+Laravel 10 through 12 unconditionally cast the value to a string for the ASCII
+predicate, then preserve the original value. This succeeds without producing a
+string:
+
+```php
+Validator::make(
+    ['value' => true],
+    ['value' => 'required|ascii'],
+)->validated();
+// ['value' => true]
+```
+
+Those releases also accept numeric scalars, `null`, compatible `Stringable`
+objects, resources, and arrays when PHP warnings are not escalated to
+exceptions. Laravel 13 added an `is_string()` guard and rejects those values.
+Because this project supports all four majors without version-specific result
+types, the honest compatibility type remains
+`array|bool|float|int|resource|string|Stringable|null`. The array and resource
+branches are edge cases; ordinary booleans and numbers already demonstrate the
+underlying failure. A rule named `ascii` described how Laravel inspected the
+value, not the native type it returned.
+
 The `json` rule repeats the pattern with an especially misleading boundary.
 Laravel admits any scalar or `Stringable` value to PHP's JSON validator using
 its coerced string representation. An integer, float, `true`, or compatible
@@ -596,6 +619,7 @@ documented claims map to the following persistent coverage:
 | `integer` can preserve non-integers | `LaravelInferenceTest::testIntegerRuleCanPreserveNonIntegerValues` | [`tests/rules/integer.php`](../tests/rules/integer.php) |
 | `integer:strict` differs by Laravel release | `LaravelInferenceTest::testIntegerStrictRuleFollowsRuntimeSupport` and `testIntegerStrictRuleAcceptsAndPreservesNativeInteger` | Conservative cross-version coverage in [`tests/rules/integer.php`](../tests/rules/integer.php) |
 | `alpha_num` and `alpha_dash` preserve numeric scalars | `LaravelInferenceTest::testAlphaRulesCanPreserveNumericValues` | [`tests/rules/alpha-num.php`](../tests/rules/alpha-num.php) and [`tests/rules/alpha-dash.php`](../tests/rules/alpha-dash.php) |
+| `ascii` coercion differs by Laravel release | `LaravelInferenceTest::testAsciiRuleCoercionFollowsRuntimeSupport`, `testAsciiRuleCanPreserveResourcesOnCoerciveVersions`, and `testAsciiRuleCanPreserveArraysWhenWarningsAreHandled` | [`tests/rules/ascii.php`](../tests/rules/ascii.php) |
 | `json` preserves accepted scalars and stringable objects | `LaravelInferenceTest::testJsonRuleCanPreserveNonStringValues` | [`tests/rules/json.php`](../tests/rules/json.php) |
 | Date rules preserve numeric scalars and date objects | `LaravelInferenceTest::testDateRulesCanPreserveNumericScalars` and `testDateAndComparisonRulesPreserveDateTimeObjects` | [`tests/rules/date.php`](../tests/rules/date.php), [`tests/rules/date-format.php`](../tests/rules/date-format.php), and comparison fixtures under [`tests/rules`](../tests/rules) |
 | Scalar `in` preserves coercible inputs | `LaravelInferenceTest::testScalarInRuleAcceptsRuntimeValues` | [`tests/rules/in.php`](../tests/rules/in.php) |

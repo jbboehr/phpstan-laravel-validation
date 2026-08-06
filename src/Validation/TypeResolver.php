@@ -259,7 +259,22 @@ final class TypeResolver
                 ])
             ),
 
-            "Ascii", "Lowercase", "String", "Uppercase" => new Type\StringType(),
+            // Laravel 10-12 cast arbitrary values to string for the ASCII
+            // predicate and preserve the original value. Laravel 13 requires
+            // a native string, but version-independent inference must retain
+            // the successful outputs from every supported major.
+            "Ascii" => Type\TypeCombinator::union(
+                new Type\ArrayType(new MixedType(), new MixedType()),
+                new Type\BooleanType(),
+                new Type\FloatType(),
+                new Type\IntegerType(),
+                new Type\NullType(),
+                new Type\ObjectType(\Stringable::class),
+                new Type\ResourceType(),
+                new Type\StringType(),
+            ),
+
+            "Lowercase", "String", "Uppercase" => new Type\StringType(),
 
             "NotRegex", "Regex" => Type\TypeCombinator::union(
                 new Type\IntegerType(),

@@ -5,11 +5,11 @@ declare(strict_types=1);
 use function PHPStan\Testing\assertType;
 
 $validator = \Illuminate\Support\Facades\Validator::make([], [
-    'required_value' => 'required|ascii|confirmed',
-    'optional_value' => 'ascii|confirmed',
+    'required_value' => 'required|string|confirmed',
+    'optional_value' => 'string|confirmed',
     'excluded_value' => 'required|exclude|confirmed',
-    'explicit_value' => 'required|ascii|confirmed',
-    'explicit_value_confirmation' => 'required|ascii',
+    'explicit_value' => 'required|string|confirmed',
+    'explicit_value_confirmation' => 'required|string',
 ]);
 assertType('Illuminate\\Validation\\Validator', $validator);
 
