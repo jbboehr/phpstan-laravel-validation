@@ -62,7 +62,7 @@ final class TypeResolver
                 : Type\TypeCombinator::union($type, $leafType);
         }
 
-        if ($node->isNullable()) {
+        if ($node->allowsNull()) {
             $type = Type\TypeCombinator::addNull($type);
         }
 
@@ -279,8 +279,7 @@ final class TypeResolver
             "NotRegex", "Regex" => Type\TypeCombinator::union(
                 new Type\IntegerType(),
                 new Type\FloatType(),
-                new Type\StringType(),
-                new Type\BooleanType()
+                new Type\StringType()
             ),
 
             "Array" => $this->resolveTypeArray($rule),

@@ -72,7 +72,7 @@ final class TypeResolverTest extends PHPStanTestCase
         }
 
         foreach (['regex:/foo/', 'not_regex:/foo/'] as $rule) {
-            yield $rule => [$rule, 'bool|float|int|string'];
+            yield $rule => [$rule, 'float|int|string'];
         }
 
         yield 'array' => ['array', 'array'];
@@ -147,6 +147,19 @@ final class TypeResolverTest extends PHPStanTestCase
         ]));
         self::assertSame('array{value: string}', self::resolve([
             'value' => 'required|string',
+        ]));
+    }
+
+    public function testUnconditionalRequiredRejectsNullableOutputRegardlessOfRuleOrder(): void
+    {
+        foreach (['required|nullable|string', 'nullable|required|string'] as $rules) {
+            self::assertSame('array{value: string}', self::resolve([
+                'value' => $rules,
+            ]));
+        }
+
+        self::assertSame('array{value?: string|null}', self::resolve([
+            'value' => 'nullable|string',
         ]));
     }
 

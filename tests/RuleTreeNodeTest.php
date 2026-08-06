@@ -162,6 +162,17 @@ final class RuleTreeNodeTest extends TestCase
         self::assertTrue($sometimes->resolveOptional());
     }
 
+    public function testNullableDoesNotOverrideRequirednessRegardlessOfRuleOrder(): void
+    {
+        foreach (['required|nullable|string', 'nullable|required|string'] as $rules) {
+            $node = RuleParser::parse(['value' => $rules])->resolvePath('value');
+
+            self::assertFalse($node->isOptional());
+            self::assertTrue($node->isNullable());
+            self::assertFalse($node->allowsNull());
+        }
+    }
+
     /**
      * @return iterable<string, array{string}>
      */

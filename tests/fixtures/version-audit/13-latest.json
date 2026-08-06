@@ -2391,7 +2391,7 @@
                 "exception": null
             },
             "inference": {
-                "type": "array{value: bool|float|int|string}",
+                "type": "array{value: float|int|string}",
                 "outputType": "array{value: 123}",
                 "containsOutput": "yes",
                 "exception": null,
@@ -2422,7 +2422,7 @@
                 "exception": null
             },
             "inference": {
-                "type": "array{value: bool|float|int|string}",
+                "type": "array{value: float|int|string}",
                 "outputType": null,
                 "containsOutput": null,
                 "exception": null,
@@ -2430,9 +2430,9 @@
             },
             "precision": {
                 "candidateOutputType": "array{value: true}",
-                "containedByInference": "yes",
+                "containedByInference": "no",
                 "preservedOnSuccess": null,
-                "classification": "observed-imprecision"
+                "classification": "candidate-outside-inference"
             }
         },
         "regex.rejected_integer": {
@@ -2453,7 +2453,7 @@
                 "exception": null
             },
             "inference": {
-                "type": "array{value: bool|float|int|string}",
+                "type": "array{value: float|int|string}",
                 "outputType": null,
                 "containsOutput": null,
                 "exception": null,
@@ -2484,7 +2484,7 @@
                 "exception": null
             },
             "inference": {
-                "type": "array{value: bool|float|int|string}",
+                "type": "array{value: float|int|string}",
                 "outputType": null,
                 "containsOutput": null,
                 "exception": null,
@@ -2492,9 +2492,9 @@
             },
             "precision": {
                 "candidateOutputType": "array{value: true}",
-                "containedByInference": "yes",
+                "containedByInference": "no",
                 "preservedOnSuccess": null,
-                "classification": "observed-imprecision"
+                "classification": "candidate-outside-inference"
             }
         },
         "not_regex.rejected_boolean": {
@@ -2515,7 +2515,7 @@
                 "exception": null
             },
             "inference": {
-                "type": "array{value: bool|float|int|string}",
+                "type": "array{value: float|int|string}",
                 "outputType": null,
                 "containsOutput": null,
                 "exception": null,
@@ -2523,9 +2523,9 @@
             },
             "precision": {
                 "candidateOutputType": "array{value: true}",
-                "containedByInference": "yes",
+                "containedByInference": "no",
                 "preservedOnSuccess": null,
-                "classification": "observed-imprecision"
+                "classification": "candidate-outside-inference"
             }
         },
         "in.string": {
@@ -3100,7 +3100,7 @@
                 "exception": null
             },
             "inference": {
-                "type": "array{value?: string|null}",
+                "type": "array{value: string}",
                 "outputType": null,
                 "containsOutput": null,
                 "exception": null,
@@ -3108,9 +3108,89 @@
             },
             "precision": {
                 "candidateOutputType": "array{value: null}",
-                "containedByInference": "yes",
+                "containedByInference": "no",
                 "preservedOnSuccess": null,
-                "classification": "observed-imprecision"
+                "classification": "candidate-outside-inference"
+            }
+        },
+        "nullable.required_missing": {
+            "concern": "required and nullable interaction",
+            "rules": {
+                "value": "required|nullable|string"
+            },
+            "input": [],
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: string}",
+                "outputType": null,
+                "containsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            },
+            "precision": {
+                "candidateOutputType": null,
+                "containedByInference": null,
+                "preservedOnSuccess": null,
+                "classification": "not-probed"
+            }
+        },
+        "nullable.required_after_nullable_null": {
+            "concern": "required and nullable rule order",
+            "rules": {
+                "value": "nullable|required|string"
+            },
+            "input": {
+                "value": null
+            },
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: string}",
+                "outputType": null,
+                "containsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            },
+            "precision": {
+                "candidateOutputType": "array{value: null}",
+                "containedByInference": "no",
+                "preservedOnSuccess": null,
+                "classification": "candidate-outside-inference"
+            }
+        },
+        "nullable.required_after_nullable_missing": {
+            "concern": "required and nullable rule order",
+            "rules": {
+                "value": "nullable|required|string"
+            },
+            "input": [],
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: string}",
+                "outputType": null,
+                "containsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            },
+            "precision": {
+                "candidateOutputType": null,
+                "containedByInference": null,
+                "preservedOnSuccess": null,
+                "classification": "not-probed"
             }
         },
         "nullable.optional_null": {

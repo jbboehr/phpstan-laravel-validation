@@ -39,19 +39,20 @@ through PHPStan types.
   first appears in Laravel 12.22 and is present in Laravel 13; earlier supported
   releases ignore that parameter, so the resolver conservatively retains the
   cross-version union for that spelling as well.
-- Current verification: 4,003 tests and 7,727 assertions pass with four known
+- Current verification: 4,126 tests and 8,401 assertions pass with four known
   skips. PHPStan and PHP_CodeSniffer also pass. Targeted mutation testing kills
   every mutant in the revised `in` resolver; the file-wide run remains below
   the configured threshold because of pre-existing survivors elsewhere.
-- The reverse-direction precision audit now exercises 100 preservation-only
+- The reverse-direction precision audit now exercises 101 preservation-only
   witnesses across all twelve pinned profiles. It confirms that the only
   rule-level version-dependent branches in the portable corpus are
   `integer:strict` on Laravel 12.22+ and `ascii` on Laravel 13.4+. The existing
   Laravel 10 versus 11+ password-field behavior remains a separate
   HTTP-normalization candidate. The next version-aware step is to design one
   reliable source of analyzed Laravel-version context before narrowing those
-  cases. The audit also identifies version-independent precision work for
-  `required|nullable` and the boolean branch of `regex` and `not_regex`.
+  cases. Its version-independent findings are now applied:
+  `required|nullable` respects unconditional requiredness regardless of rule
+  order, and `regex` and `not_regex` no longer include booleans.
 
 ## Prioritized findings
 
@@ -168,11 +169,11 @@ through PHPStan types.
 
    Relevant code: `phpunit.xml.dist`.
 
-9. Requiredness and nullability are modeled inaccurately.
+9. Requiredness remains incomplete.
 
-   - `nullable` forces the field optional and adds `null` even when combined
-     with `required`. Laravel rejects missing and null values for
-     `required|nullable|string`.
+   - Resolved: `nullable` no longer forces a field optional or adds `null` when
+     combined with unconditional `required`; both rule orders are covered by
+     static tests and pinned Laravel runtime probes.
    - `accepted` and `declined` imply requiredness without an explicit
      `required` rule, but the extension treats them as optional.
    - `present` and `required_array_keys` remain unsupported.

@@ -33,6 +33,7 @@ final class RuleTreeNode implements IteratorAggregate, \Countable
     private bool $sometimes = false;
     private bool $hasRequiredChild = false;
     private bool $nullable = false;
+    private bool $required = false;
     private bool $isArray = false;
 
     /**
@@ -81,6 +82,10 @@ final class RuleTreeNode implements IteratorAggregate, \Countable
     public function push(Rule ...$rules): self
     {
         foreach ($rules as $rule) {
+            if ($rule->getRuleName() === Rule::RULE_REQUIRED) {
+                $this->required = true;
+            }
+
             match ($rule->getRuleName()) {
                 // These imply the node is not optional
                 Rule::RULE_REQUIRED => $this->optional = false,
@@ -95,7 +100,9 @@ final class RuleTreeNode implements IteratorAggregate, \Countable
                 Rule::RULE_EXCLUDE_WITHOUT,
                 Rule::RULE_SOMETIMES => $this->sometimes = true,
 
-                Rule::RULE_NULLABLE => $this->nullable = $this->optional = true,
+                // Nullable lets an otherwise optional value be null, but it
+                // does not override an unconditional required rule.
+                Rule::RULE_NULLABLE => $this->nullable = true,
 
                 Rule::RULE_ARRAY => $this->isArray = true,
 
@@ -189,6 +196,11 @@ final class RuleTreeNode implements IteratorAggregate, \Countable
     public function isNullable(): bool
     {
         return $this->nullable;
+    }
+
+    public function allowsNull(): bool
+    {
+        return $this->nullable && !$this->required;
     }
 
     /**

@@ -236,6 +236,21 @@ final class InferenceAuditCases
             'optional.whitespace_email' => $case('   ', 'email', 'optional blank bypass'),
             'optional.invalid_email_string' => $case('not-an-email', 'email', 'blank-bypass precision'),
             'nullable.required_null' => $case(null, 'required|nullable|string', 'required and nullable interaction'),
+            'nullable.required_missing' => [
+                'data' => [],
+                'rules' => ['value' => 'required|nullable|string'],
+                'concern' => 'required and nullable interaction',
+            ],
+            'nullable.required_after_nullable_null' => $case(
+                null,
+                'nullable|required|string',
+                'required and nullable rule order'
+            ),
+            'nullable.required_after_nullable_missing' => [
+                'data' => [],
+                'rules' => ['value' => 'nullable|required|string'],
+                'concern' => 'required and nullable rule order',
+            ],
             'nullable.optional_null' => $case(null, 'nullable|string', 'nullable output'),
             'present.value' => $case('value', 'present|string', 'unsupported presence rule'),
             'present.missing' => [
@@ -344,9 +359,10 @@ final class InferenceAuditCases
             'presence and conditional behavior' => [
                 'status' => 'probed',
                 'evidence' => [
-                    'optional.blank_integer', 'nullable.required_null', 'nullable.optional_null',
-                    'present.value', 'present.missing', 'confirmed.dependency', 'required_if.active',
-                    'required_if.inactive', 'exclude_if.active', 'exclude_if.inactive',
+                    'optional.blank_integer', 'nullable.required_null', 'nullable.required_missing',
+                    'nullable.required_after_nullable_null', 'nullable.required_after_nullable_missing',
+                    'nullable.optional_null', 'present.value', 'present.missing', 'confirmed.dependency',
+                    'required_if.active', 'required_if.inactive', 'exclude_if.active', 'exclude_if.inactive',
                 ],
             ],
             'files, database, password, dimensions, and custom rules' => [

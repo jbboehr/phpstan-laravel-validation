@@ -176,7 +176,7 @@ Laravel 10 and 11, from Laravel 11 to Laravel 12.0, and from Laravel 12.0 to
 12.21. After accounting for the two boundaries above, later snapshots are also
 identical within their covered ranges.
 
-Across 1,392 case executions on the twelve profiles, Laravel returns 956
+Across 1,428 case executions on the twelve profiles, Laravel returns 956
 successful outputs. Every one is contained in the extension's inferred type.
 There are no `observed-unsound`, `inference-error`, or `runtime-exception`
 classifications. Failed inputs are recorded as `no-successful-output`; only the
@@ -195,7 +195,7 @@ contain nothing Laravel can never return. The second relation fails often, so
 the audit now measures it separately rather than treating imprecision as a
 conformance failure.
 
-Of the 116 portable cases, 100 are marked as preservation-only precision
+Of the 119 portable cases, 101 are marked as preservation-only precision
 probes.
 For those cases, the supplied data has the same shape and native values that
 `validated()` would return if validation succeeded. The audit verifies that
@@ -218,9 +218,9 @@ The aggregate precision results are:
 
 | Laravel profiles | Realizable | Observed imprecision | Outside inference | Not reverse-probed |
 | --- | ---: | ---: | ---: | ---: |
-| 10.0 through 12.21 | 69 | 26 | 5 | 16 |
-| 12.22 through 13.3 | 65 | 30 | 5 | 16 |
-| 13.4 and later | 57 | 38 | 5 | 16 |
+| 10.0 through 12.21 | 69 | 22 | 10 | 18 |
+| 12.22 through 13.3 | 65 | 26 | 10 | 18 |
+| 13.4 and later | 57 | 34 | 10 | 18 |
 
 Only twelve witnesses change classification by Laravel release:
 
@@ -234,15 +234,18 @@ confirms the two rule-level version-aware narrowing candidates already found by
 the runtime differential audit; it did not reveal another major or minor
 boundary in the portable corpus.
 
-The invariant imprecision witnesses have different causes:
+The reverse audit exposed two version-independent branches that could be
+removed immediately:
 
-- `required|nullable|string` includes `null` even though unconditional
-  `required` rejects it. This is an implementation precision opportunity that
-  does not require Laravel-version context.
-- `regex` and `not_regex` inference includes booleans, while every pinned
-  profile across the supported releases requires a string or numeric value
-  before applying the expression. The boolean branch is another
-  version-independent narrowing opportunity.
+- `required|nullable|string` no longer includes `null`, and the output key is
+  required regardless of rule order. Every pinned profile rejects both missing
+  and null values under an unconditional `required` rule.
+- `regex` and `not_regex` no longer include booleans. Every pinned profile
+  across the supported releases requires a string or numeric value before
+  applying the expression.
+
+The remaining invariant imprecision witnesses have less direct causes:
+
 - Rules such as `email`, `date`, `multiple_of`, digit limits, regular
   expressions, and scalar `in` necessarily accept fewer values than their
   native PHP supertypes can describe. Some may support parameter-aware
@@ -311,13 +314,15 @@ php scripts/inference-audit.php \
 
 ## Recommended follow-up
 
-The audit justifies three separate follow-up tracks:
+The audit leaves two version-aware follow-up steps:
 
 1. design one reliable source of analyzed Laravel-version context;
 2. use it to specialize `integer:strict`, `ascii`, and default HTTP
-   normalization at their verified boundaries; and
-3. address the version-independent `required|nullable` and regular-expression
-   precision opportunities separately.
+   normalization at their verified boundaries.
+
+The version-independent `required|nullable`, `regex`, and `not_regex`
+opportunities have already been applied and remain covered by the pinned
+runtime profiles.
 
 The version context must pass through every inference entry point. Adding
 isolated checks directly to individual rules would make behavior depend on
