@@ -7,6 +7,7 @@ composer-project.nix linguist-generated
 .editorconfig export-ignore
 .envrc export-ignore
 .gitattributes export-ignore
+docs/pages/images/*.png export-ignore
 
 # we can't export-ignore these or nix build will fail...
 #/tests export-ignore

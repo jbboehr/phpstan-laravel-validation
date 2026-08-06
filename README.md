@@ -1,3 +1,4 @@
+![Inferences for Laravel Validation + PHPStan](docs/pages/images/phpstan-laravel-validation-banner.png)
 
 # phpstan-laravel-validation
 
