@@ -64,7 +64,14 @@ deterministic input and rule set for each adversarial probe. For every case,
 2. records whether validation failed, threw, or returned validated output;
 3. converts successful output into a PHPStan type;
 4. resolves the same rule with this extension; and
-5. records whether the inferred type accepts Laravel's actual output.
+5. records whether the inferred type is a supertype of Laravel's actual
+   output.
+
+The audit uses PHPStan's `isSuperTypeOf()` relation for this containment check.
+Its `accepts()` relation also models PHP parameter coercions, so it can report
+that `float` accepts an `int` even though an inferred `float` does not literally
+describe an integer runtime value. That distinction matters in both directions
+of this audit.
 
 The committed JSON files under
 [`tests/fixtures/version-audit`](../tests/fixtures/version-audit) are runtime
@@ -169,15 +176,87 @@ Laravel 10 and 11, from Laravel 11 to Laravel 12.0, and from Laravel 12.0 to
 12.21. After accounting for the two boundaries above, later snapshots are also
 identical within their covered ranges.
 
-Across all twelve profiles, every successful output in the corpus is accepted
-by the extension's inferred type. There are no `observed-unsound`,
-`inference-error`, or `runtime-exception` classifications. Invalid adversarial
-inputs are recorded as `no-successful-output` and do not establish an inferred
-type guarantee.
+Across 1,392 case executions on the twelve profiles, Laravel returns 956
+successful outputs. Every one is contained in the extension's inferred type.
+There are no `observed-unsound`, `inference-error`, or `runtime-exception`
+classifications. Failed inputs are recorded as `no-successful-output`; only the
+preservation-only subset described below is also used as reverse precision
+evidence.
 
 This result supports the current conservative unions. It does not establish
 that unprobed rule interactions, application extensions, or future Laravel
 patches are sound.
+
+## Reverse-direction precision audit
+
+Sound inference requires Laravel's successful output set to be contained in the
+inferred type. Exact inference would additionally require the inferred type to
+contain nothing Laravel can never return. The second relation fails often, so
+the audit now measures it separately rather than treating imprecision as a
+conformance failure.
+
+Of the 116 portable cases, 100 are marked as preservation-only precision
+probes.
+For those cases, the supplied data has the same shape and native values that
+`validated()` would return if validation succeeded. The audit verifies that
+the candidate is literally contained in the inferred type and then classifies
+Laravel's behavior:
+
+- `observed-realizable`: Laravel returned that inferred inhabitant unchanged;
+- `observed-imprecision`: the inferred type contains the candidate, but Laravel
+  rejected it;
+- `candidate-outside-inference`: inference already excludes the rejected
+  candidate; or
+- `candidate-indeterminate`: PHPStan could not establish either relation.
+
+Projection, exclusion, wildcard, and conditional cases are not reverse probes
+unless raw input is a defensible candidate output. Treating every rejected
+input as an impossible output would otherwise confuse input filtering with
+output projection.
+
+The aggregate precision results are:
+
+| Laravel profiles | Realizable | Observed imprecision | Outside inference | Not reverse-probed |
+| --- | ---: | ---: | ---: | ---: |
+| 10.0 through 12.21 | 69 | 26 | 5 | 16 |
+| 12.22 through 13.3 | 65 | 30 | 5 | 16 |
+| 13.4 and later | 57 | 38 | 5 | 16 |
+
+Only twelve witnesses change classification by Laravel release:
+
+| Rule | Witnesses realized on older releases | Releases where they become removable |
+| --- | --- | --- |
+| `integer:strict` | numeric string, integral float, `true`, compatible `Stringable` | Laravel 12.22+ |
+| `ascii` | integer, float, `true`, `false`, `null`, `Stringable`, resource, array | Laravel 13.4+ |
+
+No other reverse probe changed classification across the pinned profiles. This
+confirms the two rule-level version-aware narrowing candidates already found by
+the runtime differential audit; it did not reveal another major or minor
+boundary in the portable corpus.
+
+The invariant imprecision witnesses have different causes:
+
+- `required|nullable|string` includes `null` even though unconditional
+  `required` rejects it. This is an implementation precision opportunity that
+  does not require Laravel-version context.
+- `regex` and `not_regex` inference includes booleans, while every pinned
+  profile across the supported releases requires a string or numeric value
+  before applying the expression. The boolean branch is another
+  version-independent narrowing opportunity.
+- Rules such as `email`, `date`, `multiple_of`, digit limits, regular
+  expressions, and scalar `in` necessarily accept fewer values than their
+  native PHP supertypes can describe. Some may support parameter-aware
+  refinements; others require predicates PHPStan cannot express.
+- Optional blank-string bypass currently contributes all `string` values even
+  though only blank strings bypass the remaining predicates. PHPStan has no
+  ordinary native type for Laravel's complete blank-string set.
+- Broad float and `Stringable` branches remain necessary when some inhabitants
+  pass and others fail, such as integral versus non-integral floats or objects
+  whose string representation differs.
+
+An `observed-imprecision` classification is therefore a review input, not an
+automatic instruction to narrow. A branch is safely removable only when no
+successful output in the supported context needs it.
 
 ## CI enforcement
 
@@ -191,8 +270,8 @@ version at or above that Laravel major's supported PHP floor:
 This produces 46 Laravel/PHP combinations. Each job installs the profile's
 exact or floating Composer constraint, exposes its profile name through
 `LARAVEL_AUDIT_BASELINE`, runs Laravel's runtime probes, compares the recorded
-contract, and checks that every successful output remains accepted by current
-inference.
+contract, checks that every successful output remains contained in current
+inference, and records the reverse precision classification.
 
 The exact boundary releases are not substitutes for the floating latest
 profiles. The former preserve known historical contracts; the latter detect
@@ -232,15 +311,18 @@ php scripts/inference-audit.php \
 
 ## Recommended follow-up
 
-No production inference change is justified merely by this audit. The current
-types accept every successful portable output across the supported range.
+The audit justifies three separate follow-up tracks:
 
-The actionable precision work is to design one reliable source of analyzed
-Laravel-version context and pass it through every inference entry point. Only
-then should `integer:strict`, `ascii`, and default HTTP normalization be
-specialized. Adding isolated version checks directly to individual rules would
-make behavior depend on whichever Laravel happens to execute PHPStan, which is
-not necessarily the dependency version represented by the analyzed code.
+1. design one reliable source of analyzed Laravel-version context;
+2. use it to specialize `integer:strict`, `ascii`, and default HTTP
+   normalization at their verified boundaries; and
+3. address the version-independent `required|nullable` and regular-expression
+   precision opportunities separately.
+
+The version context must pass through every inference entry point. Adding
+isolated checks directly to individual rules would make behavior depend on
+whichever Laravel happens to execute PHPStan, which is not necessarily the
+dependency version represented by the analyzed code.
 
 Environment-dependent rules should remain conservative unless their runtime
 services can be replaced with deterministic test doubles and their static

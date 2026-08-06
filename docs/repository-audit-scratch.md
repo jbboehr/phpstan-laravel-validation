@@ -43,16 +43,15 @@ through PHPStan types.
   skips. PHPStan and PHP_CodeSniffer also pass. Targeted mutation testing kills
   every mutant in the revised `in` resolver; the file-wide run remains below
   the configured threshold because of pre-existing survivors elsewhere.
-- Planned next: perform a dedicated reverse-direction precision audit using the
-  pinned profiles from the
-  [Laravel-version inference audit](laravel-version-inference-audit.md). For
-  each broad inferred union, test representative values across supported
-  releases and identify branches that are impossible when the Laravel version
-  is known. Initial candidates are `integer:strict` on Laravel 12.22+, `ascii`
-  on Laravel 13.4+, and the Laravel 10 versus 11+ password-field behavior under
-  default HTTP input normalization. Use those results to design one reliable
-  source of analyzed Laravel-version context before narrowing production
-  inference.
+- The reverse-direction precision audit now exercises 100 preservation-only
+  witnesses across all twelve pinned profiles. It confirms that the only
+  rule-level version-dependent branches in the portable corpus are
+  `integer:strict` on Laravel 12.22+ and `ascii` on Laravel 13.4+. The existing
+  Laravel 10 versus 11+ password-field behavior remains a separate
+  HTTP-normalization candidate. The next version-aware step is to design one
+  reliable source of analyzed Laravel-version context before narrowing those
+  cases. The audit also identifies version-independent precision work for
+  `required|nullable` and the boolean branch of `regex` and `not_regex`.
 
 ## Prioritized findings
 
@@ -247,8 +246,8 @@ Completed with an issue:
    implicit-rule semantics.
 4. Redesign the validator rule payload so unions preserve every branch and rule
    mutations invalidate or replace the payload.
-5. Audit every supported Laravel rule against native-type preservation across
-   Laravel 9–13.
+5. Continue expanding the soundness and reverse-precision audit across every
+   supported Laravel 10–13 rule family.
 6. Repair the dual PHPUnit configuration and ensure the CI command exits zero.
 7. Expand support for the missing Laravel validation entry points.
 8. Update README caveats and compatibility claims to match verified behavior.

@@ -69,6 +69,11 @@ final class InferenceAuditTest extends \PHPStan\Testing\PHPStanTestCase
                 ['inference-error', 'observed-unsound', 'runtime-exception'],
                 $caseId . ' did not produce a usable conformance result'
             );
+            self::assertNotContains(
+                $case['precision']['classification'],
+                ['candidate-indeterminate', 'inference-error', 'preservation-mismatch', 'runtime-exception'],
+                $caseId . ' did not produce a usable precision result'
+            );
         }
     }
 
@@ -91,6 +96,63 @@ final class InferenceAuditTest extends \PHPStan\Testing\PHPStanTestCase
             }
             self::assertSame(array_keys(InferenceAuditCases::cases()), array_keys($baseline['cases']));
         }
+    }
+
+    public function testVersionDependentPrecisionWitnessesAreExplicit(): void
+    {
+        $byCase = [];
+        foreach (array_keys(InferenceAuditProfiles::all()) as $profile) {
+            $baselineFile = __DIR__ . '/fixtures/version-audit/' . $profile . '.json';
+            foreach (self::precisionClassifications($baselineFile) as $caseId => $classification) {
+                $byCase[$caseId][] = $classification;
+            }
+        }
+
+        $versionDependent = [];
+        foreach ($byCase as $caseId => $classifications) {
+            if (count(array_unique($classifications)) > 1) {
+                $versionDependent[] = $caseId;
+            }
+        }
+
+        self::assertSame([
+            'integer_strict.string',
+            'integer_strict.float',
+            'integer_strict.true',
+            'integer_strict.stringable',
+            'ascii.integer',
+            'ascii.float',
+            'ascii.true',
+            'ascii.false',
+            'ascii.null',
+            'ascii.stringable',
+            'ascii.resource',
+            'ascii.array',
+        ], $versionDependent);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private static function precisionClassifications(string $baselineFile): array
+    {
+        $baseline = json_decode((string) file_get_contents($baselineFile), true, 512, JSON_THROW_ON_ERROR);
+        $cases = is_array($baseline) ? ($baseline['cases'] ?? null) : null;
+        if (!is_array($cases)) {
+            self::fail($baselineFile . ' does not contain an audit case map');
+        }
+
+        $classifications = [];
+        foreach ($cases as $caseId => $case) {
+            $precision = is_array($case) ? ($case['precision'] ?? null) : null;
+            $classification = is_array($precision) ? ($precision['classification'] ?? null) : null;
+            if (!is_string($caseId) || !is_string($classification)) {
+                self::fail($baselineFile . ' contains an invalid precision result');
+            }
+            $classifications[$caseId] = $classification;
+        }
+
+        return $classifications;
     }
 
     /**

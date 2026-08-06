@@ -42,7 +42,8 @@ final class InferenceAudit
      * @param array<string, array{
      *     rules: array<string, mixed>|\Closure(array<mixed, mixed>): array<string, mixed>,
      *     data: array<mixed, mixed>|\Closure(): array<mixed, mixed>,
-     *     concern: string
+     *     concern: string,
+     *     precision?: bool
      * }> $cases
      * @return array{
      *     laravel: string,
@@ -59,8 +60,14 @@ final class InferenceAudit
      *         inference: array{
      *             type: string|null,
      *             outputType: string|null,
-     *             acceptsOutput: string|null,
+     *             containsOutput: string|null,
      *             exception: string|null,
+     *             classification: string
+     *         },
+     *         precision: array{
+     *             candidateOutputType: string|null,
+     *             containedByInference: string|null,
+     *             preservedOnSuccess: bool|null,
      *             classification: string
      *         }
      *     }>
@@ -105,16 +112,26 @@ final class InferenceAudit
             $outputType = null;
             $acceptance = null;
             $inferenceException = null;
+            $candidateOutputType = null;
+            $candidateAcceptance = null;
+            $precisionProbe = $case['precision'] ?? false;
 
             try {
                 $inferred = (new TypeResolver())->evaluate(RuleParser::parse($rules));
                 $inferredType = $inferred->describe(VerbosityLevel::precise());
 
+                if ($precisionProbe) {
+                    $candidate = self::toType($data);
+                    $candidateOutputType = $candidate->describe(VerbosityLevel::precise());
+                    $candidateResult = $inferred->isSuperTypeOf($candidate);
+                    $candidateAcceptance = self::describeRelation($candidateResult);
+                }
+
                 if ($validated !== null) {
                     $actual = self::toType($validated);
                     $outputType = $actual->describe(VerbosityLevel::precise());
-                    $result = $inferred->accepts($actual, true);
-                    $acceptance = $result->yes() ? 'yes' : ($result->no() ? 'no' : 'maybe');
+                    $result = $inferred->isSuperTypeOf($actual);
+                    $acceptance = self::describeRelation($result);
                 }
             } catch (\Throwable $throwable) {
                 $inferenceException = $throwable::class;
@@ -133,13 +150,29 @@ final class InferenceAudit
                 'inference' => [
                     'type' => $inferredType,
                     'outputType' => $outputType,
-                    'acceptsOutput' => $acceptance,
+                    'containsOutput' => $acceptance,
                     'exception' => $inferenceException,
                     'classification' => self::classify(
                         $runtimeException,
                         $passes,
                         $inferenceException,
                         $acceptance
+                    ),
+                ],
+                'precision' => [
+                    'candidateOutputType' => $candidateOutputType,
+                    'containedByInference' => $candidateAcceptance,
+                    'preservedOnSuccess' => $precisionProbe && $passes === true
+                        ? $validated === $data
+                        : null,
+                    'classification' => self::classifyPrecision(
+                        $precisionProbe,
+                        $runtimeException,
+                        $passes,
+                        $validated,
+                        $data,
+                        $inferenceException,
+                        $candidateAcceptance
                     ),
                 ],
             ];
@@ -258,6 +291,47 @@ final class InferenceAudit
         }
 
         return 'observed-unsound';
+    }
+
+    /**
+     * @param array<mixed, mixed> $data
+     */
+    private static function classifyPrecision(
+        bool $precisionProbe,
+        ?string $runtimeException,
+        ?bool $passes,
+        mixed $validated,
+        array $data,
+        ?string $inferenceException,
+        ?string $candidateAcceptance
+    ): string {
+        if (!$precisionProbe) {
+            return 'not-probed';
+        }
+        if ($inferenceException !== null) {
+            return 'inference-error';
+        }
+        if ($runtimeException !== null) {
+            return 'runtime-exception';
+        }
+        if ($candidateAcceptance !== 'yes') {
+            return $candidateAcceptance === 'no'
+                ? 'candidate-outside-inference'
+                : 'candidate-indeterminate';
+        }
+        if ($passes !== true) {
+            return 'observed-imprecision';
+        }
+        if ($validated !== $data) {
+            return 'preservation-mismatch';
+        }
+
+        return 'observed-realizable';
+    }
+
+    private static function describeRelation(Type\IsSuperTypeOfResult $result): string
+    {
+        return $result->yes() ? 'yes' : ($result->no() ? 'no' : 'maybe');
     }
 
     private static function toType(mixed $data): Type\Type
