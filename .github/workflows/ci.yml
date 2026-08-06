@@ -51,8 +51,8 @@ jobs:
             - name: Install dependencies
               run: composer install --prefer-dist --no-progress --ignore-platform-req=php+
 
-            - name: phpcs
-              run: php vendor/bin/phpcs
+            - name: PHP-CS-Fixer
+              run: composer cs
 
             - name: phpstan
               run: php vendor/bin/phpstan analyze

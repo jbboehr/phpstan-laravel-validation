@@ -41,7 +41,7 @@ through PHPStan types.
   version to return `int` at that boundary while retaining the conservative
   union on earlier or unknown versions.
 - Current verification: 4,126 tests and 8,401 assertions pass with four known
-  skips. PHPStan and PHP_CodeSniffer also pass. Targeted mutation testing kills
+  skips. PHPStan and PHP-CS-Fixer also pass. Targeted mutation testing kills
   every mutant in the revised `in` resolver; the file-wide run remains below
   the configured threshold because of pre-existing survivors elsewhere.
 - The reverse-direction precision audit now exercises 101 preservation-only
@@ -227,7 +227,7 @@ through PHPStan types.
 Passed:
 
 - `composer validate --strict`
-- PHP_CodeSniffer
+- PHP-CS-Fixer
 - PHPStan at maximum level
 - Actionlint
 - Bash syntax validation

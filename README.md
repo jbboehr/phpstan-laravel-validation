@@ -151,6 +151,9 @@ composer install
 composer exec phpunit
 ```
 
+Check code style with `composer cs`. Apply formatting changes with
+`composer cs:fix`.
+
 Mutation testing uses an isolated toolchain because Infection requires PHP 8.3 or newer while this package supports PHP 8.1. Install it and run it from the project root with:
 
 ```bash

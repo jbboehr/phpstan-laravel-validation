@@ -53,8 +53,6 @@
           actionlint.enable = true;
           alejandra.enable = true;
           alejandra.excludes = ["\/vendor\/"];
-          # https://github.com/cachix/pre-commit-hooks.nix/pull/344
-          #phpcs.enable = true;
           shellcheck.enable = true;
         };
       };

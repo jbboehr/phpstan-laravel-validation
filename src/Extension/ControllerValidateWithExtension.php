@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Copyright (c) anno Domini nostri Jesu Christi MMXXIV John Boehr & contributors
  *
@@ -38,7 +39,7 @@ final class ControllerValidateWithExtension implements DynamicMethodReturnTypeEx
     public function getClass(): string
     {
         return \Illuminate\Routing\Controller::class;
-//        return \App\Http\Controllers\Controller::class;
+        //        return \App\Http\Controllers\Controller::class;
     }
 
     public function isMethodSupported(MethodReflection $methodReflection): bool

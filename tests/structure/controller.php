@@ -2,8 +2,9 @@
 
 declare(strict_types=1);
 
-use function PHPStan\Testing\assertType;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\TestController;
+
+use function PHPStan\Testing\assertType;
 
 $controller = new TestController();
 $validated = $controller->validate(new \Illuminate\Http\Request(), [

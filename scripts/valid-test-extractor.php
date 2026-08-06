@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Copyright (c) anno Domini nostri Jesu Christi MMXXIV John Boehr & contributors
  *
@@ -141,10 +142,10 @@ uopz_set_return(\Illuminate\Validation\Validator::class, 'passes', function () u
     }
 
     // skip empty tests?
-//    if (empty($data) || empty($rules) || empty($validated)) {
-//        $log->info('skipping, empty rules data or validated');
-//        return $passes;
-//    }
+    //    if (empty($data) || empty($rules) || empty($validated)) {
+    //        $log->info('skipping, empty rules data or validated');
+    //        return $passes;
+    //    }
 
     if (!empty($this->replacers)) {
         $log->info('skipping, has replacers', $this->replacers);

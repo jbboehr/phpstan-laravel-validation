@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Copyright (c) anno Domini nostri Jesu Christi MMXXIV John Boehr & contributors
  *
@@ -69,10 +70,10 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
             $dataTypeStr = $validatedType->describe(Type\VerbosityLevel::getRecommendedLevelByType($validatedType));
             $message = $rulesTypeStr . ' does not accept ' . $dataTypeStr;
             self::fail($message);
-//        } else {
-//            $rulesTypeStr = $rulesType->describe(Type\VerbosityLevel::getRecommendedLevelByType($rulesType));
-//            $dataTypeStr = $validatedType->describe(Type\VerbosityLevel::getRecommendedLevelByType($validatedType));
-//            $this->addWarning($rulesTypeStr . ' matches ' . $dataTypeStr);
+            //        } else {
+            //            $rulesTypeStr = $rulesType->describe(Type\VerbosityLevel::getRecommendedLevelByType($rulesType));
+            //            $dataTypeStr = $validatedType->describe(Type\VerbosityLevel::getRecommendedLevelByType($validatedType));
+            //            $this->addWarning($rulesTypeStr . ' matches ' . $dataTypeStr);
         }
     }
 
@@ -1303,9 +1304,9 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
     {
         $array = ConstantArrayTypeBuilder::createEmpty();
         foreach ($data as $k => $v) {
-//            if (is_string($k)) {
-//                $k = str_replace('\.', '.', $k);
-//            }
+            //            if (is_string($k)) {
+            //                $k = str_replace('\.', '.', $k);
+            //            }
             $array->setOffsetValueType(
                 $this->convertToType($k),
                 $this->convertToType($v),
