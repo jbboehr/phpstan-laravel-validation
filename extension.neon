@@ -3,14 +3,22 @@ parameters:
     - stubs/Validator.stub
   phpstanLaravelValidation:
     assumeHttpInputNormalization: false
+    laravelVersion: auto
 
 parametersSchema:
   phpstanLaravelValidation: structure([
-    assumeHttpInputNormalization: bool()
+    assumeHttpInputNormalization: bool(),
+    laravelVersion: string()
   ])
 
 services:
   - class: jbboehr\PhpstanLaravelValidation\Evaluator\UnsafeConstExprEvaluator
+  - class: jbboehr\PhpstanLaravelValidation\Validation\LaravelVersionContext
+    arguments:
+      workingDirectory: %currentWorkingDirectory%
+      configuredVersion: %phpstanLaravelValidation.laravelVersion%
+    tags:
+      - phpstan.resultCacheMetaExtension
   - class: jbboehr\PhpstanLaravelValidation\Validation\TypeResolver
   - class: jbboehr\PhpstanLaravelValidation\Type\ValidatorTypeHelper
   - class: jbboehr\PhpstanLaravelValidation\Extension\ControllerValidateExtension

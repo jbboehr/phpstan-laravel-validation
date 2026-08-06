@@ -57,6 +57,37 @@ jobs:
             - name: phpstan
               run: php vendor/bin/phpstan analyze
 
+    minimum-phpstan:
+        runs-on: ubuntu-latest
+        name: "Minimum PHPStan | PHP 8.1 | PHPStan 2.1.5"
+        steps:
+            - uses: actions/checkout@v7
+
+            - name: Install PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  coverage: "none"
+                  php-version: "8.1"
+                  tools: composer:v2
+
+            - name: Install minimum supported PHPStan
+              run: >-
+                  composer update
+                  phpstan/phpstan
+                  phpstan/phpstan-phpunit
+                  phpstan/phpstan-strict-rules
+                  --with phpstan/phpstan:2.1.5
+                  --with-all-dependencies
+                  --prefer-dist
+                  --no-interaction
+                  --no-progress
+
+            - name: phpstan
+              run: php vendor/bin/phpstan analyze
+
+            - name: Run test suite
+              run: php vendor/bin/phpunit
+
     test:
         runs-on: ubuntu-latest
         name: "Test | PHP ${{ matrix.php-version }} | Laravel ${{ matrix.laravel-profile }}"

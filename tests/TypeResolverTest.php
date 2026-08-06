@@ -21,6 +21,7 @@ declare(strict_types=1);
 namespace jbboehr\PhpstanLaravelValidation\Test;
 
 use jbboehr\PhpstanLaravelValidation\Validation\InvalidRuleException;
+use jbboehr\PhpstanLaravelValidation\Validation\LaravelVersionContext;
 use jbboehr\PhpstanLaravelValidation\Validation\Rule;
 use jbboehr\PhpstanLaravelValidation\Validation\RuleParser;
 use jbboehr\PhpstanLaravelValidation\Validation\TypeResolver;
@@ -190,6 +191,52 @@ final class TypeResolverTest extends PHPStanTestCase
         }
     }
 
+    public function testVersionAwareIntegerStrictInference(): void
+    {
+        $broadType = 'array{value: float|int|numeric-string|Stringable|true}';
+
+        self::assertSame($broadType, self::resolveForVersion([
+            'value' => 'required|integer:strict',
+        ], '12.21.0'));
+        self::assertSame('array{value: int}', self::resolveForVersion([
+            'value' => 'required|integer:strict',
+        ], '12.22.0'));
+        self::assertSame($broadType, self::resolveForVersion([
+            'value' => 'required|integer',
+        ], '13.4.0'));
+        self::assertSame($broadType, self::resolveForVersion([
+            'value' => 'required|integer:strict',
+        ], '14.0.0'));
+    }
+
+    public function testVersionAwareAsciiInference(): void
+    {
+        $broadType = 'array{value: array|bool|float|int|resource|string|Stringable|null}';
+
+        self::assertSame($broadType, self::resolveForVersion([
+            'value' => 'required|ascii',
+        ], '13.3.0'));
+        self::assertSame('array{value: string}', self::resolveForVersion([
+            'value' => 'required|ascii',
+        ], '13.4.0'));
+        self::assertSame($broadType, self::resolveForVersion([
+            'value' => 'required|ascii',
+        ], '14.0.0'));
+    }
+
+    public function testVersionAwareDefaultHttpNormalizationExceptions(): void
+    {
+        self::assertSame('array{password?: array}', self::resolveForVersion([
+            'password' => 'array',
+        ], '10.50.2', true));
+        self::assertSame('array{password?: array|string}', self::resolveForVersion([
+            'password' => 'array',
+        ], '11.0.0', true));
+        self::assertSame('array{password?: array|string}', self::resolveForVersion([
+            'password' => 'array',
+        ], '14.0.0', true));
+    }
+
     public function testHttpInputNormalizationDefaultsToRawValidatorSemantics(): void
     {
         self::getContainer();
@@ -348,6 +395,23 @@ final class TypeResolverTest extends PHPStanTestCase
 
         return $resolver
             ->evaluateMap($tree, $assumeHttpInputNormalization)
+            ->describe(VerbosityLevel::precise());
+    }
+
+    /**
+     * @param array<string, string> $rules
+     */
+    private static function resolveForVersion(
+        array $rules,
+        string $laravelVersion,
+        bool $assumeHttpInputNormalization = false
+    ): string {
+        self::getContainer();
+
+        $resolver = new TypeResolver(new LaravelVersionContext('', $laravelVersion));
+
+        return $resolver
+            ->evaluateMap(RuleParser::parse($rules), $assumeHttpInputNormalization)
             ->describe(VerbosityLevel::precise());
     }
 }

@@ -15,14 +15,14 @@ $rules = [
 $request = new \Illuminate\Http\Request();
 $validated = $request->validate($rules);
 assertType(
-    'array{array_value?: array, nullable_array?: array|null, email?: non-empty-string, password?: array|string}',
+    'array{array_value?: array, nullable_array?: array|null, email?: non-empty-string, password?: array}',
     $validated
 );
 
 $controller = new TestController();
 $validated = $controller->validate($request, $rules);
 assertType(
-    'array{array_value?: array, nullable_array?: array|null, email?: non-empty-string, password?: array|string}',
+    'array{array_value?: array, nullable_array?: array|null, email?: non-empty-string, password?: array}',
     $validated
 );
 

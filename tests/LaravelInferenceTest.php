@@ -20,6 +20,8 @@ declare(strict_types=1);
 
 namespace jbboehr\PhpstanLaravelValidation\Test;
 
+use Composer\InstalledVersions;
+use jbboehr\PhpstanLaravelValidation\Validation\LaravelVersionContext;
 use jbboehr\PhpstanLaravelValidation\Validation\RuleParser;
 use jbboehr\PhpstanLaravelValidation\Validation\RuleTreeNode;
 use jbboehr\PhpstanLaravelValidation\Validation\TypeResolver;
@@ -131,7 +133,7 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
 
     public function testTrimStringsAloneDoesNotEliminateBlankStringBypass(): void
     {
-        \Illuminate\Foundation\Http\Middleware\TrimStrings::flushState();
+        self::flushHttpInputNormalizationState();
 
         try {
             $request = \Illuminate\Http\Request::create('/', 'POST', ['value' => '   ']);
@@ -158,14 +160,13 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
             $validatedType = $this->convertToType($validator->validated());
             self::assertTrue($rulesType->accepts($validatedType, true)->yes());
         } finally {
-            \Illuminate\Foundation\Http\Middleware\TrimStrings::flushState();
+            self::flushHttpInputNormalizationState();
         }
     }
 
     public function testDefaultHttpInputNormalizationChangesOptionalBlankBehavior(): void
     {
-        \Illuminate\Foundation\Http\Middleware\TrimStrings::flushState();
-        \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::flushState();
+        self::flushHttpInputNormalizationState();
 
         try {
             $request = \Illuminate\Http\Request::create('/', 'POST', [
@@ -199,15 +200,13 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
             $validatedType = $this->convertToType($nullable->validated());
             self::assertTrue($rulesType->accepts($validatedType, true)->yes());
         } finally {
-            \Illuminate\Foundation\Http\Middleware\TrimStrings::flushState();
-            \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::flushState();
+            self::flushHttpInputNormalizationState();
         }
     }
 
     public function testDefaultPasswordTrimExceptionVariesByLaravelMajor(): void
     {
-        \Illuminate\Foundation\Http\Middleware\TrimStrings::flushState();
-        \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::flushState();
+        self::flushHttpInputNormalizationState();
 
         try {
             $request = \Illuminate\Http\Request::create('/', 'POST', ['password' => '   ']);
@@ -221,13 +220,16 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
             );
             $rules = ['password' => 'array'];
             $validator = $factory->make($request->all(), $rules);
+            $laravelVersion = self::frameworkVersion();
+            $hasDefaultPasswordException = version_compare($laravelVersion, '11.0.0', '>=');
+            $rulesType = (new TypeResolver(new LaravelVersionContext('', $laravelVersion)))
+                ->evaluate(RuleParser::parse($rules), true);
 
-            if (method_exists(\Illuminate\Foundation\Http\Middleware\TrimStrings::class, 'except')) {
+            if ($hasDefaultPasswordException) {
                 self::assertSame('   ', $request->input('password'));
                 self::assertTrue($validator->passes());
                 self::assertSame(['password' => '   '], $validator->validated());
 
-                $rulesType = (new TypeResolver())->evaluate(RuleParser::parse($rules), true);
                 $validatedType = $this->convertToType($validator->validated());
                 self::assertTrue($rulesType->accepts($validatedType, true)->yes());
                 return;
@@ -236,8 +238,7 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
             self::assertNull($request->input('password'));
             self::assertFalse($validator->passes());
         } finally {
-            \Illuminate\Foundation\Http\Middleware\TrimStrings::flushState();
-            \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::flushState();
+            self::flushHttpInputNormalizationState();
         }
     }
 
@@ -755,6 +756,29 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
                 );
             }
         );
+    }
+
+    private static function flushHttpInputNormalizationState(): void
+    {
+        foreach (
+            [
+                \Illuminate\Foundation\Http\Middleware\TrimStrings::class,
+                \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::class,
+            ] as $middleware
+        ) {
+            if (method_exists($middleware, 'flushState')) {
+                $middleware::flushState();
+            }
+        }
+    }
+
+    private static function frameworkVersion(): string
+    {
+        $version = InstalledVersions::getPrettyVersion('laravel/framework');
+
+        return $version === null
+            ? \Illuminate\Foundation\Application::VERSION
+            : ltrim($version, 'v');
     }
 
     public function testConfirmedComparisonFieldIsOnlyValidatedWhenItHasRules(): void

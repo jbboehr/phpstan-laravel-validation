@@ -453,7 +453,7 @@
                 "exception": null
             },
             "inference": {
-                "type": "array{value: float|int|numeric-string|Stringable|true}",
+                "type": "array{value: int}",
                 "outputType": null,
                 "containsOutput": null,
                 "exception": null,
@@ -461,9 +461,9 @@
             },
             "precision": {
                 "candidateOutputType": "array{value: '1'}",
-                "containedByInference": "yes",
+                "containedByInference": "no",
                 "preservedOnSuccess": null,
-                "classification": "observed-imprecision"
+                "classification": "candidate-outside-inference"
             }
         },
         "integer_strict.float": {
@@ -481,7 +481,7 @@
                 "exception": null
             },
             "inference": {
-                "type": "array{value: float|int|numeric-string|Stringable|true}",
+                "type": "array{value: int}",
                 "outputType": null,
                 "containsOutput": null,
                 "exception": null,
@@ -489,9 +489,9 @@
             },
             "precision": {
                 "candidateOutputType": "array{value: 1.0}",
-                "containedByInference": "yes",
+                "containedByInference": "no",
                 "preservedOnSuccess": null,
-                "classification": "observed-imprecision"
+                "classification": "candidate-outside-inference"
             }
         },
         "integer_strict.true": {
@@ -509,7 +509,7 @@
                 "exception": null
             },
             "inference": {
-                "type": "array{value: float|int|numeric-string|Stringable|true}",
+                "type": "array{value: int}",
                 "outputType": null,
                 "containsOutput": null,
                 "exception": null,
@@ -517,9 +517,9 @@
             },
             "precision": {
                 "candidateOutputType": "array{value: true}",
-                "containedByInference": "yes",
+                "containedByInference": "no",
                 "preservedOnSuccess": null,
-                "classification": "observed-imprecision"
+                "classification": "candidate-outside-inference"
             }
         },
         "integer_strict.stringable": {
@@ -541,7 +541,7 @@
                 "exception": null
             },
             "inference": {
-                "type": "array{value: float|int|numeric-string|Stringable|true}",
+                "type": "array{value: int}",
                 "outputType": null,
                 "containsOutput": null,
                 "exception": null,
@@ -549,9 +549,9 @@
             },
             "precision": {
                 "candidateOutputType": "array{value: Illuminate\\Support\\Stringable}",
-                "containedByInference": "yes",
+                "containedByInference": "no",
                 "preservedOnSuccess": null,
-                "classification": "observed-imprecision"
+                "classification": "candidate-outside-inference"
             }
         },
         "numeric.integer": {
@@ -1183,7 +1183,7 @@
                 "exception": null
             },
             "inference": {
-                "type": "array{value: array|bool|float|int|resource|string|Stringable|null}",
+                "type": "array{value: string}",
                 "outputType": "array{value: 'plain'}",
                 "containsOutput": "yes",
                 "exception": null,
@@ -1211,7 +1211,7 @@
                 "exception": null
             },
             "inference": {
-                "type": "array{value?: array|bool|float|int|resource|string|Stringable|null}",
+                "type": "array{value?: string}",
                 "outputType": null,
                 "containsOutput": null,
                 "exception": null,
@@ -1219,9 +1219,9 @@
             },
             "precision": {
                 "candidateOutputType": "array{value: 123}",
-                "containedByInference": "yes",
+                "containedByInference": "no",
                 "preservedOnSuccess": null,
-                "classification": "observed-imprecision"
+                "classification": "candidate-outside-inference"
             }
         },
         "ascii.float": {
@@ -1239,7 +1239,7 @@
                 "exception": null
             },
             "inference": {
-                "type": "array{value?: array|bool|float|int|resource|string|Stringable|null}",
+                "type": "array{value?: string}",
                 "outputType": null,
                 "containsOutput": null,
                 "exception": null,
@@ -1247,9 +1247,9 @@
             },
             "precision": {
                 "candidateOutputType": "array{value: 1.5}",
-                "containedByInference": "yes",
+                "containedByInference": "no",
                 "preservedOnSuccess": null,
-                "classification": "observed-imprecision"
+                "classification": "candidate-outside-inference"
             }
         },
         "ascii.true": {
@@ -1267,7 +1267,7 @@
                 "exception": null
             },
             "inference": {
-                "type": "array{value?: array|bool|float|int|resource|string|Stringable|null}",
+                "type": "array{value?: string}",
                 "outputType": null,
                 "containsOutput": null,
                 "exception": null,
@@ -1275,9 +1275,9 @@
             },
             "precision": {
                 "candidateOutputType": "array{value: true}",
-                "containedByInference": "yes",
+                "containedByInference": "no",
                 "preservedOnSuccess": null,
-                "classification": "observed-imprecision"
+                "classification": "candidate-outside-inference"
             }
         },
         "ascii.false": {
@@ -1295,7 +1295,7 @@
                 "exception": null
             },
             "inference": {
-                "type": "array{value?: array|bool|float|int|resource|string|Stringable|null}",
+                "type": "array{value?: string}",
                 "outputType": null,
                 "containsOutput": null,
                 "exception": null,
@@ -1303,9 +1303,9 @@
             },
             "precision": {
                 "candidateOutputType": "array{value: false}",
-                "containedByInference": "yes",
+                "containedByInference": "no",
                 "preservedOnSuccess": null,
-                "classification": "observed-imprecision"
+                "classification": "candidate-outside-inference"
             }
         },
         "ascii.null": {
@@ -1323,7 +1323,7 @@
                 "exception": null
             },
             "inference": {
-                "type": "array{value?: array|bool|float|int|resource|string|Stringable|null}",
+                "type": "array{value?: string}",
                 "outputType": null,
                 "containsOutput": null,
                 "exception": null,
@@ -1331,9 +1331,9 @@
             },
             "precision": {
                 "candidateOutputType": "array{value: null}",
-                "containedByInference": "yes",
+                "containedByInference": "no",
                 "preservedOnSuccess": null,
-                "classification": "observed-imprecision"
+                "classification": "candidate-outside-inference"
             }
         },
         "ascii.stringable": {
@@ -1355,7 +1355,7 @@
                 "exception": null
             },
             "inference": {
-                "type": "array{value?: array|bool|float|int|resource|string|Stringable|null}",
+                "type": "array{value?: string}",
                 "outputType": null,
                 "containsOutput": null,
                 "exception": null,
@@ -1363,9 +1363,9 @@
             },
             "precision": {
                 "candidateOutputType": "array{value: Illuminate\\Support\\Stringable}",
-                "containedByInference": "yes",
+                "containedByInference": "no",
                 "preservedOnSuccess": null,
-                "classification": "observed-imprecision"
+                "classification": "candidate-outside-inference"
             }
         },
         "ascii.resource": {
@@ -1385,7 +1385,7 @@
                 "exception": null
             },
             "inference": {
-                "type": "array{value?: array|bool|float|int|resource|string|Stringable|null}",
+                "type": "array{value?: string}",
                 "outputType": null,
                 "containsOutput": null,
                 "exception": null,
@@ -1393,9 +1393,9 @@
             },
             "precision": {
                 "candidateOutputType": "array{value: resource}",
-                "containedByInference": "yes",
+                "containedByInference": "no",
                 "preservedOnSuccess": null,
-                "classification": "observed-imprecision"
+                "classification": "candidate-outside-inference"
             }
         },
         "ascii.array": {
@@ -1415,7 +1415,7 @@
                 "exception": null
             },
             "inference": {
-                "type": "array{value?: array|bool|float|int|resource|string|Stringable|null}",
+                "type": "array{value?: string}",
                 "outputType": null,
                 "containsOutput": null,
                 "exception": null,
@@ -1423,9 +1423,9 @@
             },
             "precision": {
                 "candidateOutputType": "array{value: array{key: 'value'}}",
-                "containedByInference": "yes",
+                "containedByInference": "no",
                 "preservedOnSuccess": null,
-                "classification": "observed-imprecision"
+                "classification": "candidate-outside-inference"
             }
         },
         "string.native": {

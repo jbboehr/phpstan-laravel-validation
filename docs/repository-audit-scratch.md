@@ -37,8 +37,9 @@ through PHPStan types.
   well as integers and numeric strings, so the resolver now retains the sound
   `float|int|numeric-string|Stringable|true` union. Strict integer validation
   first appears in Laravel 12.22 and is present in Laravel 13; earlier supported
-  releases ignore that parameter, so the resolver conservatively retains the
-  cross-version union for that spelling as well.
+  releases ignore that parameter. The resolver now uses the analyzed Laravel
+  version to return `int` at that boundary while retaining the conservative
+  union on earlier or unknown versions.
 - Current verification: 4,126 tests and 8,401 assertions pass with four known
   skips. PHPStan and PHP_CodeSniffer also pass. Targeted mutation testing kills
   every mutant in the revised `in` resolver; the file-wide run remains below
@@ -47,10 +48,11 @@ through PHPStan types.
   witnesses across all twelve pinned profiles. It confirms that the only
   rule-level version-dependent branches in the portable corpus are
   `integer:strict` on Laravel 12.22+ and `ascii` on Laravel 13.4+. The existing
-  Laravel 10 versus 11+ password-field behavior remains a separate
-  HTTP-normalization candidate. The next version-aware step is to design one
-  reliable source of analyzed Laravel-version context before narrowing those
-  cases. Its version-independent findings are now applied:
+  Laravel 10 versus 11+ password-field behavior is a separate
+  HTTP-normalization boundary. A shared analyzed-project version context now
+  narrows all three cases at their verified releases and remains conservative
+  when the version or full-framework middleware context is unavailable. The
+  audit's version-independent findings are also applied:
   `required|nullable` respects unconditional requiredness regardless of rule
   order, and `regex` and `not_regex` no longer include booleans.
 

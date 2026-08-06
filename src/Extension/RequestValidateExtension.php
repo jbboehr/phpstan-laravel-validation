@@ -37,6 +37,7 @@ final class RequestValidateExtension implements DynamicMethodReturnTypeExtension
 
     public function __construct(
         UnsafeConstExprEvaluator $constExprEvaluator,
+        private TypeResolver $typeResolver,
         bool $assumeHttpInputNormalization
     ) {
         $this->constExprEvaluator = $constExprEvaluator;
@@ -67,8 +68,7 @@ final class RequestValidateExtension implements DynamicMethodReturnTypeExtension
             $rulesValue = $this->constExprEvaluator->evaluate($rulesArg->value, $scope);
 
             $validatorRules = RuleParser::parse($rulesValue);
-            $evaluator = new TypeResolver();
-            return $evaluator->evaluate($validatorRules, $this->assumeHttpInputNormalization);
+            return $this->typeResolver->evaluate($validatorRules, $this->assumeHttpInputNormalization);
         } catch (ConstExprEvaluationException $e) {
             // @todo log or error?
             return null;

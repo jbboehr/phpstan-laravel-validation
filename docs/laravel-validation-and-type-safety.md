@@ -101,12 +101,15 @@ Validator::make(
 Those releases also accept numeric scalars, `null`, compatible `Stringable`
 objects, resources, and arrays when PHP warnings are not escalated to
 exceptions. Laravel 13.4 added an `is_string()` guard and rejects those values.
-Because this project supports releases on both sides of that boundary without
-version-specific result types, the honest compatibility type remains
-`array|bool|float|int|resource|string|Stringable|null`. The array and resource
-branches are edge cases; ordinary booleans and numbers already demonstrate the
-underlying failure. A rule named `ascii` described how Laravel inspected the
-value, not the native type it returned.
+For Laravel 10 through 13.3, the honest type remains
+`array|bool|float|int|resource|string|Stringable|null`; for Laravel 13.4 through
+the supported 13.x releases, it narrows to `string`.
+`phpstan-laravel-validation` reads the analyzed project's Laravel version and
+applies that boundary. If no supported version is available, it keeps the older
+union rather than guessing. The array and resource branches are edge cases;
+ordinary booleans and numbers already demonstrate the underlying failure. A
+rule named `ascii` described how Laravel inspected the value, not the native
+type it returned.
 
 The `json` rule repeats the pattern with an especially misleading boundary.
 Laravel admits any scalar or `Stringable` value to PHP's JSON validator using
@@ -152,9 +155,11 @@ not normalized date values.
 Strict integer validation first appeared in Laravel 12.22 and is also present
 in Laravel 13. It accepts only native integers. Laravel 10, Laravel 11, and
 Laravel 12.0 through 12.21 accept the same rule spelling but ignore the
-`strict` parameter and retain the broader filter behavior. The extension's
-version-independent inference therefore keeps the conservative cross-version
-union for `integer:strict` as well.
+`strict` parameter and retain the broader filter behavior. Version-aware
+inference therefore returns `int` from Laravel 12.22 through the supported
+13.x releases while retaining `float|int|numeric-string|Stringable|true` on
+earlier releases. An unavailable or unsupported version also retains the broad
+union.
 
 Laravel validation can still enforce runtime domain constraints such as email
 syntax, ranges, and membership. The problem is not that predicates are useless.
@@ -266,8 +271,9 @@ turns whitespace into an empty string that still bypasses the rule. Laravel
 also supports middleware skip callbacks and trimming exceptions, and request
 code can mutate input afterward. Laravel 11 through 13 exclude
 `current_password`, `password`, and `password_confirmation` from trimming by
-default; the extension conservatively preserves the blank-string branch for
-those paths across every supported major.
+default; Laravel 10 trims them. Version-aware inference preserves the
+blank-string branch on Laravel 11 through 13 and removes it on Laravel 10. If
+the full-framework version is unavailable, it keeps the branch conservatively.
 
 ## Validation rules also control output projection
 
@@ -577,6 +583,8 @@ tests, `phpstan-laravel-validation` can:
 
 - infer useful nested array shapes and optional offsets;
 - preserve sound unions when Laravel accepts multiple native input types;
+- distinguish verified Laravel-version boundaries when the analyzed version
+  is available;
 - track supported validator unions and constant `setRules()` replacements;
 - expose assumptions that conflict with Laravel's successful output; and
 - make incremental static typing practical in applications that already use
@@ -620,15 +628,15 @@ documented claims map to the following persistent coverage:
 | Claim | Laravel runtime coverage | PHPStan inference coverage |
 | --- | --- | --- |
 | `integer` can preserve non-integers | `LaravelInferenceTest::testIntegerRuleCanPreserveNonIntegerValues` | [`tests/rules/integer.php`](../tests/rules/integer.php) |
-| `integer:strict` differs by Laravel release | `LaravelInferenceTest::testIntegerStrictRuleFollowsRuntimeSupport` and `testIntegerStrictRuleAcceptsAndPreservesNativeInteger` | Conservative cross-version coverage in [`tests/rules/integer.php`](../tests/rules/integer.php) |
+| `integer:strict` differs by Laravel release | `LaravelInferenceTest::testIntegerStrictRuleFollowsRuntimeSupport` and `testIntegerStrictRuleAcceptsAndPreservesNativeInteger` | Boundary coverage in [`tests/TypeResolverTest.php`](../tests/TypeResolverTest.php), [`tests/version-aware/inference.php`](../tests/version-aware/inference.php), and the version-audit snapshots |
 | `alpha_num` and `alpha_dash` preserve numeric scalars | `LaravelInferenceTest::testAlphaRulesCanPreserveNumericValues` | [`tests/rules/alpha-num.php`](../tests/rules/alpha-num.php) and [`tests/rules/alpha-dash.php`](../tests/rules/alpha-dash.php) |
-| `ascii` coercion differs by Laravel release | `LaravelInferenceTest::testAsciiRuleCoercionFollowsRuntimeSupport`, `testAsciiRuleCanPreserveResourcesOnCoerciveVersions`, and `testAsciiRuleCanPreserveArraysWhenWarningsAreHandled` | [`tests/rules/ascii.php`](../tests/rules/ascii.php) |
+| `ascii` coercion differs by Laravel release | `LaravelInferenceTest::testAsciiRuleCoercionFollowsRuntimeSupport`, `testAsciiRuleCanPreserveResourcesOnCoerciveVersions`, and `testAsciiRuleCanPreserveArraysWhenWarningsAreHandled` | Boundary coverage in [`tests/TypeResolverTest.php`](../tests/TypeResolverTest.php), [`tests/version-aware/inference.php`](../tests/version-aware/inference.php), and the version-audit snapshots |
 | `json` preserves accepted scalars and stringable objects | `LaravelInferenceTest::testJsonRuleCanPreserveNonStringValues` | [`tests/rules/json.php`](../tests/rules/json.php) |
 | Date rules preserve numeric scalars and date objects | `LaravelInferenceTest::testDateRulesCanPreserveNumericScalars` and `testDateAndComparisonRulesPreserveDateTimeObjects` | [`tests/rules/date.php`](../tests/rules/date.php), [`tests/rules/date-format.php`](../tests/rules/date-format.php), and comparison fixtures under [`tests/rules`](../tests/rules) |
 | Scalar `in` preserves coercible inputs | `LaravelInferenceTest::testScalarInRuleAcceptsRuntimeValues` | [`tests/rules/in.php`](../tests/rules/in.php) |
 | Optional blanks bypass non-implicit rules | `LaravelInferenceTest::testBlankStringBypassesOptionalNonImplicitRules` | [`tests/structure/empty-string.php`](../tests/structure/empty-string.php) |
 | `TrimStrings` alone does not eliminate blank bypass | `LaravelInferenceTest::testTrimStringsAloneDoesNotEliminateBlankStringBypass` | Raw request coverage in [`tests/structure/request.php`](../tests/structure/request.php) |
-| Default HTTP normalization changes blank behavior | `LaravelInferenceTest::testDefaultHttpInputNormalizationChangesOptionalBlankBehavior` and `testDefaultPasswordTrimExceptionVariesByLaravelMajor` | Opt-in coverage in [`tests/normalized/request.php`](../tests/normalized/request.php) |
+| Default HTTP normalization changes blank behavior | `LaravelInferenceTest::testDefaultHttpInputNormalizationChangesOptionalBlankBehavior` and `testDefaultPasswordTrimExceptionVariesByLaravelMajor` | Laravel 10-configured coverage in [`tests/normalized/request.php`](../tests/normalized/request.php) and Laravel 13-configured coverage in [`tests/version-aware/inference.php`](../tests/version-aware/inference.php) |
 | Conditional acceptance broadens values | `LaravelInferenceTest::testConditionalValueRulesRemainConservative` | [`tests/rules/accepted-if.php`](../tests/rules/accepted-if.php) |
 | Conditional exclusion changes shape | `LaravelInferenceTest::testConditionalExclusionChangesTheValidatedShape` | [`tests/rules/exclude-if.php`](../tests/rules/exclude-if.php) |
 | Required wildcard descendants may match nothing | `LaravelInferenceTest::testRequiredWildcardDescendantDoesNotRequireMissingParent` | [`tests/structure/wildcard.php`](../tests/structure/wildcard.php) |

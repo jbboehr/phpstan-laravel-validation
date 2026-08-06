@@ -24,6 +24,7 @@ use Composer\InstalledVersions;
 use Illuminate\Translation\ArrayLoader;
 use Illuminate\Translation\Translator;
 use Illuminate\Validation\Factory;
+use jbboehr\PhpstanLaravelValidation\Validation\LaravelVersionContext;
 use jbboehr\PhpstanLaravelValidation\Validation\RuleParser;
 use jbboehr\PhpstanLaravelValidation\Validation\TypeResolver;
 use PHPStan\Type;
@@ -76,6 +77,8 @@ final class InferenceAudit
     public static function run(array $cases): array
     {
         $factory = new Factory(new Translator(new ArrayLoader(), 'en'));
+        $laravelVersion = self::frameworkVersion();
+        $typeResolver = new TypeResolver(new LaravelVersionContext('', $laravelVersion));
         $results = [];
 
         foreach ($cases as $id => $case) {
@@ -117,7 +120,7 @@ final class InferenceAudit
             $precisionProbe = $case['precision'] ?? false;
 
             try {
-                $inferred = (new TypeResolver())->evaluate(RuleParser::parse($rules));
+                $inferred = $typeResolver->evaluate(RuleParser::parse($rules));
                 $inferredType = $inferred->describe(VerbosityLevel::precise());
 
                 if ($precisionProbe) {
@@ -181,7 +184,7 @@ final class InferenceAudit
         }
 
         return [
-            'laravel' => self::frameworkVersion(),
+            'laravel' => $laravelVersion,
             'cases' => $results,
         ];
     }

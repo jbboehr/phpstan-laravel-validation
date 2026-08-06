@@ -16,3 +16,4 @@ parameters:
         - tests/normalized
         - tests/rules
         - tests/structure
+        - tests/version-aware

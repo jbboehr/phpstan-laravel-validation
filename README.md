@@ -71,6 +71,35 @@ includes:
     - vendor/jbboehr/phpstan-laravel-validation/extension.neon
 ```
 
+### Laravel version detection
+
+By default, the extension uses Composer's installed-version data for the
+project root matching PHPStan's working directory. This follows the Laravel
+code actually installed for analysis rather than trusting a potentially stale
+lockfile. If no matching installed-package data is available, it falls back to
+the analyzed project's `composer.lock`. It does not use Laravel versions from
+unrelated Composer roots that happen to be loaded in the PHPStan process.
+
+The detected `laravel/framework` version selects verified release boundaries
+such as `integer:strict`, `ascii`, and Laravel's default request-trimming
+exceptions. A standalone `illuminate/validation` installation can select
+rule-level behavior, but cannot establish full-framework middleware defaults.
+
+For monorepos or other layouts where PHPStan's working directory is not the
+relevant Composer project root, set the analyzed Laravel version explicitly:
+
+```neon
+parameters:
+    phpstanLaravelValidation:
+        laravelVersion: '13.4.0'
+```
+
+The default value is `auto`. If the version is unavailable, malformed, or
+outside the supported Laravel 10–13 range, inference retains the conservative
+cross-version type. The effective version context participates in PHPStan's
+result-cache metadata, so changing Laravel versions automatically invalidates
+cached inference.
+
 ### HTTP input normalization
 
 By default, the extension models the validator itself and therefore includes
@@ -91,9 +120,11 @@ to `validateWith()`.
 
 For example, an optional `array` field normally has the value type
 `array|string` because a blank string may bypass the rule. With this option it
-has type `array`; `nullable|array` has type `array|null`. Laravel's standard
-untrimmed request keys (`current_password`, `password`, and
-`password_confirmation`) remain conservatively widened to include strings.
+has type `array`; `nullable|array` has type `array|null`. Laravel 11 through 13
+exclude `current_password`, `password`, and `password_confirmation` from
+trimming by default, so those paths still include strings. Laravel 10 trims
+them and receives the narrower type. If a supported full-framework version
+cannot be established, the extension conservatively includes strings.
 
 Enable this option only if neither middleware is skipped or removed and
 validation cannot observe values introduced afterward by request mutation.

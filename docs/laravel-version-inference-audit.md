@@ -2,21 +2,22 @@
 
 This audit checks whether Laravel's validation behavior changes across the
 releases supported by `phpstan-laravel-validation`, and whether the extension's
-version-independent inferred types continue to contain every successful output
+version-aware inferred types continue to contain every successful output
 observed at those releases.
 
-The result is reassuring for soundness but costly for precision. No successful
-output in the portable audit corpus falls outside the inferred type. Two
-release boundaries do change the native values accepted by Laravel:
+No successful output in the portable audit corpus falls outside the inferred
+type. Two release boundaries change the native values accepted by Laravel:
 
 - `integer:strict` begins enforcing native integers in Laravel 12.22; and
 - `ascii` begins requiring a native string in Laravel 13.4.
 
-The extension currently has no Laravel-version input to its type resolver. It
-therefore retains the broader behavior of every supported release. That is
-sound for the supported range, but projects on the newer side of either
-boundary receive a less precise type than their installed Laravel release
-would permit.
+The extension now obtains one analyzed-project Laravel version from the
+matching Composer installed-package dataset, falling back to `composer.lock`
+when runtime package data for that project root is unavailable. It passes that
+version through every inference entry point, retains the broad historical
+behavior before each boundary, and narrows the type after it. Missing,
+malformed, and unsupported versions remain conservative rather than silently
+inheriting a version from an unrelated Composer root loaded into PHPStan.
 
 This is an audit result, not a proof of universal soundness. It covers the
 portable rule families and rule interactions listed below. Laravel behavior
@@ -63,7 +64,8 @@ deterministic input and rule set for each adversarial probe. For every case,
 1. runs the rule through Laravel's own `Validation\Factory`;
 2. records whether validation failed, threw, or returned validated output;
 3. converts successful output into a PHPStan type;
-4. resolves the same rule with this extension; and
+4. resolves the same rule with this extension and the exact installed Laravel
+   version; and
 5. records whether the inferred type is a supertype of Laravel's actual
    output.
 
@@ -97,8 +99,9 @@ are omitted from the snapshot.
 | Network and identifiers | `email`, `ip`, `ipv4`, `ipv6`, `mac_address`, `timezone`, `url`, `uuid`, `ulid` | No observed release difference |
 | Arrays and projection | bare and keyed arrays, nested child projection, required keys, wildcards, parent-plus-child rules | No observed release difference |
 | Presence and conditions | optional blanks, nullable, present, confirmed, `required_if`, `exclude_if` | No observed release difference |
+| Default HTTP middleware | password-path trimming before validation | Laravel 10 versus 11+ boundary covered by the cross-profile PHPUnit suite |
 | Static entry points | facade, factory, request, controller, helper, validator unions, constant `setRules()` | Covered by the existing PHPStan fixture suite |
-| Environment-dependent behavior | files, images, dimensions, database, DNS, password checks, custom rules | Catalogued but not executed by this portable audit |
+| Environment-dependent behavior | files, images, dimensions, database, DNS, password-rule service checks, custom rules | Catalogued but not executed by this portable audit |
 
 The inventory focuses on rules for which the extension currently narrows a
 type, plus representative non-narrowing and structural rules that can change
@@ -122,15 +125,16 @@ coercive behavior as the ordinary `integer` rule. Laravel 12.22 adds strict
 mode and rejects both non-integer values. Native `int` values continue to pass
 and are preserved.
 
-The current inferred value type remains:
+For Laravel 10 through 12.21, the inferred value type remains:
 
 ```php
 float|int|numeric-string|Stringable|true
 ```
 
-That union is required for Laravel 10, 11, and 12.0 through 12.21. It is broader
-than necessary for Laravel 12.22 and later. Refining it safely requires the
-resolver to know which Laravel release PHPStan is analyzing.
+That union is required for Laravel 10, 11, and 12.0 through 12.21. From Laravel
+12.22 through the supported 13.x releases, the extension now infers `int`. If
+the analyzed version is unavailable or outside the supported range, it keeps
+the union.
 
 ### Laravel 13.4 changes `ascii`
 
@@ -143,31 +147,33 @@ Laravel 13.4 adds a native `is_string()` guard and rejects every one of those
 non-string inputs. The behavior remains string-only through the pinned Laravel
 13.23 release.
 
-The current cross-version inferred value type remains:
+For Laravel 10 through 13.3, the inferred value type remains:
 
 ```php
 array|bool|float|int|resource|string|Stringable|null
 ```
 
-For Laravel 13.4 and later, `string` would be sufficient before applying
-presence and blank-value behavior. The broad union is not an invented analyzer
-edge case on older versions; it is the set of native categories Laravel can
-successfully return. On newer versions it is a compatibility cost caused by
-version-independent resolution.
+For Laravel 13.4 through the supported 13.x releases, the extension now infers
+`string` before applying presence and blank-value behavior. The broad union is
+not an invented analyzer edge case on older versions; it is the set of native
+categories Laravel can successfully return. It remains the safe fallback when
+version context is unavailable.
 
 ### HTTP normalization also has a known major boundary
 
 Laravel's default `TrimStrings` middleware excludes password-related paths in
-Laravel 11 and later. Laravel 10 trims them. The optional HTTP-normalization
-mode conservatively retains those exceptions for every supported major, so it
-does not become unsound when the analyzed Laravel version is unavailable. It
-can be less precise for Laravel 10.
+Laravel 11 and later. Laravel 10 trims them. In optional HTTP-normalization
+mode, the extension now removes the blank-string branch for those paths on
+Laravel 10 and preserves it on Laravel 11 through 13. If a supported
+full-framework version is unavailable, it preserves the branch
+conservatively; an `illuminate/validation` component version alone does not
+establish the application's middleware behavior.
 
 This is already covered by
 `LaravelInferenceTest::testDefaultPasswordTrimExceptionVariesByLaravelMajor`
-and the normalized request PHPStan fixtures. It is listed here because any
-future version context should refine this behavior alongside rule inference,
-not as an unrelated special case.
+and the normalized request PHPStan fixtures. The shared version context refines
+this behavior alongside rule inference rather than treating it as an unrelated
+special case.
 
 ### No additional portable boundary was observed
 
@@ -219,8 +225,8 @@ The aggregate precision results are:
 | Laravel profiles | Realizable | Observed imprecision | Outside inference | Not reverse-probed |
 | --- | ---: | ---: | ---: | ---: |
 | 10.0 through 12.21 | 69 | 22 | 10 | 18 |
-| 12.22 through 13.3 | 65 | 26 | 10 | 18 |
-| 13.4 and later | 57 | 34 | 10 | 18 |
+| 12.22 through 13.3 | 65 | 22 | 14 | 18 |
+| 13.4 and later | 57 | 22 | 22 | 18 |
 
 Only twelve witnesses change classification by Laravel release:
 
@@ -229,10 +235,12 @@ Only twelve witnesses change classification by Laravel release:
 | `integer:strict` | numeric string, integral float, `true`, compatible `Stringable` | Laravel 12.22+ |
 | `ascii` | integer, float, `true`, `false`, `null`, `Stringable`, resource, array | Laravel 13.4+ |
 
-No other reverse probe changed classification across the pinned profiles. This
-confirms the two rule-level version-aware narrowing candidates already found by
-the runtime differential audit; it did not reveal another major or minor
-boundary in the portable corpus.
+No other reverse probe changed classification across the pinned profiles. The
+four strict-integer witnesses and eight ASCII witnesses now move from
+`observed-imprecision` to `candidate-outside-inference` at their verified
+boundaries. This confirms that version-aware narrowing removed exactly the
+release-dependent branches identified by the runtime differential audit; it
+did not reveal another major or minor boundary in the portable corpus.
 
 The reverse audit exposed two version-independent branches that could be
 removed immediately:
@@ -312,22 +320,40 @@ php scripts/inference-audit.php \
     --update
 ```
 
-## Recommended follow-up
+## Version-aware implementation
 
-The audit leaves two version-aware follow-up steps:
+`LaravelVersionContext` first reads Composer's installed-package dataset whose
+root installation path matches PHPStan's working directory. This follows the
+Laravel implementation actually installed for analysis and avoids trusting a
+stale lockfile. When no matching dataset contains Laravel, it falls back to the
+analyzed project's `composer.lock`. Both sources prefer `laravel/framework`
+and fall back to `illuminate/validation` for rule-level behavior. An explicit
+`phpstanLaravelValidation.laravelVersion` setting remains authoritative for
+monorepos and other layouts where the working directory is not the relevant
+Composer project root.
 
-1. design one reliable source of analyzed Laravel-version context;
-2. use it to specialize `integer:strict`, `ascii`, and default HTTP
-   normalization at their verified boundaries.
+One shared context is injected into the resolver used by validator, facade,
+request, and controller inference. The resolver specializes `integer:strict`,
+`ascii`, and default HTTP normalization only at the verified boundaries above.
+It ignores installed-package datasets belonging to unrelated project roots,
+so a globally installed tool or another registered autoloader cannot silently
+select the Laravel contract. The same context contributes its effective
+version and framework/component source to PHPStan's result-cache metadata,
+forcing cached file results to be recomputed whenever that inference input
+changes.
+
+Auto-detection remains deliberately conservative when both installed-package
+data and the lockfile are unavailable, when the authoritative installed
+package has a development version without a stable numeric contract, or when
+the detected Laravel major is outside the supported 10–13 range. It does not
+fall back to a potentially stale lockfile after finding an installed Laravel
+package whose version is unstable. A standalone `illuminate/validation`
+version can select rule semantics but cannot prove that full-framework HTTP
+middleware defaults apply.
 
 The version-independent `required|nullable`, `regex`, and `not_regex`
 opportunities have already been applied and remain covered by the pinned
 runtime profiles.
-
-The version context must pass through every inference entry point. Adding
-isolated checks directly to individual rules would make behavior depend on
-whichever Laravel happens to execute PHPStan, which is not necessarily the
-dependency version represented by the analyzed code.
 
 Environment-dependent rules should remain conservative unless their runtime
 services can be replaced with deterministic test doubles and their static

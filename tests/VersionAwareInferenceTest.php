@@ -20,24 +20,23 @@ declare(strict_types=1);
 
 namespace jbboehr\PhpstanLaravelValidation\Test;
 
-use PHPStan\Testing\TypeInferenceTestCase;
+use jbboehr\PhpstanLaravelValidation\Validation\LaravelVersionContext;
+use PHPStan\Analyser\ResultCache\ResultCacheMetaExtension;
 
-class ConstExprInferenceTest extends TypeInferenceTestCase
+final class VersionAwareInferenceTest extends \PHPStan\Testing\TypeInferenceTestCase
 {
     /**
      * @return iterable<mixed>
      */
     public static function dataFileAsserts(): iterable
     {
-        yield from self::gatherAssertTypes(__DIR__ . '/const-expr/constant.php');
-        yield from self::gatherAssertTypes(__DIR__ . '/const-expr/class-constant.php');
+        yield from self::gatherAssertTypes(__DIR__ . '/version-aware/inference.php');
     }
 
     /**
      * @dataProvider dataFileAsserts
-     * @group const-expr
      */
-    public function testConstExprFileAsserts(
+    public function testFileAsserts(
         string $assertType,
         string $file,
         mixed ...$args
@@ -45,11 +44,23 @@ class ConstExprInferenceTest extends TypeInferenceTestCase
         $this->assertFileAsserts($assertType, $file, ...$args);
     }
 
+    public function testVersionContextIsRegisteredAsResultCacheMetadata(): void
+    {
+        $services = self::getContainer()->getServicesByTag(ResultCacheMetaExtension::EXTENSION_TAG);
+        $contexts = array_values(array_filter(
+            $services,
+            static fn (mixed $service): bool => $service instanceof LaravelVersionContext
+        ));
+
+        self::assertCount(1, $contexts);
+        self::assertSame('phpstan-laravel-validation.laravel-version', $contexts[0]->getKey());
+    }
+
     public static function getAdditionalConfigFiles(): array
     {
         return [
             __DIR__ . '/../extension.neon',
-            __DIR__ . '/phpstan.neon',
+            __DIR__ . '/version-aware/phpstan.neon',
         ];
     }
 }

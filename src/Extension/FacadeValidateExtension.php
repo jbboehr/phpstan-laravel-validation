@@ -36,7 +36,8 @@ final class FacadeValidateExtension implements DynamicStaticMethodReturnTypeExte
     private UnsafeConstExprEvaluator $constExprEvaluator;
 
     public function __construct(
-        UnsafeConstExprEvaluator $constExprEvaluator
+        UnsafeConstExprEvaluator $constExprEvaluator,
+        private TypeResolver $typeResolver
     ) {
         $this->constExprEvaluator = $constExprEvaluator;
     }
@@ -65,8 +66,7 @@ final class FacadeValidateExtension implements DynamicStaticMethodReturnTypeExte
             $rulesValue = $this->constExprEvaluator->evaluate($rulesArg->value, $scope);
 
             $validatorRules = RuleParser::parse($rulesValue);
-            $evaluator = new TypeResolver();
-            return $evaluator->evaluate($validatorRules);
+            return $this->typeResolver->evaluate($validatorRules);
         } catch (ConstExprEvaluationException $e) {
             // @todo log or error?
             return null;

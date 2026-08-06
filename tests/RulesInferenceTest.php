@@ -96,6 +96,9 @@ class RulesInferenceTest extends \PHPStan\Testing\TypeInferenceTestCase
 
     public static function getAdditionalConfigFiles(): array
     {
-        return [__DIR__ . '/../extension.neon'];
+        return [
+            __DIR__ . '/../extension.neon',
+            __DIR__ . '/phpstan.neon',
+        ];
     }
 }

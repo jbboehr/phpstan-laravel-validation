@@ -365,7 +365,7 @@ final class InferenceAuditCases
                     'required_if.active', 'required_if.inactive', 'exclude_if.active', 'exclude_if.inactive',
                 ],
             ],
-            'files, database, password, dimensions, and custom rules' => [
+            'files, database, password-rule services, dimensions, and custom rules' => [
                 'status' => 'environment-dependent',
                 'evidence' => [],
                 'note' => 'Catalogued but excluded from the portable runner; current inference is object or mixed.',

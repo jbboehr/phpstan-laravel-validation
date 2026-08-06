@@ -35,13 +35,17 @@ final class TypeResolver
 {
     /**
      * Laravel 11 and later exclude these root request keys from TrimStrings.
-     * Retaining the exception for every supported major is conservative.
      */
     private const DEFAULT_UNTRIMMED_PATHS = [
         'current_password',
         'password',
         'password_confirmation',
     ];
+
+    public function __construct(
+        private ?LaravelVersionContext $laravelVersionContext = null
+    ) {
+    }
 
     public function evaluate(RuleTreeNode $node, bool $assumeHttpInputNormalization = false): Type\Type
     {
@@ -151,7 +155,21 @@ final class TypeResolver
             return true;
         }
 
-        return in_array($node->getPath(), self::DEFAULT_UNTRIMMED_PATHS, true);
+        if (!in_array($node->getPath(), self::DEFAULT_UNTRIMMED_PATHS, true)) {
+            return false;
+        }
+
+        // Laravel 10 trims these paths. Laravel 11 and later exclude them by
+        // default. Without a supported full-framework version, retaining the
+        // possible blank string is the only safe assumption.
+        if (
+            $this->laravelVersionContext === null
+            || !$this->laravelVersionContext->hasFrameworkVersion()
+        ) {
+            return true;
+        }
+
+        return $this->laravelVersionContext->isAtLeast('11.0.0');
     }
 
     private function isOutputOptional(RuleTreeNode $node): bool
@@ -261,18 +279,19 @@ final class TypeResolver
 
             // Laravel 10 through 13.3 cast arbitrary values to string for the
             // ASCII predicate and preserve the original value. Laravel 13.4+
-            // requires a native string, but version-independent inference
-            // must retain the successful outputs from every supported release.
-            "Ascii" => Type\TypeCombinator::union(
-                new Type\ArrayType(new MixedType(), new MixedType()),
-                new Type\BooleanType(),
-                new Type\FloatType(),
-                new Type\IntegerType(),
-                new Type\NullType(),
-                new Type\ObjectType(\Stringable::class),
-                new Type\ResourceType(),
-                new Type\StringType(),
-            ),
+            // requires a native string.
+            "Ascii" => $this->resolvesAsciiAsNativeString()
+                ? new Type\StringType()
+                : Type\TypeCombinator::union(
+                    new Type\ArrayType(new MixedType(), new MixedType()),
+                    new Type\BooleanType(),
+                    new Type\FloatType(),
+                    new Type\IntegerType(),
+                    new Type\NullType(),
+                    new Type\ObjectType(\Stringable::class),
+                    new Type\ResourceType(),
+                    new Type\StringType(),
+                ),
 
             "Lowercase", "String", "Uppercase" => new Type\StringType(),
 
@@ -324,19 +343,20 @@ final class TypeResolver
             // FILTER_VALIDATE_INT, then preserves the original value. That
             // accepts integral floats, true, and compatible Stringable
             // objects in addition to integers and numeric strings. Laravel
-            // 12.22+ supports integer:strict, but earlier supported releases
-            // ignore that parameter, so version-independent inference must
-            // retain this union.
-            "Integer" => Type\TypeCombinator::union(
-                new IntersectionType([
-                    new StringType(),
-                    new AccessoryNumericStringType(),
-                ]),
-                new Type\IntegerType(),
-                new Type\FloatType(),
-                new Type\ObjectType(\Stringable::class),
-                new ConstantBooleanType(true),
-            ),
+            // 12.22+ supports integer:strict; earlier supported releases
+            // ignore that parameter.
+            "Integer" => $this->resolvesIntegerAsStrict($rule)
+                ? new Type\IntegerType()
+                : Type\TypeCombinator::union(
+                    new IntersectionType([
+                        new StringType(),
+                        new AccessoryNumericStringType(),
+                    ]),
+                    new Type\IntegerType(),
+                    new Type\FloatType(),
+                    new Type\ObjectType(\Stringable::class),
+                    new ConstantBooleanType(true),
+                ),
 
             "Dimensions", "File", "Image", "Mimetypes",
             "Mimes" => new Type\ObjectType('Symfony\\Component\\HttpFoundation\\File\\File'),
@@ -350,6 +370,19 @@ final class TypeResolver
     private function resolveDefault(Rule $rule): Type\Type
     {
         return new Type\MixedType();
+    }
+
+    private function resolvesAsciiAsNativeString(): bool
+    {
+        return $this->laravelVersionContext !== null
+            && $this->laravelVersionContext->isAtLeast('13.4.0');
+    }
+
+    private function resolvesIntegerAsStrict(Rule $rule): bool
+    {
+        return in_array('strict', $rule->getParameters(), true)
+            && $this->laravelVersionContext !== null
+            && $this->laravelVersionContext->isAtLeast('12.22.0');
     }
 
     private function resolveTypeArray(Rule $rule): Type\Type
