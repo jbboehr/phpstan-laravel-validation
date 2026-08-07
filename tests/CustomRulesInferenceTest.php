@@ -209,6 +209,25 @@ final class CustomRulesInferenceTest extends \PHPStan\Testing\TypeInferenceTestC
         }
     }
 
+    public function testEveryInstalledLaravelAttributeRuleNameIsReservedFromCustomAliases(): void
+    {
+        $reflection = new \ReflectionClass(\Illuminate\Validation\Concerns\ValidatesAttributes::class);
+
+        foreach ($reflection->getMethods() as $method) {
+            if (preg_match('/^validate([A-Z].*)$/', $method->getName(), $matches) !== 1) {
+                continue;
+            }
+
+            self::assertTrue(
+                TypeResolver::isBuiltInRuleName($matches[1]),
+                sprintf(
+                    'Installed Laravel rule %s is missing from the custom-alias collision guard',
+                    $matches[1]
+                )
+            );
+        }
+    }
+
     public function testRejectsConfiguredNonPredicateClassWhenEncountered(): void
     {
         $this->expectException(InvalidCustomRuleContractException::class);
