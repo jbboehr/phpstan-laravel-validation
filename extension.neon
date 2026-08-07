@@ -13,6 +13,8 @@ parametersSchema:
 
 services:
   - class: jbboehr\PhpstanLaravelValidation\Evaluator\UnsafeConstExprEvaluator
+  - class: jbboehr\PhpstanLaravelValidation\Validation\CustomRuleTypeResolver
+  - class: jbboehr\PhpstanLaravelValidation\Validation\RuleSetResolver
   - class: jbboehr\PhpstanLaravelValidation\Validation\LaravelVersionContext
     arguments:
       workingDirectory: %currentWorkingDirectory%

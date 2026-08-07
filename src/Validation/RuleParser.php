@@ -71,6 +71,10 @@ final class RuleParser
      */
     public static function explodeRules(mixed $rules): array
     {
+        if ($rules instanceof Rule) {
+            return [$rules];
+        }
+
         if (is_string($rules)) {
             $rules = explode('|', $rules);
         }
@@ -89,7 +93,9 @@ final class RuleParser
      */
     public static function parseRule(mixed $rule): ?Rule
     {
-        if (is_array($rule)) {
+        if ($rule instanceof Rule) {
+            return $rule;
+        } elseif (is_array($rule)) {
             return self::parseArrayRule(array_values($rule));
         } elseif (is_string($rule)) {
             return self::parseStringRule($rule);

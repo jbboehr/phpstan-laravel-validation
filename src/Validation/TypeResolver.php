@@ -50,7 +50,9 @@ final class TypeResolver
 
     public function evaluate(RuleTreeNode $node, bool $assumeHttpInputNormalization = false): Type\Type
     {
-        if ($node->isWildcard()) {
+        if ($node->isOpaque()) {
+            $type = new MixedType();
+        } elseif ($node->isWildcard()) {
             $type = $this->evaluateWildcard($node, $assumeHttpInputNormalization);
         } elseif ($node->hasChildren()) {
             $type = $this->evaluateMap($node, $assumeHttpInputNormalization);
@@ -201,6 +203,14 @@ final class TypeResolver
     private function resolveType(Rule $rule): ?Type\Type
     {
         // Currently unsupported: Enum, Present, RequiredArrayKeys
+
+        if ($rule->getRuleName() === Rule::RULE_CUSTOM) {
+            return $rule->getAcceptedType() ?? new MixedType();
+        }
+
+        if ($rule->getRuleName() === Rule::RULE_OPAQUE) {
+            return new MixedType();
+        }
 
         return match ($rule->getRuleName()) {
             "Accepted" => Type\TypeCombinator::union(

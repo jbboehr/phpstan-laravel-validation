@@ -36,6 +36,7 @@ final class RuleTreeNode implements IteratorAggregate, \Countable
     private bool $nullable = false;
     private bool $required = false;
     private bool $isArray = false;
+    private bool $opaque = false;
 
     /**
      * @param string $path
@@ -106,6 +107,8 @@ final class RuleTreeNode implements IteratorAggregate, \Countable
                 Rule::RULE_NULLABLE => $this->nullable = true,
 
                 Rule::RULE_ARRAY => $this->isArray = true,
+
+                Rule::RULE_OPAQUE => $this->opaque = true,
 
                 default => null,
             };
@@ -184,9 +187,14 @@ final class RuleTreeNode implements IteratorAggregate, \Countable
         return $this->excluded;
     }
 
+    public function isOpaque(): bool
+    {
+        return $this->opaque;
+    }
+
     public function isOptional(): bool
     {
-        return ($this->optional || $this->sometimes) && !$this->hasRequiredChild;
+        return $this->opaque || (($this->optional || $this->sometimes) && !$this->hasRequiredChild);
     }
 
     public function isWildcard(): bool

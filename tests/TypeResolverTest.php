@@ -407,6 +407,22 @@ final class TypeResolverTest extends PHPStanTestCase
         );
     }
 
+    public function testOpaqueRuleMakesThePathOptionalAndMixed(): void
+    {
+        self::getContainer();
+        $tree = RuleParser::parse([
+            'value' => [Rule::create(Rule::RULE_REQUIRED), Rule::opaque()],
+        ]);
+        $node = $tree->resolvePath('value');
+
+        self::assertTrue($node->isOpaque());
+        self::assertTrue($node->isOptional());
+        self::assertSame(
+            'array{value?: mixed}',
+            (new TypeResolver())->evaluate($tree)->describe(VerbosityLevel::precise())
+        );
+    }
+
     public function testNumericStringPathSegmentsRemainLiteral(): void
     {
         self::getContainer();

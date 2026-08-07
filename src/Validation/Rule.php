@@ -21,6 +21,8 @@ declare(strict_types=1);
 
 namespace jbboehr\PhpstanLaravelValidation\Validation;
 
+use PHPStan\Type\Type;
+
 final class Rule
 {
     public const RULE_ACCEPTED = "Accepted";
@@ -39,6 +41,8 @@ final class Rule
     public const RULE_SOMETIMES = "Sometimes";
     public const RULE_ARRAY = "Array";
     public const RULE_NUMERIC = "Numeric";
+    public const RULE_CUSTOM = "__Custom";
+    public const RULE_OPAQUE = "__Opaque";
 
     public const RULES = [
         self::RULE_ACCEPTED => self::RULE_ACCEPTED,
@@ -71,13 +75,24 @@ final class Rule
         return new self($ruleName, $parameters);
     }
 
+    public static function custom(Type $acceptedType): self
+    {
+        return new self(self::RULE_CUSTOM, [], $acceptedType);
+    }
+
+    public static function opaque(): self
+    {
+        return new self(self::RULE_OPAQUE);
+    }
+
     /**
      * @param string $ruleName
      * @param array<int, mixed> $parameters
      */
     public function __construct(
         private string $ruleName,
-        private array $parameters = []
+        private array $parameters = [],
+        private ?Type $acceptedType = null
     ) {
     }
 
@@ -92,5 +107,10 @@ final class Rule
     public function getParameters(): array
     {
         return $this->parameters;
+    }
+
+    public function getAcceptedType(): ?Type
+    {
+        return $this->acceptedType;
     }
 }
