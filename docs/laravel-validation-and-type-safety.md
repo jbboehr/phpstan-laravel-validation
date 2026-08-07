@@ -2,31 +2,38 @@
 
 > [!CAUTION]
 >
-> Laravel validation is not a typed data boundary. It is a collection of
-> runtime predicates, coercive comparisons, presence rules, cross-field
-> conditions, wildcard traversal, and output-projection behavior encoded
-> largely through strings.
+> Laravel validation is not a typed data boundary. Its compact rule syntax
+> combines value predicates with presence rules, cross-field control flow,
+> wildcard traversal, and output projection. Successful validation often
+> preserves a native value that the rule name appears to exclude or normalize.
 >
-> Successful validation commonly preserves the original input value rather
-> than producing the native PHP type suggested by the rule name. The same rule
-> set also determines whether keys are required, skipped, included, excluded,
-> or rebuilt from nested children. Its apparent declaration and its actual
-> runtime contract are often very different things.
->
-> `phpstan-laravel-validation` attempts to describe that contract soundly. The
-> resulting types are sometimes unexpectedly broad because Laravel's successful
-> output is unexpectedly broad. The extension can mitigate the problem for
-> existing applications; it cannot make the underlying design coherent.
+> `phpstan-laravel-validation` describes that runtime contract as honestly as
+> possible. It can mitigate the problem for existing applications; it cannot
+> turn the underlying design into a coherent typed transformation.
+
+## TL;DR
+
+**[Validates, doesn't parse](https://lexi-lambda.github.io/blog/2019/11/05/parse-don-t-validate/).**
+
+Laravel validation mostly establishes that an input value satisfies some
+predicates. It generally does not construct a correspondingly typed
+representation of that value. A rule such as `integer` therefore cannot
+soundly mean that `validated()` returns an `int`.
+
+That is the central problem, but not the only one. The same rule array also
+projects the output by including, excluding, and rebuilding keys, while
+conditional rules, wildcards, callbacks, and runtime services make it behave
+more like a program than a static schema.
 
 ## Laravel validation is not typed parsing
 
-A typed parser consumes an input representation and produces a value whose
-native type is part of its contract. Laravel validation usually answers a
-different question: does this original value happen to satisfy these rules?
-When the answer is yes, `validated()` generally returns that original value.
+A typed parser consumes one representation and produces a value whose native
+type is part of its contract. Laravel validation usually answers a different
+question: does this original value happen to satisfy these rules? When the
+answer is yes, `validated()` generally returns that original value.
 
-That distinction is visible in rules whose names sound like output types. At
-the pinned Laravel 10 through 13 releases, both of these validations succeed:
+The `integer` rule is the canonical example. At the pinned Laravel 10
+through 13 releases, both of these validations succeed:
 
 ```php
 Validator::make(
@@ -43,179 +50,49 @@ Validator::make(
 ```
 
 A `Stringable` object returning an accepted integer string also passes and is
-returned as the same object. The sound inferred value type is therefore:
+returned as the same object. The rule has not produced an `int`. It has
+accepted values that PHP's filter semantics consider integer-like and preserved
+their original native types. The sound inferred value type is therefore:
 
 ```php
 float|int|numeric-string|Stringable|true
 ```
 
-The `integer` rule has not produced an `int`. It has accepted values that PHP's
-filter semantics consider integer-like and then preserved their original
-native types. The union necessarily includes all floats and all `Stringable`
-objects because PHPStan cannot express “an integral float” or “an object whose
-string representation passes this PHP filter.” It is broader than Laravel's
-accepted subset, but narrowing it would exclude successful output. Similarly,
-`required|numeric` may return an `int`, a `float`, or a `numeric-string`; it
-does not produce one canonical numeric representation.
+This union is necessarily broader than Laravel's successful subset because
+PHPStan cannot express “an integral float” or “an object whose string
+representation passes this PHP filter.” Narrowing it to `int` would be more
+attractive and false.
 
-Even the apparently textual `alpha_num` and `alpha_dash` rules accept numeric
-scalars. Laravel first permits any string or value for which `is_numeric()` is
-true, passes that value to a regular expression as a string, and then returns
-the unconverted input. Both of these results therefore preserve a float:
+Laravel 12.22 added one revealing exception: `integer:strict` begins
+requiring a native integer. Laravel 10, Laravel 11, and Laravel 12.0 through
+12.21 accept the same spelling but ignore the `strict` parameter. The rule's
+meaning therefore depends on the installed framework release as well as its
+text.
 
-```php
-Validator::make(
-    ['value' => 1.0],
-    ['value' => 'required|alpha_num'],
-)->validated();
-// ['value' => 1.0]
-
-Validator::make(
-    ['value' => -1.0],
-    ['value' => 'required|alpha_dash:ascii'],
-)->validated();
-// ['value' => -1.0]
-```
-
-The sound structural value type for `alpha_dash` is consequently
-`float|int|non-empty-string` in both Unicode and ASCII modes. `alpha_num` can
-narrow the integer branch to `int<0, max>`, but its complete type still needs
-the broad `float` branch because PHPStan cannot express only those floats whose
-string representation matches Laravel's regular expression. Once again, the
-rule tests a coercively viewed representation but returns the original native
-value.
-
-The `ascii` rule adds release-dependent behavior to the same design problem.
-Laravel 10 through 13.3 unconditionally cast the value to a string for the
-ASCII predicate, then preserve the original value. This succeeds without
-producing a string:
-
-```php
-Validator::make(
-    ['value' => true],
-    ['value' => 'required|ascii'],
-)->validated();
-// ['value' => true]
-```
-
-Those releases also accept numeric scalars, `null`, compatible `Stringable`
-objects, resources, and arrays when PHP warnings are not escalated to
-exceptions. Laravel 13.4 added an `is_string()` guard and rejects those values.
-For Laravel 10 through 13.3, the honest type remains
-`array|bool|float|int|resource|string|Stringable|null`; for Laravel 13.4 through
-the supported 13.x releases, it narrows to `string`.
-`phpstan-laravel-validation` reads the analyzed project's Laravel version and
-applies that boundary. If no supported version is available, it keeps the older
-union rather than guessing. The array and resource branches are edge cases;
-ordinary booleans and numbers already demonstrate the underlying failure. A
-rule named `ascii` described how Laravel inspected the value, not the native
-type it returned.
-
-The `json` rule repeats the pattern with an especially misleading boundary.
-Laravel admits any scalar or `Stringable` value to PHP's JSON validator using
-its coerced string representation. An integer, float, `true`, or compatible
-`Stringable` object can therefore pass and remain unchanged:
-
-```php
-Validator::make(
-    ['value' => new Stringable('{"valid":true}')],
-    ['value' => 'required|json'],
-)->validated();
-// ['value' => Stringable object]
-```
-
-The sound expressible type is
-`float|int|non-empty-string|Stringable|true`. The `float` branch is broader
-than Laravel's successful values because PHPStan cannot exclude `INF` and
-`NAN`; Laravel rejects both. Again, validation checks a coerced representation
-and returns the original value rather than a canonical JSON string or decoded
-value.
-
-Date validation is no cleaner. Laravel's `date` and `date_format` rules admit
-numeric scalars before passing their coerced representation to PHP's date
-parsers. Date comparison rules do the same and additionally admit
-`DateTimeInterface` objects. Successful output still contains the original
-native value:
-
-```php
-Validator::make(
-    ['value' => 20240101],
-    ['value' => 'required|date_format:Ymd|before:20250101'],
-)->validated();
-// ['value' => 20240101]
-```
-
-Consequently, `required|date_format:Ymd` needs the structural value type
-`float|int|non-empty-string`. The `date`, `before`, `before_or_equal`, `after`,
-`after_or_equal`, and `date_equals` rules additionally need
-`DateTimeInterface`. These unions are necessarily broader than the values that
-any specific format or comparison accepts; Laravel exposes runtime predicates,
-not normalized date values.
-
-Strict integer validation first appeared in Laravel 12.22 and is also present
-in Laravel 13. It accepts only native integers. Laravel 10, Laravel 11, and
-Laravel 12.0 through 12.21 accept the same rule spelling but ignore the
-`strict` parameter and retain the broader filter behavior. Version-aware
-inference therefore returns `int` from Laravel 12.22 through the supported
-13.x releases while retaining `float|int|numeric-string|Stringable|true` on
-earlier releases. An unavailable or unsupported version also retains the broad
-union.
-
-Laravel validation can still enforce runtime domain constraints such as email
-syntax, ranges, and membership. The problem is not that predicates are useless.
-The problem is that successful predicates are easily mistaken for declarations
-about the returned data. A rule name describes a test, not necessarily an
-output type, and the validator performs little normalization to close that gap.
-
-## Rule names do not describe the output type
-
-The scalar `in` rule is a particularly clear example. This validation accepts
-and preserves `true`:
-
-```php
-$validated = Validator::make(
-    ['value' => true],
-    ['value' => 'required|in:1'],
-)->validated();
-
-// ['value' => true]
-```
-
-The following inputs all pass and remain unchanged in the output:
-
-| Rules | Input | Preserved output |
-| --- | --- | --- |
-| `required\|in:1` | `'1'` | `'1'` |
-| `required\|in:1` | `1` | `1` |
-| `required\|in:1` | `1.0` | `1.0` |
-| `required\|in:1` | `true` | `true` |
-| `required\|in:1` | `'01'` or `'1e0'` | the unchanged string |
-| `required\|in:one` | a `Stringable` returning `one` | the same object |
-
-At every pinned Laravel revision, the relevant scalar implementation is:
+The scalar `in` rule provides a particularly sharp second example. At every
+pinned Laravel revision, its relevant implementation is:
 
 ```php
 return ! is_array($value) && in_array((string) $value, $parameters);
 ```
 
-Laravel casts the value for a non-strict comparison, then discards the cast and
-returns the original value. `in:1` therefore is not an enum-like declaration of
-the literal string `'1'`. A sound description of `required|in:1` needs a union
-such as:
-
-```php
-float|int|numeric-string|Stringable|true
-```
-
-`phpstan-laravel-validation` infers that union because giving downstream code
-the prettier literal type would be false. This is not an analyzer inventing an
-inconvenient edge case. It is Laravel preserving values admitted by the runtime
-contract Laravel created.
+For `required|in:1`, Laravel accepts and preserves `'1'`, `1`,
+`1.0`, `true`, numeric-equivalent strings such as `'01'`, and a
+compatible `Stringable` object. The cast is used for comparison and then
+discarded, so a sound analyzer again needs the same broad preserved-value
+union. `in:1` is not an enum-like declaration of a literal output value. This
+is not an analyzer inventing an inconvenient edge case. It is Laravel
+preserving values admitted by the runtime contract Laravel created.
 
 The more faithfully static analysis models this behavior, the less the rule
 resembles the narrow declaration it appears to be.
 
-## Optionality is not merely key presence
+Laravel validation can still enforce useful runtime domain constraints such as
+email syntax, ranges, and membership. The problem is not that predicates are
+useless. The problem is mistaking successful predicates for a declaration of
+the returned native representation.
+
+## Optionality changes the accepted value domain
 
 Laravel overloads optionality with blank-value behavior. Many non-implicit
 rules are skipped when an optional field is a blank string, but the present
@@ -233,57 +110,33 @@ $validated = Validator::make(
 // array{filters?: array|string}
 ```
 
-The field may therefore be absent, or it may be present with an array, or it
-may be present with a blank string for which the `array` predicate never ran.
-Whitespace-only strings have the same validator-level behavior. Adding
-`required` changes the accepted value domain as well as key presence.
+The field may be absent, present with an array, or present with a blank string
+for which the `array` predicate never ran. Whitespace-only strings have the
+same validator-level behavior. Adding `required` changes the accepted value
+domain as well as key presence.
 
-This is more than an optional-offset problem. Presence, blankness, whether a
-rule executes, and which original value reaches the output are separate states
-compressed into the same rule list.
+Laravel's standard HTTP middleware commonly trims strings and converts empty
+strings to `null`, so ordinary request flows may not expose this exact branch.
+Direct validators, jobs, tests, programmatically assembled data, and customized
+middleware stacks still do. Trimming alone is insufficient: it produces the
+empty string that bypasses the rule.
 
-Laravel's standard HTTP middleware stack commonly trims strings and converts
-empty strings to `null`. That often prevents this exact empty-string path in an
-ordinary HTTP request, and nullable fields must then account for `null`.
-Direct `Validator::make()` calls, jobs, tests, JSON or programmatically
-assembled data, and customized middleware stacks still expose the underlying
-validator behavior. Static reasoning about the validator cannot assume that a
-particular application middleware pipeline always ran first.
+The extension offers an explicit HTTP-normalization assumption for request and
+controller inference. It is an application assertion, not automatic middleware
+detection; skip callbacks, trim exceptions, and request mutation can invalidate
+it. Laravel's default password-related trim exceptions also differ between
+Laravel 10 and later supported majors, so even this preprocessing assumption is
+version-sensitive.
 
-Applications that guarantee the standard middleware pair runs before
-request-sourced validation can make that assumption explicit:
+## Validation is also projection
 
-```neon
-parameters:
-    phpstanLaravelValidation:
-        assumeHttpInputNormalization: true
-```
-
-For `Request::validate()` and controller `validate()` calls, the extension can
-then omit the blank-string bypass from non-exempt fields. The earlier optional
-`array` example becomes `array{filters?: array}`; `nullable|array` becomes
-`array{filters?: array|null}`. Direct validators retain the broader validator
-semantics regardless of this setting.
-
-This is an assertion about application behavior, not middleware detection.
-Both `TrimStrings` and `ConvertEmptyStringsToNull` must run: trimming alone
-turns whitespace into an empty string that still bypasses the rule. Laravel
-also supports middleware skip callbacks and trimming exceptions, and request
-code can mutate input afterward. Laravel 11 through 13 exclude
-`current_password`, `password`, and `password_confirmation` from trimming by
-default; Laravel 10 trims them. Version-aware inference preserves the
-blank-string branch on Laravel 11 through 13 and removes it on Laravel 10. If
-the full-framework version is unavailable, it keeps the branch conservatively.
-
-## Validation rules also control output projection
-
-Laravel's rule array is not merely a set of acceptance predicates. It is also a
-projection specification whose branches decide which successful input values
-appear in the result.
+Laravel's rule array does not merely decide whether input is acceptable. It
+also decides which successful values appear in the result and how nested
+output is reconstructed.
 
 ### Exclusion rules remove accepted input
 
-An exclusion rule can remove a present value from successful validated output:
+An exclusion rule can remove a present value from successful output:
 
 ```php
 $rules = [
@@ -297,25 +150,20 @@ Validator::make([
 ], $rules)->validated();
 // ['kind' => 'guest']
 
-$included = Validator::make([
+Validator::make([
     'kind' => 'member',
     'value' => 'visible',
 ], $rules)->validated();
 // ['kind' => 'member', 'value' => 'visible']
-
-\PHPStan\dumpType($included);
-// array{kind: string, value?: string}
 ```
 
-The input value is not merely conditionally valid. It is conditionally absent
-from the output. Without preserving the relationship to `kind`, the only
-honest structural summary gives `value` an optional offset. Treating validation
-as a field-by-field map of names to predicates misses this behavior entirely.
+The value is not merely conditionally valid. It is conditionally absent from
+the output. Without preserving the relationship to `kind`, the honest
+structural summary gives `value` an optional offset.
 
-### Nested arrays may retain keys no child rule validated
+### Nested rules decide which keys survive
 
-A bare array rule validates the parent as an array and then preserves every key
-inside it:
+A bare array rule validates the parent and preserves every nested key:
 
 ```php
 $input = [
@@ -326,34 +174,37 @@ $input = [
     ],
 ];
 
-$validated = Validator::make($input, [
+Validator::make($input, [
     'user' => 'required|array',
 ])->validated();
 
-// The complete user array is preserved, including admin and metadata.
-// array{user: array}
+// The complete user array is preserved.
 ```
 
 Laravel provides two different mechanisms that are easy to conflate:
 
-- `array:name` rejects an input array containing keys other than `name`.
+- `array:name` rejects an input array containing keys other than
+  `name`.
 - With the validator factory's default exclusion setting, adding
-  `user.name => required|string` rebuilds the parent from validated children
-  and omits siblings such as `admin` and `metadata`.
+  `user.name => required|string` rebuilds the parent from validated
+  children and omits unmentioned siblings.
 
-The first mechanism restricts which input keys may exist. The second projects
-selected children into the returned data. A bare `array` rule does neither, so
-inferring a closed nested shape from it would be unsound.
+The first restricts acceptable input keys. The second projects selected
+children into the output. A bare `array` rule does neither, so inferring a
+closed nested shape from it would be unsound. Whether a key survives depends on
+parent rules, child rules, and validator-factory configuration—not simply on a
+predicate attached to that key.
 
-This is a remarkable amount of output-construction policy hidden inside what
-looks like validation metadata. Whether an unmentioned nested key survives
-depends not only on the parent rule but also on the existence of child rules
-and validator-factory configuration.
-
-## Cross-field rules turn local declarations into runtime programs
+## Rules are runtime programs, not static schemas
 
 A rule attached to one field cannot necessarily be interpreted from that field
-alone. `accepted_if` changes its accepted values according to another field:
+alone. Paths may traverse runtime collections, other fields may activate or
+deactivate constraints, and callbacks or services may supply behavior that is
+not present in the rule expression.
+
+### Cross-field rules require correlated types
+
+`accepted_if` changes its accepted values according to another field:
 
 ```php
 $rules = [
@@ -374,23 +225,21 @@ Validator::make([
 // ['other' => 'match', 'value' => 'yes']
 ```
 
-Reading `accepted_if` as an unconditional restriction would exclude the valid
-`42` branch. A precise model must correlate the value of `other` with the value
-domain of `value`. Rules such as `required_if`, `required_with`, `exclude_if`,
-`exclude_unless`, and their relatives introduce similar relationships between
-one field's value, another field's presence, and the final output shape.
+Reading the rule as an unconditional local restriction excludes the valid
+`42` branch. A precise model must correlate `other` with the value
+domain of `value`. `required_if`, `required_with`,
+`exclude_if`, `exclude_unless`, and related rules introduce similar
+relationships between values, presence, and output shape.
 
-Declarative conditions can be modeled as unions of correlated shapes in
-principle. In practice, interacting conditions, missing and blank states,
-wildcards, and exclusions multiply branches quickly. Callback conditions and
-runtime services may not expose a static contract at all.
+Such conditions can be represented as unions of correlated shapes in
+principle. Interacting conditions, blank states, wildcards, and exclusions
+multiply branches quickly; callback conditions may provide no static contract
+at all. The apparently local declaration is a runtime program over the rest of
+the input.
 
-The rule appears local and declarative, but its actual contract is a small
-runtime program over the rest of the input.
+### Wildcards are quantified traversal
 
-## Wildcards are runtime traversal, not shape declarations
-
-A required wildcard descendant does not require any matching element to exist:
+A required wildcard descendant does not require any match to exist:
 
 ```php
 $validated = Validator::make([], [
@@ -403,133 +252,102 @@ $validated = Validator::make([], [
 // array{person?: array<int|string, array{email: non-empty-string}>}
 ```
 
-`required` applies to each element discovered by wildcard expansion. If there
-are no elements, there are no failed required checks and no `person` key in the
-result. The descendant is required while the collection containing it remains
+`required` applies to each element discovered by wildcard expansion. If
+there are no elements, there are no failed checks and no `person` key in
+the result. The descendant is required while its containing collection remains
 optional.
 
-The path is therefore not a shape declaration. It describes traversal over
-runtime data, quantification over whatever elements happen to be present,
-validation of each match, and construction of corresponding output paths. A
-rule name cannot be understood without its position in that traversal.
-
-## One rule language combines unrelated responsibilities
-
-Consider a compact rule set:
-
-```php
-[
-    'status' => 'required|string|in:draft,published',
-    'payload' => 'required_if:status,published|exclude_unless:status,published|array:id',
-    'payload.id' => 'required_with:payload|integer|string',
-]
-```
-
-The same array encodes all of the following:
-
-- key presence;
-- blank-value policy and whether predicates run;
-- value predicates and coercive comparisons;
-- cross-field dependencies;
-- wildcard traversal over runtime collections;
-- inclusion in or exclusion from validated output;
-- reconstruction and projection of nested arrays;
-- database-backed checks such as `exists` and `unique`; and
-- application-defined rules, callbacks, and validator extensions.
-
-These are not one clean operation. Their interactions determine validation
-success, native value types, key presence, and output shape. The string syntax
-provides little language-level identity for IDE navigation or refactoring, and
-a change that looks local can alter several parts of the runtime contract.
-
-Laravel validation is difficult to type soundly because its rule language
-describes several loosely coupled runtime operations rather than one coherent
-data transformation. The resulting complexity belongs to the validation
-system, even when static analysis is where it finally becomes visible.
+This path is not a shape declaration. It combines traversal, quantification
+over runtime elements, validation of each match, and construction of matching
+output paths.
 
 ### The language is open-ended at runtime
 
-Rule expressions can also be assembled dynamically or obtained from arbitrary
-services:
+Rules can be assembled dynamically or obtained from arbitrary services:
 
 ```php
 $rules = app(TenantValidationRules::class)->forRequest($request);
 $validated = Validator::make($request->all(), $rules)->validated();
 ```
 
-Runtime-aware tooling can sometimes recover this information. Larastan, for
-example, boots the application and may resolve services through Laravel's
-container during analysis. That is analysis-time execution of application
-infrastructure, not a contract expressed by the rule expression itself, and it
-makes the result dependent on application bootstrap and state available during
-analysis. `phpstan-laravel-validation` does not currently use that strategy.
+A declared return type, source analysis, or project-specific PHPStan extension
+may recover a contract. Larastan can go further by
+[booting the Laravel application](https://github.com/larastan/larastan/blob/89ee3e54b6f6bd5aec43da8e9d4c2ac6b36e6ffc/bootstrap.php)
+and sometimes
+[resolving services through the container](https://github.com/larastan/larastan/blob/89ee3e54b6f6bd5aec43da8e9d4c2ac6b36e6ffc/src/ReturnTypes/AppMakeHelper.php).
+That is analysis-time execution of application infrastructure, not a contract
+expressed at the call site, and its result depends on the available bootstrap
+and application state. `phpstan-laravel-validation` does not currently use
+that strategy.
 
-A declared return type, source analysis, or a project-specific PHPStan
-extension may provide a static contract for such code. Without one, neither a
-human reader nor an expression-level analyzer can derive a precise shape from
-the call site. Custom rule objects and validator extensions add semantics that
-are absent from Laravel's built-in rule language altogether.
+Custom rule objects, closures, and registered validator extensions add runtime
+semantics absent from Laravel's built-in language. This extension preserves
+conservative inference for unknown custom predicates and lets projects provide
+a trusted accepted-value contract through configuration, a
+`ValidationRuleType` attribute, or an
+`@laravel-validation-type` PHPDoc tag. Registered string rule names require
+configuration because the extension does not boot the application to discover
+them.
 
-`phpstan-laravel-validation` can preserve conservative inference when a
-statically visible rule array contains an unknown custom predicate object or
-closure. The unknown predicate contributes `mixed` rather than destroying the
-types established by adjacent built-in rules. Projects can supply a trusted
-accepted-value contract through configuration, a `ValidationRuleType`
-attribute, or an `@laravel-validation-type` PHPDoc tag. Registered string rule
-names require an explicit configured contract because this extension does not
-boot the application to discover registrations.
+Those declarations describe original values preserved after a custom predicate
+succeeds. They do not infer arbitrary mutation, implicitness, or output
+projection, and an incorrect declaration is unsound just like incorrect
+PHPDoc. Widening is not a tooling failure when analysis has no usable contract
+for runtime behavior. Silently inventing one would be.
 
-Those contracts do not make Laravel's runtime language closed. They are
-project assertions about original values preserved after a custom predicate
-succeeds. They do not infer implicitness, output projection, or arbitrary
-validator mutation. An incorrect contract is unsound in the same way that
-incorrect PHPDoc is unsound. Arbitrary stringable, conditional, and nested rule
-builders remain structurally opaque when their expanded rules are unavailable.
+### One string language combines unrelated responsibilities
+
+A Laravel rule array encodes all of the following:
+
+- key presence and blank-value policy;
+- value predicates and coercive comparisons;
+- cross-field dependencies;
+- wildcard traversal;
+- output inclusion, exclusion, and nested reconstruction;
+- database-backed checks such as `exists` and `unique`; and
+- application-defined callbacks, objects, and registered extensions.
+
+These are not one clean operation. Their interactions determine validation
+success, native value types, key presence, and output shape. Laravel validation
+is difficult to type soundly because its rule language describes several
+loosely coupled runtime operations rather than one coherent data
+transformation.
 
 ## Soundness versus precision
 
-In this document, **soundness** means that a static type includes every value
-Laravel can return after successful validation. If Laravel can preserve `true`
-but a type reports only `string`, the type is unsound.
+Here, **soundness** means that a static type includes every value Laravel can
+return after successful validation. If Laravel can preserve `true` but the
+type reports only `string`, the type is unsound.
 
-**Precision** describes how much useful information remains in a sound type.
-`mixed` may be sound but nearly useless; a union can be sound and substantially
-more informative. Neither property requires a class. A sound inferred array
-shape provides genuine static type safety for downstream PHPStan analysis.
+**Precision** describes how much useful information remains. `mixed` may be
+sound but nearly useless; a union can be sound and substantially more
+informative. Neither property requires a class. A sound inferred array shape
+provides genuine static type safety.
 
-Laravel's semantics force some types to be broad or optional:
-
-| Situation | Honest structural description | Why |
+| Situation | Honest structural description | Distinct cause |
 | --- | --- | --- |
-| `required\|integer` | `float\|int\|numeric-string\|Stringable\|true` | PHP's integer filter accepts several preserved native types. |
-| `required\|alpha_num` | `float\|int<0, max>\|non-empty-string` | Laravel applies a string regex to strings and numeric scalars, then preserves the original value. |
-| `required\|in:1` | `float\|int\|numeric-string\|Stringable\|true` | Coercive comparison accepts multiple preserved native types. |
-| optional `array` | optional `array\|string` | A blank string can bypass the predicate. |
-| conditional acceptance | a broad value when the branch is unknown | The inactive branch accepts values excluded by the active branch. |
+| `required` with `integer` | `float`, `int`, `numeric-string`, `Stringable`, or `true` | Laravel preserves several native representations admitted by the predicate. |
+| optional `array` | optional `array` or `string` | A blank string can bypass the predicate. |
+| conditional acceptance | a broad value when the branch is unknown | An inactive branch accepts values excluded by the active branch. |
 | conditional exclusion | an optional output offset | A present input can be removed from the result. |
 | wildcard-only descendants | an optional parent offset | Wildcard expansion can find no elements. |
 | bare `array` | a general `array` value | Unspecified nested keys are retained. |
-| unknown custom predicate | `mixed`, intersected with known adjacent predicates | Runtime code has no usable accepted-value contract. |
+| unknown custom predicate | `mixed`, intersected with adjacent known predicates | Runtime behavior has no usable static contract. |
 
-For a static analyzer, an attractive type that excludes successful Laravel
-output is worse than a broad type. A broad inferred type is sometimes the only
-honest description of Laravel's contract.
+Some breadth is required by Laravel's runtime behavior; some reflects static
+information that is unavailable or not yet supported by the analyzer. That
+distinction matters. It prevents incomplete tooling from being excused as a
+framework limitation, while preventing tooling from disguising Laravel's
+behavior with a narrower false type.
 
-Not every loss of precision is inherent. There are two distinct sources:
-
-- breadth required by Laravel's actual runtime semantics; and
-- breadth caused by static information that is unavailable or not yet
-  supported by a particular analyzer.
-
-That distinction prevents Laravel's design problems from becoming an excuse
-for incomplete tooling, while also preventing tooling from disguising the
-framework's behavior with a narrower and false type.
+A broad inferred type is sometimes the only honest description of successful
+Laravel output.
 
 ## What static analysis can salvage
 
 Laravel's validation APIs normally expose successful output as a general
 `array`. For supported, statically resolvable rule expressions,
-`phpstan-laravel-validation` can recover a much more useful structural type:
+`phpstan-laravel-validation` can recover a useful structural type:
 
 ```php
 $validated = Validator::make($input, [
@@ -541,103 +359,48 @@ $validated = Validator::make($input, [
 // array{email: non-empty-string, amount: numeric-string}
 ```
 
-The extension can infer nested shapes, optional offsets, and unions; track
-supported validator unions and constant `setRules()` replacements; and retain
-`mixed` where a known field has no usable static value contract. When the rule
-array itself cannot be resolved, PHPStan generally keeps Laravel's broad
-declared return type.
+For combinations covered by the implementation and conformance tests, the
+extension can infer nested shapes, optional offsets, preserved-value unions,
+and verified Laravel-version boundaries. It tracks supported validator unions
+and constant `setRules()` replacements, applies declared custom-rule
+contracts, and retains `mixed` where a field has no usable value contract.
+When the rule expression itself cannot be resolved, PHPStan generally keeps
+Laravel's broad declared return type.
 
-For custom predicate objects and closures inside an otherwise resolvable rule
-array, conservative inference continues without requiring Larastan. Explicit
-configuration, `ValidationRuleType`, or `@laravel-validation-type` contracts
-can recover a narrower accepted-value type. Built-in presence, nullability,
-blank-value, exclusion, wildcard, and projection rules continue to determine
-the surrounding shape.
+It cannot make Laravel normalize values, derive precise contracts from
+arbitrary runtime code, model arbitrary validator mutation or projection, or
+guarantee behavior for unsupported combinations and future framework releases.
+The extension aims to infer sound and useful structural types for supported
+combinations covered by adversarial conformance tests; it remains experimental,
+and finite tests do not prove universal soundness.
 
-The extension cannot repair Laravel's runtime semantics. It can stop
-downstream code from assuming a prettier contract than Laravel actually
-provides. In that sense, the inferred type is both mitigation and evidence: an
-ugly union often records an ugly framework behavior rather than an analyzer
-failure.
-
-Soundness claims remain deliberately scoped. The project aims to infer sound
-and useful structural types and provides sound inference for supported
-combinations covered by adversarial conformance tests. It remains experimental;
-finite fixtures and tests do not prove every Laravel rule, custom extension, or
-runtime configuration universally sound.
-
-### Additional sources of static information
-
-Precision for dynamic rule sources can sometimes be recovered through declared
-contracts or other PHPStan extensions. Larastan, for example,
-[`boots the Laravel application`](https://github.com/larastan/larastan/blob/89ee3e54b6f6bd5aec43da8e9d4c2ac6b36e6ffc/bootstrap.php),
-and some of its return-type support
-[`resolves services through the container`](https://github.com/larastan/larastan/blob/89ee3e54b6f6bd5aec43da8e9d4c2ac6b36e6ffc/src/ReturnTypes/AppMakeHelper.php).
-
-`phpstan-laravel-validation` does not currently boot the application or execute
-services to discover rules. Runtime-aware analysis can recover information, but
-it also makes results depend on application bootstrap, configuration,
-registered providers, and the analysis environment.
-
-Widening is not a tooling failure when analysis has no usable contract for
-runtime behavior. Silently inventing one would be.
+The extension cannot repair Laravel's runtime contract. It can prevent
+downstream code from assuming a prettier and false one. An ugly union is often
+evidence of ugly framework behavior rather than analyzer failure.
 
 ## Architectural alternatives for new code
 
-Structural inference is genuine static type safety. The objection to Laravel
-validation is its irregular runtime contract, not the mere fact that
+Structural array-shape inference is genuine static type safety. The objection
+to Laravel validation is its irregular runtime contract, not the fact that
 `validated()` returns an array.
 
-Applications may independently prefer DTOs, schema objects, explicit parsers,
-or a typed object mapper such as
+Applications may prefer DTOs, schema objects, explicit parsers, or a typed
+object mapper such as
 [`cuyz/valinor`](https://github.com/CuyZ/Valinor) when they also want
 normalization, nominal identity, runtime-enforced properties, or a named
-architectural boundary. Those are separate advantages rather than prerequisites
-for useful array-shape inference.
+architectural boundary. Those are separate advantages, not prerequisites for
+useful array-shape inference.
 
-Laravel validation can continue to perform runtime domain checks while static
+Laravel validation can still perform runtime domain checks while static
 analysis describes its result. For new type-conscious code, a boundary whose
-output contract is explicit and normalized is usually easier to understand and
-maintain than reconstructing a type from Laravel's interacting rule semantics.
-
-## What the project can and cannot promise
-
-For supported, statically resolvable rule combinations covered by conformance
-tests, `phpstan-laravel-validation` can:
-
-- infer useful nested array shapes and optional offsets;
-- preserve sound unions when Laravel accepts multiple native input types;
-- distinguish verified Laravel-version boundaries when the analyzed version
-  is available;
-- track supported validator unions and constant `setRules()` replacements;
-- tolerate unknown custom predicate objects and closures without discarding
-  adjacent built-in inference;
-- apply explicit accepted-value contracts for custom rule classes and
-  registered string names;
-- expose assumptions that conflict with Laravel's successful output; and
-- make incremental static typing practical in applications that already use
-  Laravel validation.
-
-It cannot:
-
-- make Laravel normalize values that it preserves;
-- derive a precise accepted-value type for arbitrary callbacks, custom rule
-  objects, validator extensions, or runtime-generated rule arrays without a
-  static contract;
-- infer custom-rule mutation of validator data, rules, or output projection;
-- guarantee precise types for unsupported rule combinations or runtime
-  configuration invisible to analysis;
-- eliminate behavior differences introduced by future Laravel versions; or
-- provide nominal identity or runtime property enforcement for an array.
-
-This library is a compatibility-focused static-analysis layer, not an
-endorsement of Laravel validation for new code.
+output contract is explicit and normalized is usually easier to understand
+than reconstructing a type from Laravel's interacting rule semantics.
 
 ## Verification methodology
 
-The concrete Laravel behaviors in this document are tested against Laravel
-itself rather than inferred from rule names. The repository supports Laravel
-10 through 13, and its committed upstream fixtures are pinned to:
+The concrete behaviors in this document are tested against Laravel itself
+rather than inferred from rule names. The repository supports Laravel 10
+through 13, and its committed upstream fixtures are pinned to:
 
 | Laravel | Release | Commit |
 | --- | --- | --- |
@@ -646,65 +409,52 @@ itself rather than inferred from rule names. The repository supports Laravel
 | 12 | 12.64.0 | [`727a8ea2949c`](https://github.com/laravel/framework/commit/727a8ea2949c23ca8b5316b86a00984b6017b7a0) |
 | 13 | 13.23.0 | [`92a707229148`](https://github.com/laravel/framework/commit/92a707229148e57f08a249211c8a5a194159c619) |
 
-The [CI matrix](../.github/workflows/ci.yml) installs every supported Laravel
-major, its first release, and known semantic boundary releases, then runs the
-complete PHPUnit suite. The separate
+The [CI matrix](../.github/workflows/ci.yml) installs every supported major,
+its first release, and known semantic boundary releases, then runs the complete
+PHPUnit suite. The separate
 [Laravel-version inference audit](laravel-version-inference-audit.md) records
-the boundary profiles, runtime snapshots, and audit limitations. Runtime
-methods in the table below are defined in
+boundary profiles, runtime snapshots, and audit limitations.
+
+Runtime methods in the table below are defined in
 [`tests/LaravelInferenceTest.php`](../tests/LaravelInferenceTest.php) and
 [`tests/CustomRulesLaravelRuntimeTest.php`](../tests/CustomRulesLaravelRuntimeTest.php).
-The main documented claims map to the following persistent coverage:
 
 | Claim | Laravel runtime coverage | PHPStan inference coverage |
 | --- | --- | --- |
 | `integer` can preserve non-integers | `LaravelInferenceTest::testIntegerRuleCanPreserveNonIntegerValues` | [`tests/rules/integer.php`](../tests/rules/integer.php) |
 | `integer:strict` differs by Laravel release | `LaravelInferenceTest::testIntegerStrictRuleFollowsRuntimeSupport` and `testIntegerStrictRuleAcceptsAndPreservesNativeInteger` | Boundary coverage in [`tests/TypeResolverTest.php`](../tests/TypeResolverTest.php), [`tests/version-aware/inference.php`](../tests/version-aware/inference.php), and the version-audit snapshots |
-| `alpha_num` and `alpha_dash` preserve numeric scalars | `LaravelInferenceTest::testAlphaRulesCanPreserveNumericValues` | [`tests/rules/alpha-num.php`](../tests/rules/alpha-num.php) and [`tests/rules/alpha-dash.php`](../tests/rules/alpha-dash.php) |
-| `ascii` coercion differs by Laravel release | `LaravelInferenceTest::testAsciiRuleCoercionFollowsRuntimeSupport`, `testAsciiRuleCanPreserveResourcesOnCoerciveVersions`, and `testAsciiRuleCanPreserveArraysWhenWarningsAreHandled` | Boundary coverage in [`tests/TypeResolverTest.php`](../tests/TypeResolverTest.php), [`tests/version-aware/inference.php`](../tests/version-aware/inference.php), and the version-audit snapshots |
-| `json` preserves accepted scalars and stringable objects | `LaravelInferenceTest::testJsonRuleCanPreserveNonStringValues` | [`tests/rules/json.php`](../tests/rules/json.php) |
-| Date rules preserve numeric scalars and date objects | `LaravelInferenceTest::testDateRulesCanPreserveNumericScalars` and `testDateAndComparisonRulesPreserveDateTimeObjects` | [`tests/rules/date.php`](../tests/rules/date.php), [`tests/rules/date-format.php`](../tests/rules/date-format.php), and comparison fixtures under [`tests/rules`](../tests/rules) |
 | Scalar `in` preserves coercible inputs | `LaravelInferenceTest::testScalarInRuleAcceptsRuntimeValues` | [`tests/rules/in.php`](../tests/rules/in.php) |
 | Optional blanks bypass non-implicit rules | `LaravelInferenceTest::testBlankStringBypassesOptionalNonImplicitRules` | [`tests/structure/empty-string.php`](../tests/structure/empty-string.php) |
-| `TrimStrings` alone does not eliminate blank bypass | `LaravelInferenceTest::testTrimStringsAloneDoesNotEliminateBlankStringBypass` | Raw request coverage in [`tests/structure/request.php`](../tests/structure/request.php) |
-| Default HTTP normalization changes blank behavior | `LaravelInferenceTest::testDefaultHttpInputNormalizationChangesOptionalBlankBehavior` and `testDefaultPasswordTrimExceptionVariesByLaravelMajor` | Laravel 10-configured coverage in [`tests/normalized/request.php`](../tests/normalized/request.php) and Laravel 13-configured coverage in [`tests/version-aware/inference.php`](../tests/version-aware/inference.php) |
+| HTTP normalization changes blank behavior | `LaravelInferenceTest::testDefaultHttpInputNormalizationChangesOptionalBlankBehavior`, `testTrimStringsAloneDoesNotEliminateBlankStringBypass`, and `testDefaultPasswordTrimExceptionVariesByLaravelMajor` | [`tests/normalized/request.php`](../tests/normalized/request.php), [`tests/structure/request.php`](../tests/structure/request.php), and [`tests/version-aware/inference.php`](../tests/version-aware/inference.php) |
 | Conditional acceptance broadens values | `LaravelInferenceTest::testConditionalValueRulesRemainConservative` | [`tests/rules/accepted-if.php`](../tests/rules/accepted-if.php) |
 | Conditional exclusion changes shape | `LaravelInferenceTest::testConditionalExclusionChangesTheValidatedShape` | [`tests/rules/exclude-if.php`](../tests/rules/exclude-if.php) |
 | Required wildcard descendants may match nothing | `LaravelInferenceTest::testRequiredWildcardDescendantDoesNotRequireMissingParent` | [`tests/structure/wildcard.php`](../tests/structure/wildcard.php) |
-| Wildcard and named paths can project overlapping values | `LaravelInferenceTest::testWildcardAndNamedRulesProjectOverlappingScalarValues` and `testWildcardAndNamedRulesProjectOverlappingNestedValues` | [`tests/structure/wildcard.php`](../tests/structure/wildcard.php) |
 | Bare arrays preserve nested keys | `LaravelInferenceTest::testArrayRuleWithoutKeyParametersPreservesNestedKeys` | [`tests/rules/array.php`](../tests/rules/array.php) |
 | Array key lists reject undeclared keys | `LaravelInferenceTest::testArrayRuleKeyParametersRejectUndeclaredNestedKeys` | [`tests/rules/array.php`](../tests/rules/array.php) |
 | Nested child rules project validated keys | `LaravelInferenceTest::testParentAndChildRulesAcceptRuntimeOutput` | [`tests/structure/parent-rules.php`](../tests/structure/parent-rules.php) |
 | Custom predicates preserve successful original values | `CustomRulesLaravelRuntimeTest::testObjectRulesPreserveSuccessfulValuesAndRejectOthers`, `testClosureRulePreservesSuccessfulOriginalValue`, and `testRegisteredStringRulePreservesSuccessfulOriginalValue` | [`tests/custom-rules/inference.php`](../tests/custom-rules/inference.php) |
-| Optional blanks bypass non-implicit custom rules | `CustomRulesLaravelRuntimeTest::testOptionalBlankStringBypassesNonImplicitObjectRule` and `testImplicitObjectRuleRunsForBlankString` | [`tests/custom-rules/inference.php`](../tests/custom-rules/inference.php) |
 
-The generated fixtures under [`tests/fixtures`](../tests/fixtures) add broad
-coverage from Laravel's own validation tests and record their exact upstream
-provenance. They include Laravel's array, allowed-key, and nested projection
-cases. A fixture proves that an inferred type accepts the observed successful
-output; it does not prove that one observation exhausts every value a rule can
-accept. The focused adversarial tests above support the specific claims made
-here.
+Generated fixtures under [`tests/fixtures`](../tests/fixtures) add broad
+coverage from Laravel's own validation tests and record exact upstream
+provenance. A fixture proves that an inferred type accepts an observed
+successful output; it does not prove that one observation exhausts every value
+a rule can accept. Focused adversarial tests support the specific claims above.
 
-Static coverage confirms the type the extension emits. Runtime coverage checks
-Laravel's actual successful output. Expected types are changed only after
-checking Laravel behavior, and runtime-only evidence is not presented as
-completed static inference support.
+Static coverage confirms the emitted type. Runtime coverage checks Laravel's
+actual successful output. Expected types are changed only after checking
+Laravel behavior, and runtime-only evidence is not presented as completed
+static support.
 
-Last reviewed: 2026-08-06.
+Last reviewed: 2026-08-07.
 
 ## Conclusion
 
-Laravel validation is not a typed data boundary. It is a pile of coercive
-predicates, presence rules, cross-field conditions, wildcard traversal, and
-output projection disguised as a compact schema language.
+Laravel validation does not perform one coherent typed transformation. It
+tests predicates against preserved input, projects output through interacting
+rules, and executes conditional traversal over runtime data.
 
-A sound analyzer cannot make that underlying contract coherent. It can only
-expose it. When a simple rule produces an ugly union, the ugly type is Laravel's
-behavior with the wishful thinking removed.
+A sound analyzer cannot make that contract cleaner than it is. It can only
+prevent downstream code from relying on a prettier fiction.
 
-`phpstan-laravel-validation` mitigates the damage for existing applications.
-For new type-conscious code, Laravel validation is the wrong foundation.
-
-This project is a mitigation—not a vindication. This document is a
-condemnation.
+`phpstan-laravel-validation` is a mitigation for existing applications, not a
+vindication of Laravel validation as a foundation for new type-conscious code.
