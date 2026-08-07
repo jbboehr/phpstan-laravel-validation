@@ -467,8 +467,24 @@ analysis. `phpstan-laravel-validation` does not currently use that strategy.
 A declared return type, source analysis, or a project-specific PHPStan
 extension may provide a static contract for such code. Without one, neither a
 human reader nor an expression-level analyzer can derive a precise shape from
-the call site. Custom rule objects and validator extensions can add semantics
-that are absent from Laravel's built-in rule language altogether.
+the call site. Custom rule objects and validator extensions add semantics that
+are absent from Laravel's built-in rule language altogether.
+
+`phpstan-laravel-validation` can preserve conservative inference when a
+statically visible rule array contains an unknown custom predicate object or
+closure. The unknown predicate contributes `mixed` rather than destroying the
+types established by adjacent built-in rules. Projects can supply a trusted
+accepted-value contract through configuration, a `ValidationRuleType`
+attribute, or an `@laravel-validation-type` PHPDoc tag. Registered string rule
+names require an explicit configured contract because this extension does not
+boot the application to discover registrations.
+
+Those contracts do not make Laravel's runtime language closed. They are
+project assertions about original values preserved after a custom predicate
+succeeds. They do not infer implicitness, output projection, or arbitrary
+validator mutation. An incorrect contract is unsound in the same way that
+incorrect PHPDoc is unsound. Arbitrary stringable, conditional, and nested rule
+builders remain structurally opaque when their expanded rules are unavailable.
 
 ## Soundness versus precision
 
@@ -493,6 +509,7 @@ Laravel's semantics force some types to be broad or optional:
 | conditional exclusion | an optional output offset | A present input can be removed from the result. |
 | wildcard-only descendants | an optional parent offset | Wildcard expansion can find no elements. |
 | bare `array` | a general `array` value | Unspecified nested keys are retained. |
+| unknown custom predicate | `mixed`, intersected with known adjacent predicates | Runtime code has no usable accepted-value contract. |
 
 For a static analyzer, an attractive type that excludes successful Laravel
 output is worse than a broad type. A broad inferred type is sometimes the only
@@ -529,6 +546,13 @@ supported validator unions and constant `setRules()` replacements; and retain
 `mixed` where a known field has no usable static value contract. When the rule
 array itself cannot be resolved, PHPStan generally keeps Laravel's broad
 declared return type.
+
+For custom predicate objects and closures inside an otherwise resolvable rule
+array, conservative inference continues without requiring Larastan. Explicit
+configuration, `ValidationRuleType`, or `@laravel-validation-type` contracts
+can recover a narrower accepted-value type. Built-in presence, nullability,
+blank-value, exclusion, wildcard, and projection rules continue to determine
+the surrounding shape.
 
 The extension cannot repair Laravel's runtime semantics. It can stop
 downstream code from assuming a prettier contract than Laravel actually
@@ -586,6 +610,10 @@ tests, `phpstan-laravel-validation` can:
 - distinguish verified Laravel-version boundaries when the analyzed version
   is available;
 - track supported validator unions and constant `setRules()` replacements;
+- tolerate unknown custom predicate objects and closures without discarding
+  adjacent built-in inference;
+- apply explicit accepted-value contracts for custom rule classes and
+  registered string names;
 - expose assumptions that conflict with Laravel's successful output; and
 - make incremental static typing practical in applications that already use
   Laravel validation.
@@ -593,8 +621,10 @@ tests, `phpstan-laravel-validation` can:
 It cannot:
 
 - make Laravel normalize values that it preserves;
-- infer arbitrary callbacks, custom rule objects, validator extensions, or
-  runtime-generated rule arrays without a static contract;
+- derive a precise accepted-value type for arbitrary callbacks, custom rule
+  objects, validator extensions, or runtime-generated rule arrays without a
+  static contract;
+- infer custom-rule mutation of validator data, rules, or output projection;
 - guarantee precise types for unsupported rule combinations or runtime
   configuration invisible to analysis;
 - eliminate behavior differences introduced by future Laravel versions; or
@@ -622,8 +652,9 @@ complete PHPUnit suite. The separate
 [Laravel-version inference audit](laravel-version-inference-audit.md) records
 the boundary profiles, runtime snapshots, and audit limitations. Runtime
 methods in the table below are defined in
-[`tests/LaravelInferenceTest.php`](../tests/LaravelInferenceTest.php). The main
-documented claims map to the following persistent coverage:
+[`tests/LaravelInferenceTest.php`](../tests/LaravelInferenceTest.php) and
+[`tests/CustomRulesLaravelRuntimeTest.php`](../tests/CustomRulesLaravelRuntimeTest.php).
+The main documented claims map to the following persistent coverage:
 
 | Claim | Laravel runtime coverage | PHPStan inference coverage |
 | --- | --- | --- |
@@ -644,6 +675,8 @@ documented claims map to the following persistent coverage:
 | Bare arrays preserve nested keys | `LaravelInferenceTest::testArrayRuleWithoutKeyParametersPreservesNestedKeys` | [`tests/rules/array.php`](../tests/rules/array.php) |
 | Array key lists reject undeclared keys | `LaravelInferenceTest::testArrayRuleKeyParametersRejectUndeclaredNestedKeys` | [`tests/rules/array.php`](../tests/rules/array.php) |
 | Nested child rules project validated keys | `LaravelInferenceTest::testParentAndChildRulesAcceptRuntimeOutput` | [`tests/structure/parent-rules.php`](../tests/structure/parent-rules.php) |
+| Custom predicates preserve successful original values | `CustomRulesLaravelRuntimeTest::testObjectRulesPreserveSuccessfulValuesAndRejectOthers`, `testClosureRulePreservesSuccessfulOriginalValue`, and `testRegisteredStringRulePreservesSuccessfulOriginalValue` | [`tests/custom-rules/inference.php`](../tests/custom-rules/inference.php) |
+| Optional blanks bypass non-implicit custom rules | `CustomRulesLaravelRuntimeTest::testOptionalBlankStringBypassesNonImplicitObjectRule` and `testImplicitObjectRuleRunsForBlankString` | [`tests/custom-rules/inference.php`](../tests/custom-rules/inference.php) |
 
 The generated fixtures under [`tests/fixtures`](../tests/fixtures) add broad
 coverage from Laravel's own validation tests and record their exact upstream
@@ -658,7 +691,7 @@ Laravel's actual successful output. Expected types are changed only after
 checking Laravel behavior, and runtime-only evidence is not presented as
 completed static inference support.
 
-Last reviewed: 2026-08-05.
+Last reviewed: 2026-08-06.
 
 ## Conclusion
 

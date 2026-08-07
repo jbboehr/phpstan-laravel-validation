@@ -131,6 +131,79 @@ validation cannot observe values introduced afterward by request mutation.
 Projects with custom trimming exceptions or `skipWhen()` callbacks should
 leave it disabled.
 
+### Custom validation rules
+
+Unknown custom rule objects and closures no longer prevent inference for the
+rest of a statically resolvable rule set. They contribute no value narrowing,
+so built-in rules remain useful:
+
+```php
+$validated = Validator::make($input, [
+    'reference' => ['required', 'string', new ValidReference()],
+])->validated();
+
+\PHPStan\dumpType($validated);
+// array{reference: string}
+```
+
+When a custom rule has a trustworthy static contract, declare the upper bound
+of the original values it can preserve after successful validation. A class
+can use the provided attribute:
+
+```php
+use jbboehr\PhpstanLaravelValidation\Attribute\ValidationRuleType;
+
+#[ValidationRuleType('non-empty-string')]
+final class ValidReference implements \Illuminate\Contracts\Validation\ValidationRule
+{
+    // ...
+}
+```
+
+The equivalent PHPDoc form is useful when an attribute is undesirable:
+
+```php
+/** @laravel-validation-type non-empty-string */
+final class ValidReference implements \Illuminate\Contracts\Validation\ValidationRule
+{
+    // ...
+}
+```
+
+Configuration can override either class-local declaration and can also type
+third-party rule classes or registered string rule names:
+
+```neon
+parameters:
+    phpstanLaravelValidation:
+        customRules:
+            classes:
+                App\Rules\ValidReference: non-empty-string
+            names:
+                valid_reference: non-empty-string
+```
+
+Precedence is configuration, then the attribute, then PHPDoc. Registered names
+are normalized like Laravel rule names, so `valid_reference`,
+`valid-reference`, and `ValidReference` use the same configured contract.
+Malformed configuration, attribute, or PHPDoc contracts fail analysis rather
+than silently widening the affected rule to `mixed`.
+
+These are value-only contracts. They do not make a field required, declare a
+rule implicit, transform a value, or control output projection. For example,
+an optional custom `int` rule still produces `int|string` because a blank
+string may bypass a non-implicit rule; combining it with `required` produces
+`int`. The extension assumes custom rules act as predicates and preserve the
+input value. A contract is unsound if the rule accepts values outside its
+declared type or mutates validator data, rules, or validated output.
+
+Arbitrary stringable rule builders, conditional rule builders, and nested rule
+builders may encode presence or projection behavior. When their structure
+cannot be recovered statically, the affected path is widened rather than
+pretending they are ordinary value predicates. Larastan is not required for
+custom-rule support, and this extension does not boot the application to
+discover registered aliases.
+
 ## Caveats
 
 * Laravel validation generally does not normalize returned values, so, for example, `numeric` produces the type union `int|float|numeric-string`. If you know it will always be a string, you can refine the type by using `numeric|string` and get a plain `numeric-string`.
@@ -140,7 +213,9 @@ leave it disabled.
   array type when that version is unavailable.
 * Wildcard collections may have integer or string keys. When wildcard and named rules share a parent, inference conservatively unions their possible projected value types because it cannot preserve every key correlation.
 * Larastan provides its own stub for `Illuminate\Validation\Validator`, and PHPStan does not merge multiple stubs for the same class. When both extensions are installed, Larastan's stub takes precedence, so an ignored `setRules()` return can leave the validator's previously inferred rules in place. Chain the call (`$validator->setRules($rules)->validated()`) or assign its return value (`$validator = $validator->setRules($rules)`) to infer constant replacement rules correctly.
-* Custom validation rules, implicit rules, and enums are not currently supported.
+* Custom-rule contracts describe accepted values only. Custom implicitness and
+  custom output mutation remain conservatively modeled; enums are not
+  currently supported.
 
 ## Development
 

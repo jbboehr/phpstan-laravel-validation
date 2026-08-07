@@ -76,6 +76,7 @@ jobs:
                   phpstan/phpstan
                   phpstan/phpstan-phpunit
                   phpstan/phpstan-strict-rules
+                  friendsofphp/php-cs-fixer
                   --with phpstan/phpstan:2.1.5
                   --with-all-dependencies
                   --prefer-dist
@@ -277,6 +278,8 @@ jobs:
               run: composer --working-dir=tools/infection install --prefer-dist --no-progress
 
             - name: Run mutation tests
+              env:
+                  COMPOSER_PROCESS_TIMEOUT: 900
               run: composer infection -- --logger-github=false
 
     larastan:

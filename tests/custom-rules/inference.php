@@ -93,6 +93,11 @@ $contractedNested = Validator::make([], [
 ])->validated();
 assertType('array{items?: array<int|string, array{code: non-empty-string}>}', $contractedNested);
 
+$nullable = Validator::make([], [
+    'value' => ['nullable', new IntegerRule()],
+])->validated();
+assertType('array{value?: int|string|null}', $nullable);
+
 $implicit = Validator::make([], [
     'value' => new ImplicitStringRule(),
 ])->validated();
