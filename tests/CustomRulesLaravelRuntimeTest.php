@@ -24,11 +24,14 @@ namespace jbboehr\PhpstanLaravelValidation\Test;
 use Illuminate\Translation\ArrayLoader;
 use Illuminate\Translation\Translator;
 use Illuminate\Validation\Factory;
+use jbboehr\PhpstanLaravelValidation\Test\CustomRules\AttributeRule;
 use jbboehr\PhpstanLaravelValidation\Test\CustomRules\DataAwareIntegerRule;
+use jbboehr\PhpstanLaravelValidation\Test\CustomRules\ImplicitStringRule;
 use jbboehr\PhpstanLaravelValidation\Test\CustomRules\IntegerRule;
 use jbboehr\PhpstanLaravelValidation\Test\CustomRules\InvokableIntegerRule;
 use jbboehr\PhpstanLaravelValidation\Test\CustomRules\LegacyImplicitIntegerRule;
 use jbboehr\PhpstanLaravelValidation\Test\CustomRules\LegacyIntegerRule;
+use jbboehr\PhpstanLaravelValidation\Test\CustomRules\PhpDocRule;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -37,23 +40,28 @@ require_once __DIR__ . '/CustomRules/Rules.php';
 final class CustomRulesLaravelRuntimeTest extends TestCase
 {
     /**
-     * @return iterable<string, array{object}>
+     * @return iterable<string, array{mixed, mixed, object}>
      */
     public static function integerRules(): iterable
     {
-        yield 'modern validation rule' => [new IntegerRule()];
-        yield 'legacy validation rule' => [new LegacyIntegerRule()];
-        yield 'legacy invokable rule' => [new InvokableIntegerRule()];
+        yield 'modern validation rule' => [42, '42', new IntegerRule()];
+        yield 'attributed modern rule' => ['value', '', new AttributeRule()];
+        yield 'PHPDoc modern rule' => [1, 0, new PhpDocRule()];
+        yield 'legacy validation rule' => [42, '42', new LegacyIntegerRule()];
+        yield 'legacy invokable rule' => [42, '42', new InvokableIntegerRule()];
     }
 
     #[DataProvider('integerRules')]
-    public function testObjectRulesPreserveSuccessfulValuesAndRejectOthers(object $rule): void
-    {
-        $passing = $this->factory()->make(['value' => 42], ['value' => ['required', $rule]]);
-        $failing = $this->factory()->make(['value' => '42'], ['value' => ['required', $rule]]);
+    public function testObjectRulesPreserveSuccessfulValuesAndRejectOthers(
+        mixed $passingValue,
+        mixed $failingValue,
+        object $rule
+    ): void {
+        $passing = $this->factory()->make(['value' => $passingValue], ['value' => ['required', $rule]]);
+        $failing = $this->factory()->make(['value' => $failingValue], ['value' => ['required', $rule]]);
 
         self::assertTrue($passing->passes());
-        self::assertSame(['value' => 42], $passing->validated());
+        self::assertSame(['value' => $passingValue], $passing->validated());
         self::assertFalse($failing->passes());
     }
 
@@ -78,6 +86,16 @@ final class CustomRulesLaravelRuntimeTest extends TestCase
         $validator = $this->factory()->make(
             ['value' => ''],
             ['value' => [new LegacyImplicitIntegerRule()]]
+        );
+
+        self::assertFalse($validator->passes());
+    }
+
+    public function testModernImplicitObjectRuleRunsForBlankString(): void
+    {
+        $validator = $this->factory()->make(
+            ['value' => ''],
+            ['value' => [new ImplicitStringRule()]]
         );
 
         self::assertFalse($validator->passes());

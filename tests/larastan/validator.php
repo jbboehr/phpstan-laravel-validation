@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use Illuminate\Validation\Factory;
+use jbboehr\PhpstanLaravelValidation\Test\CustomRules\AttributeRule;
+use jbboehr\PhpstanLaravelValidation\Test\CustomRules\UnknownRule;
 
 use function PHPStan\Testing\assertType;
 
@@ -30,3 +32,11 @@ $union = random_int(0, 1) === 1
     ? $factory->make([], ['name' => 'required|string'])
     : $factory->make([], ['age' => 'required|integer']);
 assertType('array{age: float|int|numeric-string|Stringable|true}|array{name: string}', $union->validated());
+
+$custom = $factory->make([], ['value' => ['required', new AttributeRule()]])->validated();
+assertType('array{value: non-empty-string}', $custom);
+
+$unknownCustom = $factory->make([], [
+    'value' => ['required', 'string', new UnknownRule()],
+])->validated();
+assertType('array{value: string}', $unknownCustom);

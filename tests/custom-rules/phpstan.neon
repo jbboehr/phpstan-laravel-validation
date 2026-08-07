@@ -4,5 +4,6 @@ parameters:
     customRules:
       classes:
         jbboehr\PhpstanLaravelValidation\Test\CustomRules\IntegerRule: int
+        jbboehr\PhpstanLaravelValidation\Test\CustomRules\PrecedenceRule: bool
       names:
         custom_integer: int

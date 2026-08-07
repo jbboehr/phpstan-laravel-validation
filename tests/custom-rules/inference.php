@@ -41,6 +41,21 @@ $configuredOptional = Validator::make([], [
 ])->validated();
 assertType('array{value?: int|string}', $configuredOptional);
 
+$attribute = Validator::make([], [
+    'value' => ['required', new AttributeRule()],
+])->validated();
+assertType('array{value: non-empty-string}', $attribute);
+
+$phpDoc = Validator::make([], [
+    'value' => ['required', new PhpDocRule()],
+])->validated();
+assertType('array{value: int<1, max>}', $phpDoc);
+
+$precedence = Validator::make([], [
+    'value' => ['required', new PrecedenceRule()],
+])->validated();
+assertType('array{value: bool}', $precedence);
+
 $named = Validator::make([], [
     'value' => 'required|custom_integer',
 ])->validated();
@@ -56,10 +71,32 @@ $opaque = Validator::make([], [
 ])->validated();
 assertType('array{value?: mixed}', $opaque);
 
+$rule = rand(0, 1) === 1 ? new AttributeRule() : new PhpDocRule();
+$alternative = Validator::make([], [
+    'value' => ['required', $rule],
+])->validated();
+assertType('array{value: int<1, max>}|array{value: non-empty-string}', $alternative);
+
+$maybeUnknownRule = rand(0, 1) === 1 ? new AttributeRule() : new UnknownRule();
+$partlyUnknownAlternative = Validator::make([], [
+    'value' => ['required', $maybeUnknownRule],
+])->validated();
+assertType('array{value: mixed}', $partlyUnknownAlternative);
+
 $nested = Validator::make([], [
     'items.*.code' => ['required', 'string', new UnknownRule()],
 ])->validated();
 assertType('array{items?: array<int|string, array{code: string}>}', $nested);
+
+$contractedNested = Validator::make([], [
+    'items.*.code' => ['required', new AttributeRule()],
+])->validated();
+assertType('array{items?: array<int|string, array{code: non-empty-string}>}', $contractedNested);
+
+$implicit = Validator::make([], [
+    'value' => new ImplicitStringRule(),
+])->validated();
+assertType('array{value?: string}', $implicit);
 
 $facadeValidated = Validator::validate([], [
     'value' => ['required', 'string', new UnknownRule()],

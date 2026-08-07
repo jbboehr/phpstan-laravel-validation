@@ -21,9 +21,14 @@ declare(strict_types=1);
 
 namespace jbboehr\PhpstanLaravelValidation\Test;
 
+use jbboehr\PhpstanLaravelValidation\Test\CustomRules\AttributeRule;
+use jbboehr\PhpstanLaravelValidation\Test\CustomRules\DuplicatePhpDocRule;
+use jbboehr\PhpstanLaravelValidation\Test\CustomRules\InvalidAttributeRule;
 use jbboehr\PhpstanLaravelValidation\Test\CustomRules\InvokableIntegerRule;
 use jbboehr\PhpstanLaravelValidation\Test\CustomRules\IntegerRule;
 use jbboehr\PhpstanLaravelValidation\Test\CustomRules\LegacyIntegerRule;
+use jbboehr\PhpstanLaravelValidation\Test\CustomRules\PhpDocRule;
+use jbboehr\PhpstanLaravelValidation\Test\CustomRules\PrecedenceRule;
 use jbboehr\PhpstanLaravelValidation\Test\CustomRules\StringableRuleBuilder;
 use jbboehr\PhpstanLaravelValidation\Test\CustomRules\UnknownRule;
 use jbboehr\PhpstanLaravelValidation\Validation\CustomRuleTypeResolver;
@@ -31,6 +36,7 @@ use jbboehr\PhpstanLaravelValidation\Validation\InvalidCustomRuleContractExcepti
 use jbboehr\PhpstanLaravelValidation\Validation\Rule;
 use jbboehr\PhpstanLaravelValidation\Validation\TypeResolver;
 use PHPStan\PhpDoc\TypeStringResolver;
+use PHPStan\Reflection\ReflectionProvider;
 use PHPStan\Type\ObjectType;
 use PHPStan\Type\VerbosityLevel;
 
@@ -82,6 +88,57 @@ final class CustomRulesInferenceTest extends \PHPStan\Testing\TypeInferenceTestC
         ])->resolveRule(new ObjectType(IntegerRule::class));
 
         self::assertSame('int', $rule->getAcceptedType()?->describe(VerbosityLevel::precise()));
+    }
+
+    /**
+     * @dataProvider declaredContractProvider
+     */
+    public function testResolvesDeclaredContract(string $className, string $expectedType): void
+    {
+        $rule = $this->createResolver()->resolveRule(new ObjectType($className));
+
+        self::assertSame(
+            $expectedType,
+            $rule->getAcceptedType()?->describe(VerbosityLevel::precise())
+        );
+    }
+
+    /**
+     * @return iterable<string, array{class-string, string}>
+     */
+    public static function declaredContractProvider(): iterable
+    {
+        yield 'attribute' => [AttributeRule::class, 'non-empty-string'];
+        yield 'PHPDoc' => [PhpDocRule::class, 'int<1, max>'];
+    }
+
+    public function testConfiguredContractPrecedesAttributeAndPhpDoc(): void
+    {
+        $declaredRule = $this->createResolver()->resolveRule(new ObjectType(PrecedenceRule::class));
+        $configuredRule = $this->createResolver([
+            PrecedenceRule::class => 'bool',
+        ])->resolveRule(new ObjectType(PrecedenceRule::class));
+
+        self::assertSame(
+            'string',
+            $declaredRule->getAcceptedType()?->describe(VerbosityLevel::precise())
+        );
+        self::assertSame(
+            'bool',
+            $configuredRule->getAcceptedType()?->describe(VerbosityLevel::precise())
+        );
+    }
+
+    public function testRejectsInvalidAttributeType(): void
+    {
+        $this->expectException(InvalidCustomRuleContractException::class);
+        $this->createResolver()->resolveRule(new ObjectType(InvalidAttributeRule::class));
+    }
+
+    public function testRejectsDuplicatePhpDocContracts(): void
+    {
+        $this->expectException(InvalidCustomRuleContractException::class);
+        $this->createResolver()->resolveRule(new ObjectType(DuplicatePhpDocRule::class));
     }
 
     public function testRejectsInvalidConfiguredType(): void
@@ -167,6 +224,7 @@ final class CustomRulesInferenceTest extends \PHPStan\Testing\TypeInferenceTestC
     {
         return new CustomRuleTypeResolver(
             self::getContainer()->getByType(TypeStringResolver::class),
+            self::getContainer()->getByType(ReflectionProvider::class),
             $classes,
             $names
         );

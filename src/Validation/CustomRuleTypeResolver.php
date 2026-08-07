@@ -21,7 +21,10 @@ declare(strict_types=1);
 
 namespace jbboehr\PhpstanLaravelValidation\Validation;
 
+use jbboehr\PhpstanLaravelValidation\Attribute\ValidationRuleType;
 use PHPStan\PhpDoc\TypeStringResolver;
+use PHPStan\Reflection\ClassReflection;
+use PHPStan\Reflection\ReflectionProvider;
 use PHPStan\Type\ErrorType;
 use PHPStan\Type\MixedType;
 use PHPStan\Type\ObjectType;
@@ -30,6 +33,8 @@ use PHPStan\Type\TypeCombinator;
 
 final class CustomRuleTypeResolver
 {
+    private const PHPDOC_TAG = '@laravel-validation-type';
+
     private const PREDICATE_TYPES = [
         \Closure::class,
         \Illuminate\Contracts\Validation\ImplicitRule::class,
@@ -44,12 +49,16 @@ final class CustomRuleTypeResolver
     /** @var array<string, Type> */
     private array $configuredNames = [];
 
+    /** @var array<string, Type|null> */
+    private array $classCache = [];
+
     /**
      * @param array<string, string> $configuredClasses
      * @param array<string, string> $configuredNames
      */
     public function __construct(
         private TypeStringResolver $typeStringResolver,
+        private ReflectionProvider $reflectionProvider,
         array $configuredClasses,
         array $configuredNames
     ) {
@@ -112,10 +121,11 @@ final class CustomRuleTypeResolver
 
         $types = [];
         foreach ($classNames as $className) {
-            if (!array_key_exists($className, $this->configuredClasses)) {
+            $resolved = $this->resolveClass($className);
+            if ($resolved === null) {
                 return Rule::custom(new MixedType());
             }
-            $types[] = $this->configuredClasses[$className];
+            $types[] = $resolved;
         }
 
         return Rule::custom(TypeCombinator::union(...$types));
@@ -135,6 +145,80 @@ final class CustomRuleTypeResolver
         }
 
         return false;
+    }
+
+    private function resolveClass(string $className): ?Type
+    {
+        if (array_key_exists($className, $this->classCache)) {
+            return $this->classCache[$className];
+        }
+
+        $reflection = $this->reflectionProvider->getClass($className);
+        $attributeType = $this->resolveAttributeType($reflection);
+        $phpDocType = $this->resolvePhpDocType($reflection);
+
+        return $this->classCache[$className]
+            = $this->configuredClasses[$className] ?? $attributeType ?? $phpDocType;
+    }
+
+    private function resolveAttributeType(ClassReflection $reflection): ?Type
+    {
+        $matches = array_values(array_filter(
+            $reflection->getAttributes(),
+            static fn ($attribute): bool => $attribute->getName() === ValidationRuleType::class
+        ));
+
+        if (count($matches) > 1) {
+            throw new InvalidCustomRuleContractException(sprintf(
+                'Custom validation rule %s has more than one %s attribute',
+                $reflection->getName(),
+                ValidationRuleType::class
+            ));
+        }
+        if ($matches === []) {
+            return null;
+        }
+
+        $arguments = array_values($matches[0]->getArgumentTypes());
+        $constantStrings = count($arguments) === 1 ? $arguments[0]->getConstantStrings() : [];
+        if (count($constantStrings) !== 1) {
+            throw new InvalidCustomRuleContractException(sprintf(
+                '%s on custom validation rule %s requires exactly one constant type string',
+                ValidationRuleType::class,
+                $reflection->getName()
+            ));
+        }
+
+        return $this->parseTypeString($constantStrings[0]->getValue(), $reflection->getName());
+    }
+
+    private function resolvePhpDocType(ClassReflection $reflection): ?Type
+    {
+        $resolvedPhpDoc = $reflection->getResolvedPhpDoc();
+        if ($resolvedPhpDoc === null || !$resolvedPhpDoc->hasPhpDocString()) {
+            return null;
+        }
+        $phpDocString = $resolvedPhpDoc->getPhpDocString();
+
+        preg_match_all(
+            '/' . self::PHPDOC_TAG . '\h+([^\r\n*]*\S)(?=\h*(?:\*\/)?(?:\r?\n|$))/',
+            $phpDocString,
+            $matches
+        );
+        $typeStrings = $matches[1];
+
+        if (count($typeStrings) > 1) {
+            throw new InvalidCustomRuleContractException(sprintf(
+                'Custom validation rule %s has more than one %s tag',
+                $reflection->getName(),
+                self::PHPDOC_TAG
+            ));
+        }
+        if ($typeStrings === []) {
+            return null;
+        }
+
+        return $this->parseTypeString(trim($typeStrings[0]), $reflection->getName());
     }
 
     private function parseTypeString(string $typeString, string $source): Type
