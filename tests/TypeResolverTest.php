@@ -165,6 +165,40 @@ final class TypeResolverTest extends PHPStanTestCase
         ]));
     }
 
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function unconditionalAcceptanceShapeProvider(): iterable
+    {
+        yield 'accepted' => ['accepted', "1|'1'|'on'|'true'|'yes'|true"];
+        yield 'declined' => ['declined', "0|'0'|'false'|'no'|'off'|false"];
+    }
+
+    /**
+     * @dataProvider unconditionalAcceptanceShapeProvider
+     */
+    public function testUnconditionalAcceptanceRulesRequireMatchedOutputPaths(
+        string $rule,
+        string $valueType
+    ): void {
+        self::assertSame('array{value: ' . $valueType . '}', self::resolve([
+            'value' => $rule,
+        ]));
+        self::assertSame('array{nested: array{value: ' . $valueType . '}}', self::resolve([
+            'nested.value' => $rule,
+        ]));
+        self::assertSame(
+            'array{items?: array<int|string, array{value: ' . $valueType . '}>}',
+            self::resolve(['items.*.value' => $rule])
+        );
+        self::assertSame('array{value?: ' . $valueType . '}', self::resolve([
+            'value' => 'sometimes|' . $rule,
+        ]));
+        self::assertSame('array{value: ' . $valueType . '}', self::resolve([
+            'value' => 'nullable|' . $rule,
+        ]));
+    }
+
     public function testNormalizedHttpInputSuppressesBlankStringBypass(): void
     {
         self::assertSame('array{value?: array}', self::resolve([

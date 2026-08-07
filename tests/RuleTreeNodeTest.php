@@ -89,6 +89,39 @@ final class RuleTreeNodeTest extends TestCase
         self::assertFalse($tree->resolvePath('names.*.first')->isOptional());
     }
 
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function unconditionalAcceptanceRuleProvider(): iterable
+    {
+        yield 'accepted' => ['accepted'];
+        yield 'declined' => ['declined'];
+    }
+
+    /**
+     * @dataProvider unconditionalAcceptanceRuleProvider
+     */
+    public function testUnconditionalAcceptanceRulesRequireMatchedPaths(string $rule): void
+    {
+        $tree = RuleParser::parse([
+            'value' => $rule,
+            'nested.value' => $rule,
+            'items.*.value' => $rule,
+            'sometimes' => 'sometimes|' . $rule,
+            'nullable' => 'nullable|' . $rule,
+        ]);
+
+        self::assertFalse($tree->resolvePath('value')->isOptional());
+        self::assertFalse($tree->resolvePath('nested')->isOptional());
+        self::assertFalse($tree->resolvePath('nested.value')->isOptional());
+        self::assertTrue($tree->resolvePath('items')->isOptional());
+        self::assertFalse($tree->resolvePath('items.*')->isOptional());
+        self::assertFalse($tree->resolvePath('items.*.value')->isOptional());
+        self::assertTrue($tree->resolvePath('sometimes')->isOptional());
+        self::assertFalse($tree->resolvePath('nullable')->isOptional());
+        self::assertFalse($tree->resolvePath('nullable')->allowsNull());
+    }
+
     public function testExplicitRequiredWildcardParentRemainsRequired(): void
     {
         $tree = RuleParser::parse([

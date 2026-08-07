@@ -6,12 +6,12 @@ use function PHPStan\Testing\assertType;
 
 $validator = \Illuminate\Support\Facades\Validator::make([], [
     'required_value' => 'required|accepted',
-    'optional_value' => 'accepted',
+    'implicitly_required_value' => 'accepted',
     'excluded_value' => 'required|exclude|accepted',
 ]);
 assertType('Illuminate\\Validation\\Validator', $validator);
 
 $validated = $validator->validated();
-assertType("array{required_value: 1|'1'|'on'|'true'|'yes'|true, optional_value?: 1|'1'|'on'|'true'|'yes'|true}", $validated);
+assertType("array{required_value: 1|'1'|'on'|'true'|'yes'|true, implicitly_required_value: 1|'1'|'on'|'true'|'yes'|true}", $validated);
 assertType("1|'1'|'on'|'true'|'yes'|true", $validated['required_value']);
-assertType("1|'1'|'on'|'true'|'yes'|true", $validated['optional_value']);
+assertType("1|'1'|'on'|'true'|'yes'|true", $validated['implicitly_required_value']);

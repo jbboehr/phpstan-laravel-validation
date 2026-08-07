@@ -90,8 +90,8 @@ The following 46 names contribute a concrete type today:
 | Version-sensitive | `Ascii` | Broad preserved values before Laravel 13.4; native `string` from 13.4 onward |
 
 This is not synonymous with complete rule support. For example, `Accepted`
-and `Declined` have accurate value unions but incomplete output-presence
-handling, while `Array` also participates in nested projection behavior.
+and `Declined` contribute exact value unions and required matched paths, while
+`Array` also participates in nested projection behavior.
 
 Every direct rule except `Dimensions` has a dedicated static fixture under
 [`tests/rules`](../tests/rules). `Dimensions` is exercised by generated
@@ -149,7 +149,7 @@ reveals precision gaps that an accepted-value-only inventory would miss.
 | Rule family | Laravel behavior | Current shape | Finding |
 | --- | --- | --- | --- |
 | `Required` | Key must exist and contain a non-empty value | Required key | Modeled |
-| `Accepted`, `Declined` | At a matched path, each calls Laravel's required check before checking its exact accepted set | Optional key with an exact value union | High-confidence precision gap for ordinary named paths |
+| `Accepted`, `Declined` | At a matched path, each calls Laravel's required check before checking its exact accepted set | Required matched path with an exact value union; zero-match wildcard parents remain optional | Modeled |
 | `Present` | A matched path must exist, but blank and null values are not rejected by presence alone | Optional key | High-confidence precision gap for ordinary named paths; it cannot reuse `Required` because blank-value bypass differs |
 | `Missing` | A matched path must not exist | Optional `mixed` key | Safe but unnecessarily broad for ordinary named paths |
 | `Exclude` | Removes the path from validated output | Omitted key | Modeled |
@@ -198,7 +198,6 @@ state are statically available.
 
 Add focused runtime and static witnesses before narrowing anything:
 
-- missing input for unconditional `accepted` and `declined`;
 - `array_keys` on Laravel 13.24 and its absence before that release;
 - adversarial native values for `base64`, `hex_color`, `contains`,
   `doesnt_contain`, `in_array_keys`, and `list`;
@@ -210,8 +209,6 @@ Add focused runtime and static witnesses before narrowing anything:
 
 Once verified, implement:
 
-- required output keys for unconditional `accepted` and `declined` on ordinary
-  named paths;
 - native string types for `base64` and `hex_color`;
 - array or list types for `contains`, `doesnt_contain`, `in_array_keys`, and
   `list`; and

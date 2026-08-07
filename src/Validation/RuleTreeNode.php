@@ -84,12 +84,18 @@ final class RuleTreeNode implements IteratorAggregate, \Countable
     public function push(Rule ...$rules): self
     {
         foreach ($rules as $rule) {
-            if ($rule->getRuleName() === Rule::RULE_REQUIRED) {
+            if (in_array(
+                $rule->getRuleName(),
+                [Rule::RULE_ACCEPTED, Rule::RULE_DECLINED, Rule::RULE_REQUIRED],
+                true
+            )) {
                 $this->required = true;
             }
 
             match ($rule->getRuleName()) {
                 // These imply the node is not optional
+                Rule::RULE_ACCEPTED,
+                Rule::RULE_DECLINED,
                 Rule::RULE_REQUIRED => $this->optional = false,
 
                 // This removes the node completely

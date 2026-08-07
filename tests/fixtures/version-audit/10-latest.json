@@ -21,7 +21,7 @@
                 "exception": null
             },
             "inference": {
-                "type": "array{value?: 1|'1'|'on'|'true'|'yes'|true}",
+                "type": "array{value: 1|'1'|'on'|'true'|'yes'|true}",
                 "outputType": "array{value: true}",
                 "containsOutput": "yes",
                 "exception": null,
@@ -51,7 +51,7 @@
                 "exception": null
             },
             "inference": {
-                "type": "array{value?: 1|'1'|'on'|'true'|'yes'|true}",
+                "type": "array{value: 1|'1'|'on'|'true'|'yes'|true}",
                 "outputType": "array{value: 'yes'}",
                 "containsOutput": "yes",
                 "exception": null,
@@ -114,7 +114,7 @@
                 "exception": null
             },
             "inference": {
-                "type": "array{value?: 0|'0'|'false'|'no'|'off'|false}",
+                "type": "array{value: 0|'0'|'false'|'no'|'off'|false}",
                 "outputType": "array{value: false}",
                 "containsOutput": "yes",
                 "exception": null,

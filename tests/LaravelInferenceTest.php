@@ -118,6 +118,47 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         self::assertTrue($rulesType->accepts($validatedType, true)->yes());
     }
 
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function unconditionalAcceptanceRuleProvider(): iterable
+    {
+        yield 'accepted' => ['accepted', 'yes'];
+        yield 'declined' => ['declined', 'no'];
+    }
+
+    /**
+     * @dataProvider unconditionalAcceptanceRuleProvider
+     */
+    public function testUnconditionalAcceptanceRulesRequireMatchedPaths(string $rule, string $valid): void
+    {
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+
+        self::assertFalse($factory->make([], ['value' => $rule])->passes());
+        self::assertFalse($factory->make([], ['nested.value' => $rule])->passes());
+        self::assertFalse($factory->make(['value' => null], ['value' => 'nullable|' . $rule])->passes());
+
+        $sometimes = $factory->make([], ['value' => 'sometimes|' . $rule]);
+        self::assertTrue($sometimes->passes());
+        self::assertSame([], $sometimes->validated());
+
+        $missingWildcard = $factory->make([], ['items.*.value' => $rule]);
+        self::assertTrue($missingWildcard->passes());
+        self::assertSame([], $missingWildcard->validated());
+
+        $matchedWildcard = $factory->make(
+            ['items' => [['value' => $valid]]],
+            ['items.*.value' => $rule]
+        );
+        self::assertTrue($matchedWildcard->passes());
+        self::assertSame(['items' => [['value' => $valid]]], $matchedWildcard->validated());
+    }
+
     public function testTrimStringsAloneDoesNotEliminateBlankStringBypass(): void
     {
         self::flushHttpInputNormalizationState();
