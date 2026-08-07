@@ -36,6 +36,8 @@ final class InferenceAuditProfiles
     {
         return [
             '10.0.0' => self::exact('10.0.0', '8.1', 'be2ddb5c31b0b9ebc2738d9f37a9d4c960aa3199'),
+            '10.32.1' => self::exact('10.32.1', '8.1', 'b30e44f20d244f7ba125283e14a8bbac167f4e5b'),
+            '10.33.0' => self::exact('10.33.0', '8.1', '4536872e3e5b6be51b1f655dafd12c9a4fa0cfe8'),
             '10-latest' => self::latest('10', '^10.0', '8.1', '3ff39b7a9b83e633383ec9b019827ed54b6d38bc'),
             '11.0.0' => self::exact('11.0.0', '8.2', '6089f679d6d29e6071a6448ed5e96de02e57fedb'),
             '11-latest' => self::latest('11', '^11.0', '8.2', 'dc7ec34ae95bacf4a63b96ec81482b4f3e702289'),

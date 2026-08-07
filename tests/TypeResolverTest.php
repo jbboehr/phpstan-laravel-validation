@@ -68,6 +68,7 @@ final class TypeResolverTest extends PHPStanTestCase
         }
 
         yield 'ascii' => ['ascii', 'array|bool|float|int|resource|string|Stringable|null'];
+        yield 'hex color' => ['hex_color', 'mixed'];
 
         foreach (['lowercase', 'string', 'uppercase'] as $rule) {
             yield $rule => [$rule, 'string'];
@@ -257,6 +258,40 @@ final class TypeResolverTest extends PHPStanTestCase
         self::assertSame($broadType, self::resolveForVersion([
             'value' => 'required|ascii',
         ], '14.0.0'));
+    }
+
+    public function testVersionAwareHexColorInference(): void
+    {
+        $coerciveType = 'array{value: non-empty-string|Stringable}';
+
+        self::assertSame('array{value: mixed}', self::resolveForVersion([
+            'value' => 'required|hex_color',
+        ], '10.32.1'));
+        self::assertSame($coerciveType, self::resolveForVersion([
+            'value' => 'required|hex_color',
+        ], '10.33.0'));
+        self::assertSame($coerciveType, self::resolveForVersion([
+            'value' => 'required|hex_color',
+        ], '13.3.0'));
+        self::assertSame('array{value: non-empty-string}', self::resolveForVersion([
+            'value' => 'required|hex_color',
+        ], '13.4.0'));
+        self::assertSame('array{value: mixed}', self::resolveForVersion([
+            'value' => 'required|hex_color',
+        ], '14.0.0'));
+
+        self::assertSame('array{value?: string|Stringable}', self::resolveForVersion([
+            'value' => 'hex_color',
+        ], '13.3.0'));
+        self::assertSame('array{value?: non-empty-string|Stringable}', self::resolveForVersion([
+            'value' => 'hex_color',
+        ], '13.3.0', true));
+        self::assertSame('array{value?: string}', self::resolveForVersion([
+            'value' => 'hex_color',
+        ], '13.4.0'));
+        self::assertSame('array{value?: non-empty-string}', self::resolveForVersion([
+            'value' => 'hex_color',
+        ], '13.4.0', true));
     }
 
     public function testVersionAwareDefaultHttpNormalizationExceptions(): void

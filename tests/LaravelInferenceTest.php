@@ -531,6 +531,85 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         self::assertTrue($rulesType->accepts($validatedType, true)->yes());
     }
 
+    public function testHexColorRuleFollowsRuntimeVersionBoundaries(): void
+    {
+        self::getContainer();
+
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $laravelVersion = self::frameworkVersion();
+
+        $blank = $factory->make(['value' => ''], ['value' => 'hex_color']);
+        self::assertTrue($blank->passes());
+        self::assertSame(['value' => ''], $blank->validated());
+
+        if (version_compare($laravelVersion, '10.33.0', '<')) {
+            $context = new LaravelVersionContext('', $laravelVersion);
+            $rulesType = (new TypeResolver($context))->evaluate(RuleParser::parse([
+                'value' => 'required|hex_color',
+            ], $context));
+            self::assertSame(
+                'array{value: mixed}',
+                $rulesType->describe(Type\VerbosityLevel::precise())
+            );
+
+            $this->expectException(\BadMethodCallException::class);
+            $factory->make(['value' => '#FFF'], ['value' => 'required|hex_color'])->passes();
+            return;
+        }
+
+        $nativeString = $factory->make(
+            ['value' => '#FFF'],
+            ['value' => 'required|hex_color']
+        );
+        self::assertTrue($nativeString->passes());
+        self::assertSame(['value' => '#FFF'], $nativeString->validated());
+
+        $context = new LaravelVersionContext('', $laravelVersion);
+        $rulesType = (new TypeResolver($context))->evaluate(RuleParser::parse([
+            'value' => 'required|hex_color',
+        ], $context));
+        $validatedType = $this->convertToType($nativeString->validated());
+        self::assertTrue($rulesType->accepts($validatedType, true)->yes());
+
+        foreach ([123, 1.5, true, false, null] as $invalidValue) {
+            $invalid = $factory->make(
+                ['value' => $invalidValue],
+                ['value' => 'required|hex_color']
+            );
+            self::assertFalse($invalid->passes());
+        }
+
+        $invalidStringable = $factory->make(
+            ['value' => new \Illuminate\Support\Stringable('not-a-color')],
+            ['value' => 'required|hex_color']
+        );
+        self::assertFalse($invalidStringable->passes());
+
+        $value = new \Illuminate\Support\Stringable('#FFF');
+        $stringable = $factory->make(
+            ['value' => $value],
+            ['value' => 'required|hex_color']
+        );
+
+        if (version_compare($laravelVersion, '13.4.0', '>=')) {
+            self::assertFalse($stringable->passes());
+            $stringableType = $this->convertToType(['value' => $value]);
+            self::assertTrue($rulesType->accepts($stringableType, true)->no());
+            return;
+        }
+
+        self::assertTrue($stringable->passes());
+        self::assertSame(['value' => $value], $stringable->validated());
+
+        $validatedType = $this->convertToType($stringable->validated());
+        self::assertTrue($rulesType->accepts($validatedType, true)->yes());
+    }
+
     /**
      * @return iterable<string, array{mixed}>
      */

@@ -6,12 +6,16 @@ version-aware inferred types continue to contain every successful output
 observed at those releases.
 
 No successful output in the portable audit corpus falls outside the inferred
-type. Three release boundaries change the inferred output contract:
+type. Three release boundaries change contracts exercised by that corpus:
 
 - top-level numeric rule keys are reindexed by Laravel 10 and 11 but preserved
   from Laravel 12;
 - `integer:strict` begins enforcing native integers in Laravel 12.22; and
 - `ascii` begins requiring a native string in Laravel 13.4.
+
+The cross-profile runtime suite records two additional `hex_color` boundaries
+outside that portable corpus: Laravel adds the rule in 10.33, and Laravel 13.4
+stops accepting compatible `Stringable` objects.
 
 The extension now obtains one analyzed-project Laravel version from the
 matching Composer installed-package dataset, falling back to `composer.lock`
@@ -30,11 +34,14 @@ corpus.
 ## Audited releases
 
 The audit pins the first release of every supported major, the current latest
-release, and both sides of every semantic transition found by the audit.
+release, and both sides of every semantic transition used by version-aware
+inference.
 
 | Profile | Constraint | PHP floor | Recorded release | Upstream commit |
 | --- | --- | --- | --- | --- |
 | `10.0.0` | `10.0.0` | 8.1 | 10.0.0 | [`be2ddb5c31b0`](https://github.com/laravel/framework/commit/be2ddb5c31b0b9ebc2738d9f37a9d4c960aa3199) |
+| `10.32.1` | `10.32.1` | 8.1 | 10.32.1 | [`b30e44f20d24`](https://github.com/laravel/framework/commit/b30e44f20d244f7ba125283e14a8bbac167f4e5b) |
+| `10.33.0` | `10.33.0` | 8.1 | 10.33.0 | [`4536872e3e5b`](https://github.com/laravel/framework/commit/4536872e3e5b6be51b1f655dafd12c9a4fa0cfe8) |
 | `10-latest` | `^10.0` | 8.1 | 10.50.2 | [`3ff39b7a9b83`](https://github.com/laravel/framework/commit/3ff39b7a9b83e633383ec9b019827ed54b6d38bc) |
 | `11.0.0` | `11.0.0` | 8.2 | 11.0.0 | [`6089f679d6d2`](https://github.com/laravel/framework/commit/6089f679d6d29e6071a6448ed5e96de02e57fedb) |
 | `11-latest` | `^11.0` | 8.2 | 11.55.0 | [`dc7ec34ae95b`](https://github.com/laravel/framework/commit/dc7ec34ae95bacf4a63b96ec81482b4f3e702289) |
@@ -97,6 +104,7 @@ are omitted from the snapshot.
 | Accepted and declined values | `accepted.true`, `accepted_if.inactive`, `declined.false`, `declined_if.inactive` | No observed release difference |
 | Boolean and numeric predicates | `boolean.*`, `integer.*`, `numeric.*`, `digits*`, `decimal`, `multiple_of`, `max_digits`, `min_digits` | `integer:strict` boundary at 12.22 |
 | Text predicates | `alpha*`, `ascii.*`, `string`, `lowercase`, `uppercase`, `regex`, `not_regex` | `ascii` boundary at 13.4 |
+| Hex colors | valid strings, compatible `Stringable`, optional blank input, and unsupported-rule behavior | Rule introduction at 10.33; native-string boundary at 13.4, covered by the cross-profile PHPUnit suite |
 | JSON, dates, and membership | `json.*`, `date*`, comparisons, scalar `in` | No observed release difference |
 | Network and identifiers | `email`, `ip`, `ipv4`, `ipv6`, `mac_address`, `timezone`, `url`, `uuid`, `ulid` | No observed release difference |
 | Arrays and projection | bare and keyed arrays, numeric rule keys, nested child projection, required keys, wildcards, parent-plus-child rules | Numeric rule-key boundary at Laravel 12 |
@@ -195,6 +203,36 @@ not an invented analyzer edge case on older versions; it is the set of native
 categories Laravel can successfully return. It remains the safe fallback when
 version context is unavailable.
 
+### `hex_color` has two release boundaries
+
+Laravel 10.32.1 has no `validateHexColor()` method. A non-blank value reaches
+Laravel's missing validator method and throws `BadMethodCallException`, while
+an optional blank string can bypass the unknown non-implicit rule and remain
+in `validated()`. Applications on those releases may also register their own
+rule under the same name. The extension therefore retains `mixed` before
+Laravel 10.33 rather than inventing a contract for an absent built-in rule.
+
+Laravel 10.33 adds this implementation:
+
+```php
+return preg_match('/^#(?:(?:[0-9a-f]{3}){1,2}|(?:[0-9a-f]{4}){1,2})$/i', $value) === 1;
+```
+
+The weak internal string conversion accepts a compatible `Stringable` object,
+and `validated()` preserves that object instead of returning its string form.
+Laravel retains this behavior through 13.3, so a required field needs the
+following structural type:
+
+```php
+non-empty-string|Stringable
+```
+
+Laravel 13.4 adds an `is_string()` guard. From that release onward, the sound
+required value type narrows to `non-empty-string`. Optional raw validator input
+still includes blank strings because Laravel skips this non-implicit rule for
+blank values; HTTP normalization can remove that branch when enabled in the
+extension.
+
 ### HTTP normalization also has a known major boundary
 
 Laravel's default `TrimStrings` middleware excludes password-related paths in
@@ -213,12 +251,15 @@ special case.
 
 ### No additional portable boundary was observed
 
-The complete case snapshot is identical from Laravel 10.0 to 11.0, across
-Laravel 10 and 11, from Laravel 11 to Laravel 12.0, and from Laravel 12.0 to
-12.21. After accounting for the two boundaries above, later snapshots are also
-identical within their covered ranges.
+The portable case snapshot is identical at Laravel 10.0, 10.32, and 10.33,
+across Laravel 10 and 11, from Laravel 11 to Laravel 12.0, and from Laravel
+12.0 to 12.21. After accounting for the numeric-key, strict-integer, and ASCII
+boundaries above, later snapshots are also identical within their covered
+ranges. The focused `hex_color` witness is intentionally separate because
+invoking that rule before its introduction throws rather than producing an
+ordinary validation result.
 
-Across 1,428 case executions on the twelve profiles, Laravel returns 956
+Across 1,722 case executions on the fourteen profiles, Laravel returns 1,178
 successful outputs. Every one is contained in the extension's inferred type.
 There are no `observed-unsound`, `inference-error`, or `runtime-exception`
 classifications. Failed inputs are recorded as `no-successful-output`; only the
@@ -237,7 +278,7 @@ contain nothing Laravel can never return. The second relation fails often, so
 the audit now measures it separately rather than treating imprecision as a
 conformance failure.
 
-Of the 119 portable cases, 101 are marked as preservation-only precision
+Of the 123 portable cases, 101 are marked as preservation-only precision
 probes.
 For those cases, the supplied data has the same shape and native values that
 `validated()` would return if validation succeeded. The audit verifies that
@@ -314,7 +355,7 @@ version at or above that Laravel major's supported PHP floor:
 - Laravel 11 and 12 profiles on PHP 8.2 through 8.5; and
 - Laravel 13 profiles on PHP 8.3 through 8.5.
 
-This produces 46 Laravel/PHP combinations. Each job installs the profile's
+This produces 56 Laravel/PHP combinations. Each job installs the profile's
 exact or floating Composer constraint, exposes its profile name through
 `LARAVEL_AUDIT_BASELINE`, runs Laravel's runtime probes, compares the recorded
 contract, checks that every successful output remains contained in current
@@ -371,7 +412,8 @@ Composer project root.
 One shared context is injected into the rule parser and resolver used by
 validator, facade, request, and controller inference. The parser normalizes
 numeric rule keys, while the resolver specializes `integer:strict`, `ascii`,
-and default HTTP normalization only at the verified boundaries above.
+`hex_color`, and default HTTP normalization only at the verified boundaries
+above.
 It ignores installed-package datasets belonging to unrelated project roots,
 so a globally installed tool or another registered autoloader cannot silently
 select the Laravel contract. The same context contributes its effective

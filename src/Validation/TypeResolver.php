@@ -397,6 +397,8 @@ final class TypeResolver
             "Dimensions", "File", "Image", "Mimetypes",
             "Mimes" => new Type\ObjectType('Symfony\\Component\\HttpFoundation\\File\\File'),
 
+            "HexColor" => $this->resolveTypeHexColor(),
+
             "In" => $this->resolveTypeIn($rule),
 
             default => $this->resolveDefault($rule),
@@ -420,6 +422,36 @@ final class TypeResolver
         return in_array('strict', $rule->getParameters(), true)
             && $this->laravelVersionContext !== null
             && $this->laravelVersionContext->isAtLeast('12.22.0');
+    }
+
+    private function resolveTypeHexColor(): Type\Type
+    {
+        // Laravel did not add this rule until 10.33. Before that release a
+        // project can register the same name with an arbitrary runtime
+        // contract, so no built-in narrowing is sound.
+        if (
+            $this->laravelVersionContext === null
+            || !$this->laravelVersionContext->isAtLeast('10.33.0')
+        ) {
+            return new MixedType();
+        }
+
+        $stringType = new IntersectionType([
+            new StringType(),
+            new AccessoryNonEmptyStringType(),
+        ]);
+
+        // Until Laravel 13.4, preg_match() coerces compatible Stringable
+        // objects and validated() preserves the object. Laravel 13.4 adds an
+        // explicit native-string guard.
+        if ($this->laravelVersionContext->isAtLeast('13.4.0')) {
+            return $stringType;
+        }
+
+        return Type\TypeCombinator::union(
+            $stringType,
+            new Type\ObjectType(\Stringable::class)
+        );
     }
 
     private function resolveTypeArray(Rule $rule): Type\Type
