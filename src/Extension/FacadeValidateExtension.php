@@ -22,6 +22,7 @@ declare(strict_types=1);
 namespace jbboehr\PhpstanLaravelValidation\Extension;
 
 use jbboehr\PhpstanLaravelValidation\ShouldNotHappenException;
+use jbboehr\PhpstanLaravelValidation\Validation\InvalidCustomRuleContractException;
 use jbboehr\PhpstanLaravelValidation\Validation\RuleSetResolver;
 use jbboehr\PhpstanLaravelValidation\Validation\TypeResolver;
 use PhpParser\Node\Expr\StaticCall;
@@ -68,6 +69,8 @@ final class FacadeValidateExtension implements DynamicStaticMethodReturnTypeExte
                 fn ($ruleTree) => $this->typeResolver->evaluate($ruleTree),
                 $ruleTrees
             ));
+        } catch (InvalidCustomRuleContractException $e) {
+            throw $e;
         } catch (\Throwable $e) {
             throw new ShouldNotHappenException($e->getMessage(), $e);
         }

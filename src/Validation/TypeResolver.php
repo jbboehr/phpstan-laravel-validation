@@ -34,6 +34,25 @@ use PHPStan\Type\StringType;
 
 final class TypeResolver
 {
+    private const BUILT_IN_RULE_NAMES = [
+        'Accepted', 'AcceptedIf', 'ActiveUrl', 'After', 'AfterOrEqual', 'Alpha', 'AlphaDash', 'AlphaNum',
+        'Array', 'ArrayKeys', 'Ascii', 'Bail', 'Base64', 'Before', 'BeforeOrEqual', 'Between', 'Boolean', 'Confirmed',
+        'Contains',
+        'CurrentPassword', 'Date', 'DateEquals', 'DateFormat', 'Decimal', 'Declined', 'DeclinedIf', 'Different',
+        'Digits', 'DigitsBetween', 'Dimensions', 'Distinct', 'DoesntContain', 'DoesntEndWith', 'DoesntStartWith',
+        'Email', 'Encoding', 'EndsWith', 'Extensions',
+        'Enum', 'Exclude', 'ExcludeIf', 'ExcludeUnless', 'ExcludeWith', 'ExcludeWithout', 'Exists', 'File', 'Filled',
+        'Gt', 'Gte', 'HexColor', 'Image', 'In', 'InArray', 'InArrayKeys', 'Integer', 'Ip', 'Ipv4', 'Ipv6', 'Json',
+        'List', 'Lowercase', 'Lt', 'Lte',
+        'MacAddress', 'Max', 'MaxDigits', 'Mimes', 'Mimetypes', 'Min', 'MinDigits', 'MultipleOf', 'NotIn',
+        'Missing', 'MissingIf', 'MissingUnless', 'MissingWith', 'MissingWithAll', 'NotRegex', 'Nullable', 'Numeric',
+        'Password', 'Present', 'PresentIf', 'PresentUnless', 'PresentWith', 'PresentWithAll', 'Prohibited',
+        'ProhibitedIf', 'ProhibitedIfAccepted', 'ProhibitedIfDeclined', 'ProhibitedUnless', 'Prohibits', 'Regex',
+        'Required', 'RequiredArrayKeys', 'RequiredIf', 'RequiredIfAccepted', 'RequiredIfDeclined', 'RequiredUnless',
+        'RequiredWith', 'RequiredWithAll', 'RequiredWithout', 'RequiredWithoutAll', 'Same', 'Size', 'Sometimes',
+        'StartsWith', 'String', 'Timezone', 'Ulid', 'Unique', 'Uppercase', 'Url', 'Uuid',
+    ];
+
     /**
      * Laravel 11 and later exclude these root request keys from TrimStrings.
      */
@@ -44,7 +63,8 @@ final class TypeResolver
     ];
 
     public function __construct(
-        private ?LaravelVersionContext $laravelVersionContext = null
+        private ?LaravelVersionContext $laravelVersionContext = null,
+        private ?CustomRuleTypeResolver $customRuleTypeResolver = null
     ) {
     }
 
@@ -74,6 +94,11 @@ final class TypeResolver
         }
 
         return $type;
+    }
+
+    public static function isBuiltInRuleName(string $ruleName): bool
+    {
+        return in_array($ruleName, self::BUILT_IN_RULE_NAMES, true);
     }
 
     public function evaluateMap(RuleTreeNode $node, bool $assumeHttpInputNormalization = false): Type\Type
@@ -380,7 +405,8 @@ final class TypeResolver
 
     private function resolveDefault(Rule $rule): Type\Type
     {
-        return new Type\MixedType();
+        return $this->customRuleTypeResolver?->resolveName($rule->getRuleName())
+            ?? new Type\MixedType();
     }
 
     private function resolvesAsciiAsNativeString(): bool

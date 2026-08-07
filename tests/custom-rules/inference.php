@@ -31,6 +31,26 @@ $closure = Validator::make([], [
 ])->validated();
 assertType('array{value: string}', $closure);
 
+$configured = Validator::make([], [
+    'value' => ['required', new IntegerRule()],
+])->validated();
+assertType('array{value: int}', $configured);
+
+$configuredOptional = Validator::make([], [
+    'value' => new IntegerRule(),
+])->validated();
+assertType('array{value?: int|string}', $configuredOptional);
+
+$named = Validator::make([], [
+    'value' => 'required|custom_integer',
+])->validated();
+assertType('array{value: int}', $named);
+
+$normalizedName = Validator::make([], [
+    'value' => 'required|custom-integer',
+])->validated();
+assertType('array{value: int}', $normalizedName);
+
 $opaque = Validator::make([], [
     'value' => ['required', 'string', new StringableRuleBuilder()],
 ])->validated();

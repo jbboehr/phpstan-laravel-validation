@@ -23,6 +23,7 @@ namespace jbboehr\PhpstanLaravelValidation\Extension;
 
 use Illuminate\Foundation\Validation\ValidatesRequests;
 use jbboehr\PhpstanLaravelValidation\ShouldNotHappenException;
+use jbboehr\PhpstanLaravelValidation\Validation\InvalidCustomRuleContractException;
 use jbboehr\PhpstanLaravelValidation\Validation\RuleSetResolver;
 use jbboehr\PhpstanLaravelValidation\Validation\TypeResolver;
 use PhpParser\Node\Expr\MethodCall;
@@ -81,6 +82,8 @@ final class ControllerValidateExtension implements DynamicMethodReturnTypeExtens
                 ),
                 $ruleTrees
             ));
+        } catch (InvalidCustomRuleContractException $e) {
+            throw $e;
         } catch (\Throwable $e) {
             throw new ShouldNotHappenException($e->getMessage(), $e);
         }

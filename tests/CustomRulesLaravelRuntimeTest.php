@@ -112,6 +112,21 @@ final class CustomRulesLaravelRuntimeTest extends TestCase
         self::assertFalse($failing->passes());
     }
 
+    public function testRegisteredStringRulePreservesSuccessfulOriginalValue(): void
+    {
+        $factory = $this->factory();
+        $factory->extend(
+            'custom_integer',
+            static fn (string $attribute, mixed $value): bool => is_int($value)
+        );
+        $passing = $factory->make(['value' => 42], ['value' => 'required|custom_integer']);
+        $failing = $factory->make(['value' => '42'], ['value' => 'required|custom_integer']);
+
+        self::assertTrue($passing->passes());
+        self::assertSame(['value' => 42], $passing->validated());
+        self::assertFalse($failing->passes());
+    }
+
     private function factory(): Factory
     {
         return new Factory(new Translator(new ArrayLoader(), 'en'));

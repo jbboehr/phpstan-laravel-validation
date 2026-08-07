@@ -4,16 +4,26 @@ parameters:
   phpstanLaravelValidation:
     assumeHttpInputNormalization: false
     laravelVersion: auto
+    customRules:
+      classes: []
+      names: []
 
 parametersSchema:
   phpstanLaravelValidation: structure([
     assumeHttpInputNormalization: bool(),
-    laravelVersion: string()
+    laravelVersion: string(),
+    customRules: structure([
+      classes: arrayOf(string()),
+      names: arrayOf(string())
+    ])
   ])
 
 services:
   - class: jbboehr\PhpstanLaravelValidation\Evaluator\UnsafeConstExprEvaluator
   - class: jbboehr\PhpstanLaravelValidation\Validation\CustomRuleTypeResolver
+    arguments:
+      configuredClasses: %phpstanLaravelValidation.customRules.classes%
+      configuredNames: %phpstanLaravelValidation.customRules.names%
   - class: jbboehr\PhpstanLaravelValidation\Validation\RuleSetResolver
   - class: jbboehr\PhpstanLaravelValidation\Validation\LaravelVersionContext
     arguments:

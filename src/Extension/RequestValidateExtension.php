@@ -22,6 +22,7 @@ declare(strict_types=1);
 namespace jbboehr\PhpstanLaravelValidation\Extension;
 
 use jbboehr\PhpstanLaravelValidation\ShouldNotHappenException;
+use jbboehr\PhpstanLaravelValidation\Validation\InvalidCustomRuleContractException;
 use jbboehr\PhpstanLaravelValidation\Validation\RuleSetResolver;
 use jbboehr\PhpstanLaravelValidation\Validation\TypeResolver;
 use PhpParser\Node\Expr\MethodCall;
@@ -75,6 +76,8 @@ final class RequestValidateExtension implements DynamicMethodReturnTypeExtension
                 ),
                 $ruleTrees
             ));
+        } catch (InvalidCustomRuleContractException $e) {
+            throw $e;
         } catch (\Throwable $e) {
             throw new ShouldNotHappenException($e->getMessage(), $e);
         }
