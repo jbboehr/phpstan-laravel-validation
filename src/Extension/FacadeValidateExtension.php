@@ -25,7 +25,6 @@ use jbboehr\PhpstanLaravelValidation\Evaluator\UnsafeConstExprEvaluator;
 use jbboehr\PhpstanLaravelValidation\Validation\LaravelVersionContext;
 use jbboehr\PhpstanLaravelValidation\Validation\RuleParser;
 use jbboehr\PhpstanLaravelValidation\ShouldNotHappenException;
-use jbboehr\PhpstanLaravelValidation\Type\ValidatorType;
 use jbboehr\PhpstanLaravelValidation\Validation\TypeResolver;
 use PhpParser\ConstExprEvaluationException;
 use PhpParser\Node\Expr\StaticCall;
