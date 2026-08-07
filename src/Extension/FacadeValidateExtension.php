@@ -21,27 +21,21 @@ declare(strict_types=1);
 
 namespace jbboehr\PhpstanLaravelValidation\Extension;
 
-use jbboehr\PhpstanLaravelValidation\Evaluator\UnsafeConstExprEvaluator;
-use jbboehr\PhpstanLaravelValidation\Validation\LaravelVersionContext;
-use jbboehr\PhpstanLaravelValidation\Validation\RuleParser;
 use jbboehr\PhpstanLaravelValidation\ShouldNotHappenException;
+use jbboehr\PhpstanLaravelValidation\Validation\RuleSetResolver;
 use jbboehr\PhpstanLaravelValidation\Validation\TypeResolver;
-use PhpParser\ConstExprEvaluationException;
 use PhpParser\Node\Expr\StaticCall;
 use PHPStan\Analyser\Scope;
 use PHPStan\Reflection\MethodReflection;
 use PHPStan\Type\DynamicStaticMethodReturnTypeExtension;
+use PHPStan\Type\TypeCombinator;
 
 final class FacadeValidateExtension implements DynamicStaticMethodReturnTypeExtension
 {
-    private UnsafeConstExprEvaluator $constExprEvaluator;
-
     public function __construct(
-        UnsafeConstExprEvaluator $constExprEvaluator,
-        private TypeResolver $typeResolver,
-        private LaravelVersionContext $laravelVersionContext
+        private RuleSetResolver $ruleSetResolver,
+        private TypeResolver $typeResolver
     ) {
-        $this->constExprEvaluator = $constExprEvaluator;
     }
 
     public function getClass(): string
@@ -65,13 +59,15 @@ final class FacadeValidateExtension implements DynamicStaticMethodReturnTypeExte
             }
 
             $rulesArg = $methodCall->getArgs()[1];
-            $rulesValue = $this->constExprEvaluator->evaluate($rulesArg->value, $scope);
+            $ruleTrees = $this->ruleSetResolver->resolve($rulesArg->value, $scope);
+            if ($ruleTrees === []) {
+                return null;
+            }
 
-            $validatorRules = RuleParser::parse($rulesValue, $this->laravelVersionContext);
-            return $this->typeResolver->evaluate($validatorRules);
-        } catch (ConstExprEvaluationException $e) {
-            // @todo log or error?
-            return null;
+            return TypeCombinator::union(...array_map(
+                fn ($ruleTree) => $this->typeResolver->evaluate($ruleTree),
+                $ruleTrees
+            ));
         } catch (\Throwable $e) {
             throw new ShouldNotHappenException($e->getMessage(), $e);
         }

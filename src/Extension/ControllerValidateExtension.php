@@ -22,29 +22,24 @@ declare(strict_types=1);
 namespace jbboehr\PhpstanLaravelValidation\Extension;
 
 use Illuminate\Foundation\Validation\ValidatesRequests;
-use jbboehr\PhpstanLaravelValidation\Evaluator\UnsafeConstExprEvaluator;
-use jbboehr\PhpstanLaravelValidation\Validation\LaravelVersionContext;
-use jbboehr\PhpstanLaravelValidation\Validation\RuleParser;
 use jbboehr\PhpstanLaravelValidation\ShouldNotHappenException;
+use jbboehr\PhpstanLaravelValidation\Validation\RuleSetResolver;
 use jbboehr\PhpstanLaravelValidation\Validation\TypeResolver;
-use PhpParser\ConstExprEvaluationException;
 use PhpParser\Node\Expr\MethodCall;
 use PHPStan\Analyser\Scope;
 use PHPStan\Reflection\MethodReflection;
 use PHPStan\Type\DynamicMethodReturnTypeExtension;
+use PHPStan\Type\TypeCombinator;
 
 final class ControllerValidateExtension implements DynamicMethodReturnTypeExtension
 {
-    private UnsafeConstExprEvaluator $constExprEvaluator;
     private bool $assumeHttpInputNormalization;
 
     public function __construct(
-        UnsafeConstExprEvaluator $constExprEvaluator,
+        private RuleSetResolver $ruleSetResolver,
         private TypeResolver $typeResolver,
-        private LaravelVersionContext $laravelVersionContext,
         bool $assumeHttpInputNormalization
     ) {
-        $this->constExprEvaluator = $constExprEvaluator;
         $this->assumeHttpInputNormalization = $assumeHttpInputNormalization;
     }
 
@@ -74,13 +69,18 @@ final class ControllerValidateExtension implements DynamicMethodReturnTypeExtens
             }
 
             $rulesArg = $methodCall->getArgs()[1];
-            $rulesValue = $this->constExprEvaluator->evaluate($rulesArg->value, $scope);
+            $ruleTrees = $this->ruleSetResolver->resolve($rulesArg->value, $scope);
+            if ($ruleTrees === []) {
+                return null;
+            }
 
-            $validatorRules = RuleParser::parse($rulesValue, $this->laravelVersionContext);
-            return $this->typeResolver->evaluate($validatorRules, $this->assumeHttpInputNormalization);
-        } catch (ConstExprEvaluationException $e) {
-            // @todo log or error?
-            return null;
+            return TypeCombinator::union(...array_map(
+                fn ($ruleTree) => $this->typeResolver->evaluate(
+                    $ruleTree,
+                    $this->assumeHttpInputNormalization
+                ),
+                $ruleTrees
+            ));
         } catch (\Throwable $e) {
             throw new ShouldNotHappenException($e->getMessage(), $e);
         }

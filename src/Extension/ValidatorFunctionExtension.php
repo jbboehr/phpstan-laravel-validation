@@ -21,27 +21,21 @@ declare(strict_types=1);
 
 namespace jbboehr\PhpstanLaravelValidation\Extension;
 
-use jbboehr\PhpstanLaravelValidation\Evaluator\UnsafeConstExprEvaluator;
-use jbboehr\PhpstanLaravelValidation\Validation\LaravelVersionContext;
-use jbboehr\PhpstanLaravelValidation\Validation\RuleParser;
 use jbboehr\PhpstanLaravelValidation\ShouldNotHappenException;
 use jbboehr\PhpstanLaravelValidation\Type\ValidatorType;
-use PhpParser\ConstExprEvaluationException;
+use jbboehr\PhpstanLaravelValidation\Validation\RuleSetResolver;
 use PhpParser\Node\Expr\FuncCall;
 use PHPStan\Analyser\Scope;
 use PHPStan\Reflection\FunctionReflection;
 use PHPStan\Type\DynamicFunctionReturnTypeExtension;
 use PHPStan\Type\ObjectType;
+use PHPStan\Type\TypeCombinator;
 
 final class ValidatorFunctionExtension implements DynamicFunctionReturnTypeExtension
 {
-    private UnsafeConstExprEvaluator $constExprEvaluator;
-
     public function __construct(
-        UnsafeConstExprEvaluator $constExprEvaluator,
-        private LaravelVersionContext $laravelVersionContext
+        private RuleSetResolver $ruleSetResolver
     ) {
-        $this->constExprEvaluator = $constExprEvaluator;
     }
 
     public function isFunctionSupported(FunctionReflection $functionReflection): bool
@@ -64,12 +58,15 @@ final class ValidatorFunctionExtension implements DynamicFunctionReturnTypeExten
             }
 
             $rulesArg = $functionCall->getArgs()[1];
-            $rulesValue = $this->constExprEvaluator->evaluate($rulesArg->value, $scope);
+            $ruleTrees = $this->ruleSetResolver->resolve($rulesArg->value, $scope);
+            if ($ruleTrees === []) {
+                return null;
+            }
 
-            return new ValidatorType(RuleParser::parse($rulesValue, $this->laravelVersionContext));
-        } catch (ConstExprEvaluationException $e) {
-            // @todo log or error?
-            return null;
+            return TypeCombinator::union(...array_map(
+                static fn ($ruleTree) => new ValidatorType($ruleTree),
+                $ruleTrees
+            ));
         } catch (\Throwable $e) {
             throw new ShouldNotHappenException($e->getMessage(), $e);
         }

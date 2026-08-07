@@ -21,26 +21,20 @@ declare(strict_types=1);
 
 namespace jbboehr\PhpstanLaravelValidation\Extension;
 
-use jbboehr\PhpstanLaravelValidation\Evaluator\UnsafeConstExprEvaluator;
 use jbboehr\PhpstanLaravelValidation\ShouldNotHappenException;
 use jbboehr\PhpstanLaravelValidation\Type\ValidatorType;
-use jbboehr\PhpstanLaravelValidation\Validation\LaravelVersionContext;
-use jbboehr\PhpstanLaravelValidation\Validation\RuleParser;
-use PhpParser\ConstExprEvaluationException;
+use jbboehr\PhpstanLaravelValidation\Validation\RuleSetResolver;
 use PhpParser\Node\Expr\MethodCall;
 use PHPStan\Analyser\Scope;
 use PHPStan\Reflection\MethodReflection;
 use PHPStan\Type\DynamicMethodReturnTypeExtension;
+use PHPStan\Type\TypeCombinator;
 
 final class ValidatorSetRulesExtension implements DynamicMethodReturnTypeExtension
 {
-    private UnsafeConstExprEvaluator $constExprEvaluator;
-
     public function __construct(
-        UnsafeConstExprEvaluator $constExprEvaluator,
-        private LaravelVersionContext $laravelVersionContext
+        private RuleSetResolver $ruleSetResolver
     ) {
-        $this->constExprEvaluator = $constExprEvaluator;
     }
 
     public function getClass(): string
@@ -63,11 +57,15 @@ final class ValidatorSetRulesExtension implements DynamicMethodReturnTypeExtensi
                 return null;
             }
 
-            $rulesValue = $this->constExprEvaluator->evaluate($methodCall->getArgs()[0]->value, $scope);
+            $ruleTrees = $this->ruleSetResolver->resolve($methodCall->getArgs()[0]->value, $scope);
+            if ($ruleTrees === []) {
+                return null;
+            }
 
-            return new ValidatorType(RuleParser::parse($rulesValue, $this->laravelVersionContext));
-        } catch (ConstExprEvaluationException $e) {
-            return null;
+            return TypeCombinator::union(...array_map(
+                static fn ($ruleTree) => new ValidatorType($ruleTree),
+                $ruleTrees
+            ));
         } catch (\Throwable $e) {
             throw new ShouldNotHappenException($e->getMessage(), $e);
         }

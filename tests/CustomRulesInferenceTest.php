@@ -31,7 +31,7 @@ use PHPStan\Type\VerbosityLevel;
 
 require_once __DIR__ . '/CustomRules/Rules.php';
 
-final class CustomRulesInferenceTest extends \PHPStan\Testing\PHPStanTestCase
+final class CustomRulesInferenceTest extends \PHPStan\Testing\TypeInferenceTestCase
 {
     /**
      * @dataProvider predicateRuleProvider
@@ -70,8 +70,30 @@ final class CustomRulesInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         self::assertSame('__Opaque', $rule->getRuleName());
     }
 
+    /**
+     * @return iterable<mixed>
+     */
+    public static function dataFileAsserts(): iterable
+    {
+        yield from self::gatherAssertTypes(__DIR__ . '/custom-rules/inference.php');
+    }
+
+    /**
+     * @dataProvider dataFileAsserts
+     */
+    public function testFileAsserts(
+        string $assertType,
+        string $file,
+        mixed ...$args
+    ): void {
+        $this->assertFileAsserts($assertType, $file, ...$args);
+    }
+
     public static function getAdditionalConfigFiles(): array
     {
-        return [__DIR__ . '/../extension.neon'];
+        return [
+            __DIR__ . '/../extension.neon',
+            __DIR__ . '/custom-rules/phpstan.neon',
+        ];
     }
 }
