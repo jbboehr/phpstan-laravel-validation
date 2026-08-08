@@ -299,7 +299,23 @@ jobs:
             - name: Run mutation tests
               env:
                   COMPOSER_PROCESS_TIMEOUT: 1800
-              run: composer infection -- --logger-github=false
+              # Each worker retains a PHPStan container for fixture-heavy tests.
+              # Leave headroom on shared runners instead of saturating all four
+              # advertised CPUs and intermittently losing the job to SIGTERM.
+              run: >-
+                  composer infection --
+                  --logger-github=false
+                  --threads=2
+
+            - name: Upload mutation reports
+              if: always()
+              uses: actions/upload-artifact@v7
+              with:
+                  name: infection-reports
+                  path: |
+                      infection.log
+                      infection-summary.log
+                  if-no-files-found: warn
 
     larastan:
         runs-on: ubuntu-latest

@@ -39,7 +39,7 @@
     "scripts": {
         "cs": "php-cs-fixer fix --config=.php-cs-fixer.dist.php --dry-run --diff",
         "cs:fix": "php-cs-fixer fix --config=.php-cs-fixer.dist.php",
-        "infection": "@php tools/infection/vendor/bin/infection --with-uncovered"
+        "infection": "@php tools/infection/vendor/bin/infection --with-uncovered --only-covering-test-cases"
     },
     "config": {
         "sort-packages": true,

@@ -21,8 +21,10 @@ declare(strict_types=1);
 
 namespace jbboehr\PhpstanLaravelValidation\Test;
 
+use PHPUnit\Framework\Attributes\Group;
 use Symfony\Component\Process\Process;
 
+#[Group('subprocess')]
 final class FormRequestResultCacheTest extends \PHPUnit\Framework\TestCase
 {
     private string $projectDirectory;

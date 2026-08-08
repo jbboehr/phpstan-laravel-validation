@@ -325,9 +325,10 @@ PHPStan type-inference fixtures intended to cover extension code must run their
 first `gatherAssertTypes()` analysis inside the test body. Data providers run
 before PHPUnit starts coverage and can also warm PHPStan's process-level
 caches. The test-only `AssertsFixtureUnderCoverage` trait implements this
-pattern. Infection runs covering test files rather than only the individual
-test cases because shared registry lines may be exercised by several tests
-with different assertions. A coverage driver supported by Infection, such as
+pattern. Infection runs only the individual test cases that cover each mutant.
+Tests in the `subprocess` group remain part of the normal suite but are
+excluded from mutation testing because child processes cannot observe the
+active in-process mutant. A coverage driver supported by Infection, such as
 PCOV, is required; the `php85` Nix development shell includes PCOV.
 
 ## License
