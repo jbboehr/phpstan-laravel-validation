@@ -21,14 +21,21 @@ declare(strict_types=1);
 
 namespace jbboehr\PhpstanLaravelValidation\Test;
 
-final class LarastanFirstCompatibilityTest extends LarastanCompatibilityTestCase
+use jbboehr\PhpstanLaravelValidation\Test\Support\AssertsFixtureUnderCoverage;
+
+final class DisabledFormRequestInferenceTest extends \PHPStan\Testing\TypeInferenceTestCase
 {
+    use AssertsFixtureUnderCoverage;
+
+    public function testFileAsserts(): void
+    {
+        $this->assertFixtureUnderCoverage(__DIR__ . '/form-request/disabled.php');
+    }
+
     public static function getAdditionalConfigFiles(): array
     {
         return [
-            self::getLarastanConfigFile(),
             __DIR__ . '/../extension.neon',
-            __DIR__ . '/larastan/phpstan.neon',
         ];
     }
 }

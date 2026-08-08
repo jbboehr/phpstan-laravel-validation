@@ -15,6 +15,7 @@ parameters:
         - tests/larastan
         - tests/normalized
         - tests/custom-rules
+        - tests/form-request
         - tests/rules
         - tests/structure
         - tests/version-aware

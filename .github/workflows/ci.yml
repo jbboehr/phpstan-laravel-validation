@@ -284,7 +284,7 @@ jobs:
 
             - name: Run mutation tests
               env:
-                  COMPOSER_PROCESS_TIMEOUT: 900
+                  COMPOSER_PROCESS_TIMEOUT: 1800
               run: composer infection -- --logger-github=false
 
     larastan:

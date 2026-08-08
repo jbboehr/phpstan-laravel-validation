@@ -1,3 +1,6 @@
 parameters:
     bootstrapFiles:
         - bootstrap.php
+    phpstanLaravelValidation:
+        formRequests:
+            enabled: true

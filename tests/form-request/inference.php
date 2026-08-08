@@ -1,0 +1,147 @@
+<?php
+
+declare(strict_types=1);
+
+namespace jbboehr\PhpstanLaravelValidation\Test\FormRequestFixtures;
+
+use Illuminate\Foundation\Http\FormRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\AttributedRulesRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\BasicRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\AfterRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\ConcreteInheritedRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\ConditionalRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\CreateDefaultValidatorRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\CustomValidatorRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\CustomRuleRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\ClassConstantRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\ContainerInjectedRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\GetValidatorInstanceRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\IntermediateWithValidatorRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\OverriddenValidatedRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\PassedValidationRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\SelfConstantChildRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\StaticConstantChildRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\ThisConstantChildRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\TraitAfterRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\TraitRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\TraitWithValidatorRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\TrustedWithValidatorRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\TrustedSubclassRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\UnresolvedRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\WithValidatorRequest;
+
+use function PHPStan\Testing\assertType;
+
+function inspectBasic(BasicRequest $request): void
+{
+    assertType(
+        'array{name: string, age?: float|int|string|Stringable|true}',
+        $request->validated()
+    );
+    assertType(
+        'array{name: string, age?: float|int|string|Stringable|true}',
+        $request->validated(null)
+    );
+    assertType('mixed', $request->validated('name'));
+
+    $null = null;
+    assertType(
+        'array{name: string, age?: float|int|string|Stringable|true}',
+        $request->validated($null)
+    );
+}
+
+function inspectInherited(ConcreteInheritedRequest $request): void
+{
+    assertType("array{inherited: 0|1|'0'|'1'|bool}", $request->validated());
+}
+
+function inspectTrait(TraitRequest $request): void
+{
+    assertType('array{from_trait: string}', $request->validated());
+}
+
+function inspectConditional(ConditionalRequest $request): void
+{
+    assertType(
+        'array{created: string}|array{updated: float|int|numeric-string|Stringable|true}',
+        $request->validated()
+    );
+}
+
+function inspectConstants(
+    ClassConstantRequest $constant,
+    ContainerInjectedRequest $injected
+): void {
+    assertType('array{constant: string}', $constant->validated());
+    assertType('array{injected: array}', $injected->validated());
+}
+
+function inspectCustomRule(CustomRuleRequest $request): void
+{
+    assertType('array{custom: non-empty-string}', $request->validated());
+}
+
+function inspectInheritedConstants(
+    SelfConstantChildRequest $selfConstant,
+    StaticConstantChildRequest $staticConstant,
+    ThisConstantChildRequest $thisConstant
+): void {
+    assertType('array{parent: string}', $selfConstant->validated());
+    assertType('mixed', $staticConstant->validated());
+    assertType('mixed', $thisConstant->validated());
+}
+
+function inspectAttributedRules(AttributedRulesRequest $request): void
+{
+    assertType('array{attributed: string}', $request->validated());
+}
+
+function inspectFallbacks(
+    UnresolvedRequest $unresolved,
+    WithValidatorRequest $withValidator,
+    PassedValidationRequest $passedValidation,
+    AfterRequest $after,
+    CustomValidatorRequest $customValidator,
+    GetValidatorInstanceRequest $getValidatorInstance,
+    CreateDefaultValidatorRequest $createDefaultValidator,
+    IntermediateWithValidatorRequest $intermediateWithValidator,
+    TraitWithValidatorRequest $traitWithValidator,
+    TraitAfterRequest $traitAfter
+): void {
+    assertType('mixed', $unresolved->validated());
+    assertType('mixed', $withValidator->validated());
+    assertType('mixed', $passedValidation->validated());
+    assertType('mixed', $after->validated());
+    assertType('mixed', $customValidator->validated());
+    assertType('mixed', $getValidatorInstance->validated());
+    assertType('mixed', $createDefaultValidator->validated());
+    assertType('mixed', $intermediateWithValidator->validated());
+    assertType('mixed', $traitWithValidator->validated());
+    assertType('mixed', $traitAfter->validated());
+}
+
+function inspectTrusted(
+    TrustedWithValidatorRequest $request,
+    TrustedSubclassRequest $subclass
+): void {
+    assertType('array{trusted: string}', $request->validated());
+    assertType('mixed', $subclass->validated());
+}
+
+function inspectOverride(OverriddenValidatedRequest $request): void
+{
+    assertType('string', $request->validated());
+}
+
+/** @param BasicRequest|TraitRequest $request */
+function inspectReceiverUnion(FormRequest $request): void
+{
+    assertType('array{from_trait: string}|array{name: string, age?: float|int|string|Stringable|true}', $request->validated());
+}
+
+/** @param BasicRequest|UnresolvedRequest $request */
+function inspectReceiverUnionFallback(FormRequest $request): void
+{
+    assertType('mixed', $request->validated());
+}

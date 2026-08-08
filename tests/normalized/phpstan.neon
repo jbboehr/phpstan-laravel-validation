@@ -2,3 +2,5 @@ parameters:
   phpstanLaravelValidation:
     assumeHttpInputNormalization: true
     laravelVersion: '10.0.0'
+    formRequests:
+      enabled: true

@@ -4,6 +4,9 @@ parameters:
   phpstanLaravelValidation:
     assumeHttpInputNormalization: false
     laravelVersion: auto
+    formRequests:
+      enabled: false
+      trustedClasses: []
     customRules:
       classes: []
       names: []
@@ -12,6 +15,10 @@ parametersSchema:
   phpstanLaravelValidation: structure([
     assumeHttpInputNormalization: bool(),
     laravelVersion: string(),
+    formRequests: structure([
+      enabled: bool(),
+      trustedClasses: arrayOf(string())
+    ]),
     customRules: structure([
       classes: arrayOf(string()),
       names: arrayOf(string())
@@ -25,6 +32,23 @@ services:
       configuredClasses: %phpstanLaravelValidation.customRules.classes%
       configuredNames: %phpstanLaravelValidation.customRules.names%
   - class: jbboehr\PhpstanLaravelValidation\Validation\RuleSetResolver
+  - class: jbboehr\PhpstanLaravelValidation\Validation\FormRequestRuleTypeResolver
+    arguments:
+      parser: @currentPhpVersionSimpleDirectParser
+      assumeHttpInputNormalization: %phpstanLaravelValidation.assumeHttpInputNormalization%
+  - class: jbboehr\PhpstanLaravelValidation\Validation\FormRequestTypeRegistry
+    arguments:
+      parser: @currentPhpVersionSimpleDirectParser
+      workingDirectory: %currentWorkingDirectory%
+      enabled: %phpstanLaravelValidation.formRequests.enabled%
+      trustedClasses: %phpstanLaravelValidation.formRequests.trustedClasses%
+      analysedPaths: %analysedPaths%
+      analysedPathsFromConfig: %analysedPathsFromConfig%
+      composerAutoloaderProjectPaths: %composerAutoloaderProjectPaths%
+      scanFiles: %scanFiles%
+      scanDirectories: %scanDirectories%
+    tags:
+      - phpstan.resultCacheMetaExtension
   - class: jbboehr\PhpstanLaravelValidation\Validation\LaravelVersionContext
     arguments:
       workingDirectory: %currentWorkingDirectory%
@@ -48,6 +72,9 @@ services:
     tags:
       - phpstan.broker.dynamicStaticMethodReturnTypeExtension
   - class: jbboehr\PhpstanLaravelValidation\Extension\FactoryMakeExtension
+    tags:
+      - phpstan.broker.dynamicMethodReturnTypeExtension
+  - class: jbboehr\PhpstanLaravelValidation\Extension\FormRequestValidatedExtension
     tags:
       - phpstan.broker.dynamicMethodReturnTypeExtension
   - class: jbboehr\PhpstanLaravelValidation\Extension\RequestValidateExtension

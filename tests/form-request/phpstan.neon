@@ -1,0 +1,6 @@
+parameters:
+  phpstanLaravelValidation:
+    formRequests:
+      enabled: true
+      trustedClasses:
+        - jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\TrustedWithValidatorRequest

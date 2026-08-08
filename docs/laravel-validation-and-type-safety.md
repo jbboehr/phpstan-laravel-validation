@@ -363,9 +363,22 @@ For combinations covered by the implementation and conformance tests, the
 extension can infer nested shapes, optional offsets, preserved-value unions,
 and verified Laravel-version boundaries. It tracks supported validator unions
 and constant `setRules()` replacements, applies declared custom-rule
-contracts, and retains `mixed` where a field has no usable value contract.
-When the rule expression itself cannot be resolved, PHPStan generally keeps
-Laravel's broad declared return type.
+contracts, and its optional experimental FormRequest inference can recover the
+whole-payload `validated()` and `validated(null)` shapes of conventional
+`FormRequest` subclasses from statically resolvable `rules()` returns. It
+retains `mixed` where a field has no usable value contract. When the rule
+expression itself cannot be resolved, PHPStan generally keeps Laravel's broad
+declared return type.
+
+Form requests make the runtime-program problem especially concrete. Their
+effective validator can be replaced or modified by `validator()`,
+`withValidator()`, `after()`, `getValidatorInstance()`,
+`createDefaultValidator()`, `validationRules()`, and `passedValidation()`.
+The extension declines to infer from `rules()` when it detects those lifecycle
+customizations, unless the exact class is explicitly trusted. This safeguard
+does not turn mutable request state into a declared contract: replacing the
+validator later through public `setValidator()` remains outside the automatic
+inference assumption.
 
 It cannot make Laravel normalize values, derive precise contracts from
 arbitrary runtime code, model arbitrary validator mutation or projection, or
@@ -417,7 +430,9 @@ boundary profiles, runtime snapshots, and audit limitations.
 
 Runtime methods in the table below are defined in
 [`tests/LaravelInferenceTest.php`](../tests/LaravelInferenceTest.php) and
-[`tests/CustomRulesLaravelRuntimeTest.php`](../tests/CustomRulesLaravelRuntimeTest.php).
+[`tests/CustomRulesLaravelRuntimeTest.php`](../tests/CustomRulesLaravelRuntimeTest.php),
+with FormRequest lifecycle behavior covered by
+[`tests/FormRequestLaravelRuntimeTest.php`](../tests/FormRequestLaravelRuntimeTest.php).
 
 | Claim | Laravel runtime coverage | PHPStan inference coverage |
 | --- | --- | --- |
@@ -433,6 +448,7 @@ Runtime methods in the table below are defined in
 | Array key lists reject undeclared keys | `LaravelInferenceTest::testArrayRuleKeyParametersRejectUndeclaredNestedKeys` | [`tests/rules/array.php`](../tests/rules/array.php) |
 | Nested child rules project validated keys | `LaravelInferenceTest::testParentAndChildRulesAcceptRuntimeOutput` | [`tests/structure/parent-rules.php`](../tests/structure/parent-rules.php) |
 | Custom predicates preserve successful original values | `CustomRulesLaravelRuntimeTest::testObjectRulesPreserveSuccessfulValuesAndRejectOthers`, `testClosureRulePreservesSuccessfulOriginalValue`, and `testRegisteredStringRulePreservesSuccessfulOriginalValue` | [`tests/custom-rules/inference.php`](../tests/custom-rules/inference.php) |
+| FormRequest lifecycle hooks can change effective rules and later output | `FormRequestLaravelRuntimeTest::testWithValidatorCanReplaceTheEffectiveRules`, `testIntermediateWithValidatorHookCanReplaceTheEffectiveRules`, `testTraitWithValidatorHookCanReplaceTheEffectiveRules`, `testPassedValidationCanReplaceRulesAfterSuccessfulValidation`, and `testCustomValidatorCanIgnoreRulesMethod` | [`tests/form-request/inference.php`](../tests/form-request/inference.php) |
 
 Generated fixtures under [`tests/fixtures`](../tests/fixtures) add broad
 coverage from Laravel's own validation tests and record exact upstream

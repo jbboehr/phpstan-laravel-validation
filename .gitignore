@@ -12,3 +12,4 @@ result*
 /coverage/
 /vendor/
 /tools/infection/vendor/
+/tmp/

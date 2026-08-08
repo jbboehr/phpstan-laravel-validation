@@ -114,9 +114,9 @@ parameters:
         assumeHttpInputNormalization: true
 ```
 
-This option affects `Request::validate()` and controller `validate()` calls.
-It does not affect direct validators, factories, facades, or validators passed
-to `validateWith()`.
+This option affects `Request::validate()`, controller `validate()`, and inferred
+`FormRequest::validated()` calls. It does not affect direct validators,
+factories, facades, or validators passed to `validateWith()`.
 
 For example, an optional `array` field normally has the value type
 `array|string` because a blank string may bypass the rule. With this option it
@@ -130,6 +130,86 @@ Enable this option only if neither middleware is skipped or removed and
 validation cannot observe values introduced afterward by request mutation.
 Projects with custom trimming exceptions or `skipWhen()` callbacks should
 leave it disabled.
+
+### Form requests
+
+FormRequest inference is experimental and disabled by default. Enable it
+explicitly:
+
+```neon
+parameters:
+    phpstanLaravelValidation:
+        formRequests:
+            enabled: true
+```
+
+When enabled, the extension resolves statically available return expressions
+from `rules()` on conventional concrete `FormRequest` classes and applies the
+resulting shape to whole-payload `validated()` and `validated(null)` calls:
+
+```php
+final class StorePersonRequest extends \Illuminate\Foundation\Http\FormRequest
+{
+    public function rules(): array
+    {
+        return [
+            'name' => 'required|string',
+            'age' => 'integer',
+        ];
+    }
+}
+
+function store(StorePersonRequest $request): void
+{
+    \PHPStan\dumpType($request->validated());
+    // array{name: string, age?: float|int|string|Stringable|true}
+}
+```
+
+Literal returns, resolvable branches, inherited or trait-provided methods,
+class constants, typed method parameters, and declared custom-rule contracts
+can participate in inference. If any possible return expression cannot be
+resolved, the call retains Laravel's broad return type rather than inferring
+from only part of the method. Inherited rules that depend on late-bound
+`static::` or `$this::` references are deliberately left broad. Calls that
+compose another rules body, such as `array_merge(parent::rules(), [...])`, are
+not currently expanded unless PHPStan can expose the complete constant result.
+
+`FormRequest` is a validator lifecycle, not just a `rules()` method. Inference
+therefore falls back when the request overrides `validated()`,
+`getValidatorInstance()`, `createDefaultValidator()`, `validationRules()`, or
+`passedValidation()`, or declares `validator()`, `withValidator()`, or
+`after()`. Those hooks can replace the effective validator, mutate its rules,
+or alter what a later `validated()` call returns.
+
+A project can explicitly assert that a particular class's lifecycle hooks do
+not invalidate its `rules()` contract:
+
+```neon
+parameters:
+    phpstanLaravelValidation:
+        formRequests:
+            trustedClasses:
+                - App\Http\Requests\StorePersonRequest
+```
+
+Trust is exact: subclasses are not trusted implicitly. It bypasses the
+lifecycle-hook checks, but does not make unresolved rule expressions
+resolvable and does not override a custom `validated()` implementation. A
+false trust declaration can produce an unsound type.
+
+FormRequest inference does not require Larastan. Concrete requests are
+discovered from PHPStan's analysed and scan paths and from the root project's
+Composer `autoload` and `autoload-dev` source mappings. Classes outside those
+paths, including undiscovered vendor requests, retain Laravel's broad type.
+Adding an exact class to `trustedClasses` also makes it discoverable, but that
+setting simultaneously asserts that its lifecycle hooks are safe; it is not a
+risk-free discovery-only option.
+
+Keyed `validated($key)` calls are left to Laravel's declared type (or another
+extension), as are `safe()` calls. The inferred contract also assumes callers
+do not replace the resolved validator through the inherited public
+`setValidator()` method before calling `validated()`.
 
 ### Custom validation rules
 
@@ -216,6 +296,10 @@ discover registered aliases.
 * Custom-rule contracts describe accepted values only. Custom implicitness and
   custom output mutation remain conservatively modeled; enums are not
   currently supported.
+* Experimental FormRequest inference is opt-in. It models conventional request
+  validation and falls back for known lifecycle customization, but cannot
+  globally track an inherited `setValidator()` call that replaces the
+  validator before `validated()`.
 
 ## Development
 
@@ -236,7 +320,14 @@ composer --working-dir=tools/infection install
 composer infection
 ```
 
-The PHPStan type-inference test cases execute analysis in the PHPUnit process, so Infection can exercise them normally. A coverage driver supported by Infection, such as PCOV, is required; the `php85` Nix development shell includes PCOV.
+PHPStan type-inference fixtures intended to cover extension code must run their
+first `gatherAssertTypes()` analysis inside the test body. Data providers run
+before PHPUnit starts coverage and can also warm PHPStan's process-level
+caches. The test-only `AssertsFixtureUnderCoverage` trait implements this
+pattern. Infection runs covering test files rather than only the individual
+test cases because shared registry lines may be exercised by several tests
+with different assertions. A coverage driver supported by Infection, such as
+PCOV, is required; the `php85` Nix development shell includes PCOV.
 
 ## License
 

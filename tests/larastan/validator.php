@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Validation\Factory;
 use jbboehr\PhpstanLaravelValidation\Test\CustomRules\AttributeRule;
 use jbboehr\PhpstanLaravelValidation\Test\CustomRules\UnknownRule;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\BasicRequest;
 
 use function PHPStan\Testing\assertType;
 
@@ -40,3 +41,11 @@ $unknownCustom = $factory->make([], [
     'value' => ['required', 'string', new UnknownRule()],
 ])->validated();
 assertType('array{value: string}', $unknownCustom);
+
+function inspectFormRequest(BasicRequest $request): void
+{
+    assertType(
+        'array{name: string, age?: float|int|string|Stringable|true}',
+        $request->validated()
+    );
+}
