@@ -20,6 +20,13 @@
       url = "github:hercules-ci/gitignore.nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    akashi = {
+      url = "github:jbboehr/akashi.php/master";
+      inputs.flake-utils.follows = "flake-utils";
+      inputs.gitignore.follows = "gitignore";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.pre-commit-hooks.follows = "git-hooks";
+    };
   };
 
   outputs = {
@@ -30,6 +37,7 @@
     phps,
     git-hooks,
     gitignore,
+    akashi,
   }:
     flake-utils.lib.eachDefaultSystem (system: let
       buildEnv = {
@@ -71,6 +79,7 @@
         pkgs.mkShell {
           buildInputs = with pkgs; [
             actionlint
+            akashi.packages.${system}.agent-badge
             alejandra
             mdl
             php'

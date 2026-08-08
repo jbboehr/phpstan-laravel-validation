@@ -1,5 +1,36 @@
 {
   "nodes": {
+    "akashi": {
+      "inputs": {
+        "flake-utils": [
+          "flake-utils"
+        ],
+        "gitignore": [
+          "gitignore"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ],
+        "pre-commit-hooks": [
+          "git-hooks"
+        ],
+        "treefmt-nix": "treefmt-nix"
+      },
+      "locked": {
+        "lastModified": 1786091581,
+        "narHash": "sha256-OzSaaSBs48iIDu12D8q/OCVg2weQHy4QLnd1gf964nQ=",
+        "owner": "jbboehr",
+        "repo": "akashi.php",
+        "rev": "225cc33f61d5779791112fb6c3b0f473e9c8e5ae",
+        "type": "github"
+      },
+      "original": {
+        "owner": "jbboehr",
+        "ref": "master",
+        "repo": "akashi.php",
+        "type": "github"
+      }
+    },
     "flake-compat": {
       "flake": false,
       "locked": {
@@ -135,6 +166,7 @@
     },
     "root": {
       "inputs": {
+        "akashi": "akashi",
         "flake-utils": "flake-utils",
         "git-hooks": "git-hooks",
         "gitignore": "gitignore",
@@ -155,6 +187,27 @@
       "original": {
         "owner": "nix-systems",
         "repo": "default",
+        "type": "github"
+      }
+    },
+    "treefmt-nix": {
+      "inputs": {
+        "nixpkgs": [
+          "akashi",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1785360170,
+        "narHash": "sha256-XE1lKgQ3eIO3E7zWryqcRsax+mYXod/5RHBn4YaR9YE=",
+        "owner": "numtide",
+        "repo": "treefmt-nix",
+        "rev": "d1187f8bc71fb8aab02395869ec3f5c1920f75c0",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "treefmt-nix",
         "type": "github"
       }
     }
