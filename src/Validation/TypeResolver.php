@@ -22,6 +22,7 @@ declare(strict_types=1);
 namespace jbboehr\PhpstanLaravelValidation\Validation;
 
 use PHPStan\Type;
+use PHPStan\Type\Accessory\AccessoryArrayListType;
 use PHPStan\Type\Accessory\AccessoryNonEmptyStringType;
 use PHPStan\Type\Accessory\AccessoryNumericStringType;
 use PHPStan\Type\Constant\ConstantArrayTypeBuilder;
@@ -401,6 +402,8 @@ final class TypeResolver
 
             "In" => $this->resolveTypeIn($rule),
 
+            "List" => $this->resolveTypeList(),
+
             default => $this->resolveDefault($rule),
         };
     }
@@ -452,6 +455,24 @@ final class TypeResolver
             $stringType,
             new Type\ObjectType(\Stringable::class)
         );
+    }
+
+    private function resolveTypeList(): Type\Type
+    {
+        // Laravel did not add this rule until version 11.0.3. Before that
+        // release a project can register the same name with an arbitrary
+        // runtime contract, so no built-in narrowing is sound.
+        if (
+            $this->laravelVersionContext === null
+            || !$this->laravelVersionContext->isAtLeast('11.0.3')
+        ) {
+            return new MixedType();
+        }
+
+        return new IntersectionType([
+            new Type\ArrayType(new Type\IntegerType(), new MixedType()),
+            new AccessoryArrayListType(),
+        ]);
     }
 
     private function resolveTypeArray(Rule $rule): Type\Type

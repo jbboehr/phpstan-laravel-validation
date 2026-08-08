@@ -610,6 +610,85 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         self::assertTrue($rulesType->accepts($validatedType, true)->yes());
     }
 
+    public function testListRuleFollowsRuntimeVersionBoundary(): void
+    {
+        self::getContainer();
+
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $laravelVersion = self::frameworkVersion();
+        $context = new LaravelVersionContext('', $laravelVersion);
+
+        $blank = $factory->make(['value' => ''], ['value' => 'list']);
+        self::assertTrue($blank->passes());
+        self::assertSame(['value' => ''], $blank->validated());
+        $blankType = (new TypeResolver($context))->evaluate(RuleParser::parse([
+            'value' => 'list',
+        ], $context));
+        self::assertTrue($blankType->accepts(
+            $this->convertToType($blank->validated()),
+            true
+        )->yes());
+
+        if (version_compare($laravelVersion, '11.0.3', '<')) {
+            self::assertSame(
+                'array{value: mixed}',
+                (new TypeResolver($context))->evaluate(RuleParser::parse([
+                    'value' => 'required|list',
+                ], $context))->describe(Type\VerbosityLevel::precise())
+            );
+
+            try {
+                $factory->make(
+                    ['value' => [1, 2]],
+                    ['value' => 'required|list']
+                )->passes();
+                self::fail('Laravel unexpectedly provided the list rule before version 11.0.3.');
+            } catch (\BadMethodCallException) {
+            }
+
+            return;
+        }
+
+        foreach (
+            [
+                'empty optional list' => [[], 'list'],
+                'nullable null' => [null, 'nullable|list'],
+                'nested values' => [[1, ['nested' => true]], 'required|list'],
+            ] as [$value, $rules]
+        ) {
+            $validator = $factory->make(['value' => $value], ['value' => $rules]);
+            self::assertTrue($validator->passes());
+            self::assertSame(['value' => $value], $validator->validated());
+
+            $rulesType = (new TypeResolver($context))->evaluate(RuleParser::parse([
+                'value' => $rules,
+            ], $context));
+            self::assertTrue($rulesType->accepts(
+                $this->convertToType($validator->validated()),
+                true
+            )->yes());
+        }
+
+        foreach (
+            [
+                'associative array' => ['key' => 'value'],
+                'sparse array' => [0 => 'zero', 2 => 'two'],
+                'string' => 'value',
+                'array-like object' => new \ArrayObject([1, 2]),
+            ] as $value
+        ) {
+            self::assertFalse($factory->make(
+                ['value' => $value],
+                ['value' => 'required|list']
+            )->passes());
+        }
+    }
+
     /**
      * @return iterable<string, array{mixed}>
      */

@@ -69,6 +69,7 @@ final class TypeResolverTest extends PHPStanTestCase
 
         yield 'ascii' => ['ascii', 'array|bool|float|int|resource|string|Stringable|null'];
         yield 'hex color' => ['hex_color', 'mixed'];
+        yield 'list' => ['list', 'mixed'];
 
         foreach (['lowercase', 'string', 'uppercase'] as $rule) {
             yield $rule => [$rule, 'string'];
@@ -292,6 +293,38 @@ final class TypeResolverTest extends PHPStanTestCase
         self::assertSame('array{value?: non-empty-string}', self::resolveForVersion([
             'value' => 'hex_color',
         ], '13.4.0', true));
+    }
+
+    public function testVersionAwareListInference(): void
+    {
+        self::assertSame('array{value: mixed}', self::resolveForVersion([
+            'value' => 'required|list',
+        ], '10.50.2'));
+        self::assertSame('array{value: mixed}', self::resolveForVersion([
+            'value' => 'required|list',
+        ], '11.0.2'));
+        self::assertSame('array{value: list}', self::resolveForVersion([
+            'value' => 'required|list',
+        ], '11.0.3'));
+        self::assertSame('array{value: list}', self::resolveForVersion([
+            'value' => 'required|list',
+        ], '13.24.0'));
+        self::assertSame('array{value: mixed}', self::resolveForVersion([
+            'value' => 'required|list',
+        ], '14.0.0'));
+
+        self::assertSame('array{value?: list|string}', self::resolveForVersion([
+            'value' => 'list',
+        ], '11.0.3'));
+        self::assertSame('array{value?: list}', self::resolveForVersion([
+            'value' => 'list',
+        ], '11.0.3', true));
+        self::assertSame('array{value?: list|string|null}', self::resolveForVersion([
+            'value' => 'nullable|list',
+        ], '11.0.3'));
+        self::assertSame('array{value?: list|null}', self::resolveForVersion([
+            'value' => 'nullable|list',
+        ], '11.0.3', true));
     }
 
     public function testVersionAwareDefaultHttpNormalizationExceptions(): void
