@@ -16,7 +16,10 @@
     // Out-of-process integration tests cannot observe the active in-process
     // mutant. Keep them in the normal suite, but do not spend mutation-test
     // time running child PHPStan processes that provide no mutation evidence.
-    "testFrameworkExtraArgs": "--exclude-group=subprocess",
+    // Property tests also remain in the normal suite, while focused regressions
+    // promoted from their findings provide mutation evidence without replaying
+    // hundreds of generated cases for each mutant.
+    "testFrameworkExtraArgs": "--exclude-group=subprocess,property",
     "logs": {
         "text": "infection.log",
         "summary": "infection-summary.log"

@@ -314,6 +314,19 @@ composer exec phpunit
 Check code style with `composer cs`. Apply formatting changes with
 `composer cs:fix`.
 
+The Eris property suite generates bounded combinations of presence,
+projection, wildcard, and cross-field rules, runs them through Laravel, and
+checks that every successful `validated()` output is contained by the inferred
+PHPStan type. The default seed is fixed for reproducible CI runs:
+
+```bash
+composer test:property
+ERIS_SEED=123456 composer test:property
+```
+
+Promote every counterexample into a focused deterministic regression test
+before changing inference.
+
 Mutation testing uses an isolated toolchain because Infection requires PHP 8.3 or newer while this package supports PHP 8.1. Install it and run it from the project root with:
 
 ```bash
@@ -328,8 +341,11 @@ caches. The test-only `AssertsFixtureUnderCoverage` trait implements this
 pattern. Infection runs only the individual test cases that cover each mutant.
 Tests in the `subprocess` group remain part of the normal suite but are
 excluded from mutation testing because child processes cannot observe the
-active in-process mutant. A coverage driver supported by Infection, such as
-PCOV, is required; the `php85` Nix development shell includes PCOV.
+active in-process mutant. The `property` group is also excluded because
+rerunning hundreds of generated cases for each mutant would be
+disproportionate; promoted deterministic regressions remain available to
+Infection. A coverage driver supported by Infection, such as PCOV, is
+required; the `php85` Nix development shell includes PCOV.
 
 ## License
 

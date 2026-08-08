@@ -10,6 +10,10 @@
         failOnRisky="true"
         failOnWarning="true"
 >
+    <php>
+        <env name="ERIS_SEED" value="20260808"/>
+    </php>
+
     <coverage includeUncoveredFiles="true"/>
 
     <testsuites>

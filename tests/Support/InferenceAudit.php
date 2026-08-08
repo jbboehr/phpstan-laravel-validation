@@ -191,7 +191,7 @@ final class InferenceAudit
         ];
     }
 
-    private static function frameworkVersion(): string
+    public static function frameworkVersion(): string
     {
         $version = InstalledVersions::getPrettyVersion('laravel/framework');
 
@@ -339,7 +339,7 @@ final class InferenceAudit
         return $result->yes() ? 'yes' : ($result->no() ? 'no' : 'maybe');
     }
 
-    private static function toType(mixed $data): Type\Type
+    public static function toType(mixed $data): Type\Type
     {
         return match (gettype($data)) {
             'boolean' => new ConstantBooleanType($data),

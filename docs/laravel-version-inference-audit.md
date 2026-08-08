@@ -100,6 +100,19 @@ the array-to-string warning into stable data. Unrelated PHP engine and
 dependency deprecations are not part of the Laravel validation contract and
 are omitted from the snapshot.
 
+An additional Eris property suite takes 250 seed-dependent draws in each of
+three bounded domains: scalar presence and native representations, nested
+projection and wildcards, and cross-field presence and exclusion. Their finite
+catalogs contain 1,260, 48, and 280 possible combinations respectively; draws
+are made with replacement and are not claims of exhaustive coverage. Each
+property requires at least 30 percent of its trials to produce successful
+Laravel output so a mostly rejected sample cannot pass vacuously. It then runs
+the same runtime-to-static containment check without creating snapshots.
+
+The fixed default seed makes CI reproducible, while an explicit `ERIS_SEED`
+explores or replays another input sequence. Property testing broadens the
+observed evidence; it does not prove universal soundness.
+
 ## Inventory
 
 | Area | Representative probes | Result |
@@ -387,10 +400,11 @@ version at or above that Laravel major's supported PHP floor:
 - Laravel 13 profiles on PHP 8.3 through 8.5.
 
 This produces 56 Laravel/PHP combinations. Each job installs the profile's
-exact or floating Composer constraint, exposes its profile name through
-`LARAVEL_AUDIT_BASELINE`, runs Laravel's runtime probes, compares the recorded
-contract, checks that every successful output remains contained in current
-inference, and records the reverse precision classification.
+exact or floating Composer constraint and exposes its profile name through
+`LARAVEL_AUDIT_BASELINE`. The deterministic audit compares the recorded
+contract, checks containment of successful output, and records the reverse
+precision classification. The same job separately runs the bounded property
+suite and requires containment for every successful generated output.
 
 The exact boundary releases are not substitutes for the floating latest
 profiles. The former preserve known historical contracts; the latter detect
@@ -427,6 +441,33 @@ php scripts/inference-audit.php \
     --baseline=12.22.0 \
     --update
 ```
+
+Run only the bounded property suite with its default seed, or select another
+seed to explore and replay a different sequence:
+
+```sh
+composer test:property
+ERIS_SEED=123456 composer test:property
+```
+
+Every counterexample must be reproduced against the supported Laravel majors
+and promoted into the deterministic audit or a focused runtime regression
+before inference changes.
+
+## Possible future fuzzing
+
+A manual coverage-guided “probator” may eventually complement these bounded
+properties, but only with Laravel itself as an independent differential
+oracle. A useful target would compare Laravel's and this project's handling of
+rule names, parameters, quoting, escaping, regular expressions, dotted paths,
+and malformed rules under an explicit Laravel profile. Crash-only fuzzing of
+the current small parser would provide little evidence about inference
+soundness.
+
+Such a target should remain outside mandatory CI, keep its evolving corpus and
+crash artifacts in ignored scratch storage, and promote every genuine finding
+into a deterministic cross-version regression. This is future work; the
+project does not currently depend on a fuzzing framework.
 
 ## Version-aware implementation
 
@@ -469,4 +510,4 @@ Environment-dependent rules should remain conservative unless their runtime
 services can be replaced with deterministic test doubles and their static
 contract can be stated without booting arbitrary application behavior.
 
-Last reviewed: 2026-08-05.
+Last reviewed: 2026-08-08.
