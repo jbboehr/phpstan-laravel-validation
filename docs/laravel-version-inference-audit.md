@@ -13,9 +13,10 @@ type. Three release boundaries change contracts exercised by that corpus:
 - `integer:strict` begins enforcing native integers in Laravel 12.22; and
 - `ascii` begins requiring a native string in Laravel 13.4.
 
-The cross-profile runtime suite records two additional `hex_color` boundaries
-outside that portable corpus: Laravel adds the rule in 10.33, and Laravel 13.4
-stops accepting compatible `Stringable` objects.
+The cross-profile runtime suite records three additional rule boundaries
+outside that portable corpus: Laravel adds `hex_color` in 10.33, Laravel 13.4
+stops `hex_color` from accepting compatible `Stringable` objects, and Laravel
+adds the native-string-only `base64` rule in 13.21.
 
 The extension now obtains one analyzed-project Laravel version from the
 matching Composer installed-package dataset, falling back to `composer.lock`
@@ -52,6 +53,8 @@ inference.
 | `13.0.0` | `13.0.0` | 8.3 | 13.0.0 | [`3e33f431a053`](https://github.com/laravel/framework/commit/3e33f431a05365d008742ff8001b92641086d5f8) |
 | `13.3.0` | `13.3.0` | 8.3 | 13.3.0 | [`118b7063c44a`](https://github.com/laravel/framework/commit/118b7063c44a2f3421d1646f5ddf08defcfd1db3) |
 | `13.4.0` | `13.4.0` | 8.3 | 13.4.0 | [`912de244f88a`](https://github.com/laravel/framework/commit/912de244f88a69742b76e8a2807f6765947776da) |
+| `13.20.0` | `13.20.0` | 8.3 | 13.20.0 | [`b9d1bccad5fb`](https://github.com/laravel/framework/commit/b9d1bccad5fbc32578dca22566bb11e7c0e545d7) |
+| `13.21.0` | `13.21.0` | 8.3 | 13.21.0 | [`d1e02ce7b7e2`](https://github.com/laravel/framework/commit/d1e02ce7b7e25146177a1a0137c37bccb32d26d3) |
 | `13-latest` | `^13.0` | 8.3 | 13.23.0 | [`92a707229148`](https://github.com/laravel/framework/commit/92a707229148e57f08a249211c8a5a194159c619) |
 
 The `*-latest` constraints intentionally float in CI. Their committed
@@ -233,6 +236,34 @@ still includes blank strings because Laravel skips this non-implicit rule for
 blank values; HTTP normalization can remove that branch when enabled in the
 extension.
 
+### `base64` begins in Laravel 13.21
+
+Laravel 13.20 and every earlier supported release have no
+`validateBase64()` method. Non-blank input therefore reaches Laravel's missing
+validator method and throws `BadMethodCallException`, although optional blank
+strings and nullable `null` values bypass the unknown non-implicit rule and can
+still remain in `validated()`. Because applications may register a custom rule
+under the absent built-in name, the extension retains `mixed` through 13.20.
+
+Laravel 13.21 adds an explicitly native-string implementation:
+
+```php
+if (! is_string($value) || $value === '') {
+    return false;
+}
+
+$decoded = base64_decode($value, true);
+
+return $decoded !== false && base64_encode($decoded) === $value;
+```
+
+Runtime probes against Laravel 10.0, 11.0, 12.0, 13.0, 13.20, and 13.21
+confirm the boundary. From 13.21 onward, successful non-blank values are
+preserved native strings, while integers, floats, booleans, arrays, and
+compatible `Stringable` objects fail. The sound required value type is
+therefore `non-empty-string`; optional raw validator input still includes the
+blank-string bypass.
+
 ### HTTP normalization also has a known major boundary
 
 Laravel's default `TrimStrings` middleware excludes password-related paths in
@@ -259,7 +290,7 @@ ranges. The focused `hex_color` witness is intentionally separate because
 invoking that rule before its introduction throws rather than producing an
 ordinary validation result.
 
-Across 1,722 case executions on the fourteen profiles, Laravel returns 1,178
+Across 1,968 case executions on the sixteen profiles, Laravel returns 1,328
 successful outputs. Every one is contained in the extension's inferred type.
 There are no `observed-unsound`, `inference-error`, or `runtime-exception`
 classifications. Failed inputs are recorded as `no-successful-output`; only the
@@ -412,8 +443,8 @@ Composer project root.
 One shared context is injected into the rule parser and resolver used by
 validator, facade, request, and controller inference. The parser normalizes
 numeric rule keys, while the resolver specializes `integer:strict`, `ascii`,
-`hex_color`, and default HTTP normalization only at the verified boundaries
-above.
+`base64`, `hex_color`, `list`, and default HTTP normalization only at the
+verified boundaries above.
 It ignores installed-package datasets belonging to unrelated project roots,
 so a globally installed tool or another registered autoloader cannot silently
 select the Laravel contract. The same context contributes its effective

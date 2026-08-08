@@ -68,6 +68,7 @@ final class TypeResolverTest extends PHPStanTestCase
         }
 
         yield 'ascii' => ['ascii', 'array|bool|float|int|resource|string|Stringable|null'];
+        yield 'base64' => ['base64', 'mixed'];
         yield 'hex color' => ['hex_color', 'mixed'];
         yield 'list' => ['list', 'mixed'];
 
@@ -293,6 +294,32 @@ final class TypeResolverTest extends PHPStanTestCase
         self::assertSame('array{value?: non-empty-string}', self::resolveForVersion([
             'value' => 'hex_color',
         ], '13.4.0', true));
+    }
+
+    public function testVersionAwareBase64Inference(): void
+    {
+        self::assertSame('array{value: mixed}', self::resolveForVersion([
+            'value' => 'required|base64',
+        ], '13.20.0'));
+        self::assertSame('array{value: non-empty-string}', self::resolveForVersion([
+            'value' => 'required|base64',
+        ], '13.21.0'));
+        self::assertSame('array{value: mixed}', self::resolveForVersion([
+            'value' => 'required|base64',
+        ], '14.0.0'));
+
+        self::assertSame('array{value?: string}', self::resolveForVersion([
+            'value' => 'base64',
+        ], '13.21.0'));
+        self::assertSame('array{value?: non-empty-string}', self::resolveForVersion([
+            'value' => 'base64',
+        ], '13.21.0', true));
+        self::assertSame('array{value?: string|null}', self::resolveForVersion([
+            'value' => 'nullable|base64',
+        ], '13.21.0'));
+        self::assertSame('array{value?: non-empty-string|null}', self::resolveForVersion([
+            'value' => 'nullable|base64',
+        ], '13.21.0', true));
     }
 
     public function testVersionAwareListInference(): void

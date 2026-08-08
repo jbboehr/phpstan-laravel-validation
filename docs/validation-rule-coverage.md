@@ -35,7 +35,7 @@ Laravel added these string rules during the supported major range:
   `prohibited_if_declined`, and `required_if_declined`, followed by `list` in
   Laravel 11.0.3;
 - Laravel 12: `doesnt_contain`, `encoding`, and `in_array_keys`;
-- Laravel 13: `base64`, followed by `array_keys` in 13.24.
+- Laravel 13.21: `base64`, followed by `array_keys` in 13.24.
 
 The generated fixtures contain runtime results from Laravel's own tests. The
 focused inference audit adds adversarial witnesses for selected interactions,
@@ -66,9 +66,9 @@ separate dimensions.
 
 | Accepted-value handling | Rule names | Focused static coverage | Meaning |
 | --- | ---: | ---: | --- |
-| Direct type contribution | 48 | 47 | A native value type is emitted; `dimensions` lacks a dedicated focused fixture |
+| Direct type contribution | 49 | 48 | A native value type is emitted; `dimensions` lacks a dedicated focused fixture |
 | Explicitly neutral | 43 | 8 | The rule does not narrow the local value type, whether intentionally or because a correlated model is unavailable |
-| Conservative `mixed` fallback | 23 | 0 | No built-in accepted-value model is applied |
+| Conservative `mixed` fallback | 22 | 0 | No built-in accepted-value model is applied |
 | **Total reserved names** | **114** | **55 files** | Covers the current Laravel 13.24 name inventory, including `Enum` and `Password` |
 
 The repository's generated Laravel fixtures provide broader conformance
@@ -78,7 +78,7 @@ adversarial native values that Laravel's upstream tests do not exercise.
 
 ## Rules with direct accepted-value inference
 
-The following 48 names contribute a concrete type today:
+The following 49 names contribute a concrete type today:
 
 | Family | Rules | Current contribution |
 | --- | --- | --- |
@@ -89,7 +89,7 @@ The following 48 names contribute a concrete type today:
 | Date checks | `After`, `AfterOrEqual`, `Before`, `BeforeOrEqual`, `Date`, `DateEquals`, `DateFormat` | Numeric scalars, non-empty strings, and where applicable `DateTimeInterface` |
 | Numeric checks | `Decimal`, `Digits`, `DigitsBetween`, `Integer`, `MaxDigits`, `MinDigits`, `MultipleOf`, `Numeric` | Numeric strings and the native numeric values Laravel accepts and preserves |
 | Arrays and files | `Array`, `Dimensions`, `File`, `Image`, `Mimes`, `Mimetypes` | Array shapes or Symfony file objects |
-| Version-sensitive | `Ascii`, `HexColor`, `List` | Release-aware preserved-value types; `HexColor` and `List` remain `mixed` before their Laravel 10.33 and 11.0.3 introductions |
+| Version-sensitive | `Ascii`, `Base64`, `HexColor`, `List` | Release-aware preserved-value types; `Base64`, `HexColor`, and `List` remain `mixed` before their Laravel 13.21, 10.33, and 11.0.3 introductions |
 
 This is not synonymous with complete rule support. For example, `Accepted`
 and `Declined` contribute exact value unions and required matched paths, while
@@ -117,13 +117,12 @@ a correlated union over the controlling field.
 
 ## Rules currently falling back to `mixed`
 
-These 23 reserved names have no built-in accepted-value contribution. The
+These 22 reserved names have no built-in accepted-value contribution. The
 fallback is generally sound because it is broad, but it loses useful
 information and can hide structural guarantees.
 
 | Rules | Introduced | Laravel consequence | Existing runtime evidence | Candidate treatment |
 | --- | --- | --- | --- | --- |
-| `Base64` | 13 | Requires a non-empty native string | Laravel 13 fixture | `non-empty-string` after cross-version probes |
 | `Contains`, `DoesntContain` | 11 / 12 | Require an array before testing members | Fixtures from their introduction onward | `array<mixed>` plus optional blank handling |
 | `InArrayKeys` | 12 | Requires an array before testing key existence | Laravel 12 and 13 fixtures | `array<mixed>` plus optional blank handling |
 | `ArrayKeys` | 13.24 | Requires an array and rejects keys outside its parameters | Upstream 13.24 source only; the pinned 13.23 fixture predates it | Parameter-aware optional-key array shape |
@@ -199,8 +198,8 @@ state are statically available.
 Add focused runtime and static witnesses before narrowing anything:
 
 - `array_keys` on Laravel 13.24 and its absence before that release;
-- adversarial native values for `base64`, `contains`,
-  `doesnt_contain`, and `in_array_keys`;
+- adversarial native values for `contains`, `doesnt_contain`, and
+  `in_array_keys`;
 - file witnesses for `extensions` and `encoding`;
 - a dedicated static `dimensions` fixture; and
 - scalar-backed and pure enum object cases.
@@ -209,7 +208,6 @@ Add focused runtime and static witnesses before narrowing anything:
 
 Once verified, implement:
 
-- a native string type for `base64`;
 - array types for `contains`, `doesnt_contain`, and `in_array_keys`; and
 - version-gated `array_keys` inference.
 

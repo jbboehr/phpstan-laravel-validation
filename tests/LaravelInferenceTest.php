@@ -610,6 +610,86 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         self::assertTrue($rulesType->accepts($validatedType, true)->yes());
     }
 
+    public function testBase64RuleFollowsRuntimeVersionBoundary(): void
+    {
+        self::getContainer();
+
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $laravelVersion = self::frameworkVersion();
+        $context = new LaravelVersionContext('', $laravelVersion);
+
+        $blank = $factory->make(['value' => ''], ['value' => 'base64']);
+        self::assertTrue($blank->passes());
+        self::assertSame(['value' => ''], $blank->validated());
+        $blankType = (new TypeResolver($context))->evaluate(RuleParser::parse([
+            'value' => 'base64',
+        ], $context));
+        self::assertTrue($blankType->accepts(
+            $this->convertToType($blank->validated()),
+            true
+        )->yes());
+
+        if (version_compare($laravelVersion, '13.21.0', '<')) {
+            self::assertSame(
+                'array{value: mixed}',
+                (new TypeResolver($context))->evaluate(RuleParser::parse([
+                    'value' => 'required|base64',
+                ], $context))->describe(Type\VerbosityLevel::precise())
+            );
+
+            $this->expectException(\BadMethodCallException::class);
+            $factory->make(
+                ['value' => 'TGFyYXZlbA=='],
+                ['value' => 'required|base64']
+            )->passes();
+            return;
+        }
+
+        $valid = $factory->make(
+            ['value' => 'TGFyYXZlbA=='],
+            ['value' => 'required|base64']
+        );
+        self::assertTrue($valid->passes());
+        self::assertSame(['value' => 'TGFyYXZlbA=='], $valid->validated());
+
+        $rulesType = (new TypeResolver($context))->evaluate(RuleParser::parse([
+            'value' => 'required|base64',
+        ], $context));
+        self::assertTrue($rulesType->accepts(
+            $this->convertToType($valid->validated()),
+            true
+        )->yes());
+
+        foreach (
+            [
+                'not-base64',
+                1,
+                1.0,
+                true,
+                false,
+                ['TGFyYXZlbA=='],
+                new \Illuminate\Support\Stringable('TGFyYXZlbA=='),
+            ] as $invalidValue
+        ) {
+            self::assertFalse($factory->make(
+                ['value' => $invalidValue],
+                ['value' => 'required|base64']
+            )->passes());
+        }
+
+        $nullable = $factory->make(
+            ['value' => null],
+            ['value' => 'nullable|base64']
+        );
+        self::assertTrue($nullable->passes());
+        self::assertSame(['value' => null], $nullable->validated());
+    }
+
     public function testListRuleFollowsRuntimeVersionBoundary(): void
     {
         self::getContainer();

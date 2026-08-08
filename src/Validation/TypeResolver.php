@@ -340,6 +340,8 @@ final class TypeResolver
 
             "Array" => $this->resolveTypeArray($rule),
 
+            "Base64" => $this->resolveTypeBase64(),
+
             "Bail", "Confirmed", "Between", "Different", "Distinct", "DoesntStartWith", "DoesntEndWith",
             "AcceptedIf", "DeclinedIf", "EndsWith", "Exists", "Filled", "Gt", "Gte", "InArray", "Lt", "Lte",
             "Max", "Min", "NotIn", "Exclude",
@@ -425,6 +427,24 @@ final class TypeResolver
         return in_array('strict', $rule->getParameters(), true)
             && $this->laravelVersionContext !== null
             && $this->laravelVersionContext->isAtLeast('12.22.0');
+    }
+
+    private function resolveTypeBase64(): Type\Type
+    {
+        // Laravel did not add this rule until version 13.21. Before that
+        // release a project can register the same name with an arbitrary
+        // runtime contract, so no built-in narrowing is sound.
+        if (
+            $this->laravelVersionContext === null
+            || !$this->laravelVersionContext->isAtLeast('13.21.0')
+        ) {
+            return new MixedType();
+        }
+
+        return new IntersectionType([
+            new StringType(),
+            new AccessoryNonEmptyStringType(),
+        ]);
     }
 
     private function resolveTypeHexColor(): Type\Type
