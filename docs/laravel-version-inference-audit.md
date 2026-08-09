@@ -127,6 +127,7 @@ observed evidence; it does not prove universal soundness.
 | JSON, dates, and membership | `json.*`, `date*`, comparisons, scalar `in` | No observed release difference |
 | Network and identifiers | `email`, `ip`, `ipv4`, `ipv6`, `mac_address`, `timezone`, `url`, `uuid`, `ulid` | No observed release difference |
 | Arrays and projection | bare and keyed arrays, parameterized-parent preservation, required array offsets, numeric rule keys, nested child projection, wildcards, parent-plus-child rules | Numeric rule-key boundary at Laravel 12; `list` reconstruction boundary at Laravel 11.23 is covered by the cross-profile PHPUnit suite |
+| Array-only predicates | required and optional values, non-array rejection, preserved associative and nested arrays | `contains`, `in_array_keys`, and `doesnt_contain` begin at Laravel 11.8, 12.16, and 12.22, covered by the cross-profile PHPUnit suite rather than the portable audit corpus |
 | Presence and conditions | optional blanks, nullable, present, missing, zero-match wildcard parent preservation, confirmed, `required_if`, `exclude_if` | No observed release difference |
 | Default HTTP middleware | password-path trimming before validation | Laravel 10 versus 11+ boundary covered by the cross-profile PHPUnit suite |
 | Static entry points | facade, factory, request, controller, helper, validator unions, constant `setRules()` | Covered by the existing PHPStan fixture suite |
@@ -280,6 +281,26 @@ compatible `Stringable` objects fail. The sound required value type is
 therefore `non-empty-string`; optional raw validator input still includes the
 blank-string bypass.
 
+### Three array predicates have mid-major introductions
+
+Laravel adds `contains` in 11.8, `in_array_keys` in 12.16, and
+`doesnt_contain` in 12.22. The corresponding changes are
+[`4815757851f0`](https://github.com/laravel/framework/commit/4815757851f0d32f4659cc2b4ed8561c513d64cc),
+[`8b9f434868d1`](https://github.com/laravel/framework/commit/8b9f434868d18feb764b9dbbfa7fba12c09e185d),
+and
+[`ad138584ef0b`](https://github.com/laravel/framework/commit/ad138584ef0bceaf6ccd8e3e27d66bb339438562).
+Before each release, non-blank use reaches Laravel's missing validator method
+unless the application has registered a custom rule with the same name.
+Inference therefore remains `mixed` before the built-in contract exists.
+
+All three built-in methods first require `is_array($value)`. They differ in
+which members or keys make that array pass, but successful validation retains
+the original array and its arbitrary keys and values. A required field can
+therefore narrow to `array<mixed>` after the appropriate boundary. Optional
+raw input still includes Laravel's blank-string bypass. Focused runtime tests
+also reject scalars, `Stringable` objects, and `ArrayObject`, and confirm that
+associative arrays and nested values are preserved unchanged.
+
 ### HTTP normalization also has a known major boundary
 
 Laravel's default `TrimStrings` middleware excludes password-related paths in
@@ -365,9 +386,10 @@ The portable case snapshot is identical at Laravel 10.0, 10.32, and 10.33,
 across Laravel 10 and 11, from Laravel 11 to Laravel 12.0, and from Laravel
 12.0 to 12.21. After accounting for the numeric-key, strict-integer, and ASCII
 boundaries above, later snapshots are also identical within their covered
-ranges. The focused `hex_color` and `list` witnesses are intentionally separate:
-invoking `hex_color` before its introduction throws, while the portable corpus
-cannot exercise `list` projection on releases where the rule does not exist.
+ranges. The focused `hex_color`, array-predicate, and `list` witnesses are
+intentionally separate: invoking a rule before its introduction throws, while
+the portable corpus cannot exercise `list` projection on releases where the
+rule does not exist.
 
 Across 2,412 case executions on the eighteen profiles, Laravel returns 1,682
 successful outputs. Every one is contained in the extension's inferred type.
@@ -581,8 +603,9 @@ Composer project root.
 One shared context is injected into the rule parser and resolver used by
 validator, facade, request, and controller inference. The parser normalizes
 numeric rule keys, while the resolver specializes `integer:strict`, `ascii`,
-`base64`, `hex_color`, `list` value types, `list` parent reconstruction, and
-default HTTP normalization only at the verified boundaries above.
+`base64`, `hex_color`, `contains`, `in_array_keys`, `doesnt_contain`, `list`
+value types, `list` parent reconstruction, and default HTTP normalization only
+at the verified boundaries above.
 It ignores installed-package datasets belonging to unrelated project roots,
 so a globally installed tool or another registered autoloader cannot silently
 select the Laravel contract. The same context contributes its effective

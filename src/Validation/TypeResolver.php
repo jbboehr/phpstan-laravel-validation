@@ -634,6 +634,12 @@ final class TypeResolver
 
             "RequiredArrayKeys" => $this->resolveTypeRequiredArrayKeys($rule),
 
+            "Contains" => $this->resolveTypeIntroducedArrayRule('11.8.0'),
+
+            "InArrayKeys" => $this->resolveTypeIntroducedArrayRule('12.16.0'),
+
+            "DoesntContain" => $this->resolveTypeIntroducedArrayRule('12.22.0'),
+
             default => $this->resolveDefault($rule),
         };
     }
@@ -758,6 +764,20 @@ final class TypeResolver
         }
 
         return Type\TypeCombinator::intersect(...$types);
+    }
+
+    private function resolveTypeIntroducedArrayRule(string $introduced): Type\Type
+    {
+        // Before Laravel provides the built-in rule, applications may
+        // register the same name with an arbitrary runtime contract.
+        if (
+            $this->laravelVersionContext === null
+            || !$this->laravelVersionContext->isAtLeast($introduced)
+        ) {
+            return new MixedType();
+        }
+
+        return new Type\ArrayType(new MixedType(), new MixedType());
     }
 
     private function hasRequiredArrayKeysRule(RuleTreeNode $node): bool

@@ -684,6 +684,115 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         self::assertSame(['value' => null], $nullable->validated());
     }
 
+    /**
+     * @return iterable<string, array{string, string, array<mixed, mixed>, bool}>
+     */
+    public static function introducedArrayPredicateProvider(): iterable
+    {
+        yield 'contains' => [
+            'contains:needle',
+            '11.8.0',
+            ['needle', 'nested' => ['value' => 1]],
+            false,
+        ];
+        yield 'in array keys' => [
+            'in_array_keys:name',
+            '12.16.0',
+            ['name' => null, 'extra' => ['value' => 1]],
+            false,
+        ];
+        yield 'does not contain' => [
+            'doesnt_contain:blocked',
+            '12.22.0',
+            ['allowed', 'nested' => ['value' => 1]],
+            true,
+        ];
+    }
+
+    /**
+     * @param array<mixed, mixed> $validValue
+     * @dataProvider introducedArrayPredicateProvider
+     */
+    public function testIntroducedArrayPredicatesFollowRuntimeVersionBoundaries(
+        string $rule,
+        string $introduced,
+        array $validValue,
+        bool $emptyArrayPasses
+    ): void {
+        self::getContainer();
+
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $laravelVersion = self::frameworkVersion();
+        $context = new LaravelVersionContext('', $laravelVersion);
+
+        $blank = $factory->make(['value' => ''], ['value' => $rule]);
+        self::assertTrue($blank->passes());
+        self::assertSame(['value' => ''], $blank->validated());
+        $blankType = (new TypeResolver($context))->evaluate(RuleParser::parse([
+            'value' => $rule,
+        ], $context));
+        self::assertTrue($blankType->accepts(
+            $this->convertToType($blank->validated()),
+            true
+        )->yes());
+
+        $requiredRules = ['value' => 'required|' . $rule];
+        $rulesType = (new TypeResolver($context))->evaluate(RuleParser::parse($requiredRules, $context));
+
+        if (version_compare($laravelVersion, $introduced, '<')) {
+            self::assertSame('array{value: mixed}', $rulesType->describe(Type\VerbosityLevel::precise()));
+
+            try {
+                $factory->make(['value' => $validValue], $requiredRules)->passes();
+                self::fail(sprintf(
+                    'Laravel unexpectedly provided %s before version %s.',
+                    $rule,
+                    $introduced
+                ));
+            } catch (\BadMethodCallException) {
+            }
+
+            return;
+        }
+
+        self::assertSame('array{value: array}', $rulesType->describe(Type\VerbosityLevel::precise()));
+
+        $valid = $factory->make(['value' => $validValue], $requiredRules);
+        self::assertTrue($valid->passes());
+        self::assertSame(['value' => $validValue], $valid->validated());
+        self::assertTrue($rulesType->accepts(
+            $this->convertToType($valid->validated()),
+            true
+        )->yes());
+
+        foreach (
+            [
+                'not-an-array',
+                1,
+                1.5,
+                true,
+                new \ArrayObject(['value']),
+                new \Illuminate\Support\Stringable('value'),
+            ] as $invalidValue
+        ) {
+            self::assertFalse($factory->make(
+                ['value' => $invalidValue],
+                $requiredRules
+            )->passes());
+        }
+
+        $empty = $factory->make(['value' => []], ['value' => $rule]);
+        self::assertSame($emptyArrayPasses, $empty->passes());
+        if ($emptyArrayPasses) {
+            self::assertSame(['value' => []], $empty->validated());
+        }
+    }
+
     public function testListRuleFollowsRuntimeVersionBoundary(): void
     {
         self::getContainer();

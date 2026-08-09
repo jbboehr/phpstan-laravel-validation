@@ -71,6 +71,9 @@ final class TypeResolverTest extends PHPStanTestCase
         yield 'base64' => ['base64', 'mixed'];
         yield 'hex color' => ['hex_color', 'mixed'];
         yield 'list' => ['list', 'mixed'];
+        yield 'contains' => ['contains:value', 'mixed'];
+        yield 'does not contain' => ['doesnt_contain:value', 'mixed'];
+        yield 'in array keys' => ['in_array_keys:value', 'mixed'];
         yield 'required array keys' => [
             'required_array_keys:name,email',
             "non-empty-array&hasOffset('email')&hasOffset('name')",
@@ -356,6 +359,36 @@ final class TypeResolverTest extends PHPStanTestCase
         self::assertSame('array{value?: list|null}', self::resolveForVersion([
             'value' => 'nullable|list',
         ], '11.0.3', true));
+    }
+
+    public function testVersionAwareArrayPredicateInference(): void
+    {
+        foreach (
+            [
+                'contains:value' => ['11.7.0', '11.8.0'],
+                'in_array_keys:value' => ['12.15.0', '12.16.0'],
+                'doesnt_contain:value' => ['12.21.0', '12.22.0'],
+            ] as $rule => [$before, $introduced]
+        ) {
+            self::assertSame('array{value: mixed}', self::resolveForVersion([
+                'value' => 'required|' . $rule,
+            ], $before));
+            self::assertSame('array{value: array}', self::resolveForVersion([
+                'value' => 'required|' . $rule,
+            ], $introduced));
+            self::assertSame('array{value?: array|string}', self::resolveForVersion([
+                'value' => $rule,
+            ], $introduced));
+            self::assertSame('array{value?: array}', self::resolveForVersion([
+                'value' => $rule,
+            ], $introduced, true));
+            self::assertSame('array{value?: array|string|null}', self::resolveForVersion([
+                'value' => 'nullable|' . $rule,
+            ], $introduced));
+            self::assertSame('array{value: mixed}', self::resolveForVersion([
+                'value' => 'required|' . $rule,
+            ], '14.0.0'));
+        }
     }
 
     public function testListParentProjectionChangesInLaravel1123(): void
