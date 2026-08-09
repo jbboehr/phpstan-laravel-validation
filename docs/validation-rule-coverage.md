@@ -30,7 +30,7 @@ those included, the current Laravel 13.24 surface corresponds exactly to the
 
 Laravel added these string rules during the supported major range:
 
-- Laravel 10.33: `hex_color`;
+- Laravel 10.33: `hex_color`, followed by `extensions` in 10.34;
 - Laravel 11: `prohibited_if_accepted`, `prohibited_if_declined`, and
   `required_if_declined`, followed by `list` in Laravel 11.0.3 and `contains`
   in Laravel 11.8; Laravel 11.23 later makes a literal `list` participate in
@@ -68,10 +68,10 @@ separate dimensions.
 
 | Accepted-value handling | Rule names | Focused static coverage | Meaning |
 | --- | ---: | ---: | --- |
-| Direct type contribution | 54 | 53 | A native value type is emitted; `dimensions` lacks a dedicated focused fixture |
+| Direct type contribution | 55 | 54 | A native value type is emitted; `dimensions` lacks a dedicated focused fixture |
 | Explicitly neutral | 45 | 10 | The rule does not narrow the local value type, whether intentionally or because a correlated model is unavailable |
-| Conservative `mixed` fallback | 15 | 0 | No built-in accepted-value model is applied |
-| **Total reserved names** | **114** | **60 files** | Covers the current Laravel 13.24 name inventory, including `Enum` and `Password` |
+| Conservative `mixed` fallback | 14 | 0 | No built-in accepted-value model is applied |
+| **Total reserved names** | **114** | **61 files** | Covers the current Laravel 13.24 name inventory, including `Enum` and `Password` |
 
 The repository's generated Laravel fixtures provide broader conformance
 coverage than the focused-file count suggests. Focused files are still
@@ -80,7 +80,7 @@ adversarial native values that Laravel's upstream tests do not exercise.
 
 ## Rules with direct accepted-value inference
 
-The following 54 names contribute a concrete type today:
+The following 55 names contribute a concrete type today:
 
 | Family | Rules | Current contribution |
 | --- | --- | --- |
@@ -91,7 +91,7 @@ The following 54 names contribute a concrete type today:
 | Date checks | `After`, `AfterOrEqual`, `Before`, `BeforeOrEqual`, `Date`, `DateEquals`, `DateFormat` | Numeric scalars, non-empty strings, and where applicable `DateTimeInterface` |
 | Numeric checks | `Decimal`, `Digits`, `DigitsBetween`, `Integer`, `MaxDigits`, `MinDigits`, `MultipleOf`, `Numeric` | Numeric strings and the native numeric values Laravel accepts and preserves |
 | Arrays and files | `Array`, `RequiredArrayKeys`, `Dimensions`, `File`, `Image`, `Mimes`, `Mimetypes` | Array shapes, required-offset constraints, or Symfony file objects |
-| Version-sensitive | `ArrayKeys`, `Ascii`, `Base64`, `Contains`, `DoesntContain`, `HexColor`, `InArrayKeys`, `List` | `ArrayKeys` contributes an optional-key shape from Laravel 13.24; `Contains`, `DoesntContain`, and `InArrayKeys` contribute `array<mixed>` from 11.8, 12.22, and 12.16; `Base64`, `HexColor`, and `List` remain `mixed` before 13.21, 10.33, and 11.0.3; `List` changes nested projection in 11.23 |
+| Version-sensitive | `ArrayKeys`, `Ascii`, `Base64`, `Contains`, `DoesntContain`, `Extensions`, `HexColor`, `InArrayKeys`, `List` | `ArrayKeys` contributes an optional-key shape from Laravel 13.24; `Extensions` contributes a Symfony file from 10.34; `Contains`, `DoesntContain`, and `InArrayKeys` contribute `array<mixed>` from 11.8, 12.22, and 12.16; `Base64`, `HexColor`, and `List` remain `mixed` before 13.21, 10.33, and 11.0.3; `List` changes nested projection in 11.23 |
 
 This is not synonymous with complete rule support. For example, `Accepted`
 and `Declined` contribute exact value unions and required matched paths, while
@@ -137,13 +137,12 @@ nested rule is `missing`.
 
 ## Rules currently falling back to `mixed`
 
-These 15 reserved names have no built-in accepted-value contribution. The
+These 14 reserved names have no built-in accepted-value contribution. The
 fallback is generally sound because it is broad, but it loses useful
 information and can hide structural guarantees.
 
 | Rules | Introduced | Laravel consequence | Existing runtime evidence | Candidate treatment |
 | --- | --- | --- | --- | --- |
-| `Extensions` | 10 | Applies a file extension predicate | No generated fixture witness | Symfony file type after focused file probes |
 | `Encoding` | 12 | Checks strings, arrays, or file contents through `mb_check_encoding` | No generated fixture witness | Keep broad until adversarial runtime probes establish the preserved native union |
 | `Enum` | Object rule | Depends on the enum class and the rule object's `only`/`except` state | No generated fixture witness | Dedicated built-in object-rule extraction |
 | `MissingIf`, `MissingUnless`, `MissingWith`, `MissingWithAll` | 10 | Conditionally constrain whether a path may exist | Fixtures for all supported majors | Correlated optionality for the conditional family |
@@ -151,11 +150,11 @@ information and can hide structural guarantees.
 | `RequiredIfAccepted`, `RequiredIfDeclined` | 10 / 11 | Conditionally require a field based on another field's accepted or declined value | Fixtures from introduction onward | Correlated presence unions |
 | `ProhibitedIfAccepted`, `ProhibitedIfDeclined` | 11 | Conditionally restrict a field based on another field | Laravel 11 through 13 fixtures | Correlated optional value domains; prohibition is not equivalent to exclusion |
 
-The three remaining source-only gaps are significant for test planning:
-`Encoding`, `Extensions`, and `Enum` are absent from the generated corpus
-because they require file, environment, or rule-object setup that the exporter
-does not currently retain. `ArrayKeys` is newer than the pinned Laravel 13
-fixture but now has focused runtime and static coverage.
+The two remaining source-only gaps are significant for test planning:
+`Encoding` and `Enum` are absent from the generated corpus because they require
+file, environment, or rule-object setup that the exporter does not currently
+retain. `Extensions` now has focused file coverage, while `ArrayKeys` is newer
+than the pinned Laravel 13 fixture but has focused runtime and static coverage.
 
 ## Presence and output-shape findings
 
@@ -217,7 +216,7 @@ builder remains opaque until that separate extraction track is implemented.
 
 Add focused runtime and static witnesses before narrowing anything:
 
-- file witnesses for `extensions` and `encoding`;
+- file witnesses for `encoding`;
 - a dedicated static `dimensions` fixture; and
 - scalar-backed and pure enum object cases.
 

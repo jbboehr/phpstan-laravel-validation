@@ -13,12 +13,12 @@ type. Three release boundaries change contracts exercised by that corpus:
 - `integer:strict` begins enforcing native integers in Laravel 12.22; and
 - `ascii` begins requiring a native string in Laravel 13.4.
 
-The cross-profile runtime suite records five additional rule boundaries
+The cross-profile runtime suite records six additional rule boundaries
 outside that portable corpus: Laravel adds `hex_color` in 10.33, Laravel 13.4
 stops `hex_color` from accepting compatible `Stringable` objects, and Laravel
-adds the native-string-only `base64` rule in 13.21 and `array_keys` in 13.24.
-Laravel 11.23 separately changes a literal `list` parent from preservation to
-nested reconstruction.
+adds `extensions` in 10.34, the native-string-only `base64` rule in 13.21, and
+`array_keys` in 13.24. Laravel 11.23 separately changes a literal `list` parent
+from preservation to nested reconstruction.
 
 The extension now obtains one analyzed-project Laravel version from the
 matching Composer installed-package dataset, falling back to `composer.lock`
@@ -45,6 +45,7 @@ inference.
 | `10.0.0` | `10.0.0` | 8.1 | 10.0.0 | [`be2ddb5c31b0`](https://github.com/laravel/framework/commit/be2ddb5c31b0b9ebc2738d9f37a9d4c960aa3199) |
 | `10.32.1` | `10.32.1` | 8.1 | 10.32.1 | [`b30e44f20d24`](https://github.com/laravel/framework/commit/b30e44f20d244f7ba125283e14a8bbac167f4e5b) |
 | `10.33.0` | `10.33.0` | 8.1 | 10.33.0 | [`4536872e3e5b`](https://github.com/laravel/framework/commit/4536872e3e5b6be51b1f655dafd12c9a4fa0cfe8) |
+| `10.34.0` | `10.34.0` | 8.1 | 10.34.0 | [`92b78fdd1f38`](https://github.com/laravel/framework/commit/92b78fdd1f386425a88f443a728efd176c666244) |
 | `10-latest` | `^10.0` | 8.1 | 10.50.2 | [`3ff39b7a9b83`](https://github.com/laravel/framework/commit/3ff39b7a9b83e633383ec9b019827ed54b6d38bc) |
 | `11.0.0` | `11.0.0` | 8.2 | 11.0.0 | [`6089f679d6d2`](https://github.com/laravel/framework/commit/6089f679d6d29e6071a6448ed5e96de02e57fedb) |
 | `11.22.0` | `11.22.0` | 8.2 | 11.22.0 | [`868c75beacc4`](https://github.com/laravel/framework/commit/868c75beacc47d0f361b919bbc155c0b619bf3d5) |
@@ -127,6 +128,7 @@ observed evidence; it does not prove universal soundness.
 | Boolean and numeric predicates | `boolean.*`, `integer.*`, `numeric.*`, `digits*`, `decimal`, `multiple_of`, `max_digits`, `min_digits` | `integer:strict` boundary at 12.22 |
 | Text predicates | `alpha*`, `ascii.*`, `string`, `lowercase`, `uppercase`, `regex`, `not_regex` | `ascii` boundary at 13.4 |
 | Hex colors | valid strings, compatible `Stringable`, optional blank input, and unsupported-rule behavior | Rule introduction at 10.33; native-string boundary at 13.4, covered by the cross-profile PHPUnit suite |
+| File extensions | valid and failed uploads, a compatible Symfony file subclass, invalid native values, optional blank input, and unsupported-rule behavior | `extensions` begins at Laravel 10.34, covered by the cross-profile PHPUnit suite rather than the portable audit corpus |
 | JSON, dates, and membership | `json.*`, `date*`, comparisons, scalar `in` | No observed release difference |
 | Network and identifiers | `email`, `ip`, `ipv4`, `ipv6`, `mac_address`, `timezone`, `url`, `uuid`, `ulid` | No observed release difference |
 | Arrays and projection | bare and keyed arrays, parameterized-parent preservation, required array offsets, numeric rule keys, nested child projection, wildcards, parent-plus-child rules | Numeric rule-key boundary at Laravel 12; `list` reconstruction boundary at Laravel 11.23 is covered by the cross-profile PHPUnit suite |
@@ -256,6 +258,47 @@ required value type narrows to `non-empty-string`. Optional raw validator input
 still includes blank strings because Laravel skips this non-implicit rule for
 blank values; HTTP normalization can remove that branch when enabled in the
 extension.
+
+### `extensions` begins in Laravel 10.34
+
+Laravel 10.33 and earlier have no `validateExtensions()` method. A non-blank
+value therefore reaches the missing validator method unless the application
+registers a custom rule with that name. Inference remains `mixed` before
+Laravel 10.34 rather than assigning the later built-in contract to an
+open-ended extension point.
+
+Laravel 10.34 adds a file predicate built around this sequence:
+
+```php
+if (! $this->isValidFileInstance($value)) {
+    return false;
+}
+
+return in_array(strtolower($value->getClientOriginalExtension()), $parameters);
+```
+
+The method also has a family-wide PHP-upload block for `php`, `php3` through
+`php8`, `phtml`, and `phar`. That block is disabled only when the literal `php`
+parameter appears anywhere in the rule; the ordinary extension allow-list is
+then still applied. Consequently, `extensions:phtml` rejects an upload named
+`evil.phtml`, while `extensions:phtml,php` accepts it. For an `UploadedFile`,
+the block inspects the client-supplied extension. For another Symfony `File`,
+it inspects the physical path extension instead.
+
+Successful validation preserves the original object. Laravel's initial guard
+establishes only that it is a Symfony `File`; it does not establish that the
+value is specifically an `UploadedFile`. A compatible `File` subclass that
+supplies `getClientOriginalExtension()` can pass, while a plain `File` with a
+non-PHP path reaches an undefined-method error. The sound useful type is
+therefore Symfony `File`, not the narrower `UploadedFile`.
+
+Focused probes cover a valid upload, a compatible file subclass, the
+plain-file error path, the PHP-family block and its `php` escape hatch, failed
+uploads, mismatched and case-sensitive parameters, absent parameters, invalid
+native values, optional blank bypass, and preservation in `validated()`.
+Before 10.34 and when version context is unavailable, the type remains
+`mixed`. The rule was introduced by
+[`4ae1ef68e4e4`](https://github.com/laravel/framework/commit/4ae1ef68e4e443499dceaf6bb3605863df8e8b4e).
 
 ### `base64` begins in Laravel 13.21
 
@@ -659,7 +702,7 @@ Composer project root.
 One shared context is injected into the rule parser and resolver used by
 validator, facade, request, and controller inference. The parser normalizes
 numeric rule keys, while the resolver specializes `integer:strict`, `ascii`,
-`base64`, `hex_color`, `array_keys`, `contains`, `in_array_keys`,
+`base64`, `extensions`, `hex_color`, `array_keys`, `contains`, `in_array_keys`,
 `doesnt_contain`, `list` value types, `list` parent reconstruction, and default
 HTTP normalization only at the verified boundaries above.
 It ignores installed-package datasets belonging to unrelated project roots,

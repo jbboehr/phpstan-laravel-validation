@@ -945,6 +945,143 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         )->passes());
     }
 
+    public function testExtensionsRuleFollowsRuntimeVersionBoundary(): void
+    {
+        self::getContainer();
+
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $laravelVersion = self::frameworkVersion();
+        $context = new LaravelVersionContext('', $laravelVersion);
+
+        $blank = $factory->make(['value' => ''], ['value' => 'extensions:txt']);
+        self::assertTrue($blank->passes());
+        self::assertSame(['value' => ''], $blank->validated());
+
+        $blankType = (new TypeResolver($context))->evaluate(RuleParser::parse([
+            'value' => 'extensions:txt',
+        ], $context));
+        self::assertTrue($blankType->isSuperTypeOf(
+            $this->convertToType($blank->validated())
+        )->yes());
+
+        $uploadedFile = new \Symfony\Component\HttpFoundation\File\UploadedFile(
+            __FILE__,
+            'report.TXT',
+            'text/plain',
+            UPLOAD_ERR_OK,
+            true
+        );
+        $requiredRules = ['value' => 'required|extensions:txt'];
+        $rulesType = (new TypeResolver($context))->evaluate(RuleParser::parse(
+            $requiredRules,
+            $context
+        ));
+
+        if (version_compare($laravelVersion, '10.34.0', '<')) {
+            self::assertSame('array{value: mixed}', $rulesType->describe(Type\VerbosityLevel::precise()));
+
+            try {
+                $factory->make(['value' => $uploadedFile], $requiredRules)->passes();
+                self::fail('Laravel unexpectedly provided extensions before version 10.34.');
+            } catch (\BadMethodCallException) {
+            }
+
+            return;
+        }
+
+        self::assertSame(
+            'array{value: Symfony\\Component\\HttpFoundation\\File\\File}',
+            $rulesType->describe(Type\VerbosityLevel::precise())
+        );
+
+        // The non-PHP path is deliberate: Laravel checks the physical path
+        // extension for File objects before consulting the client extension.
+        $plainFilePath = __DIR__ . '/fixtures/version-audit/10.0.0.json';
+        $fileWithClientExtension = new class (
+            $plainFilePath
+        ) extends \Symfony\Component\HttpFoundation\File\File {
+            public function getClientOriginalExtension(): string
+            {
+                return 'txt';
+            }
+        };
+
+        foreach (
+            [
+                'uploaded file' => $uploadedFile,
+                'file subclass with a client extension' => $fileWithClientExtension,
+            ] as $caseId => $file
+        ) {
+            $validator = $factory->make(['value' => $file], $requiredRules);
+            self::assertTrue($validator->passes(), $caseId);
+            self::assertSame(['value' => $file], $validator->validated(), $caseId);
+        }
+
+        $uploadedValidator = $factory->make(['value' => $uploadedFile], $requiredRules);
+        self::assertTrue($rulesType->isSuperTypeOf(
+            $this->convertToType($uploadedValidator->validated())
+        )->yes());
+
+        try {
+            $factory->make(
+                ['value' => new \Symfony\Component\HttpFoundation\File\File($plainFilePath)],
+                $requiredRules
+            )->passes();
+            self::fail('Laravel unexpectedly handled extensions on a plain Symfony File.');
+        } catch (\Error $error) {
+            self::assertSame(
+                'Call to undefined method Symfony\\Component\\HttpFoundation\\File\\File::getClientOriginalExtension()',
+                $error->getMessage()
+            );
+        }
+
+        $phpFamilyUpload = new \Symfony\Component\HttpFoundation\File\UploadedFile(
+            __FILE__,
+            'evil.phtml',
+            'application/x-httpd-php',
+            UPLOAD_ERR_OK,
+            true
+        );
+        self::assertFalse($factory->make(
+            ['value' => $phpFamilyUpload],
+            ['value' => 'required|extensions:phtml']
+        )->passes());
+        $phpEscapeHatch = $factory->make(
+            ['value' => $phpFamilyUpload],
+            ['value' => 'required|extensions:phtml,php']
+        );
+        self::assertTrue($phpEscapeHatch->passes());
+        self::assertSame(['value' => $phpFamilyUpload], $phpEscapeHatch->validated());
+
+        $failedUpload = new \Symfony\Component\HttpFoundation\File\UploadedFile(
+            __FILE__,
+            'report.txt',
+            'text/plain',
+            UPLOAD_ERR_INI_SIZE,
+            true
+        );
+        foreach (
+            [
+                'failed upload' => [$failedUpload, 'extensions:txt'],
+                'wrong extension' => [$uploadedFile, 'extensions:json'],
+                'case-sensitive parameter' => [$uploadedFile, 'extensions:TXT'],
+                'missing parameter' => [$uploadedFile, 'extensions'],
+                'string path' => [__FILE__, 'extensions:php'],
+                'array-like object' => [new \ArrayObject(), 'extensions:txt'],
+            ] as $caseId => [$value, $rule]
+        ) {
+            self::assertFalse($factory->make(
+                ['value' => $value],
+                ['value' => $rule]
+            )->passes(), $caseId);
+        }
+    }
+
     public function testListRuleFollowsRuntimeVersionBoundary(): void
     {
         self::getContainer();

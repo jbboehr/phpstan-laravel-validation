@@ -75,6 +75,7 @@ final class TypeResolverTest extends PHPStanTestCase
         yield 'does not contain' => ['doesnt_contain:value', 'mixed'];
         yield 'in array keys' => ['in_array_keys:value', 'mixed'];
         yield 'array keys' => ['array_keys:name,email', 'mixed'];
+        yield 'extensions' => ['extensions:txt', 'mixed'];
         yield 'required array keys' => [
             'required_array_keys:name,email',
             "non-empty-array&hasOffset('email')&hasOffset('name')",
@@ -328,6 +329,30 @@ final class TypeResolverTest extends PHPStanTestCase
         self::assertSame('array{value?: non-empty-string|null}', self::resolveForVersion([
             'value' => 'nullable|base64',
         ], '13.21.0', true));
+    }
+
+    public function testVersionAwareExtensionsInference(): void
+    {
+        $file = 'Symfony\\Component\\HttpFoundation\\File\\File';
+
+        self::assertSame('array{value: mixed}', self::resolveForVersion([
+            'value' => 'required|extensions:txt',
+        ], '10.33.0'));
+        self::assertSame('array{value: ' . $file . '}', self::resolveForVersion([
+            'value' => 'required|extensions:txt',
+        ], '10.34.0'));
+        self::assertSame('array{value?: string|' . $file . '}', self::resolveForVersion([
+            'value' => 'extensions:txt',
+        ], '10.34.0'));
+        self::assertSame('array{value?: ' . $file . '}', self::resolveForVersion([
+            'value' => 'extensions:txt',
+        ], '10.34.0', true));
+        self::assertSame('array{value?: string|' . $file . '|null}', self::resolveForVersion([
+            'value' => 'nullable|extensions:txt',
+        ], '10.34.0'));
+        self::assertSame('array{value: mixed}', self::resolveForVersion([
+            'value' => 'required|extensions:txt',
+        ], '14.0.0'));
     }
 
     public function testVersionAwareListInference(): void

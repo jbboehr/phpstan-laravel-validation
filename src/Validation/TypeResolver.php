@@ -638,6 +638,8 @@ final class TypeResolver
             "Dimensions", "File", "Image", "Mimetypes",
             "Mimes" => new Type\ObjectType('Symfony\\Component\\HttpFoundation\\File\\File'),
 
+            "Extensions" => $this->resolveTypeExtensions(),
+
             "HexColor" => $this->resolveTypeHexColor(),
 
             "In" => $this->resolveTypeIn($rule),
@@ -723,6 +725,20 @@ final class TypeResolver
             $stringType,
             new Type\ObjectType(\Stringable::class)
         );
+    }
+
+    private function resolveTypeExtensions(): Type\Type
+    {
+        // Laravel did not add this rule until 10.34. Before that release an
+        // application may register the same name with an arbitrary contract.
+        if (
+            $this->laravelVersionContext === null
+            || !$this->laravelVersionContext->isAtLeast('10.34.0')
+        ) {
+            return new MixedType();
+        }
+
+        return new Type\ObjectType('Symfony\\Component\\HttpFoundation\\File\\File');
     }
 
     private function resolveTypeList(): Type\Type
