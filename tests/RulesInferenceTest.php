@@ -67,6 +67,7 @@ class RulesInferenceTest extends \PHPStan\Testing\TypeInferenceTestCase
         yield from self::gatherAssertTypes(__DIR__ . '/rules/lowercase.php');
         yield from self::gatherAssertTypes(__DIR__ . '/rules/mac-address.php');
         yield from self::gatherAssertTypes(__DIR__ . '/rules/max-digits.php');
+        yield from self::gatherAssertTypes(__DIR__ . '/rules/missing.php');
         yield from self::gatherAssertTypes(__DIR__ . '/rules/mimes.php');
         yield from self::gatherAssertTypes(__DIR__ . '/rules/mimetypes.php');
         yield from self::gatherAssertTypes(__DIR__ . '/rules/min-digits.php');
@@ -74,6 +75,7 @@ class RulesInferenceTest extends \PHPStan\Testing\TypeInferenceTestCase
         yield from self::gatherAssertTypes(__DIR__ . '/rules/not-regex.php');
         yield from self::gatherAssertTypes(__DIR__ . '/rules/nullable.php');
         yield from self::gatherAssertTypes(__DIR__ . '/rules/numeric.php');
+        yield from self::gatherAssertTypes(__DIR__ . '/rules/present.php');
         yield from self::gatherAssertTypes(__DIR__ . '/rules/regex.php');
         yield from self::gatherAssertTypes(__DIR__ . '/rules/string.php');
         yield from self::gatherAssertTypes(__DIR__ . '/rules/timezone.php');

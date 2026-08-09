@@ -38,6 +38,9 @@
         }
     },
     "scripts": {
+        "test:audit": "php scripts/inference-audit.php",
+        "test:audit:matrix": "php scripts/inference-audit-matrix.php",
+        "test:audit:matrix:nix": "bash scripts/inference-audit-matrix-nix.bash",
         "cs": "php-cs-fixer fix --config=.php-cs-fixer.dist.php --dry-run --diff",
         "cs:fix": "php-cs-fixer fix --config=.php-cs-fixer.dist.php",
         "infection": "@php tools/infection/vendor/bin/infection --with-uncovered --only-covering-test-cases",

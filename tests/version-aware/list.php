@@ -20,3 +20,9 @@ assertType(
 assertType('list', $validated['required_value']);
 assertType('list|string', $validated['optional_value']);
 assertType('list|string|null', $validated['nullable_value']);
+
+$preservedParent = \Illuminate\Support\Facades\Validator::make([], [
+    'items' => 'required|list',
+    'items.*.id' => 'missing',
+])->validated();
+assertType('array{items: array<int|string, mixed>}', $preservedParent);

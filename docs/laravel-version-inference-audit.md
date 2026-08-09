@@ -13,10 +13,11 @@ type. Three release boundaries change contracts exercised by that corpus:
 - `integer:strict` begins enforcing native integers in Laravel 12.22; and
 - `ascii` begins requiring a native string in Laravel 13.4.
 
-The cross-profile runtime suite records three additional rule boundaries
+The cross-profile runtime suite records four additional rule boundaries
 outside that portable corpus: Laravel adds `hex_color` in 10.33, Laravel 13.4
 stops `hex_color` from accepting compatible `Stringable` objects, and Laravel
-adds the native-string-only `base64` rule in 13.21.
+adds the native-string-only `base64` rule in 13.21. Laravel 11.23 separately
+changes a literal `list` parent from preservation to nested reconstruction.
 
 The extension now obtains one analyzed-project Laravel version from the
 matching Composer installed-package dataset, falling back to `composer.lock`
@@ -45,17 +46,19 @@ inference.
 | `10.33.0` | `10.33.0` | 8.1 | 10.33.0 | [`4536872e3e5b`](https://github.com/laravel/framework/commit/4536872e3e5b6be51b1f655dafd12c9a4fa0cfe8) |
 | `10-latest` | `^10.0` | 8.1 | 10.50.2 | [`3ff39b7a9b83`](https://github.com/laravel/framework/commit/3ff39b7a9b83e633383ec9b019827ed54b6d38bc) |
 | `11.0.0` | `11.0.0` | 8.2 | 11.0.0 | [`6089f679d6d2`](https://github.com/laravel/framework/commit/6089f679d6d29e6071a6448ed5e96de02e57fedb) |
+| `11.22.0` | `11.22.0` | 8.2 | 11.22.0 | [`868c75beacc4`](https://github.com/laravel/framework/commit/868c75beacc47d0f361b919bbc155c0b619bf3d5) |
+| `11.23.0` | `11.23.0` | 8.2 | 11.23.0 | [`576f6f5d63f6`](https://github.com/laravel/framework/commit/576f6f5d63f68afb36dc062e728e717ddeb1a4aa) |
 | `11-latest` | `^11.0` | 8.2 | 11.55.0 | [`dc7ec34ae95b`](https://github.com/laravel/framework/commit/dc7ec34ae95bacf4a63b96ec81482b4f3e702289) |
 | `12.0.0` | `12.0.0` | 8.2 | 12.0.0 | [`bd8aeb64d3f9`](https://github.com/laravel/framework/commit/bd8aeb64d3f9fa4b11690d702bdf289f5f32ae97) |
 | `12.21.0` | `12.21.0` | 8.2 | 12.21.0 | [`ac8c4e73bf1b`](https://github.com/laravel/framework/commit/ac8c4e73bf1b5387b709f7736d41427e6af1c93b) |
 | `12.22.0` | `12.22.0` | 8.2 | 12.22.0 | [`6ab00c913ef6`](https://github.com/laravel/framework/commit/6ab00c913ef6ec6fad0bd506f7452c0bb9e792c3) |
-| `12-latest` | `^12.0` | 8.2 | 12.64.0 | [`727a8ea2949c`](https://github.com/laravel/framework/commit/727a8ea2949c23ca8b5316b86a00984b6017b7a0) |
+| `12-latest` | `^12.0` | 8.2 | 12.65.0 | [`99a8fb3153f9`](https://github.com/laravel/framework/commit/99a8fb3153f962a323377d6742be08da86bcccb8) |
 | `13.0.0` | `13.0.0` | 8.3 | 13.0.0 | [`3e33f431a053`](https://github.com/laravel/framework/commit/3e33f431a05365d008742ff8001b92641086d5f8) |
 | `13.3.0` | `13.3.0` | 8.3 | 13.3.0 | [`118b7063c44a`](https://github.com/laravel/framework/commit/118b7063c44a2f3421d1646f5ddf08defcfd1db3) |
 | `13.4.0` | `13.4.0` | 8.3 | 13.4.0 | [`912de244f88a`](https://github.com/laravel/framework/commit/912de244f88a69742b76e8a2807f6765947776da) |
 | `13.20.0` | `13.20.0` | 8.3 | 13.20.0 | [`b9d1bccad5fb`](https://github.com/laravel/framework/commit/b9d1bccad5fbc32578dca22566bb11e7c0e545d7) |
 | `13.21.0` | `13.21.0` | 8.3 | 13.21.0 | [`d1e02ce7b7e2`](https://github.com/laravel/framework/commit/d1e02ce7b7e25146177a1a0137c37bccb32d26d3) |
-| `13-latest` | `^13.0` | 8.3 | 13.23.0 | [`92a707229148`](https://github.com/laravel/framework/commit/92a707229148e57f08a249211c8a5a194159c619) |
+| `13-latest` | `^13.0` | 8.3 | 13.24.0 | [`6d481710375d`](https://github.com/laravel/framework/commit/6d481710375d2aa67656922ef760cdd2b18bcfe0) |
 
 The `*-latest` constraints intentionally float in CI. Their committed
 baselines record the releases above. A later patch release that changes any
@@ -103,7 +106,7 @@ are omitted from the snapshot.
 An additional Eris property suite takes 250 seed-dependent draws in each of
 three bounded domains: scalar presence and native representations, nested
 projection and wildcards, and cross-field presence and exclusion. Their finite
-catalogs contain 1,260, 48, and 280 possible combinations respectively; draws
+catalogs contain 1,620, 100, and 280 possible combinations respectively; draws
 are made with replacement and are not claims of exhaustive coverage. Each
 property requires at least 30 percent of its trials to produce successful
 Laravel output so a mostly rejected sample cannot pass vacuously. It then runs
@@ -123,8 +126,8 @@ observed evidence; it does not prove universal soundness.
 | Hex colors | valid strings, compatible `Stringable`, optional blank input, and unsupported-rule behavior | Rule introduction at 10.33; native-string boundary at 13.4, covered by the cross-profile PHPUnit suite |
 | JSON, dates, and membership | `json.*`, `date*`, comparisons, scalar `in` | No observed release difference |
 | Network and identifiers | `email`, `ip`, `ipv4`, `ipv6`, `mac_address`, `timezone`, `url`, `uuid`, `ulid` | No observed release difference |
-| Arrays and projection | bare and keyed arrays, numeric rule keys, nested child projection, required keys, wildcards, parent-plus-child rules | Numeric rule-key boundary at Laravel 12 |
-| Presence and conditions | optional blanks, nullable, present, confirmed, `required_if`, `exclude_if` | No observed release difference |
+| Arrays and projection | bare and keyed arrays, parameterized-parent preservation, numeric rule keys, nested child projection, required keys, wildcards, parent-plus-child rules | Numeric rule-key boundary at Laravel 12; `list` reconstruction boundary at Laravel 11.23 is covered by the cross-profile PHPUnit suite |
+| Presence and conditions | optional blanks, nullable, present, missing, zero-match wildcard parent preservation, confirmed, `required_if`, `exclude_if` | No observed release difference |
 | Default HTTP middleware | password-path trimming before validation | Laravel 10 versus 11+ boundary covered by the cross-profile PHPUnit suite |
 | Static entry points | facade, factory, request, controller, helper, validator unions, constant `setRules()` | Covered by the existing PHPStan fixture suite |
 | Environment-dependent behavior | files, images, dimensions, database, DNS, password-rule service checks, custom rules | Catalogued but not executed by this portable audit |
@@ -293,17 +296,80 @@ and the normalized request PHPStan fixtures. The shared version context refines
 this behavior alongside rule inference rather than treating it as an unrelated
 special case.
 
+### Laravel 11.23 changes `list` output projection
+
+Laravel added the `list` value predicate in 11.0.3, but it initially remained
+different from `array` during `validated()` projection. Through Laravel 11.22,
+a literal `list` parent with nested rules is copied in full. Laravel 11.23 adds
+`list` to the parent-reconstruction condition:
+
+```php
+(in_array('array', $rules) || in_array('list', $rules))
+```
+
+Consequently, this successful validation changes output at the patch boundary:
+
+```php
+$input = ['items' => [['name' => 'Ada']]];
+$rules = [
+    'items' => 'required|list',
+    'items.*.id' => 'missing',
+];
+
+// Laravel 11.22: $input
+// Laravel 11.23+: []
+```
+
+The change was introduced by
+[`d8aabd9697e2`](https://github.com/laravel/framework/commit/d8aabd9697e240df69c2cca26c05308db4b06020).
+Inference therefore treats a bare `list` as a reconstruction rule only from
+Laravel 11.23. Unknown or unsupported versions retain both the preserved-parent
+and reconstructed-output possibilities. Zero wildcard matches remain a
+separate branch: without any concrete descendant rule, Laravel keeps the raw
+parent even after the reconstruction change.
+
+### Parameterized `array` rules preserve the parent value
+
+Laravel's nested-output reconstruction distinguishes the literal `array` rule
+from allowed-key forms such as `array:name`. With a literal `array`, Laravel
+can omit the raw parent value and rebuild validated output from matching child
+rules. With `array:name`, the parameterized rule rejects undeclared keys but
+does not trigger that reconstruction path, so Laravel preserves the complete
+permitted parent value.
+
+For example, every supported profile preserves `name` here even though the
+only child rule requires `child` to be missing:
+
+```php
+Validator::make(
+    ['payload' => ['name' => 'Ada']],
+    [
+        'payload' => 'required|array:name',
+        'payload.child' => 'missing',
+    ],
+)->validated();
+
+// ['payload' => ['name' => 'Ada']]
+```
+
+Laravel 11.23 and later also recognize a literal `list` rule when deciding
+whether to reconstruct nested output; that does not make parameterized
+`array` rules equivalent to bare `array`. The extension therefore preserves
+the allowed-key parent shape around nested rules instead of projecting it
+away. The deterministic audit and the structural property catalog both cover
+this distinction.
+
 ### No additional portable boundary was observed
 
 The portable case snapshot is identical at Laravel 10.0, 10.32, and 10.33,
 across Laravel 10 and 11, from Laravel 11 to Laravel 12.0, and from Laravel
 12.0 to 12.21. After accounting for the numeric-key, strict-integer, and ASCII
 boundaries above, later snapshots are also identical within their covered
-ranges. The focused `hex_color` witness is intentionally separate because
-invoking that rule before its introduction throws rather than producing an
-ordinary validation result.
+ranges. The focused `hex_color` and `list` witnesses are intentionally separate:
+invoking `hex_color` before its introduction throws, while the portable corpus
+cannot exercise `list` projection on releases where the rule does not exist.
 
-Across 1,968 case executions on the sixteen profiles, Laravel returns 1,328
+Across 2,340 case executions on the eighteen profiles, Laravel returns 1,610
 successful outputs. Every one is contained in the extension's inferred type.
 There are no `observed-unsound`, `inference-error`, or `runtime-exception`
 classifications. Failed inputs are recorded as `no-successful-output`; only the
@@ -322,7 +388,7 @@ contain nothing Laravel can never return. The second relation fails often, so
 the audit now measures it separately rather than treating imprecision as a
 conformance failure.
 
-Of the 123 portable cases, 101 are marked as preservation-only precision
+Of the 130 portable cases, 102 are marked as preservation-only precision
 probes.
 For those cases, the supplied data has the same shape and native values that
 `validated()` would return if validation succeeded. The audit verifies that
@@ -345,9 +411,9 @@ The aggregate precision results are:
 
 | Laravel profiles | Realizable | Observed imprecision | Outside inference | Not reverse-probed |
 | --- | ---: | ---: | ---: | ---: |
-| 10.0 through 12.21 | 69 | 22 | 10 | 18 |
-| 12.22 through 13.3 | 65 | 22 | 14 | 18 |
-| 13.4 and later | 57 | 22 | 22 | 18 |
+| 10.0 through 12.21 | 70 | 22 | 10 | 28 |
+| 12.22 through 13.3 | 66 | 22 | 14 | 28 |
+| 13.4 and later | 58 | 22 | 22 | 28 |
 
 Only twelve witnesses change classification by Laravel release:
 
@@ -399,7 +465,7 @@ version at or above that Laravel major's supported PHP floor:
 - Laravel 11 and 12 profiles on PHP 8.2 through 8.5; and
 - Laravel 13 profiles on PHP 8.3 through 8.5.
 
-This produces 56 Laravel/PHP combinations. Each job installs the profile's
+This produces 70 Laravel/PHP combinations. Each job installs the profile's
 exact or floating Composer constraint and exposes its profile name through
 `LARAVEL_AUDIT_BASELINE`. The deterministic audit compares the recorded
 contract, checks containment of successful output, and records the reverse
@@ -411,6 +477,10 @@ profiles. The former preserve known historical contracts; the latter detect
 new patch-release behavior.
 
 ## Reproducing the audit
+
+The contributor workflow, including focused runtime cases and the relationship
+between test layers, is documented in the
+[testing and runtime verification guide](testing.md).
 
 Run the installed Laravel release and print its audit result:
 
@@ -424,23 +494,34 @@ Compare the installed release with a committed profile:
 php scripts/inference-audit.php --baseline=10-latest
 ```
 
-Run against an isolated exact Laravel installation:
+List semantic case IDs and run only the cases relevant to an investigation:
 
 ```sh
 php scripts/inference-audit.php \
-    --laravel-autoload=/path/to/laravel/vendor/autoload.php \
-    --baseline=12.22.0
+    --list-cases
+php scripts/inference-audit.php \
+    --baseline=10-latest \
+    --case=present.value \
+    --case=missing.absent
 ```
 
-Regenerate a baseline only after reviewing Laravel's behavior and upstream
-provenance:
+Run one or more isolated profiles with ordinary PHP and Composer. Exact
+profiles are cached; floating latest profiles are refreshed:
 
 ```sh
-php scripts/inference-audit.php \
-    --laravel-autoload=/path/to/laravel/vendor/autoload.php \
-    --baseline=12.22.0 \
-    --update
+composer test:audit:matrix -- --profile=12.21.0 --profile=12.22.0
 ```
+
+Regenerate a complete baseline only after reviewing Laravel's behavior and
+upstream provenance:
+
+```sh
+composer test:audit:matrix -- --profile=12.22.0 --update
+```
+
+The matrix uses disposable installations below `tmp/version-audit` and does
+not modify the root Composer project. Its Nix wrapper is optional; it only
+selects a compatible PHP shell before invoking the same portable runner.
 
 Run only the bounded property suite with its default seed, or select another
 seed to explore and replay a different sequence:
@@ -453,6 +534,21 @@ ERIS_SEED=123456 composer test:property
 Every counterexample must be reproduced against the supported Laravel majors
 and promoted into the deterministic audit or a focused runtime regression
 before inference changes.
+
+## Possible future cross-version seed sweeps
+
+A local sweep of seeds 1 through 250 on Laravel 10.50.2 completed 187,500
+generated trials without finding a containment failure. Across the sweep, the
+generated index combinations visited all 1,620 scalar, 100 structural, and 280
+conditional catalog entries at least once. This strengthens the local evidence
+but does not exercise those sequences against every supported Laravel release.
+
+CI already runs the reproducible default seed throughout the Laravel/PHP
+matrix. A useful lower-priority follow-up is a periodic or manually triggered
+cross-version sweep using several additional fixed seeds. It need not multiply
+the mandatory pull-request matrix. Any version-specific counterexample should
+be promoted into the deterministic audit or a focused runtime regression so it
+remains covered without depending on random discovery.
 
 ## Possible future fuzzing
 
@@ -484,8 +580,8 @@ Composer project root.
 One shared context is injected into the rule parser and resolver used by
 validator, facade, request, and controller inference. The parser normalizes
 numeric rule keys, while the resolver specializes `integer:strict`, `ascii`,
-`base64`, `hex_color`, `list`, and default HTTP normalization only at the
-verified boundaries above.
+`base64`, `hex_color`, `list` value types, `list` parent reconstruction, and
+default HTTP normalization only at the verified boundaries above.
 It ignores installed-package datasets belonging to unrelated project roots,
 so a globally installed tool or another registered autoloader cannot silently
 select the Laravel contract. The same context contributes its effective
@@ -504,7 +600,10 @@ middleware defaults apply.
 
 The version-independent `required|nullable`, `regex`, and `not_regex`
 opportunities have already been applied and remain covered by the pinned
-runtime profiles.
+runtime profiles. Unconditional `present` and `missing` now also refine output
+presence without conflating key existence with non-blank requiredness; focused
+runtime tests cover their named, nested, blank-value, and wildcard behavior
+through the cross-profile CI matrix.
 
 Environment-dependent rules should remain conservative unless their runtime
 services can be replaced with deterministic test doubles and their static

@@ -33,7 +33,9 @@ final class RuleTreeNode implements IteratorAggregate, \Countable
     private bool $excluded = false;
     private bool $sometimes = false;
     private bool $hasRequiredChild = false;
+    private bool $missing = false;
     private bool $nullable = false;
+    private bool $present = false;
     private bool $required = false;
     private bool $isArray = false;
     private bool $opaque = false;
@@ -92,10 +94,15 @@ final class RuleTreeNode implements IteratorAggregate, \Countable
                 $this->required = true;
             }
 
+            if ($rule->getRuleName() === Rule::RULE_PRESENT) {
+                $this->present = true;
+            }
+
             match ($rule->getRuleName()) {
                 // These imply the node is not optional
                 Rule::RULE_ACCEPTED,
                 Rule::RULE_DECLINED,
+                Rule::RULE_PRESENT,
                 Rule::RULE_REQUIRED => $this->optional = false,
 
                 // This removes the node completely
@@ -107,6 +114,10 @@ final class RuleTreeNode implements IteratorAggregate, \Countable
                 Rule::RULE_EXCLUDE_WITH,
                 Rule::RULE_EXCLUDE_WITHOUT,
                 Rule::RULE_SOMETIMES => $this->sometimes = true,
+
+                // A successful unconditional missing rule guarantees that
+                // this path is absent from validated output.
+                Rule::RULE_MISSING => $this->missing = true,
 
                 // Nullable lets an otherwise optional value be null, but it
                 // does not override an unconditional required rule.
@@ -188,9 +199,35 @@ final class RuleTreeNode implements IteratorAggregate, \Countable
         return $this->isArray;
     }
 
+    public function hasBareArrayRule(): bool
+    {
+        return $this->hasBareRule(Rule::RULE_ARRAY);
+    }
+
+    public function hasBareListRule(): bool
+    {
+        return $this->hasBareRule(Rule::RULE_LIST);
+    }
+
+    private function hasBareRule(string $ruleName): bool
+    {
+        foreach ($this->rules as $rule) {
+            if ($rule->getRuleName() === $ruleName && $rule->getParameters() === []) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function isExcluded(): bool
     {
         return $this->excluded;
+    }
+
+    public function isMissing(): bool
+    {
+        return $this->missing;
     }
 
     public function isOpaque(): bool
@@ -218,6 +255,11 @@ final class RuleTreeNode implements IteratorAggregate, \Countable
         return $this->nullable && !$this->required;
     }
 
+    public function requiresNonBlankValue(): bool
+    {
+        return $this->required;
+    }
+
     /**
      * Laravel skips non-implicit rules for blank strings. Since PHPStan has no
      * whitespace-only string type, a node that permits this bypass must include
@@ -225,7 +267,10 @@ final class RuleTreeNode implements IteratorAggregate, \Countable
      */
     public function allowsBlankStringBypass(): bool
     {
-        if (!$this->isOptional()) {
+        // A present rule requires the key but does not make non-implicit rules
+        // run for blank strings. Other causes of non-optionality retain the
+        // existing non-blank behavior.
+        if (!$this->isOptional() && !$this->present) {
             return false;
         }
 

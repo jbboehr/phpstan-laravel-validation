@@ -28,57 +28,56 @@ final class InferenceAuditProfiles
      *     constraint: string,
      *     expected: string,
      *     exact: bool,
-     *     minimumPhp: string,
-     *     commit: string
+     *     minimumPhp: string
      * }>
      */
     public static function all(): array
     {
         return [
-            '10.0.0' => self::exact('10.0.0', '8.1', 'be2ddb5c31b0b9ebc2738d9f37a9d4c960aa3199'),
-            '10.32.1' => self::exact('10.32.1', '8.1', 'b30e44f20d244f7ba125283e14a8bbac167f4e5b'),
-            '10.33.0' => self::exact('10.33.0', '8.1', '4536872e3e5b6be51b1f655dafd12c9a4fa0cfe8'),
-            '10-latest' => self::latest('10', '^10.0', '8.1', '3ff39b7a9b83e633383ec9b019827ed54b6d38bc'),
-            '11.0.0' => self::exact('11.0.0', '8.2', '6089f679d6d29e6071a6448ed5e96de02e57fedb'),
-            '11-latest' => self::latest('11', '^11.0', '8.2', 'dc7ec34ae95bacf4a63b96ec81482b4f3e702289'),
-            '12.0.0' => self::exact('12.0.0', '8.2', 'bd8aeb64d3f9fa4b11690d702bdf289f5f32ae97'),
-            '12.21.0' => self::exact('12.21.0', '8.2', 'ac8c4e73bf1b5387b709f7736d41427e6af1c93b'),
-            '12.22.0' => self::exact('12.22.0', '8.2', '6ab00c913ef6ec6fad0bd506f7452c0bb9e792c3'),
-            '12-latest' => self::latest('12', '^12.0', '8.2', '727a8ea2949c23ca8b5316b86a00984b6017b7a0'),
-            '13.0.0' => self::exact('13.0.0', '8.3', '3e33f431a05365d008742ff8001b92641086d5f8'),
-            '13.3.0' => self::exact('13.3.0', '8.3', '118b7063c44a2f3421d1646f5ddf08defcfd1db3'),
-            '13.4.0' => self::exact('13.4.0', '8.3', '912de244f88a69742b76e8a2807f6765947776da'),
-            '13.20.0' => self::exact('13.20.0', '8.3', 'b9d1bccad5fbc32578dca22566bb11e7c0e545d7'),
-            '13.21.0' => self::exact('13.21.0', '8.3', 'd1e02ce7b7e25146177a1a0137c37bccb32d26d3'),
-            '13-latest' => self::latest('13', '^13.0', '8.3', '92a707229148e57f08a249211c8a5a194159c619'),
+            '10.0.0' => self::exact('10.0.0', '8.1'),
+            '10.32.1' => self::exact('10.32.1', '8.1'),
+            '10.33.0' => self::exact('10.33.0', '8.1'),
+            '10-latest' => self::latest('10', '^10.0', '8.1'),
+            '11.0.0' => self::exact('11.0.0', '8.2'),
+            '11.22.0' => self::exact('11.22.0', '8.2'),
+            '11.23.0' => self::exact('11.23.0', '8.2'),
+            '11-latest' => self::latest('11', '^11.0', '8.2'),
+            '12.0.0' => self::exact('12.0.0', '8.2'),
+            '12.21.0' => self::exact('12.21.0', '8.2'),
+            '12.22.0' => self::exact('12.22.0', '8.2'),
+            '12-latest' => self::latest('12', '^12.0', '8.2'),
+            '13.0.0' => self::exact('13.0.0', '8.3'),
+            '13.3.0' => self::exact('13.3.0', '8.3'),
+            '13.4.0' => self::exact('13.4.0', '8.3'),
+            '13.20.0' => self::exact('13.20.0', '8.3'),
+            '13.21.0' => self::exact('13.21.0', '8.3'),
+            '13-latest' => self::latest('13', '^13.0', '8.3'),
         ];
     }
 
     /**
-     * @return array{constraint: string, expected: string, exact: bool, minimumPhp: string, commit: string}
+     * @return array{constraint: string, expected: string, exact: bool, minimumPhp: string}
      */
-    private static function exact(string $version, string $minimumPhp, string $commit): array
+    private static function exact(string $version, string $minimumPhp): array
     {
         return [
             'constraint' => $version,
             'expected' => $version,
             'exact' => true,
             'minimumPhp' => $minimumPhp,
-            'commit' => $commit,
         ];
     }
 
     /**
-     * @return array{constraint: string, expected: string, exact: bool, minimumPhp: string, commit: string}
+     * @return array{constraint: string, expected: string, exact: bool, minimumPhp: string}
      */
-    private static function latest(string $major, string $constraint, string $minimumPhp, string $commit): array
+    private static function latest(string $major, string $constraint, string $minimumPhp): array
     {
         return [
             'constraint' => $constraint,
             'expected' => $major,
             'exact' => false,
             'minimumPhp' => $minimumPhp,
-            'commit' => $commit,
         ];
     }
 }

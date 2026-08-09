@@ -354,6 +354,33 @@ final class TypeResolverTest extends PHPStanTestCase
         ], '11.0.3', true));
     }
 
+    public function testListParentProjectionChangesInLaravel1123(): void
+    {
+        $rules = [
+            'items' => 'required|list',
+            'items.*.id' => 'missing',
+        ];
+
+        self::assertSame(
+            'array{items: array<int|string, mixed>}',
+            self::resolveForVersion($rules, '11.22.0')
+        );
+        self::assertSame(
+            'array{items?: array<int|string, mixed>}',
+            self::resolveForVersion($rules, '11.23.0')
+        );
+        self::assertSame(
+            'array{items?: mixed}',
+            self::resolveForVersion($rules, '14.0.0')
+        );
+        self::assertSame('array{items?: mixed}', self::resolve($rules));
+
+        self::assertSame('array{payload: string}', self::resolveForVersion([
+            'payload' => 'required|string',
+            'payload.child' => 'missing',
+        ], '13.24.0'));
+    }
+
     public function testVersionAwareDefaultHttpNormalizationExceptions(): void
     {
         self::assertSame('array{password?: array}', self::resolveForVersion([
@@ -412,6 +439,163 @@ final class TypeResolverTest extends PHPStanTestCase
             'foo' => 'required|array',
             'foo.excluded' => 'exclude|string',
             'foo.bar' => 'required|string',
+        ]));
+    }
+
+    public function testPresentRequiresOutputWithoutImplyingNonBlankRequiredness(): void
+    {
+        self::assertSame(
+            'array{value: mixed, integer: float|int|string|Stringable|true, '
+            . 'nullable: float|int|string|Stringable|true|null, optional?: string}',
+            self::resolve([
+                'value' => 'present',
+                'integer' => 'present|integer',
+                'nullable' => 'present|nullable|integer',
+                'optional' => 'sometimes|present|string',
+            ])
+        );
+    }
+
+    public function testPresentPropagatesThroughNamedPathsButNotWildcardCollections(): void
+    {
+        self::assertSame(
+            'array{nested: array{value: string}, items?: array<int|string, array{value: string}>}',
+            self::resolve([
+                'nested.value' => 'present|string',
+                'items.*.value' => 'present|string',
+            ])
+        );
+    }
+
+    public function testArrayParentsRetainBlankValuesWhenWildcardsExpandToNoRules(): void
+    {
+        self::assertSame(
+            'array{items: array<int|string, array{id: float|int|numeric-string|Stringable|true}>|string}',
+            self::resolve([
+                'items' => 'present|array',
+                'items.*.id' => 'required|integer',
+            ])
+        );
+        self::assertSame(
+            'array{items: array<int|string, array{id: float|int|numeric-string|Stringable|true}>}',
+            self::resolve([
+                'items' => 'present|array',
+                'items.*.id' => 'required|integer',
+            ], true)
+        );
+
+        self::assertSame(
+            'array{items: array<int|string, array{id: float|int|numeric-string|Stringable|true}>}',
+            self::resolve([
+                'items' => 'required|array',
+                'items.*.id' => 'required|integer',
+            ])
+        );
+    }
+
+    public function testDeeperZeroMatchWildcardCanPreserveTheCompleteArrayParent(): void
+    {
+        self::assertSame(
+            'array{payload: array|string}',
+            self::resolve([
+                'payload' => 'present|array',
+                'payload.items.*.id' => 'required|integer',
+            ])
+        );
+
+        self::assertSame(
+            'array{payload?: array|string}',
+            self::resolve([
+                'payload' => 'present|array',
+                'payload.items.*.id' => 'missing',
+            ])
+        );
+    }
+
+    public function testMultipleDeepWildcardPathsRemainConservativelyOptional(): void
+    {
+        self::assertSame(
+            'array{payload?: array|string}',
+            self::resolve([
+                'payload' => 'present|array',
+                'payload.required_items.*.id' => 'required|string',
+                'payload.optional_items.*.name' => 'string',
+            ])
+        );
+    }
+
+    public function testLiteralDescendantRulesPreventRawWildcardParentPreservation(): void
+    {
+        self::assertSame(
+            'array{payload?: array{name?: string, items?: array<int|string, '
+            . 'array{id: float|int|numeric-string|Stringable|true}>}}',
+            self::resolve([
+                'payload' => 'present|array',
+                'payload.name' => 'sometimes|string',
+                'payload.items.*.id' => 'required|integer',
+            ])
+        );
+
+        self::assertSame(
+            'array{payload?: array{items?: array<int|string, '
+            . 'array{id: float|int|numeric-string|Stringable|true}>, name?: string}}',
+            self::resolve([
+                'payload' => 'present|array',
+                'payload.items.*.id' => 'required|integer',
+                'payload.name' => 'sometimes|string',
+            ])
+        );
+
+        self::assertSame(
+            'array{payload?: array<int|string, array{id: float|int|numeric-string|Stringable|true}|string>}',
+            self::resolve([
+                'payload' => 'present|array',
+                'payload.*.id' => 'required|integer',
+                'payload.name' => 'sometimes|string',
+            ])
+        );
+    }
+
+    public function testMissingOmitsNamedNestedAndWildcardOnlyProjections(): void
+    {
+        self::assertSame('array{}', self::resolve([
+            'value' => 'missing',
+            'nested.value' => 'missing',
+            'items.*.value' => 'missing',
+        ]));
+
+        self::assertSame('array{}', self::resolve([
+            'payload' => 'required|array',
+            'payload.value' => 'missing',
+        ]));
+    }
+
+    public function testMissingChildDoesNotHideAParentPreservedByNonArrayRules(): void
+    {
+        self::assertSame('array{payload?: string}', self::resolve([
+            'payload' => 'string',
+            'payload.value' => 'missing',
+        ]));
+    }
+
+    public function testParameterizedArrayParentIsPreservedAroundNestedRules(): void
+    {
+        self::assertSame('array{payload: array{name?: mixed}}', self::resolve([
+            'payload' => 'required|array:name',
+            'payload.child' => 'missing',
+        ]));
+
+        self::assertSame('array{payload: array{name?: mixed, child?: mixed}}', self::resolve([
+            'payload' => 'required|array:name,child',
+            'payload.child' => 'required|string',
+        ]));
+    }
+
+    public function testMissingWildcardOnlyProjectionCanPreserveAnArrayParent(): void
+    {
+        self::assertSame('array{items?: array<int|string, mixed>|string}', self::resolve([
+            'items' => 'present|array',
+            'items.*.id' => 'missing',
         ]));
     }
 

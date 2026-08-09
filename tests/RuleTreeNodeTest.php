@@ -140,6 +140,57 @@ final class RuleTreeNodeTest extends TestCase
         self::assertFalse($tree->resolvePath('names.named')->isOptional());
     }
 
+    public function testPresentRequiresMatchedNamedPathsButStopsAtWildcardBoundaries(): void
+    {
+        $tree = RuleParser::parse([
+            'value' => 'present',
+            'nested.value' => 'present',
+            'items.*.value' => 'present',
+            'sometimes' => 'sometimes|present',
+        ]);
+
+        self::assertFalse($tree->resolvePath('value')->isOptional());
+        self::assertTrue($tree->resolvePath('value')->allowsBlankStringBypass());
+        self::assertFalse($tree->resolvePath('value')->requiresNonBlankValue());
+        self::assertFalse($tree->resolvePath('nested')->isOptional());
+        self::assertFalse($tree->resolvePath('nested.value')->isOptional());
+        self::assertTrue($tree->resolvePath('items')->isOptional());
+        self::assertFalse($tree->resolvePath('items.*')->isOptional());
+        self::assertFalse($tree->resolvePath('items.*.value')->isOptional());
+        self::assertTrue($tree->resolvePath('sometimes')->isOptional());
+
+        $required = RuleParser::parse(['value' => 'required'])->resolvePath('value');
+        self::assertTrue($required->requiresNonBlankValue());
+    }
+
+    public function testMissingIsTrackedSeparatelyFromExclusion(): void
+    {
+        $missing = RuleParser::parse(['value' => 'missing'])->resolvePath('value');
+        $excluded = RuleParser::parse(['value' => 'exclude'])->resolvePath('value');
+
+        self::assertTrue($missing->isMissing());
+        self::assertFalse($missing->isExcluded());
+        self::assertFalse($excluded->isMissing());
+        self::assertTrue($excluded->isExcluded());
+    }
+
+    public function testDistinguishesBareAndParameterizedArrayRules(): void
+    {
+        $bare = RuleParser::parse(['value' => 'required|array'])->resolvePath('value');
+        $parameterized = RuleParser::parse(['value' => 'required|array:name'])->resolvePath('value');
+        $list = RuleParser::parse(['value' => 'required|list'])->resolvePath('value');
+
+        self::assertTrue($bare->isArray());
+        self::assertTrue($bare->hasBareArrayRule());
+        self::assertFalse($bare->hasBareListRule());
+        self::assertTrue($parameterized->isArray());
+        self::assertFalse($parameterized->hasBareArrayRule());
+        self::assertFalse($parameterized->hasBareListRule());
+        self::assertFalse($list->isArray());
+        self::assertFalse($list->hasBareArrayRule());
+        self::assertTrue($list->hasBareListRule());
+    }
+
     public function testNestedWildcardsStopRequirednessAtEachWildcardBoundary(): void
     {
         $tree = RuleParser::parse(['people.*.cars.*.model' => 'required|string']);

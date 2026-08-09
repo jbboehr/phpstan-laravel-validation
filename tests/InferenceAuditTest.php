@@ -62,6 +62,10 @@ final class InferenceAuditTest extends \PHPStan\Testing\PHPStanTestCase
         self::assertFileExists($baselineFile);
         $expected = json_decode((string) file_get_contents($baselineFile), true, 512, JSON_THROW_ON_ERROR);
         self::assertIsArray($expected);
+        if ($profile['exact']) {
+            self::assertSame($actual['laravel'], $expected['recordedVersion'] ?? null);
+            self::assertSame($actual['laravelReference'], $expected['commit'] ?? null);
+        }
         self::assertSame($expected['cases'] ?? null, $actual['cases']);
 
         foreach ($actual['cases'] as $caseId => $case) {
@@ -81,7 +85,6 @@ final class InferenceAuditTest extends \PHPStan\Testing\PHPStanTestCase
     public function testEveryAuditProfileHasAProvenancedBaseline(): void
     {
         foreach (InferenceAuditProfiles::all() as $name => $profile) {
-            self::assertMatchesRegularExpression('/^[a-f0-9]{40}$/D', $profile['commit']);
             self::assertMatchesRegularExpression('/^8\.[1-5]$/D', $profile['minimumPhp']);
 
             $baselineFile = __DIR__ . '/fixtures/version-audit/' . $name . '.json';
@@ -91,7 +94,10 @@ final class InferenceAuditTest extends \PHPStan\Testing\PHPStanTestCase
             self::assertIsArray($baseline);
             self::assertSame($name, $baseline['profile'] ?? null);
             self::assertSame($profile['constraint'], $baseline['constraint'] ?? null);
-            self::assertSame($profile['commit'], $baseline['commit'] ?? null);
+            self::assertIsString($baseline['recordedVersion'] ?? null);
+            $commit = $baseline['commit'] ?? null;
+            self::assertIsString($commit);
+            self::assertMatchesRegularExpression('/^[a-f0-9]{40}$/D', $commit);
             if (!isset($baseline['cases']) || !is_array($baseline['cases'])) {
                 self::fail($baselineFile . ' does not contain an audit case map');
             }

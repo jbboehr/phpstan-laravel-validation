@@ -26,14 +26,8 @@ use jbboehr\PhpstanLaravelValidation\Validation\LaravelVersionContext;
 use jbboehr\PhpstanLaravelValidation\Validation\RuleParser;
 use jbboehr\PhpstanLaravelValidation\Validation\RuleTreeNode;
 use jbboehr\PhpstanLaravelValidation\Validation\TypeResolver;
+use jbboehr\PhpstanLaravelValidation\Test\Support\LaravelValueType;
 use PHPStan\Type;
-use PHPStan\Type\Constant\ConstantArrayTypeBuilder;
-use PHPStan\Type\Constant\ConstantBooleanType;
-use PHPStan\Type\Constant\ConstantFloatType;
-use PHPStan\Type\Constant\ConstantIntegerType;
-use PHPStan\Type\Constant\ConstantStringType;
-use PHPStan\Type\NullType;
-use PHPStan\Type\ObjectType;
 
 class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
 {
@@ -58,7 +52,7 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         $evaluator = new TypeResolver($context);
         $ruleTree = RuleParser::parse($rules, $context);
         $rulesType = $evaluator->evaluate($ruleTree);
-        $validatedType = $this->convertToType($validated);
+        $validatedType = LaravelValueType::fromValue($validated);
         $accepts = $rulesType->accepts($validatedType, true);
 
         // See: https://github.com/sebastianbergmann/phpunit/issues/5114 ?
@@ -767,6 +761,42 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
                 ['value' => 'required|list']
             )->passes());
         }
+
+        $projectionRules = [
+            'items' => 'required|list',
+            'items.*.id' => 'missing',
+        ];
+        $projectionInput = ['items' => [['name' => 'Ada']]];
+        $projection = $factory->make($projectionInput, $projectionRules);
+        self::assertTrue($projection->passes());
+        self::assertSame(
+            version_compare($laravelVersion, '11.23.0', '>=') ? [] : $projectionInput,
+            $projection->validated()
+        );
+
+        $projectionType = (new TypeResolver($context))->evaluate(RuleParser::parse(
+            $projectionRules,
+            $context
+        ));
+        self::assertTrue($projectionType->isSuperTypeOf(
+            $this->convertToType($projection->validated())
+        )->yes());
+
+        $zeroMatchRules = [
+            'items' => 'present|list',
+            'items.*.id' => 'required|integer',
+        ];
+        $zeroMatch = $factory->make(['items' => []], $zeroMatchRules);
+        self::assertTrue($zeroMatch->passes());
+        self::assertSame(['items' => []], $zeroMatch->validated());
+
+        $zeroMatchType = (new TypeResolver($context))->evaluate(RuleParser::parse(
+            $zeroMatchRules,
+            $context
+        ));
+        self::assertTrue($zeroMatchType->isSuperTypeOf(
+            $this->convertToType($zeroMatch->validated())
+        )->yes());
     }
 
     /**
@@ -1068,7 +1098,31 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         ];
         $validator = $factory->make($data, $rules);
 
-        self::assertTrue($validator->passes());
+        $warnings = [];
+        set_error_handler(static function (int $severity, string $message) use (&$warnings): bool {
+            if ($severity !== E_WARNING) {
+                return false;
+            }
+
+            $warnings[] = $message;
+            return true;
+        });
+        try {
+            self::assertTrue($validator->passes());
+        } finally {
+            restore_error_handler();
+        }
+
+        // Laravel 11.23.0 added an optional confirmation parameter but read
+        // its absent first element with `?:`. Laravel 11.23.1 fixes the access
+        // to use `??`; retain the runtime witness without failing on Laravel's
+        // two warnings (one for each confirmed field).
+        self::assertSame(
+            self::frameworkVersion() === '11.23.0'
+                ? ['Undefined array key 0', 'Undefined array key 0']
+                : [],
+            $warnings
+        );
         self::assertSame([
             'password' => 'secret',
             'pin' => '1234',
@@ -1560,38 +1614,6 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
 
     private function convertToType(mixed $data): Type\Type
     {
-        return match (gettype($data)) {
-            "boolean" => new ConstantBooleanType($data),
-            "integer" => new ConstantIntegerType($data),
-            "double" => new ConstantFloatType($data),
-            "string" => new ConstantStringType($data),
-            "array" => $this->convertArrayToType($data),
-            "object" => new ObjectType(get_class($data)),
-            "NULL" => new NullType(),
-            "resource" => new Type\ResourceType(),
-            "unknown type" => new Type\MixedType(),
-            default => new Type\MixedType(),
-        };
-    }
-
-    /**
-     * @param array<mixed, mixed> $data
-     * @return Type\Type
-     * @throws \PHPStan\ShouldNotHappenException
-     */
-    private function convertArrayToType(array $data): Type\Type
-    {
-        $array = ConstantArrayTypeBuilder::createEmpty();
-        foreach ($data as $k => $v) {
-            //            if (is_string($k)) {
-            //                $k = str_replace('\.', '.', $k);
-            //            }
-            $array->setOffsetValueType(
-                $this->convertToType($k),
-                $this->convertToType($v),
-                false
-            );
-        }
-        return $array->getArray();
+        return LaravelValueType::fromValue($data);
     }
 }

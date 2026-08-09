@@ -29,13 +29,6 @@ use jbboehr\PhpstanLaravelValidation\Validation\LaravelVersionContext;
 use jbboehr\PhpstanLaravelValidation\Validation\RuleParser;
 use jbboehr\PhpstanLaravelValidation\Validation\TypeResolver;
 use PHPStan\Type;
-use PHPStan\Type\Constant\ConstantArrayTypeBuilder;
-use PHPStan\Type\Constant\ConstantBooleanType;
-use PHPStan\Type\Constant\ConstantFloatType;
-use PHPStan\Type\Constant\ConstantIntegerType;
-use PHPStan\Type\Constant\ConstantStringType;
-use PHPStan\Type\NullType;
-use PHPStan\Type\ObjectType;
 use PHPStan\Type\VerbosityLevel;
 
 final class InferenceAudit
@@ -49,6 +42,7 @@ final class InferenceAudit
      * }> $cases
      * @return array{
      *     laravel: string,
+     *     laravelReference: string|null,
      *     cases: array<string, array{
      *         concern: string,
      *         rules: array<array-key, mixed>,
@@ -126,14 +120,14 @@ final class InferenceAudit
                 $inferredType = $inferred->describe(VerbosityLevel::precise());
 
                 if ($precisionProbe) {
-                    $candidate = self::toType($data);
+                    $candidate = LaravelValueType::fromValue($data);
                     $candidateOutputType = $candidate->describe(VerbosityLevel::precise());
                     $candidateResult = $inferred->isSuperTypeOf($candidate);
                     $candidateAcceptance = self::describeRelation($candidateResult);
                 }
 
                 if ($validated !== null) {
-                    $actual = self::toType($validated);
+                    $actual = LaravelValueType::fromValue($validated);
                     $outputType = $actual->describe(VerbosityLevel::precise());
                     $result = $inferred->isSuperTypeOf($actual);
                     $acceptance = self::describeRelation($result);
@@ -187,6 +181,7 @@ final class InferenceAudit
 
         return [
             'laravel' => $laravelVersion,
+            'laravelReference' => self::frameworkReference(),
             'cases' => $results,
         ];
     }
@@ -198,6 +193,11 @@ final class InferenceAudit
         return $version === null
             ? \Illuminate\Foundation\Application::VERSION
             : ltrim($version, 'v');
+    }
+
+    public static function frameworkReference(): ?string
+    {
+        return InstalledVersions::getReference('laravel/framework');
     }
 
     /**
@@ -339,30 +339,4 @@ final class InferenceAudit
         return $result->yes() ? 'yes' : ($result->no() ? 'no' : 'maybe');
     }
 
-    public static function toType(mixed $data): Type\Type
-    {
-        return match (gettype($data)) {
-            'boolean' => new ConstantBooleanType($data),
-            'integer' => new ConstantIntegerType($data),
-            'double' => new ConstantFloatType($data),
-            'string' => new ConstantStringType($data),
-            'array' => self::arrayToType($data),
-            'object' => new ObjectType($data::class),
-            'NULL' => new NullType(),
-            'resource' => new Type\ResourceType(),
-            default => new Type\MixedType(),
-        };
-    }
-
-    /**
-     * @param array<mixed, mixed> $data
-     */
-    private static function arrayToType(array $data): Type\Type
-    {
-        $builder = ConstantArrayTypeBuilder::createEmpty();
-        foreach ($data as $key => $value) {
-            $builder->setOffsetValueType(self::toType($key), self::toType($value));
-        }
-        return $builder->getArray();
-    }
 }

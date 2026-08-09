@@ -304,28 +304,20 @@ discover registered aliases.
 
 ## Development
 
-Install the project dependencies and run the test suite with:
+Install the project dependencies and run the main checks with:
 
 ```bash
 composer install
 composer exec phpunit
+composer exec phpstan analyse
+composer cs
 ```
 
-Check code style with `composer cs`. Apply formatting changes with
-`composer cs:fix`.
-
-The Eris property suite generates bounded combinations of presence,
-projection, wildcard, and cross-field rules, runs them through Laravel, and
-checks that every successful `validated()` output is contained by the inferred
-PHPStan type. The default seed is fixed for reproducible CI runs:
-
-```bash
-composer test:property
-ERIS_SEED=123456 composer test:property
-```
-
-Promote every counterexample into a focused deterministic regression test
-before changing inference.
+The [testing and runtime verification guide](docs/testing.md) explains which
+test layer to use, how to write named Laravel runtime cases, how to replay Eris
+seeds, and how to run the portable cross-version Composer audit. Nix is an
+optional convenience for selecting PHP versions, not a test prerequisite.
+Apply formatting changes with `composer cs:fix`.
 
 Mutation testing uses an isolated toolchain because Infection requires PHP 8.3 or newer while this package supports PHP 8.1. Install it and run it from the project root with:
 

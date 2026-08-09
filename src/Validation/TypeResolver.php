@@ -81,13 +81,53 @@ final class TypeResolver
             $type = $this->evaluateLeaf($node, $assumeHttpInputNormalization);
         }
 
-        // Non-array parent rules can cause validated() to return the complete
-        // parent value even when nested rules are also present.
-        if ($node->hasChildren() && !$node->isArray() && count($node->getRules()) > 0) {
+        // Unless Laravel definitely reconstructs this parent from its nested
+        // rules, validated() may preserve the complete parent value. A literal
+        // `array` always reconstructs; a literal `list` does so only from
+        // Laravel 11.23. Parameterized arrays preserve the permitted parent.
+        if (
+            $node->hasChildren()
+            && $this->mayPreserveCompleteParent($node)
+            && count($node->getRules()) > 0
+        ) {
             $leafType = $this->evaluateLeaf($node, $assumeHttpInputNormalization);
-            $type = $leafType->isArray()->no()
-                ? $leafType
-                : Type\TypeCombinator::union($type, $leafType);
+            if ($node->isArray()) {
+                // A parameterized array rule describes every key Laravel can
+                // preserve. Its allowed-key shape is therefore already a
+                // sound upper bound for the complete parent, including any
+                // nested rule output.
+                $type = $leafType;
+            } else {
+                $type = $leafType->isArray()->no()
+                    ? $leafType
+                    : Type\TypeCombinator::union($type, $leafType);
+            }
+        }
+
+        // Laravel expands wildcard rules from runtime data. If every nested
+        // rule depends on a wildcard and expansion finds no matches, the
+        // parent array rule remains the only concrete rule in validated().
+        // Laravel can then preserve the raw parent instead of rebuilding it
+        // from descendants.
+        if ($this->canPreserveRawParentAfterZeroWildcardMatches($node)) {
+            if ($node->isWildcard()) {
+                // A direct wildcard covers every non-empty array element, so
+                // the nested type already contains the only raw array case:
+                // an empty array. Only blank-string bypass is missing.
+                if (
+                    $node->allowsBlankStringBypass()
+                    && $this->blankStringCanReachValidation($node, $assumeHttpInputNormalization)
+                ) {
+                    $type = Type\TypeCombinator::union($type, new StringType());
+                }
+            } else {
+                // A deeper wildcard can miss while unrelated parent keys are
+                // present, so retain the complete parent rule type.
+                $type = Type\TypeCombinator::union(
+                    $type,
+                    $this->evaluateLeaf($node, $assumeHttpInputNormalization)
+                );
+            }
         }
 
         if ($node->allowsNull()) {
@@ -107,7 +147,7 @@ final class TypeResolver
         $builder = ConstantArrayTypeBuilder::createEmpty();
 
         foreach ($node as $key => $value) {
-            if ($value->isExcluded()) {
+            if ($value->isExcluded() || $this->isUnconditionallyMissingProjection($value)) {
                 continue;
             }
 
@@ -127,7 +167,7 @@ final class TypeResolver
     {
         $valueTypes = [];
         foreach ($node as $child) {
-            if ($child->isExcluded()) {
+            if ($child->isExcluded() || $this->isUnconditionallyMissingProjection($child)) {
                 continue;
             }
 
@@ -207,15 +247,47 @@ final class TypeResolver
             return true;
         }
 
-        if (!$node->isArray() || !$node->hasChildren()) {
+        if (!$this->mayReconstructParentFromNestedRules($node) || !$node->hasChildren()) {
+            return false;
+        }
+
+        // With one wildcard-only projection path, every successful branch can
+        // retain the parent: zero matches preserve the raw value, while a
+        // matched required descendant emits projected output. Multiple paths
+        // are left conservative because one may expand without another.
+        if (
+            $this->canPreserveRawParentAfterZeroWildcardMatches($node)
+            && $this->singleWildcardPathGuaranteesProjectedOutput($node)
+        ) {
             return false;
         }
 
         // Laravel omits an array parent that has nested rules and rebuilds its
         // output from those children, so the parent is guaranteed only when a
         // child is guaranteed to emit a value.
-        foreach ($node as $child) {
-            if (!$child->isExcluded() && !$this->isOutputOptional($child)) {
+        foreach ($node as $key => $child) {
+            if ($child->isExcluded() || $this->isUnconditionallyMissingProjection($child)) {
+                continue;
+            }
+
+            if ($key === '*') {
+                // A wildcard child can guarantee output only when a successful
+                // parent cannot be empty, or when the zero-match branch keeps
+                // the raw parent. Presence alone permits an empty value.
+                if (
+                    !$this->isOutputOptional($child)
+                    && (
+                        $node->requiresNonBlankValue()
+                        || $this->canPreserveRawParentAfterZeroWildcardMatches($node)
+                    )
+                ) {
+                    return false;
+                }
+
+                continue;
+            }
+
+            if (!$this->isOutputOptional($child)) {
                 return false;
             }
         }
@@ -224,11 +296,160 @@ final class TypeResolver
     }
 
     /**
+     * Laravel emits only nested rule paths for an array parent. If every
+     * projected descendant is governed by an unconditional missing rule, no
+     * part of that subtree can appear in successful validated output.
+     */
+    private function isUnconditionallyMissingProjection(RuleTreeNode $node): bool
+    {
+        if ($node->isMissing()) {
+            return true;
+        }
+
+        if (!$node->hasChildren()) {
+            return false;
+        }
+
+        // If this Laravel version may preserve the complete parent, missing
+        // descendants do not guarantee that the subtree disappears.
+        if (count($node->getRules()) > 0 && $this->mayPreserveCompleteParent($node)) {
+            return false;
+        }
+
+        // A wildcard-only descendant set can expand to no concrete nested
+        // rules. In that branch Laravel may preserve an array parent's raw
+        // value, so missing descendants do not guarantee omission.
+        if ($this->canPreserveRawParentAfterZeroWildcardMatches($node)) {
+            return false;
+        }
+
+        foreach ($node as $child) {
+            if (!$this->isUnconditionallyMissingProjection($child)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function canPreserveRawParentAfterZeroWildcardMatches(RuleTreeNode $node): bool
+    {
+        return $this->mayReconstructParentFromNestedRules($node)
+            && $this->hasWildcardDescendant($node)
+            && !$this->hasLiteralDescendantRule($node);
+    }
+
+    /**
+     * Laravel may skip the raw parent and reconstruct it from nested rules.
+     * An unknown version must include the post-11.23 `list` behavior.
+     */
+    private function mayReconstructParentFromNestedRules(RuleTreeNode $node): bool
+    {
+        if ($node->hasBareArrayRule()) {
+            return true;
+        }
+
+        if (!$node->hasBareListRule()) {
+            return false;
+        }
+
+        return $this->laravelVersionContext === null
+            || !$this->laravelVersionContext->isSupported()
+            || $this->laravelVersionContext->isAtLeast('11.23.0');
+    }
+
+    /**
+     * Before Laravel 11.23, `list` is only a value predicate and the complete
+     * parent survives nested rules. Unknown versions retain that possibility.
+     */
+    private function mayPreserveCompleteParent(RuleTreeNode $node): bool
+    {
+        if ($node->hasBareArrayRule()) {
+            return false;
+        }
+
+        if (!$node->hasBareListRule()) {
+            return true;
+        }
+
+        return $this->laravelVersionContext === null
+            || !$this->laravelVersionContext->isSupported()
+            || !$this->laravelVersionContext->isAtLeast('11.23.0');
+    }
+
+    private function hasWildcardDescendant(RuleTreeNode $node): bool
+    {
+        foreach ($node as $key => $child) {
+            if ($key === '*' || $this->hasWildcardDescendant($child)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function singleWildcardPathGuaranteesProjectedOutput(RuleTreeNode $node): bool
+    {
+        if (count($node) !== 1) {
+            return false;
+        }
+
+        foreach ($node as $key => $child) {
+            if ($key === '*') {
+                return $this->projectionContainsGuaranteedOutput($child);
+            }
+
+            // canPreserveRawParentAfterZeroWildcardMatches() already
+            // excludes literal descendant rules, but retain the guard here so
+            // this helper remains locally sound.
+            if (count($child->getRules()) > 0) {
+                return false;
+            }
+
+            return $this->singleWildcardPathGuaranteesProjectedOutput($child);
+        }
+
+        return false;
+    }
+
+    private function projectionContainsGuaranteedOutput(RuleTreeNode $node): bool
+    {
+        foreach ($node as $child) {
+            if ($child->isExcluded() || $this->isUnconditionallyMissingProjection($child)) {
+                continue;
+            }
+
+            if (!$this->isOutputOptional($child)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function hasLiteralDescendantRule(RuleTreeNode $node): bool
+    {
+        foreach ($node as $key => $child) {
+            // Rules below a wildcard do not exist in Validator::getRules()
+            // when that wildcard has no runtime matches.
+            if ($key === '*') {
+                continue;
+            }
+
+            if (count($child->getRules()) > 0 || $this->hasLiteralDescendantRule($child)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * @see https://github.com/laravel/framework/blob/9.x/src/Illuminate/Validation/Concerns/ValidatesAttributes.php
      */
     private function resolveType(Rule $rule): ?Type\Type
     {
-        // Currently unsupported: Enum, Present, RequiredArrayKeys
+        // Currently unsupported: Enum, RequiredArrayKeys
 
         if ($rule->getRuleName() === Rule::RULE_CUSTOM) {
             return $rule->getAcceptedType() ?? new MixedType();
@@ -344,9 +565,9 @@ final class TypeResolver
 
             "Bail", "Confirmed", "Between", "Different", "Distinct", "DoesntStartWith", "DoesntEndWith",
             "AcceptedIf", "DeclinedIf", "EndsWith", "Exists", "Filled", "Gt", "Gte", "InArray", "Lt", "Lte",
-            "Max", "Min", "NotIn", "Exclude",
+            "Max", "Min", "Missing", "NotIn", "Exclude",
             "ExcludeIf", "ExcludeUnless", "ExcludeWith", "ExcludeWithout", "Nullable", "Required", "Password",
-            "Prohibited", "ProhibitedIf", "ProhibitedUnless", "Prohibits", "RequiredIf", "RequiredUnless",
+            "Present", "Prohibited", "ProhibitedIf", "ProhibitedUnless", "Prohibits", "RequiredIf", "RequiredUnless",
             "RequiredWith", "RequiredWithAll", "RequiredWithout", "RequiredWithoutAll", "Same", "Size", "Sometimes",
             "StartsWith", "Unique" => null,
 

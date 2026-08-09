@@ -13,7 +13,7 @@ $optionalArray = \Illuminate\Support\Facades\Validator::make([], [
     'names' => 'array',
     'names.*.first' => 'required|string',
 ])->validated();
-assertType('array{names?: array<int|string, array{first: string}>}', $optionalArray);
+assertType('array{names?: array<int|string, array{first: string}>|string}', $optionalArray);
 
 $requiredArray = \Illuminate\Support\Facades\Validator::make([], [
     'names' => 'required|array',

@@ -259,6 +259,12 @@ final class InferenceAuditCases
                 'rules' => ['user' => 'required|array', 'user.name' => 'required|string'],
                 'concern' => 'nested projection',
             ],
+            'array.parameterized_parent_missing_child' => [
+                'data' => ['payload' => ['name' => 'Ada']],
+                'rules' => ['payload' => 'required|array:name', 'payload.child' => 'missing'],
+                'concern' => 'parameterized array parent preservation',
+                'precision' => true,
+            ],
             'array.required_keys' => [
                 'data' => ['user' => ['name' => 'Ada']],
                 'rules' => ['user' => 'required|array|required_array_keys:name'],
@@ -285,11 +291,41 @@ final class InferenceAuditCases
                 'concern' => 'required and nullable rule order',
             ],
             'nullable.optional_null' => $case(null, 'nullable|string', 'nullable output'),
-            'present.value' => $case('value', 'present|string', 'unsupported presence rule'),
+            'present.value' => $case('value', 'present|string', 'unconditional presence rule'),
             'present.missing' => [
                 'data' => [],
                 'rules' => ['value' => 'present|string'],
-                'concern' => 'unsupported presence rule',
+                'concern' => 'unconditional presence rule',
+            ],
+            'present_array.empty_wildcard' => [
+                'data' => ['items' => []],
+                'rules' => ['items' => 'present|array', 'items.*.id' => 'required|integer'],
+                'concern' => 'zero-match wildcard parent preservation',
+            ],
+            'present_array.blank_wildcard' => [
+                'data' => ['items' => ''],
+                'rules' => ['items' => 'present|array', 'items.*.id' => 'required|integer'],
+                'concern' => 'zero-match wildcard blank bypass',
+            ],
+            'present_array.deep_wildcard' => [
+                'data' => ['payload' => ['extra' => 1]],
+                'rules' => ['payload' => 'present|array', 'payload.items.*.id' => 'required|integer'],
+                'concern' => 'deeper zero-match wildcard parent preservation',
+            ],
+            'present_array.deep_wildcard_missing' => [
+                'data' => ['payload' => ['items' => [['other' => 'value']]]],
+                'rules' => ['payload' => 'present|array', 'payload.items.*.id' => 'missing'],
+                'concern' => 'matched deeper missing projection',
+            ],
+            'missing.absent' => [
+                'data' => [],
+                'rules' => ['value' => 'missing'],
+                'concern' => 'unconditional missing rule',
+            ],
+            'missing.present' => [
+                'data' => ['value' => null],
+                'rules' => ['value' => 'missing'],
+                'concern' => 'unconditional missing rule',
             ],
             'confirmed.dependency' => [
                 'data' => ['value' => 'secret', 'value_confirmation' => 'secret'],
@@ -384,7 +420,8 @@ final class InferenceAuditCases
             'arrays and projection' => [
                 'status' => 'probed',
                 'evidence' => [
-                    'array.bare', 'array.allowed_keys', 'array.child_projection', 'array.required_keys',
+                    'array.bare', 'array.allowed_keys', 'array.child_projection',
+                    'array.parameterized_parent_missing_child', 'array.required_keys',
                     'numeric_path.single', 'numeric_path.sparse', 'numeric_path.mixed',
                     'numeric_path.negative',
                     'wildcard.missing_parent', 'wildcard.string_key', 'wildcard.mixed_named',
@@ -396,7 +433,10 @@ final class InferenceAuditCases
                 'evidence' => [
                     'optional.blank_integer', 'nullable.required_null', 'nullable.required_missing',
                     'nullable.required_after_nullable_null', 'nullable.required_after_nullable_missing',
-                    'nullable.optional_null', 'present.value', 'present.missing', 'confirmed.dependency',
+                    'nullable.optional_null', 'present.value', 'present.missing',
+                    'present_array.empty_wildcard', 'present_array.blank_wildcard',
+                    'present_array.deep_wildcard', 'present_array.deep_wildcard_missing',
+                    'missing.absent', 'missing.present', 'confirmed.dependency',
                     'required_if.active', 'required_if.inactive', 'exclude_if.active', 'exclude_if.inactive',
                 ],
             ],

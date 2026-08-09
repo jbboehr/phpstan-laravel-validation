@@ -3,6 +3,7 @@
 composer.lock linguist-generated
 composer-project.nix linguist-generated
 /tests/laravel/** linguist-generated
+/tests/fixtures/version-audit/*.json linguist-generated
 
 .editorconfig export-ignore
 .envrc export-ignore

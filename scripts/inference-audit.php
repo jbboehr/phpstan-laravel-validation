@@ -28,7 +28,14 @@ use jbboehr\PhpstanLaravelValidation\Test\Support\InferenceAuditProfiles;
 use PHPStan\Testing\PHPStanTestCase;
 use RuntimeException;
 
-$options = getopt('', ['baseline:', 'laravel-autoload:', 'update']);
+$options = getopt('', [
+    'baseline:',
+    'case:',
+    'laravel-autoload:',
+    'list-cases',
+    'list-profiles',
+    'update',
+]);
 $laravelAutoload = $options['laravel-autoload'] ?? null;
 
 if ($laravelAutoload !== null) {
@@ -56,8 +63,54 @@ final class InferenceAuditContainer extends PHPStanTestCase
     }
 }
 
+$cases = InferenceAuditCases::cases();
+$profiles = InferenceAuditProfiles::all();
+$selectedCaseIds = repeatedOption($options, 'case');
+$unknownCaseIds = array_values(array_diff($selectedCaseIds, array_keys($cases)));
+if ($unknownCaseIds !== []) {
+    fwrite(STDERR, 'Unknown audit case: ' . implode(', ', $unknownCaseIds) . "\n");
+    exit(2);
+}
+
+$listCases = isset($options['list-cases']);
+$listProfiles = isset($options['list-profiles']);
+if ($listCases || $listProfiles) {
+    if ($listCases && $listProfiles) {
+        fwrite(STDERR, "--list-cases and --list-profiles cannot be combined\n");
+        exit(2);
+    }
+    if (isset($options['update'])
+        || isset($options['baseline'])
+        || $laravelAutoload !== null
+        || $selectedCaseIds !== []
+    ) {
+        fwrite(STDERR, "List options cannot be combined with audit execution options\n");
+        exit(2);
+    }
+
+    if ($listCases) {
+        foreach (array_keys($cases) as $caseId) {
+            fwrite(STDOUT, $caseId . "\n");
+        }
+    } else {
+        foreach ($profiles as $name => $profile) {
+            fwrite(STDOUT, implode("\t", [$name, $profile['constraint'], $profile['minimumPhp']]) . "\n");
+        }
+    }
+    exit(0);
+}
+
+if (isset($options['update']) && $selectedCaseIds !== []) {
+    fwrite(STDERR, "--update cannot be combined with --case; baselines are always complete\n");
+    exit(2);
+}
+
+$selectedCases = $selectedCaseIds === []
+    ? $cases
+    : array_intersect_key($cases, array_fill_keys($selectedCaseIds, true));
+
 InferenceAuditContainer::getContainer();
-$actual = InferenceAudit::run(InferenceAuditCases::cases());
+$actual = InferenceAudit::run($selectedCases);
 $baselineName = $options['baseline'] ?? null;
 
 if ($baselineName === null) {
@@ -69,7 +122,6 @@ if (!is_string($baselineName) || preg_match('/^[0-9A-Za-z.-]+$/D', $baselineName
     exit(2);
 }
 
-$profiles = InferenceAuditProfiles::all();
 if (!isset($profiles[$baselineName])) {
     fwrite(STDERR, 'Unknown audit baseline: ' . $baselineName . "\n");
     exit(2);
@@ -77,12 +129,18 @@ if (!isset($profiles[$baselineName])) {
 
 $profile = $profiles[$baselineName];
 assertAuditVersion($actual['laravel'], $profile['expected'], $profile['exact']);
+if (!is_string($actual['laravelReference'])
+    || preg_match('/^[a-f0-9]{40}$/D', $actual['laravelReference']) !== 1
+) {
+    fwrite(STDERR, "Composer did not report a 40-character laravel/framework source reference\n");
+    exit(2);
+}
 $baselineFile = __DIR__ . '/../tests/fixtures/version-audit/' . $baselineName . '.json';
 $recorded = [
     'profile' => $baselineName,
     'constraint' => $profile['constraint'],
     'recordedVersion' => $actual['laravel'],
-    'commit' => $profile['commit'],
+    'commit' => $actual['laravelReference'],
     'cases' => $actual['cases'],
 ];
 
@@ -124,14 +182,61 @@ if (!is_array($expected) || !isset($expected['cases']) || !is_array($expected['c
     exit(2);
 }
 
-if ($expected['cases'] !== $actual['cases']) {
-    $caseIds = array_unique(array_merge(array_keys($expected['cases']), array_keys($actual['cases'])));
+$metadata = [
+    'profile' => $baselineName,
+    'constraint' => $profile['constraint'],
+];
+if ($profile['exact']) {
+    $metadata['recordedVersion'] = $actual['laravel'];
+    $metadata['commit'] = $actual['laravelReference'];
+}
+foreach ($metadata as $key => $value) {
+    if (($expected[$key] ?? null) !== $value) {
+        fwrite(STDERR, sprintf(
+            "Audit baseline %s differs: expected %s, got %s\n",
+            $key,
+            var_export($expected[$key] ?? null, true),
+            var_export($value, true),
+        ));
+        exit(1);
+    }
+}
+
+$expectedCases = $selectedCaseIds === []
+    ? $expected['cases']
+    : array_intersect_key($expected['cases'], array_fill_keys($selectedCaseIds, true));
+if ($expectedCases !== $actual['cases']) {
+    $caseIds = array_unique(array_merge(array_keys($expectedCases), array_keys($actual['cases'])));
     $changed = array_values(array_filter(
         $caseIds,
-        static fn (string $id): bool => ($expected['cases'][$id] ?? null) !== ($actual['cases'][$id] ?? null)
+        static fn (string $id): bool => ($expectedCases[$id] ?? null) !== ($actual['cases'][$id] ?? null)
     ));
     fwrite(STDERR, 'Audit baseline differs for: ' . implode(', ', $changed) . "\n");
     exit(1);
+}
+
+/**
+ * @param array<string, mixed> $options
+ * @return list<string>
+ */
+function repeatedOption(array $options, string $name): array
+{
+    $value = $options[$name] ?? [];
+    if (is_string($value)) {
+        return [$value];
+    }
+    if (!is_array($value)) {
+        return [];
+    }
+
+    $values = [];
+    foreach ($value as $item) {
+        if (is_string($item) && !in_array($item, $values, true)) {
+            $values[] = $item;
+        }
+    }
+
+    return $values;
 }
 
 fwrite(STDOUT, $baselineName . ' audit baseline matches Laravel ' . $actual['laravel'] . "\n");

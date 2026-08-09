@@ -31,6 +31,7 @@ final class Rule
     public const RULE_DECLINED_IF = "DeclinedIf";
     public const RULE_FILLED = "Filled";
     public const RULE_MISSING = "Missing";
+    public const RULE_PRESENT = "Present";
     public const RULE_REQUIRED = "Required";
     public const RULE_EXCLUDE = "Exclude";
     public const RULE_EXCLUDE_IF = "ExcludeIf";
@@ -40,6 +41,7 @@ final class Rule
     public const RULE_NULLABLE = "Nullable";
     public const RULE_SOMETIMES = "Sometimes";
     public const RULE_ARRAY = "Array";
+    public const RULE_LIST = "List";
     public const RULE_NUMERIC = "Numeric";
     public const RULE_CUSTOM = "__Custom";
     public const RULE_OPAQUE = "__Opaque";
@@ -51,6 +53,7 @@ final class Rule
         self::RULE_DECLINED_IF => self::RULE_DECLINED_IF,
         self::RULE_FILLED => self::RULE_FILLED,
         self::RULE_MISSING => self::RULE_MISSING,
+        self::RULE_PRESENT => self::RULE_PRESENT,
         self::RULE_REQUIRED => self::RULE_REQUIRED,
         self::RULE_EXCLUDE => self::RULE_EXCLUDE,
         self::RULE_EXCLUDE_IF => self::RULE_EXCLUDE_IF,
@@ -60,6 +63,7 @@ final class Rule
         self::RULE_NULLABLE => self::RULE_NULLABLE,
         self::RULE_SOMETIMES => self::RULE_SOMETIMES,
         self::RULE_ARRAY => self::RULE_ARRAY,
+        self::RULE_LIST => self::RULE_LIST,
         self::RULE_NUMERIC => self::RULE_NUMERIC,
     ];
 

@@ -1,8 +1,8 @@
 {
-    "profile": "12.22.0",
-    "constraint": "12.22.0",
-    "recordedVersion": "12.22.0",
-    "commit": "6ab00c913ef6ec6fad0bd506f7452c0bb9e792c3",
+    "profile": "11.23.0",
+    "constraint": "11.23.0",
+    "recordedVersion": "11.23.0",
+    "commit": "576f6f5d63f68afb36dc062e728e717ddeb1a4aa",
     "cases": {
         "accepted.true": {
             "concern": "native value",
@@ -447,23 +447,25 @@
                 "value": "1"
             },
             "runtime": {
-                "outcome": "failed",
-                "output": null,
+                "outcome": "passed",
+                "output": {
+                    "value": "1"
+                },
                 "warnings": [],
                 "exception": null
             },
             "inference": {
-                "type": "array{value: int}",
-                "outputType": null,
-                "containsOutput": null,
+                "type": "array{value: float|int|numeric-string|Stringable|true}",
+                "outputType": "array{value: '1'}",
+                "containsOutput": "yes",
                 "exception": null,
-                "classification": "no-successful-output"
+                "classification": "observed-sound"
             },
             "precision": {
                 "candidateOutputType": "array{value: '1'}",
-                "containedByInference": "no",
-                "preservedOnSuccess": null,
-                "classification": "candidate-outside-inference"
+                "containedByInference": "yes",
+                "preservedOnSuccess": true,
+                "classification": "observed-realizable"
             }
         },
         "integer_strict.float": {
@@ -475,23 +477,25 @@
                 "value": 1.0
             },
             "runtime": {
-                "outcome": "failed",
-                "output": null,
+                "outcome": "passed",
+                "output": {
+                    "value": 1.0
+                },
                 "warnings": [],
                 "exception": null
             },
             "inference": {
-                "type": "array{value: int}",
-                "outputType": null,
-                "containsOutput": null,
+                "type": "array{value: float|int|numeric-string|Stringable|true}",
+                "outputType": "array{value: 1.0}",
+                "containsOutput": "yes",
                 "exception": null,
-                "classification": "no-successful-output"
+                "classification": "observed-sound"
             },
             "precision": {
                 "candidateOutputType": "array{value: 1.0}",
-                "containedByInference": "no",
-                "preservedOnSuccess": null,
-                "classification": "candidate-outside-inference"
+                "containedByInference": "yes",
+                "preservedOnSuccess": true,
+                "classification": "observed-realizable"
             }
         },
         "integer_strict.true": {
@@ -503,23 +507,25 @@
                 "value": true
             },
             "runtime": {
-                "outcome": "failed",
-                "output": null,
+                "outcome": "passed",
+                "output": {
+                    "value": true
+                },
                 "warnings": [],
                 "exception": null
             },
             "inference": {
-                "type": "array{value: int}",
-                "outputType": null,
-                "containsOutput": null,
+                "type": "array{value: float|int|numeric-string|Stringable|true}",
+                "outputType": "array{value: true}",
+                "containsOutput": "yes",
                 "exception": null,
-                "classification": "no-successful-output"
+                "classification": "observed-sound"
             },
             "precision": {
                 "candidateOutputType": "array{value: true}",
-                "containedByInference": "no",
-                "preservedOnSuccess": null,
-                "classification": "candidate-outside-inference"
+                "containedByInference": "yes",
+                "preservedOnSuccess": true,
+                "classification": "observed-realizable"
             }
         },
         "integer_strict.stringable": {
@@ -535,23 +541,29 @@
                 }
             },
             "runtime": {
-                "outcome": "failed",
-                "output": null,
+                "outcome": "passed",
+                "output": {
+                    "value": {
+                        "type": "object",
+                        "class": "Illuminate\\Support\\Stringable",
+                        "value": "1"
+                    }
+                },
                 "warnings": [],
                 "exception": null
             },
             "inference": {
-                "type": "array{value: int}",
-                "outputType": null,
-                "containsOutput": null,
+                "type": "array{value: float|int|numeric-string|Stringable|true}",
+                "outputType": "array{value: Illuminate\\Support\\Stringable}",
+                "containsOutput": "yes",
                 "exception": null,
-                "classification": "no-successful-output"
+                "classification": "observed-sound"
             },
             "precision": {
                 "candidateOutputType": "array{value: Illuminate\\Support\\Stringable}",
-                "containedByInference": "no",
-                "preservedOnSuccess": null,
-                "classification": "candidate-outside-inference"
+                "containedByInference": "yes",
+                "preservedOnSuccess": true,
+                "classification": "observed-realizable"
             }
         },
         "numeric.integer": {
@@ -655,15 +667,15 @@
             },
             "runtime": {
                 "outcome": "passed",
-                "output": {
-                    "3": "preserved"
-                },
+                "output": [
+                    "legacy"
+                ],
                 "warnings": [],
                 "exception": null
             },
             "inference": {
-                "type": "array{3: string}",
-                "outputType": "array{3: 'preserved'}",
+                "type": "array{string}",
+                "outputType": "array{'legacy'}",
                 "containsOutput": "yes",
                 "exception": null,
                 "classification": "observed-sound"
@@ -689,16 +701,16 @@
             },
             "runtime": {
                 "outcome": "passed",
-                "output": {
-                    "3": "three",
-                    "5": "five"
-                },
+                "output": [
+                    "zero",
+                    "one"
+                ],
                 "warnings": [],
                 "exception": null
             },
             "inference": {
-                "type": "array{3: string, 5: string}",
-                "outputType": "array{3: 'three', 5: 'five'}",
+                "type": "array{string, string}",
+                "outputType": "array{'zero', 'one'}",
                 "containsOutput": "yes",
                 "exception": null,
                 "classification": "observed-sound"
@@ -730,16 +742,16 @@
                 "outcome": "passed",
                 "output": {
                     "name": "named",
-                    "3": "preserved-three",
+                    "0": "legacy-three",
                     "email": "email@example.com",
-                    "5": "preserved-five"
+                    "1": "legacy-five"
                 },
                 "warnings": [],
                 "exception": null
             },
             "inference": {
-                "type": "array{name: string, 3: string, email: non-empty-string, 5: string}",
-                "outputType": "array{name: 'named', 3: 'preserved-three', email: 'email@example.com', 5: 'preserved-five'}",
+                "type": "array{name: string, 0: string, email: non-empty-string, 1: string}",
+                "outputType": "array{name: 'named', 0: 'legacy-three', email: 'email@example.com', 1: 'legacy-five'}",
                 "containsOutput": "yes",
                 "exception": null,
                 "classification": "observed-sound"
@@ -762,15 +774,15 @@
             },
             "runtime": {
                 "outcome": "passed",
-                "output": {
-                    "-2": "preserved"
-                },
+                "output": [
+                    "legacy"
+                ],
                 "warnings": [],
                 "exception": null
             },
             "inference": {
-                "type": "array{-2: string}",
-                "outputType": "array{-2: 'preserved'}",
+                "type": "array{string}",
+                "outputType": "array{'legacy'}",
                 "containsOutput": "yes",
                 "exception": null,
                 "classification": "observed-sound"
@@ -3678,7 +3690,9 @@
                 "output": {
                     "value": "secret"
                 },
-                "warnings": [],
+                "warnings": [
+                    "php-2"
+                ],
                 "exception": null
             },
             "inference": {

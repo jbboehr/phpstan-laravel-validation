@@ -3099,6 +3099,41 @@
                 "classification": "not-probed"
             }
         },
+        "array.parameterized_parent_missing_child": {
+            "concern": "parameterized array parent preservation",
+            "rules": {
+                "payload": "required|array:name",
+                "payload.child": "missing"
+            },
+            "input": {
+                "payload": {
+                    "name": "Ada"
+                }
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "payload": {
+                        "name": "Ada"
+                    }
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{payload: array{name?: mixed}}",
+                "outputType": "array{payload: array{name: 'Ada'}}",
+                "containsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            },
+            "precision": {
+                "candidateOutputType": "array{payload: array{name: 'Ada'}}",
+                "containedByInference": "yes",
+                "preservedOnSuccess": true,
+                "classification": "observed-realizable"
+            }
+        },
         "array.required_keys": {
             "concern": "unsupported required array keys",
             "rules": {
@@ -3388,7 +3423,7 @@
             }
         },
         "present.value": {
-            "concern": "unsupported presence rule",
+            "concern": "unconditional presence rule",
             "rules": {
                 "value": "present|string"
             },
@@ -3404,7 +3439,7 @@
                 "exception": null
             },
             "inference": {
-                "type": "array{value?: string}",
+                "type": "array{value: string}",
                 "outputType": "array{value: 'value'}",
                 "containsOutput": "yes",
                 "exception": null,
@@ -3418,7 +3453,7 @@
             }
         },
         "present.missing": {
-            "concern": "unsupported presence rule",
+            "concern": "unconditional presence rule",
             "rules": {
                 "value": "present|string"
             },
@@ -3430,7 +3465,193 @@
                 "exception": null
             },
             "inference": {
-                "type": "array{value?: string}",
+                "type": "array{value: string}",
+                "outputType": null,
+                "containsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            },
+            "precision": {
+                "candidateOutputType": null,
+                "containedByInference": null,
+                "preservedOnSuccess": null,
+                "classification": "not-probed"
+            }
+        },
+        "present_array.empty_wildcard": {
+            "concern": "zero-match wildcard parent preservation",
+            "rules": {
+                "items": "present|array",
+                "items.*.id": "required|integer"
+            },
+            "input": {
+                "items": []
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "items": []
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{items: array<int|string, array{id: float|int|numeric-string|Stringable|true}>|string}",
+                "outputType": "array{items: array{}}",
+                "containsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            },
+            "precision": {
+                "candidateOutputType": null,
+                "containedByInference": null,
+                "preservedOnSuccess": null,
+                "classification": "not-probed"
+            }
+        },
+        "present_array.blank_wildcard": {
+            "concern": "zero-match wildcard blank bypass",
+            "rules": {
+                "items": "present|array",
+                "items.*.id": "required|integer"
+            },
+            "input": {
+                "items": ""
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "items": ""
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{items: array<int|string, array{id: float|int|numeric-string|Stringable|true}>|string}",
+                "outputType": "array{items: ''}",
+                "containsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            },
+            "precision": {
+                "candidateOutputType": null,
+                "containedByInference": null,
+                "preservedOnSuccess": null,
+                "classification": "not-probed"
+            }
+        },
+        "present_array.deep_wildcard": {
+            "concern": "deeper zero-match wildcard parent preservation",
+            "rules": {
+                "payload": "present|array",
+                "payload.items.*.id": "required|integer"
+            },
+            "input": {
+                "payload": {
+                    "extra": 1
+                }
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "payload": {
+                        "extra": 1
+                    }
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{payload: array|string}",
+                "outputType": "array{payload: array{extra: 1}}",
+                "containsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            },
+            "precision": {
+                "candidateOutputType": null,
+                "containedByInference": null,
+                "preservedOnSuccess": null,
+                "classification": "not-probed"
+            }
+        },
+        "present_array.deep_wildcard_missing": {
+            "concern": "matched deeper missing projection",
+            "rules": {
+                "payload": "present|array",
+                "payload.items.*.id": "missing"
+            },
+            "input": {
+                "payload": {
+                    "items": [
+                        {
+                            "other": "value"
+                        }
+                    ]
+                }
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": [],
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{payload?: array|string}",
+                "outputType": "array{}",
+                "containsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            },
+            "precision": {
+                "candidateOutputType": null,
+                "containedByInference": null,
+                "preservedOnSuccess": null,
+                "classification": "not-probed"
+            }
+        },
+        "missing.absent": {
+            "concern": "unconditional missing rule",
+            "rules": {
+                "value": "missing"
+            },
+            "input": [],
+            "runtime": {
+                "outcome": "passed",
+                "output": [],
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{}",
+                "outputType": "array{}",
+                "containsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            },
+            "precision": {
+                "candidateOutputType": null,
+                "containedByInference": null,
+                "preservedOnSuccess": null,
+                "classification": "not-probed"
+            }
+        },
+        "missing.present": {
+            "concern": "unconditional missing rule",
+            "rules": {
+                "value": "missing"
+            },
+            "input": {
+                "value": null
+            },
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{}",
                 "outputType": null,
                 "containsOutput": null,
                 "exception": null,
