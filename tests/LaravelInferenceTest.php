@@ -1082,6 +1082,157 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         }
     }
 
+    public function testEncodingRuleFollowsRuntimeVersionBoundary(): void
+    {
+        self::getContainer();
+
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $laravelVersion = self::frameworkVersion();
+        $context = new LaravelVersionContext('', $laravelVersion);
+
+        $blank = $factory->make(['value' => ''], ['value' => 'encoding:UTF-8']);
+        self::assertTrue($blank->passes());
+        self::assertSame(['value' => ''], $blank->validated());
+
+        $blankType = (new TypeResolver($context))->evaluate(RuleParser::parse([
+            'value' => 'encoding:UTF-8',
+        ], $context));
+        self::assertTrue($blankType->isSuperTypeOf(
+            $this->convertToType($blank->validated())
+        )->yes());
+
+        $requiredRules = ['value' => 'required|encoding:UTF-8'];
+        $rulesType = (new TypeResolver($context))->evaluate(RuleParser::parse(
+            $requiredRules,
+            $context
+        ));
+
+        if (version_compare($laravelVersion, '12.40.0', '<')) {
+            self::assertSame('array{value: mixed}', $rulesType->describe(Type\VerbosityLevel::precise()));
+
+            try {
+                $factory->make(['value' => 'plain'], $requiredRules)->passes();
+                self::fail('Laravel unexpectedly provided encoding before version 12.40.');
+            } catch (\BadMethodCallException) {
+            }
+
+            return;
+        }
+
+        self::assertSame(
+            'array{value: array|bool|float|int|string|Stringable|null}',
+            $rulesType->describe(Type\VerbosityLevel::precise())
+        );
+
+        $validFile = new \Symfony\Component\HttpFoundation\File\File(
+            __DIR__ . '/fixtures/version-audit/10.0.0.json'
+        );
+        foreach (
+            [
+                'native string' => ['plain', $requiredRules],
+                'integer' => [123, $requiredRules],
+                'float' => [1.5, $requiredRules],
+                'true' => [true, $requiredRules],
+                'array' => [['plain', 'text'], $requiredRules],
+                'stringable' => [new \Illuminate\Support\Stringable('plain'), $requiredRules],
+                'file content' => [$validFile, $requiredRules],
+                'false' => [false, ['value' => 'encoding:UTF-8']],
+                'empty array' => [[], ['value' => 'encoding:UTF-8']],
+            ] as $caseId => [$value, $rules]
+        ) {
+            $validator = $factory->make(['value' => $value], $rules);
+            self::assertTrue($validator->passes(), $caseId);
+            self::assertSame(['value' => $value], $validator->validated(), $caseId);
+
+            $inferred = (new TypeResolver($context))->evaluate(RuleParser::parse($rules, $context));
+            self::assertTrue($inferred->isSuperTypeOf(
+                $this->convertToType($validator->validated())
+            )->yes(), $caseId);
+        }
+
+        // PHP deprecates the legacy no-value form of mb_check_encoding(), but
+        // Laravel still passes an explicit null through to that form and then
+        // preserves the successful null value in validated output.
+        set_error_handler(static fn (int $severity): bool => $severity === E_DEPRECATED);
+        try {
+            $nullRules = ['value' => 'encoding:UTF-8'];
+            $nullValidator = $factory->make(['value' => null], $nullRules);
+            self::assertTrue($nullValidator->passes());
+            self::assertSame(['value' => null], $nullValidator->validated());
+
+            $nullType = (new TypeResolver($context))->evaluate(RuleParser::parse($nullRules, $context));
+            self::assertTrue($nullType->isSuperTypeOf(
+                $this->convertToType($nullValidator->validated())
+            )->yes());
+        } finally {
+            restore_error_handler();
+        }
+
+        foreach (
+            [
+                'invalid native string' => "\xf0\x28\x8c\x28",
+                'invalid nested string' => ["\xf0\x28\x8c\x28"],
+            ] as $caseId => $value
+        ) {
+            self::assertFalse($factory->make(
+                ['value' => $value],
+                $requiredRules
+            )->passes(), $caseId);
+        }
+
+        $invalidFile = \Illuminate\Http\UploadedFile::fake()->createWithContent(
+            'invalid.txt',
+            "\xf0\x28\x8c\x28"
+        );
+        self::assertFalse($factory->make(
+            ['value' => $invalidFile],
+            $requiredRules
+        )->passes());
+
+        $failedUpload = new \Symfony\Component\HttpFoundation\File\UploadedFile(
+            __FILE__,
+            'valid.txt',
+            'text/plain',
+            UPLOAD_ERR_CANT_WRITE,
+            true
+        );
+        self::assertFalse($factory->make(
+            ['value' => $failedUpload],
+            $requiredRules
+        )->passes());
+
+        try {
+            $factory->make(['value' => new \stdClass()], $requiredRules)->passes();
+            self::fail('Laravel unexpectedly accepted a non-stringable object for encoding.');
+        } catch (\TypeError) {
+        }
+
+        $resource = fopen('php://memory', 'r');
+        self::assertIsResource($resource);
+        try {
+            try {
+                $factory->make(['value' => $resource], $requiredRules)->passes();
+                self::fail('Laravel unexpectedly accepted a resource for encoding.');
+            } catch (\TypeError) {
+            }
+        } finally {
+            fclose($resource);
+        }
+
+        foreach (['encoding', 'encoding:not-an-encoding'] as $rule) {
+            try {
+                $factory->make(['value' => 'plain'], ['value' => $rule])->passes();
+                self::fail('Laravel unexpectedly accepted an invalid encoding rule.');
+            } catch (\InvalidArgumentException) {
+            }
+        }
+    }
+
     public function testListRuleFollowsRuntimeVersionBoundary(): void
     {
         self::getContainer();

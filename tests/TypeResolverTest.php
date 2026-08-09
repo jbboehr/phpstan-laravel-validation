@@ -75,6 +75,7 @@ final class TypeResolverTest extends PHPStanTestCase
         yield 'does not contain' => ['doesnt_contain:value', 'mixed'];
         yield 'in array keys' => ['in_array_keys:value', 'mixed'];
         yield 'array keys' => ['array_keys:name,email', 'mixed'];
+        yield 'encoding' => ['encoding:UTF-8', 'mixed'];
         yield 'extensions' => ['extensions:txt', 'mixed'];
         yield 'required array keys' => [
             'required_array_keys:name,email',
@@ -352,6 +353,27 @@ final class TypeResolverTest extends PHPStanTestCase
         ], '10.34.0'));
         self::assertSame('array{value: mixed}', self::resolveForVersion([
             'value' => 'required|extensions:txt',
+        ], '14.0.0'));
+    }
+
+    public function testVersionAwareEncodingInference(): void
+    {
+        $type = 'array{value: array|bool|float|int|string|Stringable|null}';
+
+        self::assertSame('array{value: mixed}', self::resolveForVersion([
+            'value' => 'required|encoding:UTF-8',
+        ], '12.39.0'));
+        self::assertSame($type, self::resolveForVersion([
+            'value' => 'required|encoding:UTF-8',
+        ], '12.40.0'));
+        self::assertSame('array{value?: array|bool|float|int|string|Stringable|null}', self::resolveForVersion([
+            'value' => 'encoding:UTF-8',
+        ], '12.40.0'));
+        self::assertSame('array{value?: array|bool|float|int|string|Stringable|null}', self::resolveForVersion([
+            'value' => 'encoding:UTF-8',
+        ], '12.40.0', true));
+        self::assertSame('array{value: mixed}', self::resolveForVersion([
+            'value' => 'required|encoding:UTF-8',
         ], '14.0.0'));
     }
 

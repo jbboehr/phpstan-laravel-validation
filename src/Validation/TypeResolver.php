@@ -638,6 +638,8 @@ final class TypeResolver
             "Dimensions", "File", "Image", "Mimetypes",
             "Mimes" => new Type\ObjectType('Symfony\\Component\\HttpFoundation\\File\\File'),
 
+            "Encoding" => $this->resolveTypeEncoding(),
+
             "Extensions" => $this->resolveTypeExtensions(),
 
             "HexColor" => $this->resolveTypeHexColor(),
@@ -739,6 +741,32 @@ final class TypeResolver
         }
 
         return new Type\ObjectType('Symfony\\Component\\HttpFoundation\\File\\File');
+    }
+
+    private function resolveTypeEncoding(): Type\Type
+    {
+        // Laravel did not add this rule until 12.40. Before that release an
+        // application may register the same name with an arbitrary contract.
+        if (
+            $this->laravelVersionContext === null
+            || !$this->laravelVersionContext->isAtLeast('12.40.0')
+        ) {
+            return new MixedType();
+        }
+
+        // Laravel passes arrays and file contents directly to
+        // mb_check_encoding(). Other weakly coercible scalar and Stringable
+        // values are accepted by that function, while validated() preserves
+        // the original native value instead of the checked string or content.
+        return Type\TypeCombinator::union(
+            new Type\ArrayType(new MixedType(), new MixedType()),
+            new Type\BooleanType(),
+            new Type\FloatType(),
+            new Type\IntegerType(),
+            new Type\NullType(),
+            new Type\ObjectType(\Stringable::class),
+            new Type\StringType(),
+        );
     }
 
     private function resolveTypeList(): Type\Type

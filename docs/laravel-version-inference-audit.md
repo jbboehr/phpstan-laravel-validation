@@ -13,12 +13,12 @@ type. Three release boundaries change contracts exercised by that corpus:
 - `integer:strict` begins enforcing native integers in Laravel 12.22; and
 - `ascii` begins requiring a native string in Laravel 13.4.
 
-The cross-profile runtime suite records six additional rule boundaries
+The cross-profile runtime suite records seven additional rule boundaries
 outside that portable corpus: Laravel adds `hex_color` in 10.33, Laravel 13.4
 stops `hex_color` from accepting compatible `Stringable` objects, and Laravel
-adds `extensions` in 10.34, the native-string-only `base64` rule in 13.21, and
-`array_keys` in 13.24. Laravel 11.23 separately changes a literal `list` parent
-from preservation to nested reconstruction.
+adds `extensions` in 10.34, `encoding` in 12.40, the native-string-only
+`base64` rule in 13.21, and `array_keys` in 13.24. Laravel 11.23 separately
+changes a literal `list` parent from preservation to nested reconstruction.
 
 The extension now obtains one analyzed-project Laravel version from the
 matching Composer installed-package dataset, falling back to `composer.lock`
@@ -54,6 +54,8 @@ inference.
 | `12.0.0` | `12.0.0` | 8.2 | 12.0.0 | [`bd8aeb64d3f9`](https://github.com/laravel/framework/commit/bd8aeb64d3f9fa4b11690d702bdf289f5f32ae97) |
 | `12.21.0` | `12.21.0` | 8.2 | 12.21.0 | [`ac8c4e73bf1b`](https://github.com/laravel/framework/commit/ac8c4e73bf1b5387b709f7736d41427e6af1c93b) |
 | `12.22.0` | `12.22.0` | 8.2 | 12.22.0 | [`6ab00c913ef6`](https://github.com/laravel/framework/commit/6ab00c913ef6ec6fad0bd506f7452c0bb9e792c3) |
+| `12.39.0` | `12.39.0` | 8.2 | 12.39.0 | [`1a6176129ef2`](https://github.com/laravel/framework/commit/1a6176129ef28eaf42b6b4a6250025120c3d8dac) |
+| `12.40.0` | `12.40.0` | 8.2 | 12.40.0 | [`3159215d904a`](https://github.com/laravel/framework/commit/3159215d904a2b04c5b903bce0328d54f1688d0f) |
 | `12-latest` | `^12.0` | 8.2 | 12.65.0 | [`99a8fb3153f9`](https://github.com/laravel/framework/commit/99a8fb3153f962a323377d6742be08da86bcccb8) |
 | `13.0.0` | `13.0.0` | 8.3 | 13.0.0 | [`3e33f431a053`](https://github.com/laravel/framework/commit/3e33f431a05365d008742ff8001b92641086d5f8) |
 | `13.3.0` | `13.3.0` | 8.3 | 13.3.0 | [`118b7063c44a`](https://github.com/laravel/framework/commit/118b7063c44a2f3421d1646f5ddf08defcfd1db3) |
@@ -129,6 +131,7 @@ observed evidence; it does not prove universal soundness.
 | Text predicates | `alpha*`, `ascii.*`, `string`, `lowercase`, `uppercase`, `regex`, `not_regex` | `ascii` boundary at 13.4 |
 | Hex colors | valid strings, compatible `Stringable`, optional blank input, and unsupported-rule behavior | Rule introduction at 10.33; native-string boundary at 13.4, covered by the cross-profile PHPUnit suite |
 | File extensions | valid and failed uploads, a compatible Symfony file subclass, invalid native values, optional blank input, and unsupported-rule behavior | `extensions` begins at Laravel 10.34, covered by the cross-profile PHPUnit suite rather than the portable audit corpus |
+| Character encoding | strings, arrays, scalars, `Stringable`, `null`, valid and invalid file contents, invalid uploads and parameters, and unsupported-rule behavior | `encoding` begins at Laravel 12.40, covered by the cross-profile PHPUnit suite rather than the portable audit corpus |
 | JSON, dates, and membership | `json.*`, `date*`, comparisons, scalar `in` | No observed release difference |
 | Network and identifiers | `email`, `ip`, `ipv4`, `ipv6`, `mac_address`, `timezone`, `url`, `uuid`, `ulid` | No observed release difference |
 | Arrays and projection | bare and keyed arrays, parameterized-parent preservation, required array offsets, numeric rule keys, nested child projection, wildcards, parent-plus-child rules | Numeric rule-key boundary at Laravel 12; `list` reconstruction boundary at Laravel 11.23 is covered by the cross-profile PHPUnit suite |
@@ -299,6 +302,58 @@ native values, optional blank bypass, and preservation in `validated()`.
 Before 10.34 and when version context is unavailable, the type remains
 `mixed`. The rule was introduced by
 [`4ae1ef68e4e4`](https://github.com/laravel/framework/commit/4ae1ef68e4e443499dceaf6bb3605863df8e8b4e).
+
+### `encoding` begins in Laravel 12.40
+
+Laravel 12.39 and every earlier supported release have no
+`validateEncoding()` method. Non-blank use therefore reaches Laravel's missing
+validator method unless an application has registered its own rule under that
+name. The extension retains `mixed` before Laravel 12.40 rather than assigning
+the later built-in contract to that open extension point.
+
+Laravel 12.40 adds a rule that first verifies the requested encoding name and
+then delegates to PHP:
+
+```php
+return mb_check_encoding(
+    $value instanceof File ? $value->getContent() : $value,
+    $parameters[0],
+);
+```
+
+The apparent text predicate consequently has a much broader native output
+contract. PHP's weak parameter coercion accepts booleans, integers, floats,
+and compatible `Stringable` objects in addition to strings. Arrays are passed
+through directly, while Symfony `File` objects are checked through their
+contents. Laravel preserves the original input after success rather than the
+coerced string, array elements, or file content that PHP actually inspected.
+
+An explicit `null` also succeeds and remains in `validated()`, although current
+supported PHP releases emit the deprecation associated with
+`mb_check_encoding(null, ...)`. Resources and arbitrary non-stringable objects
+cannot be passed to the native function. Array validity depends recursively on
+its contents, so the useful sound array branch remains `array<mixed>` rather
+than claiming a narrower element type.
+
+The resulting structural value type is:
+
+```php
+array<mixed>|bool|float|int|string|Stringable|null
+```
+
+Symfony `File` is contained by the `Stringable` branch, even though Laravel
+checks file contents rather than the object's string path. Laravel also marks
+`encoding` as a file rule, so a failed `UploadedFile` is rejected before its
+contents are inspected. Missing parameters and unknown encoding names throw
+`InvalidArgumentException`; optional blank strings can still bypass this
+non-implicit rule.
+
+Focused probes cover the successful native categories, valid and invalid file
+contents, failed uploads, invalid arrays, excluded object categories,
+parameter errors, blank bypass, and preservation in `validated()`. The exact
+12.39 and 12.40 profiles lock the introduction boundary, and the implementation
+is unchanged through the pinned Laravel 13 release. The rule was introduced by
+[`660c653024d0`](https://github.com/laravel/framework/commit/660c653024d01b4d36691730e110c987f61aee18).
 
 ### `base64` begins in Laravel 13.21
 
@@ -702,9 +757,10 @@ Composer project root.
 One shared context is injected into the rule parser and resolver used by
 validator, facade, request, and controller inference. The parser normalizes
 numeric rule keys, while the resolver specializes `integer:strict`, `ascii`,
-`base64`, `extensions`, `hex_color`, `array_keys`, `contains`, `in_array_keys`,
-`doesnt_contain`, `list` value types, `list` parent reconstruction, and default
-HTTP normalization only at the verified boundaries above.
+`base64`, `encoding`, `extensions`, `hex_color`, `array_keys`, `contains`,
+`in_array_keys`, `doesnt_contain`, `list` value types, `list` parent
+reconstruction, and default HTTP normalization only at the verified boundaries
+above.
 It ignores installed-package datasets belonging to unrelated project roots,
 so a globally installed tool or another registered autoloader cannot silently
 select the Laravel contract. The same context contributes its effective
