@@ -51,6 +51,8 @@ final class InferenceAuditProfiles
             '13.4.0' => self::exact('13.4.0', '8.3'),
             '13.20.0' => self::exact('13.20.0', '8.3'),
             '13.21.0' => self::exact('13.21.0', '8.3'),
+            '13.23.0' => self::exact('13.23.0', '8.3'),
+            '13.24.0' => self::exact('13.24.0', '8.3'),
             '13-latest' => self::latest('13', '^13.0', '8.3'),
         ];
     }

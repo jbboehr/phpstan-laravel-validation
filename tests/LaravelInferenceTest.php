@@ -793,6 +793,158 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         }
     }
 
+    public function testArrayKeysRuleFollowsRuntimeVersionBoundary(): void
+    {
+        self::getContainer();
+
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $laravelVersion = self::frameworkVersion();
+        $context = new LaravelVersionContext('', $laravelVersion);
+
+        $blank = $factory->make(['value' => ''], ['value' => 'array_keys:name,email']);
+        self::assertTrue($blank->passes());
+        self::assertSame(['value' => ''], $blank->validated());
+        $blankType = (new TypeResolver($context))->evaluate(RuleParser::parse([
+            'value' => 'array_keys:name,email',
+        ], $context));
+        self::assertTrue($blankType->accepts(
+            $this->convertToType($blank->validated()),
+            true
+        )->yes());
+
+        $requiredRules = ['value' => 'required|array_keys:name,email'];
+        $rulesType = (new TypeResolver($context))->evaluate(RuleParser::parse($requiredRules, $context));
+
+        if (version_compare($laravelVersion, '13.24.0', '<')) {
+            self::assertSame('array{value: mixed}', $rulesType->describe(Type\VerbosityLevel::precise()));
+            self::assertFalse(method_exists(\Illuminate\Validation\Rule::class, 'arrayKeys'));
+
+            try {
+                $factory->make(['value' => ['name' => 'Ada']], $requiredRules)->passes();
+                self::fail('Laravel unexpectedly provided array_keys before version 13.24.');
+            } catch (\BadMethodCallException) {
+            }
+
+            return;
+        }
+
+        self::assertTrue(method_exists(\Illuminate\Validation\Rule::class, 'arrayKeys'));
+        self::assertSame(
+            'array{value: array{name?: mixed, email?: mixed}}',
+            $rulesType->describe(Type\VerbosityLevel::precise())
+        );
+
+        foreach (
+            [
+                'allowed subset' => [
+                    ['value' => ['name' => 'Ada']],
+                    $requiredRules,
+                    ['value' => ['name' => 'Ada']],
+                ],
+                'empty array' => [
+                    ['value' => []],
+                    ['value' => 'array_keys:name,email'],
+                    ['value' => []],
+                ],
+                'numeric and numeric-looking string keys' => [
+                    ['value' => [0 => 'zero', '01' => 'leading']],
+                    ['value' => 'required|array_keys:0,01'],
+                    ['value' => [0 => 'zero', '01' => 'leading']],
+                ],
+                'empty parameter permits the empty-string key' => [
+                    ['value' => ['' => 'empty']],
+                    ['value' => 'required|array_keys:'],
+                    ['value' => ['' => 'empty']],
+                ],
+                'nested rules preserve the complete permitted parent' => [
+                    ['value' => ['name' => 'Ada', 'email' => 'ada@example.test']],
+                    [
+                        'value' => 'required|array_keys:name,email',
+                        'value.name' => 'string',
+                    ],
+                    ['value' => ['name' => 'Ada', 'email' => 'ada@example.test']],
+                ],
+                'missing child does not project away the parent' => [
+                    ['value' => ['name' => 'Ada']],
+                    [
+                        'value' => 'required|array_keys:name',
+                        'value.child' => 'missing',
+                    ],
+                    ['value' => ['name' => 'Ada']],
+                ],
+                'string allowed keys intersect a list at the empty array' => [
+                    ['value' => []],
+                    ['value' => 'array_keys:name,email|list'],
+                    ['value' => []],
+                ],
+                'sparse allowed keys retain the contiguous list prefix' => [
+                    ['value' => [0 => 'zero']],
+                    ['value' => 'required|array_keys:0,2|list'],
+                    ['value' => [0 => 'zero']],
+                ],
+            ] as $caseId => [$data, $rules, $expected]
+        ) {
+            $validator = $factory->make($data, $rules);
+            self::assertTrue($validator->passes(), $caseId);
+            self::assertSame($expected, $validator->validated(), $caseId);
+
+            $inferred = (new TypeResolver($context))->evaluate(RuleParser::parse($rules, $context));
+            self::assertTrue($inferred->accepts(
+                $this->convertToType($validator->validated()),
+                true
+            )->yes(), $caseId);
+        }
+
+        foreach (
+            [
+                ['value' => ['name' => 'Ada', 'extra' => true]],
+                ['value' => 'not-an-array'],
+                ['value' => new \ArrayObject(['name' => 'Ada'])],
+            ] as $invalidData
+        ) {
+            self::assertFalse($factory->make($invalidData, $requiredRules)->passes());
+        }
+
+        self::assertFalse($factory->make(
+            ['value' => [0 => 'zero', 1 => 'one']],
+            ['value' => 'required|array_keys:0,2|list']
+        )->passes());
+
+        try {
+            $factory->make(['value' => []], ['value' => 'array_keys'])->passes();
+            self::fail('Laravel unexpectedly accepted array_keys without a parameter.');
+        } catch (\InvalidArgumentException $exception) {
+            self::assertSame(
+                'Validation rule array_keys requires at least 1 parameters.',
+                $exception->getMessage()
+            );
+        }
+
+        $arrayKeys = new \ReflectionMethod(\Illuminate\Validation\Rule::class, 'arrayKeys');
+        $builder = $arrayKeys->invoke(null, ['name', 'email']);
+        self::assertInstanceOf(\Stringable::class, $builder);
+        self::assertSame('array_keys:name,email', (string) $builder);
+        $builderValidator = $factory->make(
+            ['value' => ['name' => 'Ada']],
+            ['value' => [$builder]]
+        );
+        self::assertTrue($builderValidator->passes());
+        self::assertSame(['value' => ['name' => 'Ada']], $builderValidator->validated());
+
+        $emptyBuilder = $arrayKeys->invoke(null, []);
+        self::assertInstanceOf(\Stringable::class, $emptyBuilder);
+        self::assertSame('array_keys:', (string) $emptyBuilder);
+        self::assertTrue($factory->make(
+            ['value' => []],
+            ['value' => [$emptyBuilder]]
+        )->passes());
+    }
+
     public function testListRuleFollowsRuntimeVersionBoundary(): void
     {
         self::getContainer();
@@ -856,6 +1008,19 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
                 true
             )->yes());
         }
+
+        $allowedKeyListRules = ['value' => 'array:name|list'];
+        $allowedKeyList = $factory->make(['value' => []], $allowedKeyListRules);
+        self::assertTrue($allowedKeyList->passes());
+        self::assertSame(['value' => []], $allowedKeyList->validated());
+
+        $allowedKeyListType = (new TypeResolver($context))->evaluate(RuleParser::parse(
+            $allowedKeyListRules,
+            $context
+        ));
+        self::assertTrue($allowedKeyListType->isSuperTypeOf(
+            $this->convertToType($allowedKeyList->validated())
+        )->yes());
 
         foreach (
             [

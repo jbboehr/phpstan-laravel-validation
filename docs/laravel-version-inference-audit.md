@@ -13,11 +13,12 @@ type. Three release boundaries change contracts exercised by that corpus:
 - `integer:strict` begins enforcing native integers in Laravel 12.22; and
 - `ascii` begins requiring a native string in Laravel 13.4.
 
-The cross-profile runtime suite records four additional rule boundaries
+The cross-profile runtime suite records five additional rule boundaries
 outside that portable corpus: Laravel adds `hex_color` in 10.33, Laravel 13.4
 stops `hex_color` from accepting compatible `Stringable` objects, and Laravel
-adds the native-string-only `base64` rule in 13.21. Laravel 11.23 separately
-changes a literal `list` parent from preservation to nested reconstruction.
+adds the native-string-only `base64` rule in 13.21 and `array_keys` in 13.24.
+Laravel 11.23 separately changes a literal `list` parent from preservation to
+nested reconstruction.
 
 The extension now obtains one analyzed-project Laravel version from the
 matching Composer installed-package dataset, falling back to `composer.lock`
@@ -58,6 +59,8 @@ inference.
 | `13.4.0` | `13.4.0` | 8.3 | 13.4.0 | [`912de244f88a`](https://github.com/laravel/framework/commit/912de244f88a69742b76e8a2807f6765947776da) |
 | `13.20.0` | `13.20.0` | 8.3 | 13.20.0 | [`b9d1bccad5fb`](https://github.com/laravel/framework/commit/b9d1bccad5fbc32578dca22566bb11e7c0e545d7) |
 | `13.21.0` | `13.21.0` | 8.3 | 13.21.0 | [`d1e02ce7b7e2`](https://github.com/laravel/framework/commit/d1e02ce7b7e25146177a1a0137c37bccb32d26d3) |
+| `13.23.0` | `13.23.0` | 8.3 | 13.23.0 | [`92a707229148`](https://github.com/laravel/framework/commit/92a707229148e57f08a249211c8a5a194159c619) |
+| `13.24.0` | `13.24.0` | 8.3 | 13.24.0 | [`6d481710375d`](https://github.com/laravel/framework/commit/6d481710375d2aa67656922ef760cdd2b18bcfe0) |
 | `13-latest` | `^13.0` | 8.3 | 13.24.0 | [`6d481710375d`](https://github.com/laravel/framework/commit/6d481710375d2aa67656922ef760cdd2b18bcfe0) |
 
 The `*-latest` constraints intentionally float in CI. Their committed
@@ -128,6 +131,7 @@ observed evidence; it does not prove universal soundness.
 | Network and identifiers | `email`, `ip`, `ipv4`, `ipv6`, `mac_address`, `timezone`, `url`, `uuid`, `ulid` | No observed release difference |
 | Arrays and projection | bare and keyed arrays, parameterized-parent preservation, required array offsets, numeric rule keys, nested child projection, wildcards, parent-plus-child rules | Numeric rule-key boundary at Laravel 12; `list` reconstruction boundary at Laravel 11.23 is covered by the cross-profile PHPUnit suite |
 | Array-only predicates | required and optional values, non-array rejection, preserved associative and nested arrays | `contains`, `in_array_keys`, and `doesnt_contain` begin at Laravel 11.8, 12.16, and 12.22, covered by the cross-profile PHPUnit suite rather than the portable audit corpus |
+| Allowed array keys | permitted subsets, extra-key rejection, numeric keys, empty parameters, blank bypass, nested rules, and the fluent builder | `array_keys` begins at Laravel 13.24, covered by the cross-profile PHPUnit suite rather than the portable audit corpus |
 | Presence and conditions | optional blanks, nullable, present, missing, zero-match wildcard parent preservation, confirmed, `required_if`, `exclude_if` | No observed release difference |
 | Default HTTP middleware | password-path trimming before validation | Laravel 10 versus 11+ boundary covered by the cross-profile PHPUnit suite |
 | Static entry points | facade, factory, request, controller, helper, validator unions, constant `setRules()` | Covered by the existing PHPStan fixture suite |
@@ -280,6 +284,58 @@ preserved native strings, while integers, floats, booleans, arrays, and
 compatible `Stringable` objects fail. The sound required value type is
 therefore `non-empty-string`; optional raw validator input still includes the
 blank-string bypass.
+
+### `array_keys` begins in Laravel 13.24
+
+Laravel 13.23 and every earlier supported release have no
+`validateArrayKeys()` method. As with other absent built-in names, non-blank
+use either reaches Laravel's missing validator method or an application-defined
+rule registered under that name. Inference therefore remains `mixed` before
+13.24.
+
+Laravel 13.24 adds a predicate that requires a native array and rejects keys
+outside the rule parameters. It does not require any listed key to exist, so
+this rule:
+
+```php
+['value' => 'required|array_keys:name,email']
+```
+
+accepts the empty array and either permitted subset. Laravel preserves the
+original array, including its values, so the corresponding structural type is:
+
+```php
+array{name?: mixed, email?: mixed}
+```
+
+The focused runtime test also confirms that canonical numeric key parameters
+such as `0` use integer offsets, while a non-canonical numeric-looking key such
+as `01` remains a string offset. Optional blank strings bypass the
+non-implicit rule as usual. Nested child rules do not turn `array_keys` into a
+parent-reconstruction rule: the complete permitted parent remains in
+`validated()`.
+
+Combining an allowed-key rule with `list` produces another non-obvious
+intersection. A list can use only consecutive integer keys beginning at zero.
+`array_keys:name|list` therefore accepts only the empty array, while
+`array_keys:0,2|list` accepts the empty array and a one-element list at key
+zero. The resolver models the longest permitted consecutive prefix directly;
+otherwise PHPStan can collapse the real empty-array overlap between an
+optional-key shape and `list` to `never`. The same repair applies to the
+pre-existing `array:name|list` form.
+
+The two empty-looking spellings are observably different. Bare `array_keys`
+throws `InvalidArgumentException` when it is evaluated because the rule
+requires a parameter. `array_keys:` supplies one empty parameter and permits
+only the empty-string array key. The extension models both contracts from
+13.24 and remains broad when the Laravel version is unavailable or unsupported.
+
+The rule was introduced by
+[`91eee4b8a7c4`](https://github.com/laravel/framework/commit/91eee4b8a7c4f4301700fa359de92898528bb917).
+`Rule::arrayKeys()` serializes to the same string contract at runtime, including
+the empty-builder case. The current static rule-object path retains only its
+object type, however, so it cannot yet recover the builder's constructor keys
+and conservatively leaves that form opaque.
 
 ### Three array predicates have mid-major introductions
 
@@ -603,9 +659,9 @@ Composer project root.
 One shared context is injected into the rule parser and resolver used by
 validator, facade, request, and controller inference. The parser normalizes
 numeric rule keys, while the resolver specializes `integer:strict`, `ascii`,
-`base64`, `hex_color`, `contains`, `in_array_keys`, `doesnt_contain`, `list`
-value types, `list` parent reconstruction, and default HTTP normalization only
-at the verified boundaries above.
+`base64`, `hex_color`, `array_keys`, `contains`, `in_array_keys`,
+`doesnt_contain`, `list` value types, `list` parent reconstruction, and default
+HTTP normalization only at the verified boundaries above.
 It ignores installed-package datasets belonging to unrelated project roots,
 so a globally installed tool or another registered autoloader cannot silently
 select the Laravel contract. The same context contributes its effective
@@ -633,4 +689,4 @@ Environment-dependent rules should remain conservative unless their runtime
 services can be replaced with deterministic test doubles and their static
 contract can be stated without booting arbitrary application behavior.
 
-Last reviewed: 2026-08-08.
+Last reviewed: 2026-08-09.

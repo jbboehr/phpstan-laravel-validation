@@ -68,10 +68,10 @@ separate dimensions.
 
 | Accepted-value handling | Rule names | Focused static coverage | Meaning |
 | --- | ---: | ---: | --- |
-| Direct type contribution | 53 | 52 | A native value type is emitted; `dimensions` lacks a dedicated focused fixture |
+| Direct type contribution | 54 | 53 | A native value type is emitted; `dimensions` lacks a dedicated focused fixture |
 | Explicitly neutral | 45 | 10 | The rule does not narrow the local value type, whether intentionally or because a correlated model is unavailable |
-| Conservative `mixed` fallback | 16 | 0 | No built-in accepted-value model is applied |
-| **Total reserved names** | **114** | **59 files** | Covers the current Laravel 13.24 name inventory, including `Enum` and `Password` |
+| Conservative `mixed` fallback | 15 | 0 | No built-in accepted-value model is applied |
+| **Total reserved names** | **114** | **60 files** | Covers the current Laravel 13.24 name inventory, including `Enum` and `Password` |
 
 The repository's generated Laravel fixtures provide broader conformance
 coverage than the focused-file count suggests. Focused files are still
@@ -80,7 +80,7 @@ adversarial native values that Laravel's upstream tests do not exercise.
 
 ## Rules with direct accepted-value inference
 
-The following 53 names contribute a concrete type today:
+The following 54 names contribute a concrete type today:
 
 | Family | Rules | Current contribution |
 | --- | --- | --- |
@@ -91,11 +91,17 @@ The following 53 names contribute a concrete type today:
 | Date checks | `After`, `AfterOrEqual`, `Before`, `BeforeOrEqual`, `Date`, `DateEquals`, `DateFormat` | Numeric scalars, non-empty strings, and where applicable `DateTimeInterface` |
 | Numeric checks | `Decimal`, `Digits`, `DigitsBetween`, `Integer`, `MaxDigits`, `MinDigits`, `MultipleOf`, `Numeric` | Numeric strings and the native numeric values Laravel accepts and preserves |
 | Arrays and files | `Array`, `RequiredArrayKeys`, `Dimensions`, `File`, `Image`, `Mimes`, `Mimetypes` | Array shapes, required-offset constraints, or Symfony file objects |
-| Version-sensitive | `Ascii`, `Base64`, `Contains`, `DoesntContain`, `HexColor`, `InArrayKeys`, `List` | `Contains`, `DoesntContain`, and `InArrayKeys` contribute `array<mixed>` from Laravel 11.8, 12.22, and 12.16 respectively; `Base64`, `HexColor`, and `List` remain `mixed` before their Laravel 13.21, 10.33, and 11.0.3 introductions; `List` changes nested projection in 11.23 |
+| Version-sensitive | `ArrayKeys`, `Ascii`, `Base64`, `Contains`, `DoesntContain`, `HexColor`, `InArrayKeys`, `List` | `ArrayKeys` contributes an optional-key shape from Laravel 13.24; `Contains`, `DoesntContain`, and `InArrayKeys` contribute `array<mixed>` from 11.8, 12.22, and 12.16; `Base64`, `HexColor`, and `List` remain `mixed` before 13.21, 10.33, and 11.0.3; `List` changes nested projection in 11.23 |
 
 This is not synonymous with complete rule support. For example, `Accepted`
 and `Declined` contribute exact value unions and required matched paths, while
 `Array` also participates in nested projection behavior.
+
+Allowed-key `Array` and `ArrayKeys` rules also interact with `List`. Inference
+retains only the longest permitted consecutive integer prefix beginning at
+zero, including the empty-array-only overlap when all allowed keys are
+strings. This avoids incorrectly reducing a successful Laravel contract to
+`never`.
 
 Every direct rule except `Dimensions` has a dedicated static fixture under
 [`tests/rules`](../tests/rules) or [`tests/version-aware`](../tests/version-aware).
@@ -131,13 +137,12 @@ nested rule is `missing`.
 
 ## Rules currently falling back to `mixed`
 
-These 16 reserved names have no built-in accepted-value contribution. The
+These 15 reserved names have no built-in accepted-value contribution. The
 fallback is generally sound because it is broad, but it loses useful
 information and can hide structural guarantees.
 
 | Rules | Introduced | Laravel consequence | Existing runtime evidence | Candidate treatment |
 | --- | --- | --- | --- | --- |
-| `ArrayKeys` | 13.24 | Requires an array and rejects keys outside its parameters | Upstream 13.24 source only; the pinned 13.23 fixture predates it | Parameter-aware optional-key array shape |
 | `Extensions` | 10 | Applies a file extension predicate | No generated fixture witness | Symfony file type after focused file probes |
 | `Encoding` | 12 | Checks strings, arrays, or file contents through `mb_check_encoding` | No generated fixture witness | Keep broad until adversarial runtime probes establish the preserved native union |
 | `Enum` | Object rule | Depends on the enum class and the rule object's `only`/`except` state | No generated fixture witness | Dedicated built-in object-rule extraction |
@@ -146,10 +151,11 @@ information and can hide structural guarantees.
 | `RequiredIfAccepted`, `RequiredIfDeclined` | 10 / 11 | Conditionally require a field based on another field's accepted or declined value | Fixtures from introduction onward | Correlated presence unions |
 | `ProhibitedIfAccepted`, `ProhibitedIfDeclined` | 11 | Conditionally restrict a field based on another field | Laravel 11 through 13 fixtures | Correlated optional value domains; prohibition is not equivalent to exclusion |
 
-The four source-only gaps are significant for test planning: `ArrayKeys` is
-newer than the pinned Laravel 13 fixture, while `Encoding`, `Extensions`, and
-`Enum` are absent from the generated corpus because they require file,
-environment, or rule-object setup that the exporter does not currently retain.
+The three remaining source-only gaps are significant for test planning:
+`Encoding`, `Extensions`, and `Enum` are absent from the generated corpus
+because they require file, environment, or rule-object setup that the exporter
+does not currently retain. `ArrayKeys` is newer than the pinned Laravel 13
+fixture but now has focused runtime and static coverage.
 
 ## Presence and output-shape findings
 
@@ -200,7 +206,10 @@ Current static extraction treats them in two ways:
 Built-in builder support should be a separate implementation track. Treating
 these objects as arbitrary third-party validators is safe, but needlessly
 imprecise for constant builder expressions whose constructor and fluent-call
-state are statically available.
+state are statically available. Focused runtime coverage confirms that
+`Rule::arrayKeys()` serializes to the same string rule. Static analysis still
+receives only its object type, without the constructor's key list, so the
+builder remains opaque until that separate extraction track is implemented.
 
 ## Prioritized work
 
@@ -208,32 +217,25 @@ state are statically available.
 
 Add focused runtime and static witnesses before narrowing anything:
 
-- `array_keys` on Laravel 13.24 and its absence before that release;
 - file witnesses for `extensions` and `encoding`;
 - a dedicated static `dimensions` fixture; and
 - scalar-backed and pure enum object cases.
 
-### 2. Take the low-complexity precision wins
-
-Once verified, implement version-gated `array_keys` inference.
-
-These changes do not require cross-field correlations.
-
-### 3. Extend presence modeling to conditional rules
+### 2. Extend presence modeling to conditional rules
 
 The tree can now say "the key must exist" without saying "blank values fail,"
 and unconditional `missing` paths are omitted from output. Extend that model to
 the conditional present and missing families only when controlling-field
 correlations can be represented without making every branch required.
 
-### 4. Support statically resolvable built-in builders
+### 3. Support statically resolvable built-in builders
 
 Recover the string-rule equivalent or direct contract for constant fluent
 builders, beginning with `Rule::in`, `Rule::notIn`, `Rule::array`,
 `Rule::arrayKeys`, and the typed string/numeric/date/file builders. Callback
 builders must remain opaque when their branch cannot be resolved.
 
-### 5. Add correlated structural refinements
+### 4. Add correlated structural refinements
 
 Treat conditional presence families as separate slices. Their implementation
 must account for controlling-field values, optional blank bypass, nested

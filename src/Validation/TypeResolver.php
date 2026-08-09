@@ -191,7 +191,8 @@ final class TypeResolver
 
     public function evaluateLeaf(RuleTreeNode $node, bool $assumeHttpInputNormalization = false): Type\Type
     {
-        $types = array_values(array_filter(array_map(function ($rule) use ($node) {
+        $allowedKeysListType = $this->resolveAllowedKeysListIntersection($node);
+        $types = array_values(array_filter(array_map(function ($rule) use ($node, $allowedKeysListType) {
             // Laravel applies `in` to every element when the value also has an
             // `array` rule. The scalar `in` resolver cannot model that safely,
             // so retain the array rule's conservative value type instead.
@@ -199,8 +200,19 @@ final class TypeResolver
                 return null;
             }
 
+            if (
+                $allowedKeysListType !== null
+                && $this->isAllowedKeysListComponent($rule)
+            ) {
+                return null;
+            }
+
             return $this->resolveType($rule);
         }, $node->getRules())));
+
+        if ($allowedKeysListType !== null) {
+            $types[] = $allowedKeysListType;
+        }
 
         if (count($types) <= 0) {
             $type = new MixedType();
@@ -640,6 +652,8 @@ final class TypeResolver
 
             "DoesntContain" => $this->resolveTypeIntroducedArrayRule('12.22.0'),
 
+            "ArrayKeys" => $this->resolveTypeArrayKeys($rule),
+
             default => $this->resolveDefault($rule),
         };
     }
@@ -780,6 +794,114 @@ final class TypeResolver
         return new Type\ArrayType(new MixedType(), new MixedType());
     }
 
+    private function resolveTypeArrayKeys(Rule $rule): Type\Type
+    {
+        // Laravel did not add this rule until 13.24. Before that release an
+        // application may register the same name with an arbitrary contract.
+        if (
+            $this->laravelVersionContext === null
+            || !$this->laravelVersionContext->isAtLeast('13.24.0')
+        ) {
+            return new MixedType();
+        }
+
+        $parameters = $rule->getParameters();
+        if ($parameters === []) {
+            // Laravel throws when this rule is evaluated without at least one
+            // parameter, so no non-blank value can reach validated output.
+            return new Type\NeverType();
+        }
+
+        $builder = ConstantArrayTypeBuilder::createEmpty();
+        foreach ($parameters as $parameter) {
+            $key = $this->normalizeAllowedArrayKeyParameter($parameter);
+            $builder->setOffsetValueType(
+                is_int($key) ? new ConstantIntegerType($key) : new ConstantStringType($key),
+                new MixedType(),
+                true
+            );
+        }
+
+        return $builder->getArray();
+    }
+
+    private function resolveAllowedKeysListIntersection(RuleTreeNode $node): ?Type\Type
+    {
+        if (
+            !$node->hasBareListRule()
+            || $this->laravelVersionContext === null
+            || !$this->laravelVersionContext->isAtLeast('11.0.3')
+        ) {
+            return null;
+        }
+
+        /** @var array<int|string, true>|null $allowedKeys */
+        $allowedKeys = null;
+        foreach ($node->getRules() as $rule) {
+            $ruleKeys = $this->allowedKeysForListIntersection($rule);
+            if ($ruleKeys === null) {
+                continue;
+            }
+
+            $allowedKeys = $allowedKeys === null
+                ? $ruleKeys
+                : array_intersect_key($allowedKeys, $ruleKeys);
+        }
+
+        if ($allowedKeys === null) {
+            return null;
+        }
+
+        // A list can contain only the consecutive integer keys 0..n. Stop at
+        // the first key the allowed-key rules reject; any later numeric or
+        // string keys can never occur in a successful list.
+        $builder = ConstantArrayTypeBuilder::createEmpty();
+        for ($key = 0; isset($allowedKeys[$key]); $key++) {
+            $builder->setOffsetValueType(
+                new ConstantIntegerType($key),
+                new MixedType(),
+                true
+            );
+        }
+
+        return Type\TypeCombinator::intersect(
+            $builder->getArray(),
+            $this->resolveTypeList()
+        );
+    }
+
+    /** @return array<int|string, true>|null */
+    private function allowedKeysForListIntersection(Rule $rule): ?array
+    {
+        if ($rule->getParameters() === []) {
+            return null;
+        }
+
+        if (
+            $rule->getRuleName() !== Rule::RULE_ARRAY
+            && (
+                $rule->getRuleName() !== 'ArrayKeys'
+                || $this->laravelVersionContext === null
+                || !$this->laravelVersionContext->isAtLeast('13.24.0')
+            )
+        ) {
+            return null;
+        }
+
+        $keys = [];
+        foreach ($rule->getParameters() as $parameter) {
+            $keys[$this->normalizeAllowedArrayKeyParameter($parameter)] = true;
+        }
+
+        return $keys;
+    }
+
+    private function isAllowedKeysListComponent(Rule $rule): bool
+    {
+        return $rule->getRuleName() === Rule::RULE_LIST
+            || $this->allowedKeysForListIntersection($rule) !== null;
+    }
+
     private function hasRequiredArrayKeysRule(RuleTreeNode $node): bool
     {
         foreach ($node->getRules() as $rule) {
@@ -853,9 +975,8 @@ final class TypeResolver
             throw new InvalidRuleException('Cannot have non-scalar key');
         }
 
-        // Arr::exists() deliberately stringifies floats before calling
-        // array_key_exists(); PHP's ordinary array-key cast would truncate
-        // them to integers instead.
+        // Arr::exists() stringifies floats instead of applying PHP's ordinary
+        // truncating array-key cast.
         if (is_float($parameter)) {
             $parameter = (string) $parameter;
         }
@@ -865,8 +986,28 @@ final class TypeResolver
         }
 
         // PHP converts canonical integer strings to integer array keys. This
-        // is also how Arr::exists() interprets required-array-key parameters.
+        // matches required_array_keys at runtime.
         return array_key_first(array_fill_keys([$parameter], null));
+    }
+
+    private function normalizeAllowedArrayKeyParameter(mixed $parameter): int|string
+    {
+        if (!is_scalar($parameter) && $parameter !== null) {
+            throw new InvalidRuleException('Cannot have non-scalar key');
+        }
+
+        // Both allowed-key predicates construct their comparison set with
+        // array_fill_keys(). Stringifying first reproduces its treatment of
+        // null, booleans, floats, and canonical integer strings.
+        $key = (string) $parameter;
+        if (
+            preg_match('/^(?:0|-?[1-9][0-9]*)$/D', $key) === 1
+            && (string) (int) $key === $key
+        ) {
+            return (int) $key;
+        }
+
+        return $key;
     }
 
     private function resolveTypeIn(Rule $rule): Type\Type

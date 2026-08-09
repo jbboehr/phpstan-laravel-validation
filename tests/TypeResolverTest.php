@@ -74,6 +74,7 @@ final class TypeResolverTest extends PHPStanTestCase
         yield 'contains' => ['contains:value', 'mixed'];
         yield 'does not contain' => ['doesnt_contain:value', 'mixed'];
         yield 'in array keys' => ['in_array_keys:value', 'mixed'];
+        yield 'array keys' => ['array_keys:name,email', 'mixed'];
         yield 'required array keys' => [
             'required_array_keys:name,email',
             "non-empty-array&hasOffset('email')&hasOffset('name')",
@@ -359,6 +360,13 @@ final class TypeResolverTest extends PHPStanTestCase
         self::assertSame('array{value?: list|null}', self::resolveForVersion([
             'value' => 'nullable|list',
         ], '11.0.3', true));
+
+        self::assertSame('array{value?: array{name?: mixed}|string}', self::resolveForVersion([
+            'value' => 'array:name|list',
+        ], '11.0.2'));
+        self::assertSame('array{value?: array{}|string}', self::resolveForVersion([
+            'value' => 'array:name|list',
+        ], '11.0.3'));
     }
 
     public function testVersionAwareArrayPredicateInference(): void
@@ -389,6 +397,71 @@ final class TypeResolverTest extends PHPStanTestCase
                 'value' => 'required|' . $rule,
             ], '14.0.0'));
         }
+    }
+
+    public function testVersionAwareArrayKeysInference(): void
+    {
+        self::assertSame('array{value: mixed}', self::resolveForVersion([
+            'value' => 'required|array_keys:name,email',
+        ], '13.23.0'));
+        self::assertSame('array{value: array{name?: mixed, email?: mixed}}', self::resolveForVersion([
+            'value' => 'required|array_keys:name,email',
+        ], '13.24.0'));
+        self::assertSame(
+            'array{value?: array{name?: mixed, email?: mixed}|string}',
+            self::resolveForVersion(['value' => 'array_keys:name,email'], '13.24.0')
+        );
+        self::assertSame(
+            'array{value?: array{name?: mixed, email?: mixed}}',
+            self::resolveForVersion(['value' => 'array_keys:name,email'], '13.24.0', true)
+        );
+        self::assertSame(
+            'array{value?: array{name?: mixed, email?: mixed}|string|null}',
+            self::resolveForVersion(['value' => 'nullable|array_keys:name,email'], '13.24.0')
+        );
+        $numericKeys = self::resolveTypeForVersion([
+            'value' => 'required|array_keys:0,01',
+        ], '13.24.0')->getOffsetValueType(new \PHPStan\Type\Constant\ConstantStringType('value'));
+        self::assertTrue(
+            $numericKeys->hasOffsetValueType(new \PHPStan\Type\Constant\ConstantIntegerType(0))->maybe()
+        );
+        self::assertTrue(
+            $numericKeys->hasOffsetValueType(new \PHPStan\Type\Constant\ConstantStringType('01'))->maybe()
+        );
+        self::assertTrue(
+            $numericKeys->hasOffsetValueType(new \PHPStan\Type\Constant\ConstantIntegerType(1))->no()
+        );
+
+        $emptyParameter = self::resolveTypeForVersion([
+            'value' => 'required|array_keys:',
+        ], '13.24.0')->getOffsetValueType(new \PHPStan\Type\Constant\ConstantStringType('value'));
+        self::assertTrue(
+            $emptyParameter->hasOffsetValueType(new \PHPStan\Type\Constant\ConstantStringType(''))->maybe()
+        );
+        self::assertTrue(
+            $emptyParameter->hasOffsetValueType(new \PHPStan\Type\Constant\ConstantStringType('other'))->no()
+        );
+        self::assertSame('array{value: *NEVER*}', self::resolveForVersion([
+            'value' => 'required|array_keys',
+        ], '13.24.0'));
+        self::assertSame('array{value: mixed}', self::resolveForVersion([
+            'value' => 'required|array_keys:name,email',
+        ], '14.0.0'));
+
+        self::assertSame('array{user: array{name?: mixed, email?: mixed}}', self::resolveForVersion([
+            'user' => 'required|array_keys:name,email',
+            'user.name' => 'string',
+        ], '13.24.0'));
+
+        self::assertSame('array{value?: array{}|string}', self::resolveForVersion([
+            'value' => 'array_keys:name,email|list',
+        ], '13.24.0'));
+        self::assertSame('array{value: array{0?: mixed}}', self::resolveForVersion([
+            'value' => 'required|array_keys:0,2|list',
+        ], '13.24.0'));
+        self::assertSame('array{value: list{0?: mixed, 1?: mixed}}', self::resolveForVersion([
+            'value' => 'required|array_keys:0,1,3|list',
+        ], '13.24.0'));
     }
 
     public function testListParentProjectionChangesInLaravel1123(): void
@@ -904,14 +977,24 @@ final class TypeResolverTest extends PHPStanTestCase
         string $laravelVersion,
         bool $assumeHttpInputNormalization = false
     ): string {
+        return self::resolveTypeForVersion($rules, $laravelVersion, $assumeHttpInputNormalization)
+            ->describe(VerbosityLevel::precise());
+    }
+
+    /**
+     * @param array<string, string> $rules
+     */
+    private static function resolveTypeForVersion(
+        array $rules,
+        string $laravelVersion,
+        bool $assumeHttpInputNormalization = false
+    ): \PHPStan\Type\Type {
         self::getContainer();
 
         $context = new LaravelVersionContext('', $laravelVersion);
         $resolver = new TypeResolver($context);
 
-        return $resolver
-            ->evaluateMap(RuleParser::parse($rules, $context), $assumeHttpInputNormalization)
-            ->describe(VerbosityLevel::precise());
+        return $resolver->evaluateMap(RuleParser::parse($rules, $context), $assumeHttpInputNormalization);
     }
 
     private static function resolveNumericPathsForVersion(string $laravelVersion): string

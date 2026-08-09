@@ -21,6 +21,11 @@ assertType('list', $validated['required_value']);
 assertType('list|string', $validated['optional_value']);
 assertType('list|string|null', $validated['nullable_value']);
 
+$allowedKeyList = \Illuminate\Support\Facades\Validator::make([], [
+    'value' => 'array:name|list',
+])->validated();
+assertType('array{value?: array{}|string}', $allowedKeyList);
+
 $preservedParent = \Illuminate\Support\Facades\Validator::make([], [
     'items' => 'required|list',
     'items.*.id' => 'missing',
