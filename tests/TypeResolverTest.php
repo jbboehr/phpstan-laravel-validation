@@ -71,6 +71,10 @@ final class TypeResolverTest extends PHPStanTestCase
         yield 'base64' => ['base64', 'mixed'];
         yield 'hex color' => ['hex_color', 'mixed'];
         yield 'list' => ['list', 'mixed'];
+        yield 'required array keys' => [
+            'required_array_keys:name,email',
+            "non-empty-array&hasOffset('email')&hasOffset('name')",
+        ];
 
         foreach (['lowercase', 'string', 'uppercase'] as $rule) {
             yield $rule => [$rule, 'string'];
@@ -591,6 +595,78 @@ final class TypeResolverTest extends PHPStanTestCase
         ]));
     }
 
+    public function testRequiredArrayKeysConstrainPreservedArrayOffsets(): void
+    {
+        self::assertSame(
+            "array{required: non-empty-array&hasOffset('email')&hasOffset('name'), "
+            . "optional?: (non-empty-array&hasOffset('name'))|string, "
+            . "present: (non-empty-array&hasOffset('name'))|string, "
+            . "numeric: non-empty-array&hasOffset(0), empty: non-empty-array&hasOffset('')}",
+            self::resolve([
+                'required' => 'required|required_array_keys:name,email',
+                'optional' => 'required_array_keys:name',
+                'present' => 'present|required_array_keys:name',
+                'numeric' => 'required|required_array_keys:0',
+                'empty' => 'required|required_array_keys:',
+            ])
+        );
+
+        self::assertSame(
+            'array{value: array{name: mixed, email?: mixed}}',
+            self::resolve([
+                'value' => 'required|array:name,email|required_array_keys:name',
+            ])
+        );
+    }
+
+    public function testRequiredArrayKeysOnlyRequireMatchingProjectedChildren(): void
+    {
+        self::assertSame('array{user: array{name: string}}', self::resolve([
+            'user' => 'required|array|required_array_keys:name',
+            'user.name' => 'string',
+        ]));
+
+        self::assertSame('array{user?: array{email?: string}}', self::resolve([
+            'user' => 'required|array|required_array_keys:name',
+            'user.email' => 'string',
+        ]));
+
+        self::assertSame('array{user?: array{name?: string}}', self::resolve([
+            'user' => 'present|array|required_array_keys:name',
+            'user.name' => 'string',
+        ]));
+
+        self::assertSame('array{user?: array{name?: string}}', self::resolve([
+            'user' => 'required|array|required_array_keys:name',
+            'user.name' => 'exclude_if:mode,hidden|string',
+        ]));
+
+        self::assertSame('array{user?: array{name?: array{first?: string}}}', self::resolve([
+            'user' => 'required|array|required_array_keys:name',
+            'user.name.first' => 'string',
+        ]));
+
+        self::assertSame('array{user: array{string}}', self::resolve([
+            'user' => 'required|array|required_array_keys:0',
+            'user.0' => 'string',
+        ]));
+
+        self::assertSame("array{user: non-empty-array&hasOffset('name')}", self::resolve([
+            'user' => 'required|required_array_keys:name',
+            'user.name' => 'string',
+        ]));
+
+        self::getContainer();
+        $opaque = RuleParser::parse([
+            'user' => 'required|array|required_array_keys:name',
+            'user.name' => [Rule::opaque()],
+        ]);
+        self::assertSame(
+            'array{user?: array{name?: mixed}}',
+            (new TypeResolver())->evaluate($opaque)->describe(VerbosityLevel::precise())
+        );
+    }
+
     public function testMissingWildcardOnlyProjectionCanPreserveAnArrayParent(): void
     {
         self::assertSame('array{items?: array<int|string, mixed>|string}', self::resolve([
@@ -671,6 +747,30 @@ final class TypeResolverTest extends PHPStanTestCase
         $this->expectException(InvalidRuleException::class);
         $this->expectExceptionMessage('Cannot have non-scalar key');
         (new TypeResolver())->evaluateLeaf($node);
+    }
+
+    public function testRejectsNonScalarRequiredArrayKey(): void
+    {
+        self::getContainer();
+        $node = RuleParser::parse([])->resolvePath('value');
+        $node->push(Rule::create(Rule::RULE_REQUIRED_ARRAY_KEYS, [[]]));
+
+        $this->expectException(InvalidRuleException::class);
+        $this->expectExceptionMessage('Cannot have non-scalar key');
+        (new TypeResolver())->evaluateLeaf($node);
+    }
+
+    public function testNormalizesScalarRequiredArrayKeysLikePhpArrayKeys(): void
+    {
+        self::getContainer();
+        $node = RuleParser::parse([])->resolvePath('value');
+        $node->push(Rule::create(Rule::RULE_REQUIRED));
+        $node->push(Rule::create(Rule::RULE_REQUIRED_ARRAY_KEYS, [true, false, 1.0, 1.5, 2, '01']));
+
+        self::assertSame(
+            "non-empty-array&hasOffset('01')&hasOffset('1.5')&hasOffset(0)&hasOffset(1)&hasOffset(2)",
+            (new TypeResolver())->evaluateLeaf($node)->describe(VerbosityLevel::precise())
+        );
     }
 
     public function testRejectsNonScalarInValue(): void

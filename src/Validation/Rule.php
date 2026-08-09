@@ -33,6 +33,7 @@ final class Rule
     public const RULE_MISSING = "Missing";
     public const RULE_PRESENT = "Present";
     public const RULE_REQUIRED = "Required";
+    public const RULE_REQUIRED_ARRAY_KEYS = "RequiredArrayKeys";
     public const RULE_EXCLUDE = "Exclude";
     public const RULE_EXCLUDE_IF = "ExcludeIf";
     public const RULE_EXCLUDE_UNLESS = "ExcludeUnless";
@@ -55,6 +56,7 @@ final class Rule
         self::RULE_MISSING => self::RULE_MISSING,
         self::RULE_PRESENT => self::RULE_PRESENT,
         self::RULE_REQUIRED => self::RULE_REQUIRED,
+        self::RULE_REQUIRED_ARRAY_KEYS => self::RULE_REQUIRED_ARRAY_KEYS,
         self::RULE_EXCLUDE => self::RULE_EXCLUDE,
         self::RULE_EXCLUDE_IF => self::RULE_EXCLUDE_IF,
         self::RULE_EXCLUDE_UNLESS => self::RULE_EXCLUDE_UNLESS,

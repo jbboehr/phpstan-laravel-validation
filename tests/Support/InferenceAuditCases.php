@@ -268,7 +268,34 @@ final class InferenceAuditCases
             'array.required_keys' => [
                 'data' => ['user' => ['name' => 'Ada']],
                 'rules' => ['user' => 'required|array|required_array_keys:name'],
-                'concern' => 'unsupported required array keys',
+                'concern' => 'required array offset inference',
+                'precision' => true,
+            ],
+            'array.required_keys_blank' => [
+                'data' => ['user' => ''],
+                'rules' => ['user' => 'required_array_keys:name'],
+                'concern' => 'required array keys blank bypass',
+            ],
+            'array.required_keys_numeric' => [
+                'data' => ['user' => [0 => 'zero']],
+                'rules' => ['user' => 'required|required_array_keys:0'],
+                'concern' => 'required numeric array offset inference',
+            ],
+            'array.required_key_projected' => [
+                'data' => ['user' => ['name' => 'Ada', 'extra' => true]],
+                'rules' => [
+                    'user' => 'required|array|required_array_keys:name',
+                    'user.name' => 'string',
+                ],
+                'concern' => 'required array key nested projection',
+            ],
+            'array.required_key_unprojected' => [
+                'data' => ['user' => ['name' => 'Ada', 'email' => 'ada@example.test']],
+                'rules' => [
+                    'user' => 'required|array|required_array_keys:name',
+                    'user.email' => 'string',
+                ],
+                'concern' => 'required input key omitted from nested projection',
             ],
             'optional.blank_integer' => $case('', 'integer', 'optional blank bypass'),
             'optional.invalid_integer_string' => $case('abc', 'integer', 'blank-bypass precision'),
@@ -422,6 +449,8 @@ final class InferenceAuditCases
                 'evidence' => [
                     'array.bare', 'array.allowed_keys', 'array.child_projection',
                     'array.parameterized_parent_missing_child', 'array.required_keys',
+                    'array.required_keys_blank', 'array.required_keys_numeric',
+                    'array.required_key_projected', 'array.required_key_unprojected',
                     'numeric_path.single', 'numeric_path.sparse', 'numeric_path.mixed',
                     'numeric_path.negative',
                     'wildcard.missing_parent', 'wildcard.string_key', 'wildcard.mixed_named',

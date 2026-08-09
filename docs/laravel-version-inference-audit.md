@@ -106,7 +106,7 @@ are omitted from the snapshot.
 An additional Eris property suite takes 250 seed-dependent draws in each of
 three bounded domains: scalar presence and native representations, nested
 projection and wildcards, and cross-field presence and exclusion. Their finite
-catalogs contain 1,620, 100, and 280 possible combinations respectively; draws
+catalogs contain 1,620, 140, and 280 possible combinations respectively; draws
 are made with replacement and are not claims of exhaustive coverage. Each
 property requires at least 30 percent of its trials to produce successful
 Laravel output so a mostly rejected sample cannot pass vacuously. It then runs
@@ -126,7 +126,7 @@ observed evidence; it does not prove universal soundness.
 | Hex colors | valid strings, compatible `Stringable`, optional blank input, and unsupported-rule behavior | Rule introduction at 10.33; native-string boundary at 13.4, covered by the cross-profile PHPUnit suite |
 | JSON, dates, and membership | `json.*`, `date*`, comparisons, scalar `in` | No observed release difference |
 | Network and identifiers | `email`, `ip`, `ipv4`, `ipv6`, `mac_address`, `timezone`, `url`, `uuid`, `ulid` | No observed release difference |
-| Arrays and projection | bare and keyed arrays, parameterized-parent preservation, numeric rule keys, nested child projection, required keys, wildcards, parent-plus-child rules | Numeric rule-key boundary at Laravel 12; `list` reconstruction boundary at Laravel 11.23 is covered by the cross-profile PHPUnit suite |
+| Arrays and projection | bare and keyed arrays, parameterized-parent preservation, required array offsets, numeric rule keys, nested child projection, wildcards, parent-plus-child rules | Numeric rule-key boundary at Laravel 12; `list` reconstruction boundary at Laravel 11.23 is covered by the cross-profile PHPUnit suite |
 | Presence and conditions | optional blanks, nullable, present, missing, zero-match wildcard parent preservation, confirmed, `required_if`, `exclude_if` | No observed release difference |
 | Default HTTP middleware | password-path trimming before validation | Laravel 10 versus 11+ boundary covered by the cross-profile PHPUnit suite |
 | Static entry points | facade, factory, request, controller, helper, validator unions, constant `setRules()` | Covered by the existing PHPStan fixture suite |
@@ -369,7 +369,7 @@ ranges. The focused `hex_color` and `list` witnesses are intentionally separate:
 invoking `hex_color` before its introduction throws, while the portable corpus
 cannot exercise `list` projection on releases where the rule does not exist.
 
-Across 2,340 case executions on the eighteen profiles, Laravel returns 1,610
+Across 2,412 case executions on the eighteen profiles, Laravel returns 1,682
 successful outputs. Every one is contained in the extension's inferred type.
 There are no `observed-unsound`, `inference-error`, or `runtime-exception`
 classifications. Failed inputs are recorded as `no-successful-output`; only the
@@ -388,7 +388,7 @@ contain nothing Laravel can never return. The second relation fails often, so
 the audit now measures it separately rather than treating imprecision as a
 conformance failure.
 
-Of the 130 portable cases, 102 are marked as preservation-only precision
+Of the 134 portable cases, 103 are marked as preservation-only precision
 probes.
 For those cases, the supplied data has the same shape and native values that
 `validated()` would return if validation succeeded. The audit verifies that
@@ -411,9 +411,9 @@ The aggregate precision results are:
 
 | Laravel profiles | Realizable | Observed imprecision | Outside inference | Not reverse-probed |
 | --- | ---: | ---: | ---: | ---: |
-| 10.0 through 12.21 | 70 | 22 | 10 | 28 |
-| 12.22 through 13.3 | 66 | 22 | 14 | 28 |
-| 13.4 and later | 58 | 22 | 22 | 28 |
+| 10.0 through 12.21 | 71 | 22 | 10 | 31 |
+| 12.22 through 13.3 | 67 | 22 | 14 | 31 |
+| 13.4 and later | 59 | 22 | 22 | 31 |
 
 Only twelve witnesses change classification by Laravel release:
 
@@ -539,9 +539,10 @@ before inference changes.
 
 A local sweep of seeds 1 through 250 on Laravel 10.50.2 completed 187,500
 generated trials without finding a containment failure. Across the sweep, the
-generated index combinations visited all 1,620 scalar, 100 structural, and 280
-conditional catalog entries at least once. This strengthens the local evidence
-but does not exercise those sequences against every supported Laravel release.
+generated index combinations visited all 1,620 scalar, the then-current 100
+structural, and 280 conditional catalog entries at least once. This strengthens
+the local evidence but does not exercise those sequences against every
+supported Laravel release. The structural catalog has since grown to 140.
 
 CI already runs the reproducible default seed throughout the Laravel/PHP
 matrix. A useful lower-priority follow-up is a periodic or manually triggered

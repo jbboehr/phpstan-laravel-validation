@@ -67,10 +67,10 @@ separate dimensions.
 
 | Accepted-value handling | Rule names | Focused static coverage | Meaning |
 | --- | ---: | ---: | --- |
-| Direct type contribution | 49 | 48 | A native value type is emitted; `dimensions` lacks a dedicated focused fixture |
+| Direct type contribution | 50 | 49 | A native value type is emitted; `dimensions` lacks a dedicated focused fixture |
 | Explicitly neutral | 45 | 10 | The rule does not narrow the local value type, whether intentionally or because a correlated model is unavailable |
-| Conservative `mixed` fallback | 20 | 0 | No built-in accepted-value model is applied |
-| **Total reserved names** | **114** | **57 files** | Covers the current Laravel 13.24 name inventory, including `Enum` and `Password` |
+| Conservative `mixed` fallback | 19 | 0 | No built-in accepted-value model is applied |
+| **Total reserved names** | **114** | **58 files** | Covers the current Laravel 13.24 name inventory, including `Enum` and `Password` |
 
 The repository's generated Laravel fixtures provide broader conformance
 coverage than the focused-file count suggests. Focused files are still
@@ -79,7 +79,7 @@ adversarial native values that Laravel's upstream tests do not exercise.
 
 ## Rules with direct accepted-value inference
 
-The following 49 names contribute a concrete type today:
+The following 50 names contribute a concrete type today:
 
 | Family | Rules | Current contribution |
 | --- | --- | --- |
@@ -89,7 +89,7 @@ The following 49 names contribute a concrete type today:
 | Coercive text checks | `AlphaDash`, `AlphaNum`, `Json`, `NotRegex`, `Regex` | Unions containing the native scalar or `Stringable` values Laravel preserves |
 | Date checks | `After`, `AfterOrEqual`, `Before`, `BeforeOrEqual`, `Date`, `DateEquals`, `DateFormat` | Numeric scalars, non-empty strings, and where applicable `DateTimeInterface` |
 | Numeric checks | `Decimal`, `Digits`, `DigitsBetween`, `Integer`, `MaxDigits`, `MinDigits`, `MultipleOf`, `Numeric` | Numeric strings and the native numeric values Laravel accepts and preserves |
-| Arrays and files | `Array`, `Dimensions`, `File`, `Image`, `Mimes`, `Mimetypes` | Array shapes or Symfony file objects |
+| Arrays and files | `Array`, `RequiredArrayKeys`, `Dimensions`, `File`, `Image`, `Mimes`, `Mimetypes` | Array shapes, required-offset constraints, or Symfony file objects |
 | Version-sensitive | `Ascii`, `Base64`, `HexColor`, `List` | Release-aware preserved-value types; `Base64`, `HexColor`, and `List` remain `mixed` before their Laravel 13.21, 10.33, and 11.0.3 introductions, while `List` changes nested projection in 11.23 |
 
 This is not synonymous with complete rule support. For example, `Accepted`
@@ -130,7 +130,7 @@ nested rule is `missing`.
 
 ## Rules currently falling back to `mixed`
 
-These 20 reserved names have no built-in accepted-value contribution. The
+These 19 reserved names have no built-in accepted-value contribution. The
 fallback is generally sound because it is broad, but it loses useful
 information and can hide structural guarantees.
 
@@ -144,7 +144,6 @@ information and can hide structural guarantees.
 | `Enum` | Object rule | Depends on the enum class and the rule object's `only`/`except` state | No generated fixture witness | Dedicated built-in object-rule extraction |
 | `MissingIf`, `MissingUnless`, `MissingWith`, `MissingWithAll` | 10 | Conditionally constrain whether a path may exist | Fixtures for all supported majors | Correlated optionality for the conditional family |
 | `PresentIf`, `PresentUnless`, `PresentWith`, `PresentWithAll` | 10 | Conditionally constrain path presence without requiring a non-blank value | Fixtures for all supported majors | Correlated conditional presence |
-| `RequiredArrayKeys` | 10 | Requires specified offsets when the parent value is present and an array | Fixtures for all supported majors; focused audit has one representative case | Required offsets in an open array shape |
 | `RequiredIfAccepted`, `RequiredIfDeclined` | 10 / 11 | Conditionally require a field based on another field's accepted or declined value | Fixtures from introduction onward | Correlated presence unions |
 | `ProhibitedIfAccepted`, `ProhibitedIfDeclined` | 11 | Conditionally restrict a field based on another field | Laravel 11 through 13 fixtures | Correlated optional value domains; prohibition is not equivalent to exclusion |
 
@@ -167,7 +166,7 @@ reveals precision gaps that an accepted-value-only inventory would miss.
 | `Exclude` | Removes the path from validated output | Omitted key | Modeled |
 | Conditional `Exclude*` | May remove the path according to other runtime data | Optional key | Conservative aggregate model; correlation is lost |
 | Conditional required, accepted, declined, present, missing, and prohibited rules | Presence or permitted emptiness depends on other fields | Usually an optional broad key | Conservative but often imprecise; a precise model may require correlated shape unions |
-| `RequiredArrayKeys` | Requires named offsets inside a present array | No required-offset effect | Precision gap |
+| `RequiredArrayKeys` | Requires named offsets inside a present array, but does not itself project those keys into output | General arrays intersected with required-offset constraints; matching direct child rules become required only when projection guarantees them | Modeled |
 
 `Prohibited` deserves particular care. It is not an alias for exclusion or
 missingness: Laravel can accept a present value when it satisfies Laravel's
@@ -240,12 +239,12 @@ builders, beginning with `Rule::in`, `Rule::notIn`, `Rule::array`,
 `Rule::arrayKeys`, and the typed string/numeric/date/file builders. Callback
 builders must remain opaque when their branch cannot be resolved.
 
-### 5. Add correlated and nested structural refinements
+### 5. Add correlated structural refinements
 
-Treat conditional presence families and `required_array_keys` as their own
-slices. Their implementation must account for controlling-field values,
-optional blank bypass, nested projection, and wildcard matches; merely marking
-every affected key required would be unsound.
+Treat conditional presence families as separate slices. Their implementation
+must account for controlling-field values, optional blank bypass, nested
+projection, and wildcard matches; merely marking every affected key required
+would be unsound.
 
 ## What the survey did not find
 

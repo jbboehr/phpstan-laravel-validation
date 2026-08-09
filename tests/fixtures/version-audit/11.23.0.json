@@ -3147,7 +3147,7 @@
             }
         },
         "array.required_keys": {
-            "concern": "unsupported required array keys",
+            "concern": "required array offset inference",
             "rules": {
                 "user": "required|array|required_array_keys:name"
             },
@@ -3167,8 +3167,144 @@
                 "exception": null
             },
             "inference": {
-                "type": "array{user: array}",
+                "type": "array{user: non-empty-array&hasOffset('name')}",
                 "outputType": "array{user: array{name: 'Ada'}}",
+                "containsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            },
+            "precision": {
+                "candidateOutputType": "array{user: array{name: 'Ada'}}",
+                "containedByInference": "yes",
+                "preservedOnSuccess": true,
+                "classification": "observed-realizable"
+            }
+        },
+        "array.required_keys_blank": {
+            "concern": "required array keys blank bypass",
+            "rules": {
+                "user": "required_array_keys:name"
+            },
+            "input": {
+                "user": ""
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "user": ""
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{user?: (non-empty-array&hasOffset('name'))|string}",
+                "outputType": "array{user: ''}",
+                "containsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            },
+            "precision": {
+                "candidateOutputType": null,
+                "containedByInference": null,
+                "preservedOnSuccess": null,
+                "classification": "not-probed"
+            }
+        },
+        "array.required_keys_numeric": {
+            "concern": "required numeric array offset inference",
+            "rules": {
+                "user": "required|required_array_keys:0"
+            },
+            "input": {
+                "user": [
+                    "zero"
+                ]
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "user": [
+                        "zero"
+                    ]
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{user: non-empty-array&hasOffset(0)}",
+                "outputType": "array{user: array{'zero'}}",
+                "containsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            },
+            "precision": {
+                "candidateOutputType": null,
+                "containedByInference": null,
+                "preservedOnSuccess": null,
+                "classification": "not-probed"
+            }
+        },
+        "array.required_key_projected": {
+            "concern": "required array key nested projection",
+            "rules": {
+                "user": "required|array|required_array_keys:name",
+                "user.name": "string"
+            },
+            "input": {
+                "user": {
+                    "name": "Ada",
+                    "extra": true
+                }
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "user": {
+                        "name": "Ada"
+                    }
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{user: array{name: string}}",
+                "outputType": "array{user: array{name: 'Ada'}}",
+                "containsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            },
+            "precision": {
+                "candidateOutputType": null,
+                "containedByInference": null,
+                "preservedOnSuccess": null,
+                "classification": "not-probed"
+            }
+        },
+        "array.required_key_unprojected": {
+            "concern": "required input key omitted from nested projection",
+            "rules": {
+                "user": "required|array|required_array_keys:name",
+                "user.email": "string"
+            },
+            "input": {
+                "user": {
+                    "name": "Ada",
+                    "email": "ada@example.test"
+                }
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "user": {
+                        "email": "ada@example.test"
+                    }
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{user?: array{email?: string}}",
+                "outputType": "array{user: array{email: 'ada@example.test'}}",
                 "containsOutput": "yes",
                 "exception": null,
                 "classification": "observed-sound"

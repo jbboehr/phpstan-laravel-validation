@@ -77,6 +77,7 @@ class RulesInferenceTest extends \PHPStan\Testing\TypeInferenceTestCase
         yield from self::gatherAssertTypes(__DIR__ . '/rules/numeric.php');
         yield from self::gatherAssertTypes(__DIR__ . '/rules/present.php');
         yield from self::gatherAssertTypes(__DIR__ . '/rules/regex.php');
+        yield from self::gatherAssertTypes(__DIR__ . '/rules/required-array-keys.php');
         yield from self::gatherAssertTypes(__DIR__ . '/rules/string.php');
         yield from self::gatherAssertTypes(__DIR__ . '/rules/timezone.php');
         yield from self::gatherAssertTypes(__DIR__ . '/rules/ulid.php');

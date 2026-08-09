@@ -25,6 +25,7 @@ use PHPStan\Type;
 use PHPStan\Type\Accessory\AccessoryArrayListType;
 use PHPStan\Type\Accessory\AccessoryNonEmptyStringType;
 use PHPStan\Type\Accessory\AccessoryNumericStringType;
+use PHPStan\Type\Accessory\HasOffsetType;
 use PHPStan\Type\Constant\ConstantArrayTypeBuilder;
 use PHPStan\Type\Constant\ConstantBooleanType;
 use PHPStan\Type\Constant\ConstantIntegerType;
@@ -91,10 +92,10 @@ final class TypeResolver
             && count($node->getRules()) > 0
         ) {
             $leafType = $this->evaluateLeaf($node, $assumeHttpInputNormalization);
-            if ($node->isArray()) {
-                // A parameterized array rule describes every key Laravel can
-                // preserve. Its allowed-key shape is therefore already a
-                // sound upper bound for the complete parent, including any
+            if ($node->isArray() || $this->hasRequiredArrayKeysRule($node)) {
+                // Parameterized array and required-array-key rules describe
+                // the complete parent Laravel preserves. Their array type is
+                // therefore already a sound upper bound, including any
                 // nested rule output.
                 $type = $leafType;
             } else {
@@ -157,6 +158,7 @@ final class TypeResolver
                 is_int($key) ? new ConstantIntegerType($key) : new ConstantStringType($key),
                 $type,
                 $this->isOutputOptional($value)
+                    && !$this->requiredArrayKeyGuaranteesProjectedChild($node, $key, $value)
             );
         }
 
@@ -287,7 +289,10 @@ final class TypeResolver
                 continue;
             }
 
-            if (!$this->isOutputOptional($child)) {
+            if (
+                !$this->isOutputOptional($child)
+                || $this->requiredArrayKeyGuaranteesProjectedChild($node, $key, $child)
+            ) {
                 return false;
             }
         }
@@ -449,7 +454,7 @@ final class TypeResolver
      */
     private function resolveType(Rule $rule): ?Type\Type
     {
-        // Currently unsupported: Enum, RequiredArrayKeys
+        // Currently unsupported: Enum
 
         if ($rule->getRuleName() === Rule::RULE_CUSTOM) {
             return $rule->getAcceptedType() ?? new MixedType();
@@ -627,6 +632,8 @@ final class TypeResolver
 
             "List" => $this->resolveTypeList(),
 
+            "RequiredArrayKeys" => $this->resolveTypeRequiredArrayKeys($rule),
+
             default => $this->resolveDefault($rule),
         };
     }
@@ -737,6 +744,109 @@ final class TypeResolver
         }
 
         return $builder->getArray();
+    }
+
+    private function resolveTypeRequiredArrayKeys(Rule $rule): Type\Type
+    {
+        $types = [new Type\ArrayType(new MixedType(), new MixedType())];
+
+        foreach ($rule->getParameters() as $parameter) {
+            $key = $this->normalizeArrayKeyParameter($parameter);
+            $types[] = new HasOffsetType(
+                is_int($key) ? new ConstantIntegerType($key) : new ConstantStringType($key)
+            );
+        }
+
+        return Type\TypeCombinator::intersect(...$types);
+    }
+
+    private function hasRequiredArrayKeysRule(RuleTreeNode $node): bool
+    {
+        foreach ($node->getRules() as $rule) {
+            if ($rule->getRuleName() === Rule::RULE_REQUIRED_ARRAY_KEYS) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * A required_array_keys parameter constrains input, but a bare array rule
+     * can rebuild validated output from child rules and discard unvalidated
+     * required keys. Only a matching direct child with a usable rule can turn
+     * that input guarantee into a required projected offset.
+     */
+    private function requiredArrayKeyGuaranteesProjectedChild(
+        RuleTreeNode $parent,
+        int|string $key,
+        RuleTreeNode $child
+    ): bool {
+        if (count($child->getRules()) === 0 || $child->isOpaque()) {
+            return false;
+        }
+
+        // A blank parent can bypass non-implicit rules. When a literal array
+        // also rebuilds nested output, that successful branch can omit the
+        // parent and all of its children.
+        if (
+            $this->mayReconstructParentFromNestedRules($parent)
+            && $parent->allowsBlankStringBypass()
+        ) {
+            return false;
+        }
+
+        foreach ($child->getRules() as $rule) {
+            if (in_array($rule->getRuleName(), [
+                Rule::RULE_EXCLUDE,
+                Rule::RULE_EXCLUDE_IF,
+                Rule::RULE_EXCLUDE_UNLESS,
+                Rule::RULE_EXCLUDE_WITH,
+                Rule::RULE_EXCLUDE_WITHOUT,
+            ], true)) {
+                return false;
+            }
+        }
+
+        foreach ($parent->getRules() as $rule) {
+            if ($rule->getRuleName() !== Rule::RULE_REQUIRED_ARRAY_KEYS) {
+                continue;
+            }
+
+            foreach ($rule->getParameters() as $parameter) {
+                if ($this->normalizeArrayKeyParameter($parameter) === $key) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private function normalizeArrayKeyParameter(mixed $parameter): int|string
+    {
+        if ($parameter === null) {
+            return '';
+        }
+
+        if (!is_scalar($parameter)) {
+            throw new InvalidRuleException('Cannot have non-scalar key');
+        }
+
+        // Arr::exists() deliberately stringifies floats before calling
+        // array_key_exists(); PHP's ordinary array-key cast would truncate
+        // them to integers instead.
+        if (is_float($parameter)) {
+            $parameter = (string) $parameter;
+        }
+
+        if (!is_string($parameter)) {
+            return (int) $parameter;
+        }
+
+        // PHP converts canonical integer strings to integer array keys. This
+        // is also how Arr::exists() interprets required-array-key parameters.
+        return array_key_first(array_fill_keys([$parameter], null));
     }
 
     private function resolveTypeIn(Rule $rule): Type\Type
