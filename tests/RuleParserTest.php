@@ -38,6 +38,24 @@ final class RuleParserTest extends TestCase
         self::assertSame('String', $rules[1]->getRuleName());
     }
 
+    public function testIgnoresNullElementsInsideRuleLists(): void
+    {
+        $rules = array_values(RuleParser::explodeRules([null, 'required', null, 'string']));
+
+        self::assertCount(2, $rules);
+        self::assertSame(Rule::RULE_REQUIRED, $rules[0]->getRuleName());
+        self::assertSame('String', $rules[1]->getRuleName());
+        self::assertNull(RuleParser::parseRule(null));
+    }
+
+    public function testRejectsDirectNullRuleDefinition(): void
+    {
+        $this->expectException(InvalidRuleException::class);
+        $this->expectExceptionMessage('Invalid rule definition: NULL');
+
+        RuleParser::explodeRules(null);
+    }
+
     public function testParsesAssociativeArrayRuleAndParameters(): void
     {
         $rule = RuleParser::parseRule([

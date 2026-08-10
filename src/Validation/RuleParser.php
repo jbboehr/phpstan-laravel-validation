@@ -93,7 +93,12 @@ final class RuleParser
      */
     public static function parseRule(mixed $rule): ?Rule
     {
-        if ($rule instanceof Rule) {
+        if ($rule === null) {
+            // Within an array rule list, Laravel normalizes null to an empty
+            // rule name and skips it. A direct null rule definition takes a
+            // different upstream path and remains invalid here.
+            return null;
+        } elseif ($rule instanceof Rule) {
             return $rule;
         } elseif (is_array($rule)) {
             return self::parseArrayRule(array_values($rule));
