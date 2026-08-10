@@ -264,6 +264,29 @@ Assigned builder objects, unpacked or dynamic arguments, `Arrayable` and
 runtime `Stringable` arguments, and direct `In` construction remain
 conservative rather than executing application code during analysis.
 
+### `Rule::notIn()` builders
+
+Fresh inline `Rule::notIn()` calls are recovered as Laravel's type-neutral
+`not_in` predicate, allowing adjacent rules to retain their useful type and
+presence information:
+
+```php
+$validated = Validator::make($input, [
+    'role' => ['required', 'string', Rule::notIn(['admin'])],
+])->validated();
+
+\PHPStan\dumpType($validated);
+// array{role: string}
+```
+
+The extension deliberately does not attempt to express “every string except
+`admin`.” Laravel applies loose comparisons across preserved native values,
+and PHPStan has no useful general complement type for that runtime contract.
+Because the forbidden set does not affect this neutral contribution, its
+expression may be dynamic while the fresh factory call remains visible.
+Assigned builders, dynamic factory or method calls, and direct `NotIn`
+construction remain opaque.
+
 ### Custom validation rules
 
 Unknown custom rule objects and closures no longer prevent inference for the

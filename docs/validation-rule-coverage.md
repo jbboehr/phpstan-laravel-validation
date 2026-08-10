@@ -72,9 +72,9 @@ separate dimensions.
 | Accepted-value handling | Rule names | Focused static coverage | Meaning |
 | --- | ---: | ---: | --- |
 | Direct type contribution | 57 | 57 | A native value type is emitted and has dedicated focused static coverage |
-| Explicitly neutral | 45 | 10 | The rule does not narrow the local value type, whether intentionally or because a correlated model is unavailable |
+| Explicitly neutral | 45 | 11 | The rule does not narrow the local value type, whether intentionally or because a correlated model is unavailable |
 | Conservative `mixed` fallback | 12 | 0 | No built-in accepted-value model is applied |
-| **Total reserved names** | **114** | **68 files** | Covers the current Laravel 13.24 name inventory, including `Enum` and `Password` |
+| **Total reserved names** | **114** | **69 files** | Covers the current Laravel 13.24 name inventory, including `Enum` and `Password` |
 
 The repository's generated Laravel fixtures provide broader conformance
 coverage than the focused-file count suggests. Focused files are still
@@ -190,8 +190,8 @@ fluent builders through `Illuminate\Validation\Rule` and classes under
 
 Current static extraction treats them in three ways:
 
-- fresh inline `Enum` and `Rule::in()` expressions receive dedicated extraction
-  of their statically visible state;
+- fresh inline `Enum`, `Rule::in()`, and `Rule::notIn()` expressions receive
+  dedicated extraction of their statically visible semantics;
 - predicate objects implementing Laravel's rule contracts are treated like
   custom predicates and contribute `mixed` unless they have an explicit custom
   contract;
@@ -200,9 +200,9 @@ Current static extraction treats them in three ways:
 
 | Current extraction | Representative Laravel objects | Consequence |
 | --- | --- | --- |
-| Dedicated built-in extraction | `Enum`, `Rule::in()` | Fresh inline `Enum` expressions contribute case objects plus the backing and weakly coerced values Laravel can preserve; fresh inline `Rule::in()` expressions recover literal scalar parameters, including enum names or backing values from Laravel 10.21.1; dynamic or mutated state stays `mixed` |
+| Dedicated built-in extraction | `Enum`, `Rule::in()`, `Rule::notIn()` | Fresh inline `Enum` expressions contribute case objects plus the backing and weakly coerced values Laravel can preserve; fresh inline `Rule::in()` expressions recover literal scalar parameters; fresh inline `Rule::notIn()` expressions contribute a neutral predicate without evaluating the forbidden set; dynamic or mutated object state stays `mixed` |
 | Custom predicate with `mixed` accepted type | `AnyOf`, `Can`, `Email`, `File`, `ImageFile`, `Password` | Adjacent built-in string rules survive, but object state and built-in semantics are not recovered |
-| Opaque `Stringable` builder | `ArrayKeys`, `ArrayRule`, `Contains`, `Date`, `Dimensions`, `DoesntContain`, `ExcludeIf`, `ExcludeUnless`, `Exists`, `NotIn`, `Numeric`, `ProhibitedIf`, `ProhibitedUnless`, `RequiredIf`, `RequiredUnless`, `StringRule`, `Unique` | The path widens to optional `mixed`, even when the builder serializes to a supported string rule |
+| Opaque `Stringable` builder | `ArrayKeys`, `ArrayRule`, `Contains`, `Date`, `Dimensions`, `DoesntContain`, `ExcludeIf`, `ExcludeUnless`, `Exists`, `Numeric`, `ProhibitedIf`, `ProhibitedUnless`, `RequiredIf`, `RequiredUnless`, `StringRule`, `Unique` | The path widens to optional `mixed`, even when the builder serializes to a supported string rule |
 | Opaque runtime program | `Rule::when`, `Rule::unless`, `Rule::forEach`, `NestedRules`, macros | Runtime callbacks or macro state provide no generally available static contract |
 
 Built-in builder support remains a separate implementation track. Treating
@@ -225,9 +225,9 @@ correlations can be represented without making every branch required.
 ### 2. Support statically resolvable built-in builders
 
 Recover the string-rule equivalent or direct contract for constant fluent
-builders, continuing with `Rule::notIn`, `Rule::array`,
-`Rule::arrayKeys`, and the typed string/numeric/date/file builders. Callback
-builders must remain opaque when their branch cannot be resolved.
+builders, continuing with `Rule::array`, `Rule::arrayKeys`, and the typed
+string/numeric/date/file builders. Callback builders must remain opaque when
+their branch cannot be resolved.
 
 ### 3. Add correlated structural refinements
 

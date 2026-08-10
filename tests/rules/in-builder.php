@@ -51,7 +51,7 @@ $declined = Validator::make([], [
     'unpacked' => ['required', Rule::in(...['one'])],
 ]);
 assertType(
-    'array{different_method?: mixed, different_class?: mixed, dynamic_class?: mixed, '
+    'array{different_method: mixed, different_class?: mixed, dynamic_class?: mixed, '
         . 'dynamic_method?: mixed, unpacked?: mixed}',
     $declined->validated()
 );
