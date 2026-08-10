@@ -304,9 +304,37 @@ jobs:
             #       coverageLocations: |
             #           clover.xml:clover
 
-    infection:
+    infection-plan:
         runs-on: ubuntu-latest
-        name: "Mutation testing | PHP 8.5"
+        name: "Mutation shard inventory"
+        outputs:
+            matrix: ${{ steps.shards.outputs.matrix }}
+            shard_count: ${{ steps.shards.outputs.count }}
+        steps:
+            - uses: actions/checkout@v7
+
+            - name: Install PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  coverage: "none"
+                  php-version: "8.1"
+
+            - name: Validate mutation shards
+              id: shards
+              run: |
+                  matrix="$(php scripts/infection-shards.php)"
+                  echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+                  echo "count=$(printf '%s' "$matrix" | jq '.include | length')" >> "$GITHUB_OUTPUT"
+
+    infection:
+        needs: infection-plan
+        runs-on: ubuntu-latest
+        name: "Mutation testing | ${{ matrix.shard }} | PHP 8.5"
+        timeout-minutes: 35
+        strategy:
+            fail-fast: false
+            max-parallel: 4
+            matrix: ${{ fromJSON(needs.infection-plan.outputs.matrix) }}
         steps:
             - uses: actions/checkout@v7
 
@@ -339,20 +367,67 @@ jobs:
               # Each worker retains a PHPStan container for fixture-heavy tests.
               # Leave headroom on shared runners instead of saturating all four
               # advertised CPUs and intermittently losing the job to SIGTERM.
+              # The whole-repository MSI threshold cannot be applied independently
+              # to source shards with different amounts of uncovered code. Keep the
+              # covered-MSI gate here; full local runs still enforce both thresholds.
               run: >-
                   composer infection --
+                  ${{ matrix.paths }}
                   --logger-github=false
+                  --logger-summary-json=infection-summary.json
+                  --min-msi=0
                   --threads=2
 
             - name: Upload mutation reports
               if: always()
               uses: actions/upload-artifact@v7
               with:
-                  name: infection-reports
+                  name: infection-reports-${{ matrix.shard }}
                   path: |
                       infection.log
+                      infection-summary.json
                       infection-summary.log
                   if-no-files-found: warn
+
+    infection-summary:
+        if: always()
+        needs:
+            - infection-plan
+            - infection
+        runs-on: ubuntu-latest
+        name: "Mutation testing | PHP 8.5"
+        steps:
+            - name: Require successful mutation shards
+              env:
+                  INFECTION_RESULT: ${{ needs.infection.result }}
+                  PLAN_RESULT: ${{ needs.infection-plan.result }}
+              run: >-
+                  test "$PLAN_RESULT" = success
+                  && test "$INFECTION_RESULT" = success
+
+            - name: Download mutation reports
+              uses: actions/download-artifact@v8
+              with:
+                  pattern: infection-reports-*
+                  path: infection-reports
+
+            - name: Enforce aggregate timeout budget
+              env:
+                  EXPECTED_REPORTS: ${{ needs.infection-plan.outputs.shard_count }}
+                  # Keep this aligned with maxTimeouts in infection.json5.dist.
+                  MAX_TIMEOUTS: 10
+              run: |
+                  mapfile -t reports < <(find infection-reports -type f -name infection-summary.json -print | sort)
+                  if [ "${#reports[@]}" -ne "$EXPECTED_REPORTS" ]; then
+                      echo "Expected $EXPECTED_REPORTS Infection reports, found ${#reports[@]}." >&2
+                      exit 1
+                  fi
+
+                  timeout_count="$(jq -s '[.[].stats.timeOutCount] | add' "${reports[@]}")"
+                  echo "Timed-out mutants across all shards: $timeout_count (maximum: $MAX_TIMEOUTS)"
+                  if [ "$timeout_count" -gt "$MAX_TIMEOUTS" ]; then
+                      exit 1
+                  fi
 
     larastan:
         runs-on: ubuntu-latest

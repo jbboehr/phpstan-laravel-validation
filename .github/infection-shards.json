@@ -1,0 +1,32 @@
+{
+    "core-types": [
+        "src/Validation/TypeResolver.php",
+        "src/Validation/RuleTreeNode.php"
+    ],
+    "runtime-contracts": [
+        "src/Attribute/ValidationRuleType.php",
+        "src/Validation/CustomRuleTypeResolver.php",
+        "src/Validation/FormRequestRuleTypeResolver.php",
+        "src/Validation/FormRequestTypeRegistry.php",
+        "src/Validation/LaravelVersionContext.php"
+    ],
+    "rule-expressions": [
+        "src/Validation/ArrayRuleExpressionResolver.php",
+        "src/Validation/EnumRuleExpressionResolver.php",
+        "src/Validation/InRuleExpressionResolver.php",
+        "src/Validation/NotInRuleExpressionResolver.php",
+        "src/Validation/RuleParameterExpressionResolver.php",
+        "src/Validation/RuleSetResolver.php",
+        "src/Validation/StaticRuleValue.php"
+    ],
+    "integration": [
+        "src/Evaluator",
+        "src/Extension",
+        "src/Type",
+        "src/ShouldNotHappenException.php",
+        "src/Validation/InvalidCustomRuleContractException.php",
+        "src/Validation/InvalidRuleException.php",
+        "src/Validation/Rule.php",
+        "src/Validation/RuleParser.php"
+    ]
+}
