@@ -5,22 +5,22 @@ This report records a real-application compatibility test of
 snapshot, not a new supported-platform promise or a permanent integration
 test.
 
-Investigation date: 2026-08-09.
+Investigation date: 2026-08-09. Follow-up verification: 2026-08-10.
 
 ## Executive summary
 
-The current `develop` revision was installed into an isolated checkout of
+The original `develop` revision was installed into an isolated checkout of
 [BookStack v26.05.3](https://github.com/BookStackApp/BookStack/releases/tag/v26.05.3),
 a Laravel 12 application which already uses Larastan.
 
-The investigation found two actionable issues:
+The initial investigation found two actionable issues:
 
-1. The unmodified extension aborts analysis when PHPStan materializes a `null`
+1. The extension aborted analysis when PHPStan materialized a `null`
    element inside a rule list. BookStack reaches this through
    `PasswordRule::defaults()`, whose Laravel PHPDoc return type is
    `static|void`. Laravel accepts a literal `null` rule-list element as a
-   no-op, but [`RuleParser`](../../src/Validation/RuleParser.php) currently
-   throws `InvalidRuleException`. This is an extension compatibility bug.
+   no-op, but the parser threw `InvalidRuleException`. This extension
+   compatibility bug is now fixed.
 2. Once an audit-only workaround ignored that `null` element, the extension
    exposed a likely BookStack bug. An image upload field has only non-implicit
    rules, so Laravel permits the field to be absent and omits it from
@@ -29,9 +29,12 @@ The investigation found two actionable issues:
    validator confirmed the inferred optional key.
 
 After the audit-only workaround, BookStack's complete configured PHPStan scan
-passed with both Larastan and `phpstan-laravel-validation` loaded. A separate
-level-`max` differential produced 13 fewer `argument.type` diagnostics and one
-new `offsetAccess.notFound` diagnostic. The new diagnostic is the genuine
+passed with both Larastan and `phpstan-laravel-validation` loaded. The
+production fix was subsequently verified across the project's supported
+Laravel matrix. A follow-up installed the current unmodified extension and
+again passed BookStack's complete level-4 scan. Its level-`max` differential
+was exactly unchanged: 13 fewer `argument.type` diagnostics and one new
+`offsetAccess.notFound` diagnostic. The new diagnostic is the genuine
 missing-upload case above.
 
 BookStack does not use Laravel FormRequests in its `app` tree, so this
@@ -56,7 +59,8 @@ establish BookStack as an officially supported downstream project.
 
 | Component | Investigated revision |
 | --- | --- |
-| `phpstan-laravel-validation` | `develop` at [`77db90e6a960`](https://github.com/jbboehr/phpstan-laravel-validation/commit/77db90e6a9604fa92eb6276faf24ae7548f022ca) |
+| `phpstan-laravel-validation`, initial investigation | `develop` at [`77db90e6a960`](https://github.com/jbboehr/phpstan-laravel-validation/commit/77db90e6a9604fa92eb6276faf24ae7548f022ca) |
+| `phpstan-laravel-validation`, unpatched follow-up | `develop` at [`d68aa3c014ff`](https://github.com/jbboehr/phpstan-laravel-validation/commit/d68aa3c014ffdd4b1bf5cf04e3d08deb636f1c1b), including the null-rule fix from [`9d180aac27e0`](https://github.com/jbboehr/phpstan-laravel-validation/commit/9d180aac27e0903d987858b920f78dc3c3546017) |
 | BookStack | tag `v26.05.3`, commit [`e1cd3229966d`](https://github.com/BookStackApp/BookStack/commit/e1cd3229966d939a75a74a2224ff0643d8af337b) |
 | PHP runtime used for the audit | 8.4.23 |
 | BookStack PHP constraint | `^8.2.0`, with Composer's platform set to 8.2.0 |
@@ -122,6 +126,12 @@ opt-in FormRequest inference.
 Separate cache directories prevented a result produced under one extension
 configuration from being reused by the other.
 
+The follow-up reused the pinned disposable checkout, updated only the mirrored
+extension path package from `77db90e6a960` to `d68aa3c014ff`, and explicitly
+cleared the extension-enabled PHPStan result caches. No audit patch was applied
+to the refreshed vendor copy; its `RuleParser.php` matched the source tree
+byte-for-byte.
+
 ## Baseline results
 
 BookStack passed its native PHPStan configuration both before the extension
@@ -135,7 +145,7 @@ This established a clean application baseline. Any failure at BookStack's
 configured level after loading the extension was therefore introduced by the
 extension or its interaction with the existing Larastan setup.
 
-## Finding 1: nullable rule-list elements abort analysis
+## Finding 1: nullable rule-list elements aborted analysis
 
 ### Reproduction
 
@@ -156,9 +166,9 @@ The internal error was:
 Invalid rule type: NULL NULL
 ```
 
-The exception originated in `RuleParser::parseRule(null)`. The current parser
-accepts `Rule`, array, and string inputs, then throws for every other native
-value.
+The exception originated in `RuleParser::parseRule(null)`. At the original
+revision, the parser accepted `Rule`, array, and string inputs, then threw for
+every other native value.
 
 ### Why PHPStan sees `null`
 
@@ -218,32 +228,37 @@ if ($rule === null) {
 }
 ```
 
-This workaround was not applied to the source repository. It was used only to
-continue the downstream investigation after recording the failure.
+At that stage, the workaround was not applied to the source repository. It was
+used only to continue the downstream investigation after recording the
+failure.
 
-### Recommended production fix
+### Production fix
 
-Before changing production behavior, verify null rule-list elements against
-every supported Laravel major. If the behavior is stable, the minimum fix is
-to ignore explicit `null` elements while retaining every statically available
-non-null rule branch.
+Commit [`9d180aac27e0`](https://github.com/jbboehr/phpstan-laravel-validation/commit/9d180aac27e0903d987858b920f78dc3c3546017)
+implemented the verified behavior. A `null` element inside an array rule list
+is ignored while a direct `null` rule definition remains invalid. Regression
+coverage includes:
 
-Regression coverage should include:
-
-- a parser unit test for `['required', null]`;
-- focused Laravel runtime cases across supported majors;
-- a PHPStan call-site fixture containing a nullable rule expression;
+- parser unit assertions in
+  [`RuleParserTest`](../../tests/RuleParserTest.php);
+- focused cross-major runtime cases in
+  [`NullRuleLaravelRuntimeTest`](../../tests/NullRuleLaravelRuntimeTest.php);
+- a PHPStan call-site fixture containing literal and inferred nullable rule
+  expressions in
+  [`null-rule-entry.php`](../../tests/structure/null-rule-entry.php);
 - the `Password::defaults()` pattern without assuming that application
   bootstrap has configured its runtime result; and
 - a check that genuinely unsupported non-null scalar rule entries still fail
   or widen according to the project's chosen policy.
 
-The safe static outcome for unavailable password-rule configuration is a broad
-type. Executing the application or pretending the default rule is statically
-known would be less defensible than ignoring Laravel's no-op null branch and
+The runtime cases are exercised by the Laravel-version CI matrix. The static
+`Password::defaults()` fixture retains `mixed` when runtime configuration is
+unavailable, while adjacent visible rules can still provide a narrower type.
+Executing the application or pretending the default rule is statically known
+would be less defensible than ignoring Laravel's no-op null branch and
 retaining conservative inference.
 
-## Whole-application result after the workaround
+## Whole-application results
 
 With the audit-only null handling in the disposable vendor copy, the complete
 BookStack scan passed at the application's configured level:
@@ -259,6 +274,20 @@ in this application.
 This is useful coexistence evidence, but it is bounded evidence. It covers one
 BookStack release, one Laravel 12 patch release, one Larastan release, and the
 validation entry points that BookStack actually uses.
+
+The 2026-08-10 follow-up then installed the unmodified production fix and
+cleared the relevant PHPStan result caches. Both BookStack's native
+configuration and the combined extension configuration passed at level 4:
+
+```text
+[OK] No errors
+```
+
+The level-`max` totals also reproduced exactly: 2,329 baseline file errors and
+2,317 with the extension. The identifier differential remained 13 fewer
+`argument.type` errors and one additional `offsetAccess.notFound` error. This
+meets the original acceptance criterion without relying on a modified vendor
+copy.
 
 ## Level-max differential
 
@@ -385,10 +414,10 @@ source was changed and no upstream issue was opened during this investigation.
 
 ## Larastan coexistence
 
-BookStack's configuration loads Larastan before the validation extension. With
-the null-rule parser problem bypassed, the combined scan completed normally.
-This provides a useful real-application check that the two extensions can
-coexist for:
+BookStack's configuration loads Larastan before the validation extension. The
+combined scan completed normally with both the original workaround and the
+subsequent production fix. This provides a useful real-application check that
+the two extensions can coexist for:
 
 - `Request::validate()`;
 - controller `$this->validate()`;
@@ -403,16 +432,18 @@ observed in this pinned BookStack configuration.
 ## Limitations
 
 - Only BookStack v26.05.3 was tested.
-- Only Laravel 12.64 was exercised; the null-rule behavior must be reproduced
-  across Laravel 10 through 13 before changing inference.
+- The downstream follow-up exercised only Laravel 12.64. The repository's
+  focused null-rule runtime test supplies the cross-major evidence for that
+  behavior.
 - The commands ran on PHP 8.4.23 while BookStack declares PHP 8.2 as its
   Composer platform.
 - BookStack has no FormRequest classes in the analyzed tree.
 - The application was analyzed statically and bootstrapped for focused
   validator probes; the complete HTTP or database-backed test suite was not
   run.
-- The successful extension scan depended on an audit-only vendor patch. The
-  source revision named above still fails out of the box on the password rule.
+- The original successful scan depended on an audit-only vendor patch. The
+  follow-up scan used the unmodified production fix and no longer has that
+  limitation.
 - Level `max` counts are comparative evidence, not a claim that the extension
   makes BookStack level-`max` clean.
 - A finite downstream application cannot establish universal soundness or
@@ -420,21 +451,18 @@ observed in this pinned BookStack configuration.
 
 ## Recommended follow-up
 
-1. Fix nullable rule-list handling, after runtime verification across every
-   supported Laravel major, and add parser, runtime, and PHPStan regression
-   tests.
-2. Preserve conservative inference for `Password::defaults()` and similar
+1. Preserve conservative inference for `Password::defaults()` and similar
    runtime-configured rule factories when their effective contract is not
    statically available.
-3. Consider keeping a documented, manually runnable BookStack smoke procedure.
+2. Consider keeping a documented, manually runnable BookStack smoke procedure.
    A pinned external application is valuable release-candidate evidence, but
    its download size and dependency churn may make it unsuitable for the
    default unit-test matrix.
-4. Decide separately whether to report the optional upload field to BookStack.
+3. Decide separately whether to report the optional upload field to BookStack.
    That is an external action and was intentionally not performed here.
-5. Repeat the downstream scan after the null-rule fix without any vendor
-   patch. The acceptance criterion should be a clean BookStack level-4 run and
-   retention of the sound level-`max` optional-offset finding.
+4. Repeat the smoke test against a future BookStack release when preparing a
+   release candidate, especially if that application begins using
+   FormRequests.
 
 ## Commands and observed results
 
@@ -464,7 +492,15 @@ path repository:
 ```
 
 Composer recorded the extension at the revision in the environment table and
-updated PHPStan to 2.2.8. The combined audit configuration was:
+updated PHPStan to 2.2.8. For the follow-up, only the path package was updated:
+
+```sh
+nix develop /home/sandbox/Code/phpstan-laravel-validation#php84 \
+    --command composer update jbboehr/phpstan-laravel-validation \
+    --with-dependencies --prefer-dist --no-interaction --no-progress
+```
+
+The combined audit configuration was:
 
 ```neon
 includes:
@@ -473,6 +509,18 @@ includes:
 
 parameters:
     tmpDir: /tmp/phpstan-validation-bookstack/phpstan-default
+```
+
+Before the follow-up scans, the extension-enabled caches were cleared with:
+
+```sh
+nix develop /home/sandbox/Code/phpstan-laravel-validation#php84 \
+    --command vendor/bin/phpstan clear-result-cache \
+    --configuration=phpstan-validation.neon
+
+nix develop /home/sandbox/Code/phpstan-laravel-validation#php84 \
+    --command vendor/bin/phpstan clear-result-cache \
+    --configuration=phpstan-max-validation.neon
 ```
 
 The two level-`max` configurations respectively included BookStack's native
@@ -491,9 +539,11 @@ nix develop /home/sandbox/Code/phpstan-laravel-validation#php84 \
     --configuration=phpstan-validation.neon --no-progress
 ```
 
-Both completed with `No errors` after the audit-only workaround; the native
-configuration also passed before the workaround. The unmodified combined run
-terminated with `Invalid rule type: NULL NULL`.
+Both completed with `No errors` after the original audit-only workaround. At
+the original revision, the unmodified combined run terminated with
+`Invalid rule type: NULL NULL`. After updating to `d68aa3c014ff`, clearing the
+extension-enabled result caches, and making no vendor edits, both commands
+again completed with `No errors`.
 
 The stricter differential used separate level-`max` configurations and cache
 directories:
@@ -511,9 +561,10 @@ nix develop /home/sandbox/Code/phpstan-laravel-validation#php84 \
 ```
 
 The JSON diagnostics were compared as sorted tuples of file, line, identifier,
-and message. The runtime upload reproduction bootstrapped BookStack's console
-kernel, resolved the application's validation factory, and called it with the
+and message. The follow-up reproduced the same totals and identifier counts.
+The runtime upload reproduction bootstrapped BookStack's console kernel,
+resolved the application's validation factory, and called it with the
 controller's rule strings and an input containing only `uploaded_to`.
 
-No changes from the disposable BookStack checkout or its installed vendor copy
-were copied into this repository.
+No BookStack source changes or installed vendor files were copied into this
+repository; only the observed follow-up results were recorded here.
