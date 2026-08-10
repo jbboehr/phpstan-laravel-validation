@@ -466,8 +466,6 @@ final class TypeResolver
      */
     private function resolveType(Rule $rule): ?Type\Type
     {
-        // Currently unsupported: Enum
-
         if ($rule->getRuleName() === Rule::RULE_CUSTOM) {
             return $rule->getAcceptedType() ?? new MixedType();
         }

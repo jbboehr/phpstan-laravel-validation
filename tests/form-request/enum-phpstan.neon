@@ -1,0 +1,6 @@
+parameters:
+  stubFiles:
+    - ../stubs/LaravelEnumFluentMethods.stub
+  phpstanLaravelValidation:
+    # Enum::only() and Enum::except() were added in Laravel 10.46.
+    laravelVersion: '10.46.0'

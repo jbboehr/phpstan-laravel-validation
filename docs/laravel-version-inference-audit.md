@@ -13,12 +13,14 @@ type. Three release boundaries change contracts exercised by that corpus:
 - `integer:strict` begins enforcing native integers in Laravel 12.22; and
 - `ascii` begins requiring a native string in Laravel 13.4.
 
-The cross-profile runtime suite records seven additional rule boundaries
+The cross-profile runtime suite records eight additional rule boundaries
 outside that portable corpus: Laravel adds `hex_color` in 10.33, Laravel 13.4
 stops `hex_color` from accepting compatible `Stringable` objects, and Laravel
 adds `extensions` in 10.34, `encoding` in 12.40, the native-string-only
 `base64` rule in 13.21, and `array_keys` in 13.24. Laravel 11.23 separately
 changes a literal `list` parent from preservation to nested reconstruction.
+Laravel's `Enum` rule adds literal `only`/`except` filters in 10.46 via
+[`8d47be393e43`](https://github.com/laravel/framework/commit/8d47be393e43ffeacd49556471110454f868da5f).
 
 The extension now obtains one analyzed-project Laravel version from the
 matching Composer installed-package dataset, falling back to `composer.lock`
@@ -137,6 +139,7 @@ observed evidence; it does not prove universal soundness.
 | Arrays and projection | bare and keyed arrays, parameterized-parent preservation, required array offsets, numeric rule keys, nested child projection, wildcards, parent-plus-child rules | Numeric rule-key boundary at Laravel 12; `list` reconstruction boundary at Laravel 11.23 is covered by the cross-profile PHPUnit suite |
 | Array-only predicates | required and optional values, non-array rejection, preserved associative and nested arrays | `contains`, `in_array_keys`, and `doesnt_contain` begin at Laravel 11.8, 12.16, and 12.22, covered by the cross-profile PHPUnit suite rather than the portable audit corpus |
 | Allowed array keys | permitted subsets, extra-key rejection, numeric keys, empty parameters, blank bypass, nested rules, and the fluent builder | `array_keys` begins at Laravel 13.24, covered by the cross-profile PHPUnit suite rather than the portable audit corpus |
+| Enum objects | pure, string-backed, and integer-backed cases; weakly coerced preserved values; optional blanks; and literal filters | Base behavior is stable across Laravel 10–13; `only` and `except` begin in 10.46, covered by the cross-profile PHPUnit suite rather than the portable audit corpus |
 | Presence and conditions | optional blanks, nullable, present, missing, zero-match wildcard parent preservation, confirmed, `required_if`, `exclude_if` | No observed release difference |
 | Default HTTP middleware | password-path trimming before validation | Laravel 10 versus 11+ boundary covered by the cross-profile PHPUnit suite |
 | Static entry points | facade, factory, request, controller, helper, validator unions, constant `setRules()` | Covered by the existing PHPStan fixture suite |

@@ -1,0 +1,37 @@
+<?php
+
+/**
+ * Copyright (c) anno Domini nostri Jesu Christi MMXXIV John Boehr & contributors
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+declare(strict_types=1);
+
+namespace Illuminate\Validation\Rules;
+
+/**
+ * Test-only declarations for the fluent methods added to Laravel's Enum rule
+ * in 10.46. Version-pinned fixtures must be analyzable when the test matrix has
+ * an older Laravel 10 release installed; the configured Laravel version still
+ * decides whether the extension interprets these methods.
+ *
+ * @method $this only(\UnitEnum|array<\UnitEnum> $values)
+ * @method $this except(\UnitEnum|array<\UnitEnum> $values)
+ * @method $this when(mixed $value = null, ?callable $callback = null, ?callable $default = null)
+ * @method $this unless(mixed $value = null, ?callable $callback = null, ?callable $default = null)
+ */
+class Enum
+{
+}

@@ -1,0 +1,5 @@
+parameters:
+  stubFiles:
+    - ../stubs/LaravelEnumFluentMethods.stub
+  phpstanLaravelValidation:
+    laravelVersion: '10.46.0'

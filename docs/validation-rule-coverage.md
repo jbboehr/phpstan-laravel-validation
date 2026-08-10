@@ -28,9 +28,11 @@ the repository's generated fixtures:
 those included, the current Laravel 13.24 surface corresponds exactly to the
 114 names reserved by `TypeResolver::BUILT_IN_RULE_NAMES`.
 
-Laravel added these string rules during the supported major range:
+Laravel added these rules and rule-object features during the supported major
+range:
 
-- Laravel 10.33: `hex_color`, followed by `extensions` in 10.34;
+- Laravel 10.33: `hex_color`, followed by `extensions` in 10.34 and
+  `Enum::only()` / `Enum::except()` in 10.46;
 - Laravel 11: `prohibited_if_accepted`, `prohibited_if_declined`, and
   `required_if_declined`, followed by `list` in Laravel 11.0.3 and `contains`
   in Laravel 11.8; Laravel 11.23 later makes a literal `list` participate in
@@ -68,10 +70,10 @@ separate dimensions.
 
 | Accepted-value handling | Rule names | Focused static coverage | Meaning |
 | --- | ---: | ---: | --- |
-| Direct type contribution | 56 | 55 | A native value type is emitted; `dimensions` lacks a dedicated focused fixture |
+| Direct type contribution | 57 | 56 | A native value type is emitted; `dimensions` lacks a dedicated focused fixture |
 | Explicitly neutral | 45 | 10 | The rule does not narrow the local value type, whether intentionally or because a correlated model is unavailable |
-| Conservative `mixed` fallback | 13 | 0 | No built-in accepted-value model is applied |
-| **Total reserved names** | **114** | **62 files** | Covers the current Laravel 13.24 name inventory, including `Enum` and `Password` |
+| Conservative `mixed` fallback | 12 | 0 | No built-in accepted-value model is applied |
+| **Total reserved names** | **114** | **64 files** | Covers the current Laravel 13.24 name inventory, including `Enum` and `Password` |
 
 The repository's generated Laravel fixtures provide broader conformance
 coverage than the focused-file count suggests. Focused files are still
@@ -80,7 +82,7 @@ adversarial native values that Laravel's upstream tests do not exercise.
 
 ## Rules with direct accepted-value inference
 
-The following 56 names contribute a concrete type today:
+The following 57 names contribute a concrete type today:
 
 | Family | Rules | Current contribution |
 | --- | --- | --- |
@@ -91,6 +93,7 @@ The following 56 names contribute a concrete type today:
 | Date checks | `After`, `AfterOrEqual`, `Before`, `BeforeOrEqual`, `Date`, `DateEquals`, `DateFormat` | Numeric scalars, non-empty strings, and where applicable `DateTimeInterface` |
 | Numeric checks | `Decimal`, `Digits`, `DigitsBetween`, `Integer`, `MaxDigits`, `MinDigits`, `MultipleOf`, `Numeric` | Numeric strings and the native numeric values Laravel accepts and preserves |
 | Arrays and files | `Array`, `RequiredArrayKeys`, `Dimensions`, `File`, `Image`, `Mimes`, `Mimetypes` | Array shapes, required-offset constraints, or Symfony file objects |
+| Built-in object rules | `Enum` | Statically visible enum cases, backing values, and the weakly coerced native values Laravel preserves; literal `only`/`except` state is modeled from Laravel 10.46 |
 | Version-sensitive | `ArrayKeys`, `Ascii`, `Base64`, `Contains`, `DoesntContain`, `Encoding`, `Extensions`, `HexColor`, `InArrayKeys`, `List` | `ArrayKeys` contributes an optional-key shape from Laravel 13.24; `Encoding` contributes its preserved array, scalar, `Stringable`, and null union from 12.40; `Extensions` contributes a Symfony file from 10.34; `Contains`, `DoesntContain`, and `InArrayKeys` contribute `array<mixed>` from 11.8, 12.22, and 12.16; `Base64`, `HexColor`, and `List` remain `mixed` before 13.21, 10.33, and 11.0.3; `List` changes nested projection in 11.23 |
 
 This is not synonymous with complete rule support. For example, `Accepted`
@@ -137,21 +140,20 @@ nested rule is `missing`.
 
 ## Rules currently falling back to `mixed`
 
-These 13 reserved names have no built-in accepted-value contribution. The
+These 12 reserved names have no built-in accepted-value contribution. The
 fallback is generally sound because it is broad, but it loses useful
 information and can hide structural guarantees.
 
 | Rules | Introduced | Laravel consequence | Existing runtime evidence | Candidate treatment |
 | --- | --- | --- | --- | --- |
-| `Enum` | Object rule | Depends on the enum class and the rule object's `only`/`except` state | No generated fixture witness | Dedicated built-in object-rule extraction |
 | `MissingIf`, `MissingUnless`, `MissingWith`, `MissingWithAll` | 10 | Conditionally constrain whether a path may exist | Fixtures for all supported majors | Correlated optionality for the conditional family |
 | `PresentIf`, `PresentUnless`, `PresentWith`, `PresentWithAll` | 10 | Conditionally constrain path presence without requiring a non-blank value | Fixtures for all supported majors | Correlated conditional presence |
 | `RequiredIfAccepted`, `RequiredIfDeclined` | 10 / 11 | Conditionally require a field based on another field's accepted or declined value | Fixtures from introduction onward | Correlated presence unions |
 | `ProhibitedIfAccepted`, `ProhibitedIfDeclined` | 11 | Conditionally restrict a field based on another field | Laravel 11 through 13 fixtures | Correlated optional value domains; prohibition is not equivalent to exclusion |
 
-The remaining source-only gap is significant for test planning: `Enum` is
-absent from the generated corpus because it requires rule-object setup that the
-exporter does not currently retain. `Encoding` and `Extensions` now have
+`Enum` remains absent from the generated corpus because it requires rule-object
+setup that the exporter does not retain. It now has dedicated adversarial
+runtime and static coverage instead. `Encoding` and `Extensions` also have
 focused file coverage, while `ArrayKeys` is newer than the pinned Laravel 13
 fixture but has focused runtime and static coverage.
 
@@ -187,8 +189,10 @@ String rules are only part of Laravel's public surface. Laravel 13.24 exposes
 fluent builders through `Illuminate\Validation\Rule` and classes under
 `Illuminate\Validation\Rules`.
 
-Current static extraction treats them in two ways:
+Current static extraction treats them in three ways:
 
+- fresh inline `Enum` expressions receive dedicated extraction of their enum
+  class and literal `only`/`except` state;
 - predicate objects implementing Laravel's rule contracts are treated like
   custom predicates and contribute `mixed` unless they have an explicit custom
   contract;
@@ -197,7 +201,8 @@ Current static extraction treats them in two ways:
 
 | Current extraction | Representative Laravel objects | Consequence |
 | --- | --- | --- |
-| Custom predicate with `mixed` accepted type | `AnyOf`, `Can`, `Email`, `Enum`, `File`, `ImageFile`, `Password` | Adjacent built-in string rules survive, but object state and built-in semantics are not recovered |
+| Dedicated built-in extraction | `Enum` | Fresh inline expressions contribute case objects plus the backing and weakly coerced values Laravel can preserve; dynamic or mutated state stays `mixed` |
+| Custom predicate with `mixed` accepted type | `AnyOf`, `Can`, `Email`, `File`, `ImageFile`, `Password` | Adjacent built-in string rules survive, but object state and built-in semantics are not recovered |
 | Opaque `Stringable` builder | `ArrayKeys`, `ArrayRule`, `Contains`, `Date`, `Dimensions`, `DoesntContain`, `ExcludeIf`, `ExcludeUnless`, `Exists`, `In`, `NotIn`, `Numeric`, `ProhibitedIf`, `ProhibitedUnless`, `RequiredIf`, `RequiredUnless`, `StringRule`, `Unique` | The path widens to optional `mixed`, even when the builder serializes to a supported string rule |
 | Opaque runtime program | `Rule::when`, `Rule::unless`, `Rule::forEach`, `NestedRules`, macros | Runtime callbacks or macro state provide no generally available static contract |
 
@@ -213,10 +218,7 @@ builder remains opaque until that separate extraction track is implemented.
 
 ### 1. Close the evidence gaps
 
-Add focused runtime and static witnesses before narrowing anything:
-
-- a dedicated static `dimensions` fixture; and
-- scalar-backed and pure enum object cases.
+Add a dedicated static `dimensions` fixture before changing its inference.
 
 ### 2. Extend presence modeling to conditional rules
 

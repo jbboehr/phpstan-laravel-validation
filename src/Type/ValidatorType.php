@@ -36,7 +36,7 @@ final class ValidatorType extends ObjectType
         private RuleTreeNode $validatorRules,
         ?Type\Type $subtractedType = null
     ) {
-        $this->rulesCacheKey = hash('sha256', serialize($validatorRules));
+        $this->rulesCacheKey = $validatorRules->getCacheKey();
 
         parent::__construct(\Illuminate\Validation\Validator::class, $subtractedType);
     }

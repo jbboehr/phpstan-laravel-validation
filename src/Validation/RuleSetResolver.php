@@ -36,6 +36,7 @@ final class RuleSetResolver
     public function __construct(
         private UnsafeConstExprEvaluator $constExprEvaluator,
         private CustomRuleTypeResolver $customRuleTypeResolver,
+        private EnumRuleExpressionResolver $enumRuleExpressionResolver,
         private LaravelVersionContext $laravelVersionContext
     ) {
     }
@@ -46,7 +47,8 @@ final class RuleSetResolver
     public function resolve(Expr $expression, Scope $scope): array
     {
         try {
-            $values = $this->expandType($scope->getType($expression));
+            $values = $this->expandExpression($expression, $scope)
+                ?? $this->expandType($scope->getType($expression));
             $trees = [];
             foreach ($values as $value) {
                 if (!is_array($value)) {
@@ -74,6 +76,94 @@ final class RuleSetResolver
         }
 
         return [];
+    }
+
+    /**
+     * Preserve built-in rule-object state while it is still visible in the
+     * original expression. Ordinary PHPStan object types retain only the rule
+     * class and lose constructor arguments and fluent mutations.
+     *
+     * @return list<mixed>|null
+     */
+    private function expandExpression(Expr $expression, Scope $scope): ?array
+    {
+        $rule = $this->enumRuleExpressionResolver->resolve($expression, $scope);
+        if ($rule !== null) {
+            return [$rule];
+        }
+
+        if (!$expression instanceof Expr\Array_) {
+            return null;
+        }
+
+        if (!$this->containsResolvableEnumExpression($expression, $scope)) {
+            return null;
+        }
+
+        $results = [[]];
+        $specialized = false;
+        $nextIndex = 0;
+
+        foreach ($expression->items as $item) {
+            if ($item->unpack) {
+                return null;
+            }
+
+            if ($item->key === null) {
+                $key = $nextIndex++;
+            } else {
+                $keys = $scope->getType($item->key)->getConstantScalarValues();
+                if (count($keys) !== 1 || (!is_int($keys[0]) && !is_string($keys[0]))) {
+                    return null;
+                }
+
+                $normalized = [];
+                $normalized[$keys[0]] = true;
+                $key = array_key_first($normalized);
+                if (is_int($key) && $key >= $nextIndex && $key < PHP_INT_MAX) {
+                    $nextIndex = $key + 1;
+                }
+            }
+
+            $values = $this->expandExpression($item->value, $scope);
+            if ($values === null) {
+                $values = $this->expandType($scope->getType($item->value));
+            } else {
+                $specialized = true;
+            }
+
+            $expanded = [];
+            foreach ($results as $result) {
+                foreach ($values as $value) {
+                    $copy = $result;
+                    $copy[$key] = $value;
+                    $expanded[] = $copy;
+                }
+            }
+
+            $this->guardAlternatives($expanded);
+            $results = $expanded;
+        }
+
+        return $specialized ? $results : null;
+    }
+
+    private function containsResolvableEnumExpression(Expr\Array_ $expression, Scope $scope): bool
+    {
+        foreach ($expression->items as $item) {
+            if ($this->enumRuleExpressionResolver->resolve($item->value, $scope) !== null) {
+                return true;
+            }
+
+            if (
+                $item->value instanceof Expr\Array_
+                && $this->containsResolvableEnumExpression($item->value, $scope)
+            ) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

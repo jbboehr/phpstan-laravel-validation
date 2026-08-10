@@ -22,9 +22,13 @@ declare(strict_types=1);
 namespace jbboehr\PhpstanLaravelValidation\Test;
 
 use Illuminate\Validation\Validator;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\PureValidationStatus;
 use jbboehr\PhpstanLaravelValidation\Type\ValidatorType;
+use jbboehr\PhpstanLaravelValidation\Validation\Rule;
 use jbboehr\PhpstanLaravelValidation\Validation\RuleParser;
+use jbboehr\PhpstanLaravelValidation\Validation\RuleTreeNode;
 use PHPStan\Testing\PHPStanTestCase;
+use PHPStan\Type\Enum\EnumCaseObjectType;
 use PHPStan\Type\ObjectType;
 use PHPStan\Type\IntegerType;
 use PHPStan\Type\StringType;
@@ -48,6 +52,29 @@ final class ValidatorTypeTest extends PHPStanTestCase
         $union = TypeCombinator::union($nameType, $ageType);
         self::assertInstanceOf(UnionType::class, $union);
         self::assertCount(2, $union->getTypes());
+    }
+
+    public function testRuleFingerprintDoesNotSerializePhpStanReflectionObjects(): void
+    {
+        self::getContainer();
+
+        $draft = new EnumCaseObjectType(PureValidationStatus::class, 'Draft');
+        self::assertNotNull($draft->getClassReflection());
+
+        $draftTree = new RuleTreeNode('');
+        $draftTree->insert('status', Rule::custom($draft));
+        $draftTree->resolveOptional();
+
+        $publishedTree = new RuleTreeNode('');
+        $publishedTree->insert('status', Rule::custom(
+            new EnumCaseObjectType(PureValidationStatus::class, 'Published')
+        ));
+        $publishedTree->resolveOptional();
+
+        $draftValidator = new ValidatorType($draftTree);
+        $publishedValidator = new ValidatorType($publishedTree);
+
+        self::assertFalse($draftValidator->equals($publishedValidator));
     }
 
     public function testIdenticalRulePayloadsCollapse(): void

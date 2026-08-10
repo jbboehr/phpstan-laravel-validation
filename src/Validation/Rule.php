@@ -22,6 +22,7 @@ declare(strict_types=1);
 namespace jbboehr\PhpstanLaravelValidation\Validation;
 
 use PHPStan\Type\Type;
+use PHPStan\Type\VerbosityLevel;
 
 final class Rule
 {
@@ -118,5 +119,14 @@ final class Rule
     public function getAcceptedType(): ?Type
     {
         return $this->acceptedType;
+    }
+
+    public function getCacheKey(): string
+    {
+        return hash('sha256', serialize([
+            $this->ruleName,
+            $this->parameters,
+            $this->acceptedType?->describe(VerbosityLevel::cache()),
+        ]));
     }
 }

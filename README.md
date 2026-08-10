@@ -212,6 +212,32 @@ extension), as are `safe()` calls. The inferred contract also assumes callers
 do not replace the resolved validator through the inherited public
 `setValidator()` method before calling `validated()`.
 
+### Enum rule objects
+
+Fresh inline Laravel `Enum` rules retain enough syntax for the extension to
+recover their enum class and literal filter state:
+
+```php
+$validated = Validator::make($input, [
+    'status' => ['required', Rule::enum(Status::class)->only(Status::Published)],
+])->validated();
+
+\PHPStan\dumpType($validated);
+// array{status: Status::Published}
+```
+
+Both `Rule::enum(Status::class)` and `new
+Illuminate\Validation\Rules\Enum(Status::class)` are supported. Literal
+`only()` and `except()` calls are modeled from Laravel 10.46 onward. Backed
+enums also include the original backing values and weakly coerced native
+values that Laravel can accept and preserve; they are not assumed to return
+only enum objects.
+
+The expression must remain statically visible. Assigned rule objects, dynamic
+enum class strings, callback-based `when()` or `unless()` mutations, and
+non-literal filter state fall back to `mixed` rather than guessing the mutable
+object's runtime state.
+
 ### Custom validation rules
 
 Unknown custom rule objects and closures no longer prevent inference for the
@@ -295,8 +321,9 @@ discover registered aliases.
 * Wildcard collections may have integer or string keys. When wildcard and named rules share a parent, inference conservatively unions their possible projected value types because it cannot preserve every key correlation.
 * Larastan provides its own stub for `Illuminate\Validation\Validator`, and PHPStan does not merge multiple stubs for the same class. When both extensions are installed, Larastan's stub takes precedence, so an ignored `setRules()` return can leave the validator's previously inferred rules in place. Chain the call (`$validator->setRules($rules)->validated()`) or assign its return value (`$validator = $validator->setRules($rules)`) to infer constant replacement rules correctly.
 * Custom-rule contracts describe accepted values only. Custom implicitness and
-  custom output mutation remain conservatively modeled; enums are not
-  currently supported.
+  custom output mutation remain conservatively modeled. Dynamically composed
+  built-in rule objects also remain conservative when their state is not
+  statically visible.
 * Experimental FormRequest inference is opt-in. It models conventional request
   validation and falls back for known lifecycle customization, but cannot
   globally track an inherited `setValidator()` call that replaces the

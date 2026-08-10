@@ -295,4 +295,28 @@ final class RuleTreeNode implements IteratorAggregate, \Countable
     {
         return count($this->children);
     }
+
+    public function getCacheKey(): string
+    {
+        $children = [];
+        foreach ($this->children as $key => $child) {
+            $children[] = [get_debug_type($key), $key, $child->getCacheKey()];
+        }
+
+        return hash('sha256', serialize([
+            $this->path,
+            array_map(static fn (Rule $rule): string => $rule->getCacheKey(), $this->rules),
+            $children,
+            $this->optional,
+            $this->excluded,
+            $this->sometimes,
+            $this->hasRequiredChild,
+            $this->missing,
+            $this->nullable,
+            $this->present,
+            $this->required,
+            $this->isArray,
+            $this->opaque,
+        ]));
+    }
 }
