@@ -195,4 +195,15 @@ composer validate --strict
 Run the relevant audit profiles whenever a claim depends on a Laravel version.
 Mutation testing is valuable for deterministic inference branches but is not a
 replacement for runtime evidence. Its separate setup and subprocess exclusions
-are described in the README development notes.
+are described in the README development notes. The Infection configuration
+also narrowly ignores mutations that make `RuleTreeNode::resolvePath()` recurse
+without consuming input: those mutants can exhaust PHP's native stack before
+Infection's timeout can stop the process.
+
+CI divides the source tree into the shards declared in
+`.github/infection-shards.json`. Individual shard jobs disable Infection's MSI
+and covered-MSI minimums because differently sized shards cannot meaningfully
+enforce whole-project percentages. The final `Mutation testing | PHP 8.5` job
+combines their counts and enforces the project-wide MSI, covered-MSI, timeout,
+and expected-ignore thresholds. A local full-repository `composer infection`
+run continues to enforce the values in `infection.json5.dist` directly.

@@ -19,12 +19,24 @@ try {
     $ownersByFile = [];
     $matrix = [];
 
-    foreach ($shards as $shard => $paths) {
+    foreach ($shards as $shard => $configuration) {
         if (!is_string($shard) || preg_match('/^[a-z0-9-]+$/', $shard) !== 1) {
             throw new RuntimeException('Infection shard names may contain only lowercase letters, numbers, and hyphens.');
         }
+        if (!is_array($configuration) || array_is_list($configuration)) {
+            throw new RuntimeException(sprintf('Infection shard %s must contain paths and threads.', $shard));
+        }
+        if (array_diff(array_keys($configuration), ['paths', 'threads']) !== []) {
+            throw new RuntimeException(sprintf('Infection shard %s contains an unsupported setting.', $shard));
+        }
+
+        $paths = $configuration['paths'] ?? null;
+        $threads = $configuration['threads'] ?? null;
         if (!is_array($paths) || !array_is_list($paths) || $paths === []) {
             throw new RuntimeException('Each Infection shard must have a name and at least one path.');
+        }
+        if (!is_int($threads) || $threads < 1) {
+            throw new RuntimeException(sprintf('Infection shard %s must use at least one thread.', $shard));
         }
 
         foreach ($paths as $path) {
@@ -52,6 +64,7 @@ try {
         $matrix[] = [
             'shard' => $shard,
             'paths' => implode(' ', $paths),
+            'threads' => $threads,
         ];
     }
 

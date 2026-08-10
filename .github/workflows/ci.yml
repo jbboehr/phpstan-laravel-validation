@@ -368,15 +368,16 @@ jobs:
               # Leave headroom on shared runners instead of saturating all four
               # advertised CPUs and intermittently losing the job to SIGTERM.
               # The whole-repository MSI threshold cannot be applied independently
-              # to source shards with different amounts of uncovered code. Keep the
-              # covered-MSI gate here; full local runs still enforce both thresholds.
+              # to source shards with different amounts of uncovered code. The
+              # summary job reconstructs both whole-repository scores instead.
               run: >-
                   composer infection --
                   ${{ matrix.paths }}
                   --logger-github=false
                   --logger-summary-json=infection-summary.json
                   --min-msi=0
-                  --threads=2
+                  --min-covered-msi=0
+                  --threads=${{ matrix.threads }}
 
             - name: Upload mutation reports
               if: always()
@@ -397,25 +398,22 @@ jobs:
         runs-on: ubuntu-latest
         name: "Mutation testing | PHP 8.5"
         steps:
-            - name: Require successful mutation shards
-              env:
-                  INFECTION_RESULT: ${{ needs.infection.result }}
-                  PLAN_RESULT: ${{ needs.infection-plan.result }}
-              run: >-
-                  test "$PLAN_RESULT" = success
-                  && test "$INFECTION_RESULT" = success
-
             - name: Download mutation reports
+              if: needs.infection-plan.result == 'success'
               uses: actions/download-artifact@v8
               with:
                   pattern: infection-reports-*
                   path: infection-reports
 
-            - name: Enforce aggregate timeout budget
+            - name: Enforce aggregate mutation thresholds
+              if: needs.infection-plan.result == 'success'
               env:
                   EXPECTED_REPORTS: ${{ needs.infection-plan.outputs.shard_count }}
-                  # Keep this aligned with maxTimeouts in infection.json5.dist.
+                  # Keep these aligned with infection.json5.dist.
                   MAX_TIMEOUTS: 10
+                  MIN_MSI: 50
+                  MIN_COVERED_MSI: 80
+                  EXPECTED_IGNORED_MUTANTS: 5
               run: |
                   mapfile -t reports < <(find infection-reports -type f -name infection-summary.json -print | sort)
                   if [ "${#reports[@]}" -ne "$EXPECTED_REPORTS" ]; then
@@ -423,11 +421,55 @@ jobs:
                       exit 1
                   fi
 
-                  timeout_count="$(jq -s '[.[].stats.timeOutCount] | add' "${reports[@]}")"
-                  echo "Timed-out mutants across all shards: $timeout_count (maximum: $MAX_TIMEOUTS)"
+                  aggregate="$(jq -s '
+                      {
+                          total: map(.stats.totalMutantsCount - .stats.skippedCount - .stats.ignoredCount) | add,
+                          covered: map(.stats.totalMutantsCount - .stats.skippedCount - .stats.ignoredCount - .stats.notCoveredCount) | add,
+                          detected: map(.stats.killedCount + .stats.errorCount + .stats.syntaxErrorCount) | add,
+                          ignored: map(.stats.ignoredCount) | add,
+                          timeouts: map(.stats.timeOutCount) | add
+                      }
+                      | .msi = (if .total == 0 then 0 else ((10000 * .detected / .total | round) / 100) end)
+                      | .coveredMsi = (if .covered == 0 then 0 else ((10000 * .detected / .covered | round) / 100) end)
+                  ' "${reports[@]}")"
+
+                  jq . <<< "$aggregate"
+                  failed=0
+
+                  timeout_count="$(jq -r '.timeouts' <<< "$aggregate")"
                   if [ "$timeout_count" -gt "$MAX_TIMEOUTS" ]; then
-                      exit 1
+                      echo "Timed-out mutants $timeout_count exceed the maximum $MAX_TIMEOUTS." >&2
+                      failed=1
                   fi
+
+                  ignored_count="$(jq -r '.ignored' <<< "$aggregate")"
+                  if [ "$ignored_count" -ne "$EXPECTED_IGNORED_MUTANTS" ]; then
+                      echo "Expected $EXPECTED_IGNORED_MUTANTS ignored mutants, found $ignored_count; check the resolvePath() ignore patterns." >&2
+                      failed=1
+                  fi
+
+                  msi="$(jq -r '.msi' <<< "$aggregate")"
+                  if ! jq -e ".msi >= $MIN_MSI" <<< "$aggregate" >/dev/null; then
+                      echo "Aggregate MSI $msi% is below the required $MIN_MSI%." >&2
+                      failed=1
+                  fi
+
+                  covered_msi="$(jq -r '.coveredMsi' <<< "$aggregate")"
+                  if ! jq -e ".coveredMsi >= $MIN_COVERED_MSI" <<< "$aggregate" >/dev/null; then
+                      echo "Aggregate covered MSI $covered_msi% is below the required $MIN_COVERED_MSI%." >&2
+                      failed=1
+                  fi
+
+                  exit "$failed"
+
+            - name: Require successful mutation shards
+              if: always()
+              env:
+                  INFECTION_RESULT: ${{ needs.infection.result }}
+                  PLAN_RESULT: ${{ needs.infection-plan.result }}
+              run: >-
+                  test "$PLAN_RESULT" = success
+                  && test "$INFECTION_RESULT" = success
 
     larastan:
         runs-on: ubuntu-latest

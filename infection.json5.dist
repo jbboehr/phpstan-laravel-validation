@@ -25,7 +25,32 @@
         "summary": "infection-summary.log"
     },
     "mutators": {
-        "@default": true
+        "@default": true,
+        // These mutations violate resolvePath()'s progress invariant: every
+        // recursive call must receive a shorter key. They otherwise recurse
+        // until PHP exhausts memory or the native stack. A timeout cannot
+        // contain a SIGSEGV, so ignore only the non-progressing mutations.
+        "GreaterThan": {
+            "ignoreSourceCodeByRegex": [
+                ".*PREG_OFFSET_CAPTURE\\) > 0\\) \\{"
+            ]
+        },
+        "GreaterThanNegotiation": {
+            "ignoreSourceCodeByRegex": [
+                ".*PREG_OFFSET_CAPTURE\\) > 0\\) \\{"
+            ]
+        },
+        "Plus": {
+            "ignoreSourceCodeByRegex": [
+                ".*matches\\[0\\]\\[1\\] \\+ 1;",
+                ".*remainder = substr.*pos \\+ 1.*"
+            ]
+        },
+        "UnwrapSubstr": {
+            "ignoreSourceCodeByRegex": [
+                ".*remainder = substr.*pos \\+ 1.*"
+            ]
+        }
     },
     "testFramework": "phpunit"
 }
