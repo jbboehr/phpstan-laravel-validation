@@ -13,7 +13,7 @@ type. Three release boundaries change contracts exercised by that corpus:
 - `integer:strict` begins enforcing native integers in Laravel 12.22; and
 - `ascii` begins requiring a native string in Laravel 13.4.
 
-The cross-profile runtime suite records eight additional rule boundaries
+The cross-profile runtime suite records nine additional rule boundaries
 outside that portable corpus: Laravel adds `hex_color` in 10.33, Laravel 13.4
 stops `hex_color` from accepting compatible `Stringable` objects, and Laravel
 adds `extensions` in 10.34, `encoding` in 12.40, the native-string-only
@@ -21,6 +21,9 @@ adds `extensions` in 10.34, `encoding` in 12.40, the native-string-only
 changes a literal `list` parent from preservation to nested reconstruction.
 Laravel's `Enum` rule adds literal `only`/`except` filters in 10.46 via
 [`8d47be393e43`](https://github.com/laravel/framework/commit/8d47be393e43ffeacd49556471110454f868da5f).
+Laravel 10.21.1 also teaches the `In` and `NotIn` builders to serialize enum
+cases via
+[`4989e6de0766`](https://github.com/laravel/framework/commit/4989e6de076688ade265e2f1970ab6f0c1b60fcb).
 
 The extension now obtains one analyzed-project Laravel version from the
 matching Composer installed-package dataset, falling back to `composer.lock`
@@ -134,7 +137,7 @@ observed evidence; it does not prove universal soundness.
 | Hex colors | valid strings, compatible `Stringable`, optional blank input, and unsupported-rule behavior | Rule introduction at 10.33; native-string boundary at 13.4, covered by the cross-profile PHPUnit suite |
 | File extensions | valid and failed uploads, a compatible Symfony file subclass, invalid native values, optional blank input, and unsupported-rule behavior | `extensions` begins at Laravel 10.34, covered by the cross-profile PHPUnit suite rather than the portable audit corpus |
 | Character encoding | strings, arrays, scalars, `Stringable`, `null`, valid and invalid file contents, invalid uploads and parameters, and unsupported-rule behavior | `encoding` begins at Laravel 12.40, covered by the cross-profile PHPUnit suite rather than the portable audit corpus |
-| JSON, dates, and membership | `json.*`, `date*`, comparisons, scalar `in` | No observed release difference |
+| JSON, dates, and membership | `json.*`, `date*`, comparisons, scalar `in`, and literal `Rule::in()` builders | Scalar behavior is stable; enum-valued builders begin in Laravel 10.21.1, covered by the cross-profile PHPUnit suite |
 | Network and identifiers | `email`, `ip`, `ipv4`, `ipv6`, `mac_address`, `timezone`, `url`, `uuid`, `ulid` | No observed release difference |
 | Arrays and projection | bare and keyed arrays, parameterized-parent preservation, required array offsets, numeric rule keys, nested child projection, wildcards, parent-plus-child rules | Numeric rule-key boundary at Laravel 12; `list` reconstruction boundary at Laravel 11.23 is covered by the cross-profile PHPUnit suite |
 | Array-only predicates | required and optional values, non-array rejection, preserved associative and nested arrays | `contains`, `in_array_keys`, and `doesnt_contain` begin at Laravel 11.8, 12.16, and 12.22, covered by the cross-profile PHPUnit suite rather than the portable audit corpus |

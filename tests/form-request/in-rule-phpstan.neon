@@ -1,0 +1,4 @@
+parameters:
+  phpstanLaravelValidation:
+    # Rule::in() gained enum-value serialization in Laravel 10.21.1.
+    laravelVersion: '10.21.1'

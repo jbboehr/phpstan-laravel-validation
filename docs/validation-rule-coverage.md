@@ -31,6 +31,7 @@ those included, the current Laravel 13.24 surface corresponds exactly to the
 Laravel added these rules and rule-object features during the supported major
 range:
 
+- Laravel 10.21.1: `In` and `NotIn` builders gain enum-value serialization;
 - Laravel 10.33: `hex_color`, followed by `extensions` in 10.34 and
   `Enum::only()` / `Enum::except()` in 10.46;
 - Laravel 11: `prohibited_if_accepted`, `prohibited_if_declined`, and
@@ -73,7 +74,7 @@ separate dimensions.
 | Direct type contribution | 57 | 57 | A native value type is emitted and has dedicated focused static coverage |
 | Explicitly neutral | 45 | 10 | The rule does not narrow the local value type, whether intentionally or because a correlated model is unavailable |
 | Conservative `mixed` fallback | 12 | 0 | No built-in accepted-value model is applied |
-| **Total reserved names** | **114** | **65 files** | Covers the current Laravel 13.24 name inventory, including `Enum` and `Password` |
+| **Total reserved names** | **114** | **68 files** | Covers the current Laravel 13.24 name inventory, including `Enum` and `Password` |
 
 The repository's generated Laravel fixtures provide broader conformance
 coverage than the focused-file count suggests. Focused files are still
@@ -86,7 +87,7 @@ The following 57 names contribute a concrete type today:
 
 | Family | Rules | Current contribution |
 | --- | --- | --- |
-| Exact accepted sets | `Accepted`, `Boolean`, `Declined`, `In` | Literal unions or parameter-aware scalar unions |
+| Exact accepted sets | `Accepted`, `Boolean`, `Declined`, `In` | Literal unions or parameter-aware scalar unions; fresh inline `Rule::in()` builders can supply the `In` parameters |
 | String predicates | `ActiveUrl`, `Alpha`, `CurrentPassword`, `Email`, `Ip`, `Ipv4`, `Ipv6`, `MacAddress`, `Timezone`, `Ulid`, `Url`, `Uuid` | Usually `non-empty-string` |
 | Native string checks | `Lowercase`, `String`, `Uppercase` | `string` |
 | Coercive text checks | `AlphaDash`, `AlphaNum`, `Json`, `NotRegex`, `Regex` | Unions containing the native scalar or `Stringable` values Laravel preserves |
@@ -189,8 +190,8 @@ fluent builders through `Illuminate\Validation\Rule` and classes under
 
 Current static extraction treats them in three ways:
 
-- fresh inline `Enum` expressions receive dedicated extraction of their enum
-  class and literal `only`/`except` state;
+- fresh inline `Enum` and `Rule::in()` expressions receive dedicated extraction
+  of their statically visible state;
 - predicate objects implementing Laravel's rule contracts are treated like
   custom predicates and contribute `mixed` unless they have an explicit custom
   contract;
@@ -199,12 +200,12 @@ Current static extraction treats them in three ways:
 
 | Current extraction | Representative Laravel objects | Consequence |
 | --- | --- | --- |
-| Dedicated built-in extraction | `Enum` | Fresh inline expressions contribute case objects plus the backing and weakly coerced values Laravel can preserve; dynamic or mutated state stays `mixed` |
+| Dedicated built-in extraction | `Enum`, `Rule::in()` | Fresh inline `Enum` expressions contribute case objects plus the backing and weakly coerced values Laravel can preserve; fresh inline `Rule::in()` expressions recover literal scalar parameters, including enum names or backing values from Laravel 10.21.1; dynamic or mutated state stays `mixed` |
 | Custom predicate with `mixed` accepted type | `AnyOf`, `Can`, `Email`, `File`, `ImageFile`, `Password` | Adjacent built-in string rules survive, but object state and built-in semantics are not recovered |
-| Opaque `Stringable` builder | `ArrayKeys`, `ArrayRule`, `Contains`, `Date`, `Dimensions`, `DoesntContain`, `ExcludeIf`, `ExcludeUnless`, `Exists`, `In`, `NotIn`, `Numeric`, `ProhibitedIf`, `ProhibitedUnless`, `RequiredIf`, `RequiredUnless`, `StringRule`, `Unique` | The path widens to optional `mixed`, even when the builder serializes to a supported string rule |
+| Opaque `Stringable` builder | `ArrayKeys`, `ArrayRule`, `Contains`, `Date`, `Dimensions`, `DoesntContain`, `ExcludeIf`, `ExcludeUnless`, `Exists`, `NotIn`, `Numeric`, `ProhibitedIf`, `ProhibitedUnless`, `RequiredIf`, `RequiredUnless`, `StringRule`, `Unique` | The path widens to optional `mixed`, even when the builder serializes to a supported string rule |
 | Opaque runtime program | `Rule::when`, `Rule::unless`, `Rule::forEach`, `NestedRules`, macros | Runtime callbacks or macro state provide no generally available static contract |
 
-Built-in builder support should be a separate implementation track. Treating
+Built-in builder support remains a separate implementation track. Treating
 these objects as arbitrary third-party validators is safe, but needlessly
 imprecise for constant builder expressions whose constructor and fluent-call
 state are statically available. Focused runtime coverage confirms that
@@ -224,7 +225,7 @@ correlations can be represented without making every branch required.
 ### 2. Support statically resolvable built-in builders
 
 Recover the string-rule equivalent or direct contract for constant fluent
-builders, beginning with `Rule::in`, `Rule::notIn`, `Rule::array`,
+builders, continuing with `Rule::notIn`, `Rule::array`,
 `Rule::arrayKeys`, and the typed string/numeric/date/file builders. Callback
 builders must remain opaque when their branch cannot be resolved.
 

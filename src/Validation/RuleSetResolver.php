@@ -37,6 +37,7 @@ final class RuleSetResolver
         private UnsafeConstExprEvaluator $constExprEvaluator,
         private CustomRuleTypeResolver $customRuleTypeResolver,
         private EnumRuleExpressionResolver $enumRuleExpressionResolver,
+        private InRuleExpressionResolver $inRuleExpressionResolver,
         private LaravelVersionContext $laravelVersionContext
     ) {
     }
@@ -87,7 +88,7 @@ final class RuleSetResolver
      */
     private function expandExpression(Expr $expression, Scope $scope): ?array
     {
-        $rule = $this->enumRuleExpressionResolver->resolve($expression, $scope);
+        $rule = $this->resolveBuiltInRuleExpression($expression, $scope);
         if ($rule !== null) {
             return [$rule];
         }
@@ -96,7 +97,7 @@ final class RuleSetResolver
             return null;
         }
 
-        if (!$this->containsResolvableEnumExpression($expression, $scope)) {
+        if (!$this->containsResolvableBuiltInRuleExpression($expression, $scope)) {
             return null;
         }
 
@@ -148,16 +149,22 @@ final class RuleSetResolver
         return $specialized ? $results : null;
     }
 
-    private function containsResolvableEnumExpression(Expr\Array_ $expression, Scope $scope): bool
+    private function resolveBuiltInRuleExpression(Expr $expression, Scope $scope): ?Rule
+    {
+        return $this->enumRuleExpressionResolver->resolve($expression, $scope)
+            ?? $this->inRuleExpressionResolver->resolve($expression, $scope);
+    }
+
+    private function containsResolvableBuiltInRuleExpression(Expr\Array_ $expression, Scope $scope): bool
     {
         foreach ($expression->items as $item) {
-            if ($this->enumRuleExpressionResolver->resolve($item->value, $scope) !== null) {
+            if ($this->resolveBuiltInRuleExpression($item->value, $scope) !== null) {
                 return true;
             }
 
             if (
                 $item->value instanceof Expr\Array_
-                && $this->containsResolvableEnumExpression($item->value, $scope)
+                && $this->containsResolvableBuiltInRuleExpression($item->value, $scope)
             ) {
                 return true;
             }

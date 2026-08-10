@@ -238,6 +238,32 @@ enum class strings, callback-based `when()` or `unless()` mutations, and
 non-literal filter state fall back to `mixed` rather than guessing the mutable
 object's runtime state.
 
+### `Rule::in()` builders
+
+Fresh inline `Rule::in()` calls with literal scalar values are recovered as
+the equivalent parameterized `in` rule:
+
+```php
+$validated = Validator::make($input, [
+    'status' => ['required', Rule::in(['draft', 'published'])],
+])->validated();
+
+\PHPStan\dumpType($validated);
+// array{status: 'draft'|'published'|Stringable}
+```
+
+The union includes every native value Laravel can accept and preserve through
+its loose string comparison; numeric parameters therefore produce the same
+broad numeric union as a string `in` rule. From Laravel 10.21.1, literal enum
+arguments are serialized to their case names or backing values. This does not
+make `Rule::in([Status::Draft])` an enum-object rule: it validates the
+serialized scalar parameter and preserves the original accepted input.
+
+Constant scalar arrays are supported while the factory call remains visible.
+Assigned builder objects, unpacked or dynamic arguments, `Arrayable` and
+runtime `Stringable` arguments, and direct `In` construction remain
+conservative rather than executing application code during analysis.
+
 ### Custom validation rules
 
 Unknown custom rule objects and closures no longer prevent inference for the
@@ -304,7 +330,7 @@ string may bypass a non-implicit rule; combining it with `required` produces
 input value. A contract is unsound if the rule accepts values outside its
 declared type or mutates validator data, rules, or validated output.
 
-Arbitrary stringable rule builders, conditional rule builders, and nested rule
+Other stringable rule builders, conditional rule builders, and nested rule
 builders may encode presence or projection behavior. When their structure
 cannot be recovered statically, the affected path is widened rather than
 pretending they are ordinary value predicates. Larastan is not required for
