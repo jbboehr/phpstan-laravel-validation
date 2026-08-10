@@ -140,10 +140,11 @@ observed evidence; it does not prove universal soundness.
 | Array-only predicates | required and optional values, non-array rejection, preserved associative and nested arrays | `contains`, `in_array_keys`, and `doesnt_contain` begin at Laravel 11.8, 12.16, and 12.22, covered by the cross-profile PHPUnit suite rather than the portable audit corpus |
 | Allowed array keys | permitted subsets, extra-key rejection, numeric keys, empty parameters, blank bypass, nested rules, and the fluent builder | `array_keys` begins at Laravel 13.24, covered by the cross-profile PHPUnit suite rather than the portable audit corpus |
 | Enum objects | pure, string-backed, and integer-backed cases; weakly coerced preserved values; optional blanks; and literal filters | Base behavior is stable across Laravel 10–13; `only` and `except` begin in 10.46, covered by the cross-profile PHPUnit suite rather than the portable audit corpus |
+| Image dimensions | a real one-pixel image file, incorrect dimensions, native path strings, optional blanks, and nullable input | No difference observed for these value-type probes; individual dimension parameters have changed without changing the native value family |
 | Presence and conditions | optional blanks, nullable, present, missing, zero-match wildcard parent preservation, confirmed, `required_if`, `exclude_if` | No observed release difference |
 | Default HTTP middleware | password-path trimming before validation | Laravel 10 versus 11+ boundary covered by the cross-profile PHPUnit suite |
 | Static entry points | facade, factory, request, controller, helper, validator unions, constant `setRules()` | Covered by the existing PHPStan fixture suite |
-| Environment-dependent behavior | files, images, dimensions, database, DNS, password-rule service checks, custom rules | Catalogued but not executed by this portable audit |
+| Environment-dependent behavior | other file and image metadata, database, DNS, password-rule service checks, custom rules | Catalogued but not executed by this portable audit |
 
 The inventory focuses on rules for which the extension currently narrows a
 type, plus representative non-narrowing and structural rules that can change

@@ -70,10 +70,10 @@ separate dimensions.
 
 | Accepted-value handling | Rule names | Focused static coverage | Meaning |
 | --- | ---: | ---: | --- |
-| Direct type contribution | 57 | 56 | A native value type is emitted; `dimensions` lacks a dedicated focused fixture |
+| Direct type contribution | 57 | 57 | A native value type is emitted and has dedicated focused static coverage |
 | Explicitly neutral | 45 | 10 | The rule does not narrow the local value type, whether intentionally or because a correlated model is unavailable |
 | Conservative `mixed` fallback | 12 | 0 | No built-in accepted-value model is applied |
-| **Total reserved names** | **114** | **64 files** | Covers the current Laravel 13.24 name inventory, including `Enum` and `Password` |
+| **Total reserved names** | **114** | **65 files** | Covers the current Laravel 13.24 name inventory, including `Enum` and `Password` |
 
 The repository's generated Laravel fixtures provide broader conformance
 coverage than the focused-file count suggests. Focused files are still
@@ -106,10 +106,8 @@ zero, including the empty-array-only overlap when all allowed keys are
 strings. This avoids incorrectly reducing a successful Laravel contract to
 `never`.
 
-Every direct rule except `Dimensions` has a dedicated static fixture under
+Every direct rule has a dedicated static fixture under
 [`tests/rules`](../tests/rules) or [`tests/version-aware`](../tests/version-aware).
-`Dimensions` is exercised by generated Laravel fixtures but should receive a
-focused fixture before its implementation is changed.
 
 ## Explicitly neutral rules
 
@@ -216,25 +214,21 @@ builder remains opaque until that separate extraction track is implemented.
 
 ## Prioritized work
 
-### 1. Close the evidence gaps
-
-Add a dedicated static `dimensions` fixture before changing its inference.
-
-### 2. Extend presence modeling to conditional rules
+### 1. Extend presence modeling to conditional rules
 
 The tree can now say "the key must exist" without saying "blank values fail,"
 and unconditional `missing` paths are omitted from output. Extend that model to
 the conditional present and missing families only when controlling-field
 correlations can be represented without making every branch required.
 
-### 3. Support statically resolvable built-in builders
+### 2. Support statically resolvable built-in builders
 
 Recover the string-rule equivalent or direct contract for constant fluent
 builders, beginning with `Rule::in`, `Rule::notIn`, `Rule::array`,
 `Rule::arrayKeys`, and the typed string/numeric/date/file builders. Callback
 builders must remain opaque when their branch cannot be resolved.
 
-### 4. Add correlated structural refinements
+### 3. Add correlated structural refinements
 
 Treat conditional presence families as separate slices. Their implementation
 must account for controlling-field values, optional blank bypass, nested

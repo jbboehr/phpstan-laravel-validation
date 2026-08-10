@@ -51,6 +51,7 @@ class RulesInferenceTest extends \PHPStan\Testing\TypeInferenceTestCase
         yield from self::gatherAssertTypes(__DIR__ . '/rules/declined-if.php');
         yield from self::gatherAssertTypes(__DIR__ . '/rules/digits.php');
         yield from self::gatherAssertTypes(__DIR__ . '/rules/digits_between.php');
+        yield from self::gatherAssertTypes(__DIR__ . '/rules/dimensions.php');
         yield from self::gatherAssertTypes(__DIR__ . '/rules/email.php');
         yield from self::gatherAssertTypes(__DIR__ . '/rules/exclude-if.php');
         yield from self::gatherAssertTypes(__DIR__ . '/rules/exclude-unless.php');
