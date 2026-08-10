@@ -364,9 +364,9 @@ jobs:
             - name: Run mutation tests
               env:
                   COMPOSER_PROCESS_TIMEOUT: 1800
-              # Each worker retains a PHPStan container for fixture-heavy tests.
-              # Leave headroom on shared runners instead of saturating all four
-              # advertised CPUs and intermittently losing the job to SIGTERM.
+              # Each public-repository ubuntu-latest runner has four advertised
+              # CPUs. The known native crashes came from non-progressing mutants,
+              # not worker concurrency, so use the available parallelism.
               # The whole-repository MSI threshold cannot be applied independently
               # to source shards with different amounts of uncovered code. The
               # summary job reconstructs both whole-repository scores instead.

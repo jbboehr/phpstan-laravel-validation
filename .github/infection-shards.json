@@ -1,13 +1,13 @@
 {
     "core-types": {
-        "threads": 1,
+        "threads": 4,
         "paths": [
             "src/Validation/TypeResolver.php",
             "src/Validation/RuleTreeNode.php"
         ]
     },
     "runtime-contracts": {
-        "threads": 2,
+        "threads": 4,
         "paths": [
             "src/Attribute/ValidationRuleType.php",
             "src/Validation/CustomRuleTypeResolver.php",
@@ -17,7 +17,7 @@
         ]
     },
     "rule-expressions": {
-        "threads": 2,
+        "threads": 4,
         "paths": [
             "src/Validation/ArrayRuleExpressionResolver.php",
             "src/Validation/EnumRuleExpressionResolver.php",
@@ -29,7 +29,7 @@
         ]
     },
     "integration": {
-        "threads": 2,
+        "threads": 4,
         "paths": [
             "src/Evaluator",
             "src/Extension",
