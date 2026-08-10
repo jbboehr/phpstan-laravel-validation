@@ -1,0 +1,4 @@
+parameters:
+  phpstanLaravelValidation:
+    # Rule::array() was introduced in Laravel 11.7.
+    laravelVersion: '11.7.0'

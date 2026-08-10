@@ -902,6 +902,21 @@ final class TypeResolverTest extends PHPStanTestCase
         (new TypeResolver())->evaluateLeaf($node);
     }
 
+    public function testNormalizesAnEmptyArrayParameterToTheEmptyStringKey(): void
+    {
+        self::getContainer();
+        $node = RuleParser::parse([
+            'value' => 'required|array:',
+        ])->resolvePath('value');
+        $type = (new TypeResolver())->evaluateLeaf($node);
+
+        self::assertTrue($type->isArray()->yes());
+        self::assertTrue($type->hasOffsetValueType(new \PHPStan\Type\Constant\ConstantStringType(''))->maybe());
+        self::assertTrue(
+            $type->hasOffsetValueType(new \PHPStan\Type\Constant\ConstantStringType('other'))->no()
+        );
+    }
+
     public function testRejectsNonScalarRequiredArrayKey(): void
     {
         self::getContainer();

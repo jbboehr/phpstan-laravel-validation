@@ -287,6 +287,36 @@ expression may be dynamic while the fresh factory call remains visible.
 Assigned builders, dynamic factory or method calls, and direct `NotIn`
 construction remain opaque.
 
+### `Rule::array()` builders
+
+Laravel 11.7 introduced `Rule::array()`. Fresh inline calls with statically
+visible scalar or enum keys are recovered as the equivalent `array` rule:
+
+```php
+$validated = Validator::make($input, [
+    'payload' => ['required', Rule::array(['name', 'email'])],
+])->validated();
+
+\PHPStan\dumpType($validated);
+// array{payload: array{name?: mixed, email?: mixed}}
+```
+
+The distinction between bare and parameterized arrays also affects Laravel's
+nested-output projection. `Rule::array()` and `Rule::array([])` serialize to a
+bare `array` rule, so nested child rules rebuild the returned parent. A
+non-empty key list preserves the complete permitted parent instead. Explicit
+`null` is observably different from omitting the argument: it serializes to
+`array:` and permits only the empty-string key.
+
+Inference follows Laravel's complete stringification round trip, including its
+unquoted comma joining. Consequently, `Rule::array(['a,b'])` becomes
+`array:a,b` and permits the two keys `a` and `b`; it does not permit one key
+literally named `a,b`.
+
+Before Laravel 11.7, or when arguments are dynamic, unpacked, `Arrayable`, or
+runtime `Stringable` values, inference remains conservative. Assigned builder
+objects and direct `ArrayRule` construction also remain opaque.
+
 ### Custom validation rules
 
 Unknown custom rule objects and closures no longer prevent inference for the

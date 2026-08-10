@@ -5,6 +5,10 @@ includes:
     - vendor/phpstan/phpstan-strict-rules/rules.neon
     - extension.neon
 parameters:
+    stubFiles:
+        # The development lock uses Laravel 10; version-pinned fixtures exercise
+        # the Rule::array() factory introduced in Laravel 11.7.
+        - tests/stubs/LaravelRuleArray.stub
     level: max
     paths:
         - src

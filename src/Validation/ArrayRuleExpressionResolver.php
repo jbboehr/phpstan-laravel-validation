@@ -27,14 +27,14 @@ use PhpParser\Node\Name;
 use PHPStan\Analyser\Scope;
 
 /**
- * Recovers the parameter list from a statically visible Rule::in() call.
- * Runtime Arrayable and Stringable inputs remain opaque rather than being
- * executed during analysis.
+ * Recovers bare versus allowed-key semantics from a statically visible
+ * Rule::array() call. Dynamic key expressions remain opaque because they can
+ * change both the accepted array shape and nested-output projection.
  */
-final class InRuleExpressionResolver
+final class ArrayRuleExpressionResolver
 {
+    private const INTRODUCED = '11.7.0';
     private const RULE_FACTORY_CLASS = \Illuminate\Validation\Rule::class;
-    private const ENUM_VALUE_BOUNDARY = '10.21.1';
 
     public function __construct(
         private RuleParameterExpressionResolver $parameterExpressionResolver,
@@ -45,34 +45,32 @@ final class InRuleExpressionResolver
     public function resolve(Expr $expression, Scope $scope): ?Rule
     {
         if (
-            !$this->laravelVersionContext->isSupported()
+            !$this->laravelVersionContext->isAtLeast(self::INTRODUCED)
             || !$expression instanceof Expr\StaticCall
             || !$expression->class instanceof Name
             || !$expression->name instanceof Identifier
             || $this->resolveName($expression->class, $scope) !== self::RULE_FACTORY_CLASS
-            || $expression->name->toLowerString() !== 'in'
+            || $expression->name->toLowerString() !== 'array'
         ) {
             return null;
         }
 
-        $arguments = $expression->getArgs();
-        if ($arguments === []) {
-            return null;
-        }
-
         $parameters = $this->parameterExpressionResolver->resolve(
-            array_values($arguments),
+            array_values($expression->getArgs()),
             $scope,
-            self::ENUM_VALUE_BOUNDARY
+            self::INTRODUCED
         );
         if ($parameters === null) {
             return null;
         }
 
-        // An empty builder serializes as `in:`. Laravel's CSV parser exposes
-        // that sole empty parameter as null; resolveTypeIn normalizes it back
-        // to the empty string used by the loose runtime comparison.
-        return Rule::create('In', $parameters === [] ? [null] : $parameters);
+        // ArrayRule joins keys without quoting, after which Laravel parses the
+        // Stringable rule as CSV. Reproduce that lossy round trip: for example,
+        // one builder key `a,b` becomes the two validator parameters `a` and
+        // `b`. The empty argument list is the only form that stays a bare rule.
+        return $parameters === []
+            ? Rule::create(Rule::RULE_ARRAY)
+            : RuleParser::parseStringRule('array:' . implode(',', $parameters));
     }
 
     private function resolveName(Name $name, Scope $scope): string

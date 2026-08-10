@@ -795,11 +795,9 @@ final class TypeResolver
         }
 
         foreach ($parameters as $parameter) {
-            if (!is_scalar($parameter)) {
-                throw new InvalidRuleException('Cannot have non-scalar key');
-            }
+            $key = $this->normalizeAllowedArrayKeyParameter($parameter);
             $builder->setOffsetValueType(
-                new ConstantStringType((string) $parameter),
+                is_int($key) ? new ConstantIntegerType($key) : new ConstantStringType($key),
                 new Type\MixedType(),
                 true
             );

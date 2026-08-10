@@ -13,12 +13,14 @@ type. Three release boundaries change contracts exercised by that corpus:
 - `integer:strict` begins enforcing native integers in Laravel 12.22; and
 - `ascii` begins requiring a native string in Laravel 13.4.
 
-The cross-profile runtime suite records nine additional rule boundaries
+The cross-profile runtime suite records ten additional rule boundaries
 outside that portable corpus: Laravel adds `hex_color` in 10.33, Laravel 13.4
 stops `hex_color` from accepting compatible `Stringable` objects, and Laravel
 adds `extensions` in 10.34, `encoding` in 12.40, the native-string-only
 `base64` rule in 13.21, and `array_keys` in 13.24. Laravel 11.23 separately
 changes a literal `list` parent from preservation to nested reconstruction.
+Laravel 11.7 adds the `Rule::array()` builder via
+[`8c684a222143`](https://github.com/laravel/framework/commit/8c684a222143fee9f9eff53b544c1f54a27b9e9e).
 Laravel's `Enum` rule adds literal `only`/`except` filters in 10.46 via
 [`8d47be393e43`](https://github.com/laravel/framework/commit/8d47be393e43ffeacd49556471110454f868da5f).
 Laravel 10.21.1 also teaches the `In` and `NotIn` builders to serialize enum
@@ -139,7 +141,7 @@ observed evidence; it does not prove universal soundness.
 | Character encoding | strings, arrays, scalars, `Stringable`, `null`, valid and invalid file contents, invalid uploads and parameters, and unsupported-rule behavior | `encoding` begins at Laravel 12.40, covered by the cross-profile PHPUnit suite rather than the portable audit corpus |
 | JSON, dates, and membership | `json.*`, `date*`, comparisons, scalar `in`, and fresh `Rule::in()` / `Rule::notIn()` builders | Scalar behavior is stable; enum-valued builders begin in Laravel 10.21.1, covered by the cross-profile PHPUnit suite |
 | Network and identifiers | `email`, `ip`, `ipv4`, `ipv6`, `mac_address`, `timezone`, `url`, `uuid`, `ulid` | No observed release difference |
-| Arrays and projection | bare and keyed arrays, parameterized-parent preservation, required array offsets, numeric rule keys, nested child projection, wildcards, parent-plus-child rules | Numeric rule-key boundary at Laravel 12; `list` reconstruction boundary at Laravel 11.23 is covered by the cross-profile PHPUnit suite |
+| Arrays and projection | bare and keyed arrays, parameterized-parent preservation, required array offsets, numeric rule keys, nested child projection, wildcards, parent-plus-child rules, and fresh `Rule::array()` builders | Numeric rule-key boundary at Laravel 12; `Rule::array()` begins at Laravel 11.7 and `list` reconstruction changes at Laravel 11.23, covered by the cross-profile PHPUnit suite |
 | Array-only predicates | required and optional values, non-array rejection, preserved associative and nested arrays | `contains`, `in_array_keys`, and `doesnt_contain` begin at Laravel 11.8, 12.16, and 12.22, covered by the cross-profile PHPUnit suite rather than the portable audit corpus |
 | Allowed array keys | permitted subsets, extra-key rejection, numeric keys, empty parameters, blank bypass, nested rules, and the fluent builder | `array_keys` begins at Laravel 13.24, covered by the cross-profile PHPUnit suite rather than the portable audit corpus |
 | Enum objects | pure, string-backed, and integer-backed cases; weakly coerced preserved values; optional blanks; and literal filters | Base behavior is stable across Laravel 10–13; `only` and `except` begin in 10.46, covered by the cross-profile PHPUnit suite rather than the portable audit corpus |
@@ -389,6 +391,38 @@ preserved native strings, while integers, floats, booleans, arrays, and
 compatible `Stringable` objects fail. The sound required value type is
 therefore `non-empty-string`; optional raw validator input still includes the
 blank-string bypass.
+
+### The `Rule::array()` builder begins in Laravel 11.7
+
+Laravel's underlying `array` string rule predates every supported release, but
+the `Rule::array()` factory and its `ArrayRule` object do not. They were added
+in Laravel 11.7 by
+[`8c684a222143`](https://github.com/laravel/framework/commit/8c684a222143fee9f9eff53b544c1f54a27b9e9e).
+Before that release, an application could still provide a macro under the same
+method name, so analysis cannot assume Laravel's later builder contract.
+
+The builder preserves a distinction that matters to `validated()` projection.
+Both `Rule::array()` and `Rule::array([])` serialize to the bare `array` rule,
+which lets nested child rules reconstruct the returned parent. A non-empty key
+list serializes to a parameterized rule such as `array:name,email`; Laravel
+then preserves the complete permitted parent rather than rebuilding it solely
+from validated descendants. The builder therefore affects output shape, not
+only the accepted value family.
+
+Omitting the argument is also observably different from passing `null`.
+Laravel's factory forwards the actual argument list through `func_get_args()`:
+no argument produces bare `array`, while explicit `null` produces `array:` and
+permits only the empty-string key. Focused runtime coverage checks these forms,
+scalar and enum keys, extra-key rejection, and nested projection across the CI
+Laravel profiles.
+
+The serialization is lossy for some key strings. `ArrayRule` joins keys with
+unquoted commas, and Laravel then parses the resulting rule parameters as CSV.
+For example, `Rule::array(['a,b'])` becomes `array:a,b` and permits `a` and `b`,
+not a literal `a,b` key. The expression resolver reproduces that round trip
+rather than assigning the builder's pre-serialization key list a prettier but
+false meaning. Fresh constant calls are recovered from 11.7 onward; assigned
+objects, dynamic arguments, and earlier versions stay broad.
 
 ### `array_keys` begins in Laravel 13.24
 
@@ -766,8 +800,8 @@ validator, facade, request, and controller inference. The parser normalizes
 numeric rule keys, while the resolver specializes `integer:strict`, `ascii`,
 `base64`, `encoding`, `extensions`, `hex_color`, `array_keys`, `contains`,
 `in_array_keys`, `doesnt_contain`, `list` value types, `list` parent
-reconstruction, and default HTTP normalization only at the verified boundaries
-above.
+reconstruction, fresh `Rule::array()` builder extraction, and default HTTP
+normalization only at the verified boundaries above.
 It ignores installed-package datasets belonging to unrelated project roots,
 so a globally installed tool or another registered autoloader cannot silently
 select the Laravel contract. The same context contributes its effective
