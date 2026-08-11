@@ -125,6 +125,81 @@ final class InferenceAuditCliTest extends \PHPUnit\Framework\TestCase
         self::assertStringContainsString('Unknown audit profile', $process->getErrorOutput());
     }
 
+    public function testNixMatrixDropsInheritedPhpEnvironmentAndKeepsExplicitComposerOverride(): void
+    {
+        $directory = sys_get_temp_dir() . '/phpstan-laravel-validation-nix-wrapper-' . bin2hex(random_bytes(8));
+        self::assertTrue(mkdir($directory, 0700));
+
+        $php = $directory . '/php';
+        $nix = $directory . '/nix';
+        self::writeExecutable($php, <<<'BASH'
+            #!/usr/bin/env bash
+            set -euo pipefail
+
+            for argument in "$@"; do
+                if [[ "$argument" == "--list" ]]; then
+                    printf '13-latest\t8.3\n'
+                    exit 0
+                fi
+            done
+
+            printf 'composer=%s\n' "${COMPOSER_BINARY-<unset>}"
+            printf 'phprc=%s\n' "${PHPRC-<unset>}"
+            printf 'scan=%s\n' "${PHP_INI_SCAN_DIR-<unset>}"
+            printf 'argument=%s\n' "$@"
+            BASH);
+        self::writeExecutable($nix, <<<'BASH'
+            #!/usr/bin/env bash
+            set -euo pipefail
+
+            while (( "$#" > 0 )); do
+                if [[ "$1" == "-c" ]]; then
+                    shift
+                    exec "$@"
+                fi
+                shift
+            done
+
+            echo 'Missing nix -c command' >&2
+            exit 2
+            BASH);
+
+        try {
+            $path = getenv('PATH');
+            self::assertIsString($path);
+            $process = new Process(
+                [
+                    'bash',
+                    __DIR__ . '/../scripts/inference-audit-matrix-nix.bash',
+                    '--profile=13-latest',
+                    '--composer=/explicit/composer',
+                ],
+                __DIR__ . '/..',
+                [
+                    'COMPOSER_BINARY' => '/outer/php81/composer',
+                    'PATH' => $directory . PATH_SEPARATOR . $path,
+                    'PHPRC' => '/outer/php81/php.ini',
+                    'PHP_INI_SCAN_DIR' => '/outer/php81/php.ini.d',
+                ],
+            );
+            $process->run();
+
+            self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+            self::assertSame([
+                'composer=<unset>',
+                'phprc=<unset>',
+                'scan=<unset>',
+                'argument=scripts/inference-audit-matrix.php',
+                'argument=--profile=13-latest',
+                'argument=--composer=/explicit/composer',
+            ], self::outputLines($process));
+        } finally {
+            unlink($php);
+            unlink($nix);
+            rmdir($directory);
+        }
+    }
+
     private function runScript(string $script, string ...$arguments): Process
     {
         $process = new Process(
@@ -134,6 +209,12 @@ final class InferenceAuditCliTest extends \PHPUnit\Framework\TestCase
         $process->run();
 
         return $process;
+    }
+
+    private static function writeExecutable(string $path, string $contents): void
+    {
+        self::assertNotFalse(file_put_contents($path, $contents));
+        self::assertTrue(chmod($path, 0700));
     }
 
     /** @return list<string> */

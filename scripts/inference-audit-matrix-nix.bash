@@ -20,7 +20,13 @@ audit_plan="$(php scripts/inference-audit-matrix.php --list "${profile_args[@]}"
 
 while IFS=$'\t' read -r profile minimum_php; do
     php_shell="php${minimum_php/./}"
+    # Composer wrappers may export PHP-version-specific runtime paths. The
+    # selected Nix shell must supply those unless --composer overrides it.
     nix develop ".#${php_shell}" -c \
+        env \
+        -u COMPOSER_BINARY \
+        -u PHPRC \
+        -u PHP_INI_SCAN_DIR \
         php scripts/inference-audit-matrix.php \
         "--profile=${profile}" \
         "${execution_args[@]}"
