@@ -19,16 +19,25 @@
 
 declare(strict_types=1);
 
-namespace Illuminate\Validation;
+namespace jbboehr\PhpstanLaravelValidation\Test;
 
-/**
- * Test-only declarations for Rule factories introduced after the repository's
- * Laravel 10 development lock. The runtime implementations accept variadic
- * arguments through func_get_args(), despite documenting one argument.
- *
- * @method static \Stringable array(mixed ...$keys)
- * @method static \Stringable arrayKeys(mixed $keys, mixed ...$additionalKeys)
- */
-class Rule
+use jbboehr\PhpstanLaravelValidation\Test\Support\AssertsFixtureUnderCoverage;
+
+final class ArrayKeysRuleBuilderBeforeIntroductionInferenceTest extends \PHPStan\Testing\TypeInferenceTestCase
 {
+    use AssertsFixtureUnderCoverage;
+
+    public function testFileAsserts(): void
+    {
+        $this->assertFixtureUnderCoverage(__DIR__ . '/version-aware/array-keys-builder-before-introduction.php');
+    }
+
+    /** @return list<string> */
+    public static function getAdditionalConfigFiles(): array
+    {
+        return [
+            __DIR__ . '/../extension.neon',
+            __DIR__ . '/version-aware/array-keys-builder-before-introduction.neon',
+        ];
+    }
 }

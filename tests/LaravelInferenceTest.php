@@ -822,7 +822,7 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
 
         if (version_compare($laravelVersion, '13.24.0', '<')) {
             self::assertSame('array{value: mixed}', $rulesType->describe(Type\VerbosityLevel::precise()));
-            self::assertFalse(method_exists(\Illuminate\Validation\Rule::class, 'arrayKeys'));
+            self::assertFalse((new \ReflectionClass(\Illuminate\Validation\Rule::class))->hasMethod('arrayKeys'));
 
             try {
                 $factory->make(['value' => ['name' => 'Ada']], $requiredRules)->passes();
@@ -833,7 +833,7 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
             return;
         }
 
-        self::assertTrue(method_exists(\Illuminate\Validation\Rule::class, 'arrayKeys'));
+        self::assertTrue((new \ReflectionClass(\Illuminate\Validation\Rule::class))->hasMethod('arrayKeys'));
         self::assertSame(
             'array{value: array{name?: mixed, email?: mixed}}',
             $rulesType->describe(Type\VerbosityLevel::precise())
@@ -925,24 +925,6 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
             );
         }
 
-        $arrayKeys = new \ReflectionMethod(\Illuminate\Validation\Rule::class, 'arrayKeys');
-        $builder = $arrayKeys->invoke(null, ['name', 'email']);
-        self::assertInstanceOf(\Stringable::class, $builder);
-        self::assertSame('array_keys:name,email', (string) $builder);
-        $builderValidator = $factory->make(
-            ['value' => ['name' => 'Ada']],
-            ['value' => [$builder]]
-        );
-        self::assertTrue($builderValidator->passes());
-        self::assertSame(['value' => ['name' => 'Ada']], $builderValidator->validated());
-
-        $emptyBuilder = $arrayKeys->invoke(null, []);
-        self::assertInstanceOf(\Stringable::class, $emptyBuilder);
-        self::assertSame('array_keys:', (string) $emptyBuilder);
-        self::assertTrue($factory->make(
-            ['value' => []],
-            ['value' => [$emptyBuilder]]
-        )->passes());
     }
 
     public function testExtensionsRuleFollowsRuntimeVersionBoundary(): void

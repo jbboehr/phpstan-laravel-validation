@@ -317,6 +317,31 @@ Before Laravel 11.7, or when arguments are dynamic, unpacked, `Arrayable`, or
 runtime `Stringable` values, inference remains conservative. Assigned builder
 objects and direct `ArrayRule` construction also remain opaque.
 
+### `Rule::arrayKeys()` builders
+
+Laravel 13.24 introduced `Rule::arrayKeys()`. Fresh inline calls with
+statically visible scalar or enum keys are recovered as the equivalent
+`array_keys` rule:
+
+```php
+$validated = Validator::make($input, [
+    'payload' => ['required', Rule::arrayKeys(['name', 'email'])],
+])->validated();
+
+\PHPStan\dumpType($validated);
+// array{payload: array{name?: mixed, email?: mixed}}
+```
+
+Unlike bare `array`, this rule preserves the complete permitted parent around
+nested child rules rather than rebuilding it from validated descendants. Its
+stringification is also lossy: commas split parameters, and an empty key list
+becomes `array_keys:`, which permits the empty-string key. Inference follows
+those runtime contracts.
+
+Before Laravel 13.24, or when arguments are dynamic, unpacked, `Arrayable`, or
+otherwise unavailable to analysis, inference remains conservative. Assigned
+builder objects and direct `ArrayKeys` construction also remain opaque.
+
 ### Custom validation rules
 
 Unknown custom rule objects and closures no longer prevent inference for the

@@ -40,6 +40,7 @@ final class RuleSetResolver
         private InRuleExpressionResolver $inRuleExpressionResolver,
         private NotInRuleExpressionResolver $notInRuleExpressionResolver,
         private ArrayRuleExpressionResolver $arrayRuleExpressionResolver,
+        private ArrayKeysRuleExpressionResolver $arrayKeysRuleExpressionResolver,
         private LaravelVersionContext $laravelVersionContext
     ) {
     }
@@ -156,7 +157,8 @@ final class RuleSetResolver
         return $this->enumRuleExpressionResolver->resolve($expression, $scope)
             ?? $this->inRuleExpressionResolver->resolve($expression, $scope)
             ?? $this->notInRuleExpressionResolver->resolve($expression, $scope)
-            ?? $this->arrayRuleExpressionResolver->resolve($expression, $scope);
+            ?? $this->arrayRuleExpressionResolver->resolve($expression, $scope)
+            ?? $this->arrayKeysRuleExpressionResolver->resolve($expression, $scope);
     }
 
     private function containsResolvableBuiltInRuleExpression(Expr\Array_ $expression, Scope $scope): bool

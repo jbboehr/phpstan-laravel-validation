@@ -472,9 +472,10 @@ only the empty-string array key. The extension models both contracts from
 The rule was introduced by
 [`91eee4b8a7c4`](https://github.com/laravel/framework/commit/91eee4b8a7c4f4301700fa359de92898528bb917).
 `Rule::arrayKeys()` serializes to the same string contract at runtime, including
-the empty-builder case. The current static rule-object path retains only its
-object type, however, so it cannot yet recover the builder's constructor keys
-and conservatively leaves that form opaque.
+the empty-builder case. Fresh inline calls with statically visible scalar or
+enum keys now recover that contract directly. Assigned objects, dynamic or
+`Arrayable` arguments, and direct `ArrayKeys` construction still lose the
+builder's key state and remain opaque.
 
 ### Three array predicates have mid-major introductions
 
@@ -800,8 +801,9 @@ validator, facade, request, and controller inference. The parser normalizes
 numeric rule keys, while the resolver specializes `integer:strict`, `ascii`,
 `base64`, `encoding`, `extensions`, `hex_color`, `array_keys`, `contains`,
 `in_array_keys`, `doesnt_contain`, `list` value types, `list` parent
-reconstruction, fresh `Rule::array()` builder extraction, and default HTTP
-normalization only at the verified boundaries above.
+reconstruction, fresh `Rule::array()` and `Rule::arrayKeys()` builder
+extraction, and default HTTP normalization only at the verified boundaries
+above.
 It ignores installed-package datasets belonging to unrelated project roots,
 so a globally installed tool or another registered autoloader cannot silently
 select the Laravel contract. The same context contributes its effective

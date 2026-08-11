@@ -32,6 +32,11 @@ final class ArrayKeysInferenceTest extends \PHPStan\Testing\TypeInferenceTestCas
         $this->assertFixtureUnderCoverage(__DIR__ . '/version-aware/array-keys.php');
     }
 
+    public function testBuilderFileAsserts(): void
+    {
+        $this->assertFixtureUnderCoverage(__DIR__ . '/version-aware/array-keys-builder.php');
+    }
+
     /** @return list<string> */
     public static function getAdditionalConfigFiles(): array
     {

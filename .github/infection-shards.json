@@ -20,6 +20,7 @@
         "threads": 4,
         "paths": [
             "src/Validation/ArrayRuleExpressionResolver.php",
+            "src/Validation/ArrayKeysRuleExpressionResolver.php",
             "src/Validation/EnumRuleExpressionResolver.php",
             "src/Validation/InRuleExpressionResolver.php",
             "src/Validation/NotInRuleExpressionResolver.php",

@@ -36,6 +36,7 @@ services:
   - class: jbboehr\PhpstanLaravelValidation\Validation\InRuleExpressionResolver
   - class: jbboehr\PhpstanLaravelValidation\Validation\NotInRuleExpressionResolver
   - class: jbboehr\PhpstanLaravelValidation\Validation\ArrayRuleExpressionResolver
+  - class: jbboehr\PhpstanLaravelValidation\Validation\ArrayKeysRuleExpressionResolver
   - class: jbboehr\PhpstanLaravelValidation\Validation\RuleSetResolver
   - class: jbboehr\PhpstanLaravelValidation\Validation\FormRequestRuleTypeResolver
     arguments:
