@@ -31,6 +31,13 @@ The benchmark asks what loading it costs on the same application. BookStack has
 77 ordinary validation entry points but no FormRequest classes, so neither
 report exercises the opt-in FormRequest registry.
 
+### [FormRequest downstream investigation](form-request-downstream-investigation.md)
+
+This records compatibility, inferred-type coverage, conservative lifecycle
+fallbacks, and a three-configuration performance benchmark against pinned Koel
+and Pterodactyl revisions. It shows useful structural recovery in Koel and the
+cost of a shared lifecycle hook in Pterodactyl.
+
 ## Maintenance rules
 
 - Keep exact application, framework, PHPStan, Larastan, PHP, and extension

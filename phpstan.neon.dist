@@ -22,6 +22,7 @@ parameters:
     paths:
         - src
         - scripts/benchmark-bookstack.php
+        - scripts/benchmark-form-requests.php
         - scripts/valid-test-extractor-functions.php
         - tests
     excludePaths:
