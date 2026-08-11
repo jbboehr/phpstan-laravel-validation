@@ -48,6 +48,8 @@ its configured level.
 The benchmark reused the pinned application from the
 [BookStack compatibility investigation](bookstack-compatibility-investigation.md)
 and refreshed only the mirrored local extension package.
+The [development report index](README.md) distinguishes these recorded results
+from current feature documentation.
 
 | Component | Revision or value |
 | --- | --- |
@@ -159,11 +161,12 @@ The script records the exact BookStack and Composer package revisions in its
 output. Results should not be compared across revisions as if they measured
 only extension performance.
 
-## Limits and next steps
+## Limitations
 
 - This is one Laravel 12 application. BookStack uses controller and request
-  validation heavily but has no FormRequest classes, so it does not measure
-  the opt-in FormRequest registry.
+  validation heavily but has no FormRequest classes. The opt-in FormRequest
+  integration remained at its default disabled setting, so this benchmark
+  measures neither registry discovery nor FormRequest rule resolution.
 - Five alternating samples are adequate to identify a large regression, not
   to resolve sub-percent changes with statistical confidence.
 - Results from a 32-thread workstation do not predict GitHub-hosted runner

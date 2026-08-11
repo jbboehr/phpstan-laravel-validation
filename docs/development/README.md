@@ -1,0 +1,45 @@
+# Development investigations
+
+This directory contains pinned downstream investigations and performance
+measurements. These reports preserve the evidence, revisions, environment, and
+commands for a specific experiment. They are not user-facing support promises
+and should not be silently rewritten to describe a newer dependency release.
+
+Current configuration and feature documentation belongs in the project
+[`README`](../../README.md). Laravel-behavior evidence and contributor testing
+guidance belong in the
+[version inference audit](../laravel-version-inference-audit.md) and
+[testing guide](../testing.md).
+
+## Reports
+
+### [BookStack compatibility investigation](bookstack-compatibility-investigation.md)
+
+This records whole-application Larastan coexistence, the diagnostic
+differential, and runtime reproduction. The discovered null-rule crash is
+fixed; the application-level optional-upload finding remains external.
+
+### [BookStack performance benchmark](bookstack-performance-benchmark.md)
+
+This provides a reproducible baseline/extension comparison for wall time,
+memory, result caches, and parallel scaling. Its recorded results are a pinned
+2026-08-10 snapshot.
+
+The BookStack reports complement each other. The compatibility investigation
+asks whether the extension works and whether its types reveal useful findings.
+The benchmark asks what loading it costs on the same application. BookStack has
+77 ordinary validation entry points but no FormRequest classes, so neither
+report exercises the opt-in FormRequest registry.
+
+## Maintenance rules
+
+- Keep exact application, framework, PHPStan, Larastan, PHP, and extension
+  revisions with recorded results.
+- Distinguish an original failure, an audit-only workaround, and a verified
+  production fix.
+- Put repeatable tooling under `scripts/`; do not make an external application
+  a normal CI dependency merely because it was useful during an investigation.
+- Add a new dated result or follow-up section when rerunning an experiment
+  against newer dependencies. Do not make old measurements appear current.
+- Promote every extension bug found downstream into focused local regression
+  coverage before treating the investigation as complete.
