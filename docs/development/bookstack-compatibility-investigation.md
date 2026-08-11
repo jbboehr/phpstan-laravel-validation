@@ -5,6 +5,9 @@ This report records a real-application compatibility test of
 snapshot, not a new supported-platform promise or a permanent integration
 test.
 
+Analysis overhead is measured separately in the
+[BookStack performance benchmark](bookstack-performance-benchmark.md).
+
 Investigation date: 2026-08-09. Follow-up verification: 2026-08-10.
 
 ## Executive summary

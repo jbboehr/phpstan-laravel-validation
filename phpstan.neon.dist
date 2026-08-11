@@ -12,6 +12,7 @@ parameters:
     level: max
     paths:
         - src
+        - scripts/benchmark-bookstack.php
         - scripts/valid-test-extractor-functions.php
         - tests
     excludePaths:
