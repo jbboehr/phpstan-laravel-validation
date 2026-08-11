@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "1106bd3fb8701c126cf37921d7fd4641",
+    "content-hash": "c1d898a5d3b8579b8d126bb2514cdacb",
     "packages": [
         {
             "name": "nikic/php-parser",
@@ -962,6 +962,94 @@
                 }
             ],
             "time": "2026-07-17T13:53:03+00:00"
+        },
+        {
+            "name": "jbboehr/doctrine-of-the-second-sun",
+            "version": "dev-master",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/jbboehr/doctrine-of-the-second-sun.git",
+                "reference": "5c2c843c4d0f898eb5792e94187a74b2ce585ad5"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/jbboehr/doctrine-of-the-second-sun/zipball/5c2c843c4d0f898eb5792e94187a74b2ce585ad5",
+                "reference": "5c2c843c4d0f898eb5792e94187a74b2ce585ad5",
+                "shasum": ""
+            },
+            "require-dev": {
+                "php-cs-fixer/shim": "^3.95",
+                "phpstan/phpstan": "^2.1",
+                "phpunit/phpunit": "^10.5 || ^11.5"
+            },
+            "default-branch": true,
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "DoctrineOfTheSecondSun\\PHPStan\\": "integrations/phpstan/src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "DoctrineOfTheSecondSun\\PHPStan\\Tests\\": "integrations/phpstan/tests/"
+                },
+                "exclude-from-classmap": [
+                    "/integrations/phpstan/tests/data/"
+                ]
+            },
+            "archive": {
+                "exclude": [
+                    "/.git*",
+                    "/flake.lock",
+                    "/flake.nix",
+                    "/result*"
+                ]
+            },
+            "scripts": {
+                "analyse": [
+                    "phpstan analyse --configuration=integrations/phpstan/phpstan.neon.dist"
+                ],
+                "cs": [
+                    "php-cs-fixer fix --config=integrations/phpstan/.php-cs-fixer.dist.php --dry-run --diff"
+                ],
+                "cs:fix": [
+                    "php-cs-fixer fix --config=integrations/phpstan/.php-cs-fixer.dist.php"
+                ],
+                "test": [
+                    "@test:unit",
+                    "@test:integration"
+                ],
+                "test:unit": [
+                    "phpunit --configuration=integrations/phpstan/phpunit.xml.dist"
+                ],
+                "test:integration": [
+                    "phpstan analyse --configuration=integrations/phpstan/tests/extension-integration.neon --no-progress",
+                    "phpstan analyse --configuration=integrations/phpstan/tests/disabled-integration.neon --no-progress",
+                    "phpstan analyse --configuration=integrations/phpstan/tests/extension-trait-integration.neon --no-progress",
+                    "phpstan analyse --configuration=integrations/phpstan/tests/overlap-integration.neon --no-progress"
+                ]
+            },
+            "license": [
+                "(CC-BY-SA-4.0 AND AGPL-3.0-only WITH romic-exception)"
+            ],
+            "authors": [
+                {
+                    "name": "John Boehr",
+                    "email": "jbboehr@mailbox.org"
+                }
+            ],
+            "description": "Portable literary, visual, coding, technical-writing, and software-stewardship guidance",
+            "keywords": [
+                "doctrine",
+                "documentation",
+                "software-maintenance",
+                "writing"
+            ],
+            "support": {
+                "issues": "https://github.com/jbboehr/doctrine-of-the-second-sun/issues",
+                "source": "https://github.com/jbboehr/doctrine-of-the-second-sun"
+            },
+            "time": "2026-08-11T00:58:36+00:00"
         },
         {
             "name": "laravel/framework",
@@ -6837,7 +6925,9 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {},
+    "stability-flags": {
+        "jbboehr/doctrine-of-the-second-sun": 20
+    },
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {

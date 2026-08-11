@@ -1,0 +1,205 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Named declaration jbboehr\\PhpstanLaravelValidation\\Attribute\\ValidationRuleType must contain exactly one @logion PHPDoc tag\.$#'
+			identifier: doctrine.logion.missing
+			count: 1
+			path: src/Attribute/ValidationRuleType.php
+
+		-
+			message: '#^Named declaration jbboehr\\PhpstanLaravelValidation\\Evaluator\\UnsafeConstExprEvaluator must contain exactly one @logion PHPDoc tag\.$#'
+			identifier: doctrine.logion.missing
+			count: 1
+			path: src/Evaluator/UnsafeConstExprEvaluator.php
+
+		-
+			message: '#^Named declaration jbboehr\\PhpstanLaravelValidation\\Extension\\ControllerValidateExtension must contain exactly one @logion PHPDoc tag\.$#'
+			identifier: doctrine.logion.missing
+			count: 1
+			path: src/Extension/ControllerValidateExtension.php
+
+		-
+			message: '#^Named declaration jbboehr\\PhpstanLaravelValidation\\Extension\\ControllerValidateWithExtension must contain exactly one @logion PHPDoc tag\.$#'
+			identifier: doctrine.logion.missing
+			count: 1
+			path: src/Extension/ControllerValidateWithExtension.php
+
+		-
+			message: '#^Named declaration jbboehr\\PhpstanLaravelValidation\\Extension\\FacadeMakeExtension must contain exactly one @logion PHPDoc tag\.$#'
+			identifier: doctrine.logion.missing
+			count: 1
+			path: src/Extension/FacadeMakeExtension.php
+
+		-
+			message: '#^Named declaration jbboehr\\PhpstanLaravelValidation\\Extension\\FacadeValidateExtension must contain exactly one @logion PHPDoc tag\.$#'
+			identifier: doctrine.logion.missing
+			count: 1
+			path: src/Extension/FacadeValidateExtension.php
+
+		-
+			message: '#^Named declaration jbboehr\\PhpstanLaravelValidation\\Extension\\FactoryMakeExtension must contain exactly one @logion PHPDoc tag\.$#'
+			identifier: doctrine.logion.missing
+			count: 1
+			path: src/Extension/FactoryMakeExtension.php
+
+		-
+			message: '#^Named declaration jbboehr\\PhpstanLaravelValidation\\Extension\\FormRequestValidatedExtension must contain exactly one @logion PHPDoc tag\.$#'
+			identifier: doctrine.logion.missing
+			count: 1
+			path: src/Extension/FormRequestValidatedExtension.php
+
+		-
+			message: '#^Named declaration jbboehr\\PhpstanLaravelValidation\\Extension\\RequestValidateExtension must contain exactly one @logion PHPDoc tag\.$#'
+			identifier: doctrine.logion.missing
+			count: 1
+			path: src/Extension/RequestValidateExtension.php
+
+		-
+			message: '#^Named declaration jbboehr\\PhpstanLaravelValidation\\Extension\\ValidatorFunctionExtension must contain exactly one @logion PHPDoc tag\.$#'
+			identifier: doctrine.logion.missing
+			count: 1
+			path: src/Extension/ValidatorFunctionExtension.php
+
+		-
+			message: '#^Named declaration jbboehr\\PhpstanLaravelValidation\\Extension\\ValidatorSetRulesExtension must contain exactly one @logion PHPDoc tag\.$#'
+			identifier: doctrine.logion.missing
+			count: 1
+			path: src/Extension/ValidatorSetRulesExtension.php
+
+		-
+			message: '#^Named declaration jbboehr\\PhpstanLaravelValidation\\Extension\\ValidatorValidatedExtension must contain exactly one @logion PHPDoc tag\.$#'
+			identifier: doctrine.logion.missing
+			count: 1
+			path: src/Extension/ValidatorValidatedExtension.php
+
+		-
+			message: '#^Named declaration jbboehr\\PhpstanLaravelValidation\\ShouldNotHappenException must contain exactly one @logion PHPDoc tag\.$#'
+			identifier: doctrine.logion.missing
+			count: 1
+			path: src/ShouldNotHappenException.php
+
+		-
+			message: '#^Named declaration jbboehr\\PhpstanLaravelValidation\\Type\\ValidatorType must contain exactly one @logion PHPDoc tag\.$#'
+			identifier: doctrine.logion.missing
+			count: 1
+			path: src/Type/ValidatorType.php
+
+		-
+			message: '#^Named declaration jbboehr\\PhpstanLaravelValidation\\Type\\ValidatorTypeHelper must contain exactly one @logion PHPDoc tag\.$#'
+			identifier: doctrine.logion.missing
+			count: 1
+			path: src/Type/ValidatorTypeHelper.php
+
+		-
+			message: '#^Named declaration jbboehr\\PhpstanLaravelValidation\\Validation\\ArrayKeysRuleExpressionResolver must contain exactly one @logion PHPDoc tag\.$#'
+			identifier: doctrine.logion.missing
+			count: 1
+			path: src/Validation/ArrayKeysRuleExpressionResolver.php
+
+		-
+			message: '#^Named declaration jbboehr\\PhpstanLaravelValidation\\Validation\\ArrayRuleExpressionResolver must contain exactly one @logion PHPDoc tag\.$#'
+			identifier: doctrine.logion.missing
+			count: 1
+			path: src/Validation/ArrayRuleExpressionResolver.php
+
+		-
+			message: '#^Named declaration jbboehr\\PhpstanLaravelValidation\\Validation\\CustomRuleTypeResolver must contain exactly one @logion PHPDoc tag\.$#'
+			identifier: doctrine.logion.missing
+			count: 1
+			path: src/Validation/CustomRuleTypeResolver.php
+
+		-
+			message: '#^Named declaration jbboehr\\PhpstanLaravelValidation\\Validation\\EnumRuleExpressionResolver must contain exactly one @logion PHPDoc tag\.$#'
+			identifier: doctrine.logion.missing
+			count: 1
+			path: src/Validation/EnumRuleExpressionResolver.php
+
+		-
+			message: '#^Named declaration jbboehr\\PhpstanLaravelValidation\\Validation\\FormRequestRuleTypeResolver must contain exactly one @logion PHPDoc tag\.$#'
+			identifier: doctrine.logion.missing
+			count: 1
+			path: src/Validation/FormRequestRuleTypeResolver.php
+
+		-
+			message: '#^Named declaration jbboehr\\PhpstanLaravelValidation\\Validation\\FormRequestTypeRegistry must contain exactly one @logion PHPDoc tag\.$#'
+			identifier: doctrine.logion.missing
+			count: 1
+			path: src/Validation/FormRequestTypeRegistry.php
+
+		-
+			message: '#^Named declaration jbboehr\\PhpstanLaravelValidation\\Validation\\InRuleExpressionResolver must contain exactly one @logion PHPDoc tag\.$#'
+			identifier: doctrine.logion.missing
+			count: 1
+			path: src/Validation/InRuleExpressionResolver.php
+
+		-
+			message: '#^Named declaration jbboehr\\PhpstanLaravelValidation\\Validation\\InvalidCustomRuleContractException must contain exactly one @logion PHPDoc tag\.$#'
+			identifier: doctrine.logion.missing
+			count: 1
+			path: src/Validation/InvalidCustomRuleContractException.php
+
+		-
+			message: '#^Named declaration jbboehr\\PhpstanLaravelValidation\\Validation\\InvalidRuleException must contain exactly one @logion PHPDoc tag\.$#'
+			identifier: doctrine.logion.missing
+			count: 1
+			path: src/Validation/InvalidRuleException.php
+
+		-
+			message: '#^Named declaration jbboehr\\PhpstanLaravelValidation\\Validation\\LaravelVersionContext must contain exactly one @logion PHPDoc tag\.$#'
+			identifier: doctrine.logion.missing
+			count: 1
+			path: src/Validation/LaravelVersionContext.php
+
+		-
+			message: '#^Named declaration jbboehr\\PhpstanLaravelValidation\\Validation\\NotInRuleExpressionResolver must contain exactly one @logion PHPDoc tag\.$#'
+			identifier: doctrine.logion.missing
+			count: 1
+			path: src/Validation/NotInRuleExpressionResolver.php
+
+		-
+			message: '#^Named declaration jbboehr\\PhpstanLaravelValidation\\Validation\\Rule must contain exactly one @logion PHPDoc tag\.$#'
+			identifier: doctrine.logion.missing
+			count: 1
+			path: src/Validation/Rule.php
+
+		-
+			message: '#^Named declaration jbboehr\\PhpstanLaravelValidation\\Validation\\RuleParameterExpressionResolver must contain exactly one @logion PHPDoc tag\.$#'
+			identifier: doctrine.logion.missing
+			count: 1
+			path: src/Validation/RuleParameterExpressionResolver.php
+
+		-
+			message: '#^Named declaration jbboehr\\PhpstanLaravelValidation\\Validation\\RuleParser must contain exactly one @logion PHPDoc tag\.$#'
+			identifier: doctrine.logion.missing
+			count: 1
+			path: src/Validation/RuleParser.php
+
+		-
+			message: '#^Named declaration jbboehr\\PhpstanLaravelValidation\\Validation\\RuleSetResolver must contain exactly one @logion PHPDoc tag\.$#'
+			identifier: doctrine.logion.missing
+			count: 1
+			path: src/Validation/RuleSetResolver.php
+
+		-
+			message: '#^Named declaration jbboehr\\PhpstanLaravelValidation\\Validation\\TooManyRuleAlternativesException must contain exactly one @logion PHPDoc tag\.$#'
+			identifier: doctrine.logion.missing
+			count: 1
+			path: src/Validation/RuleSetResolver.php
+
+		-
+			message: '#^Named declaration jbboehr\\PhpstanLaravelValidation\\Validation\\RuleTreeNode must contain exactly one @logion PHPDoc tag\.$#'
+			identifier: doctrine.logion.missing
+			count: 1
+			path: src/Validation/RuleTreeNode.php
+
+		-
+			message: '#^Named declaration jbboehr\\PhpstanLaravelValidation\\Validation\\StaticRuleValue must contain exactly one @logion PHPDoc tag\.$#'
+			identifier: doctrine.logion.missing
+			count: 1
+			path: src/Validation/StaticRuleValue.php
+
+		-
+			message: '#^Named declaration jbboehr\\PhpstanLaravelValidation\\Validation\\TypeResolver must contain exactly one @logion PHPDoc tag\.$#'
+			identifier: doctrine.logion.missing
+			count: 1
+			path: src/Validation/TypeResolver.php

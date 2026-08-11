@@ -3,8 +3,17 @@ includes:
     - vendor/phpstan/phpstan-phpunit/extension.neon
     - vendor/phpstan/phpstan-phpunit/rules.neon
     - vendor/phpstan/phpstan-strict-rules/rules.neon
+    - vendor/jbboehr/doctrine-of-the-second-sun/integrations/phpstan/extension.neon
+    - phpstan-logion-baseline.neon
     - extension.neon
 parameters:
+    doctrineOfTheSecondSun:
+        enabled: true
+        filePatterns:
+            - '#/src/#'
+        checkClassLikes: true
+        checkMethods: false
+        checkFunctions: false
     stubFiles:
         # The development lock uses Laravel 10; version-pinned fixtures exercise
         # Rule factories introduced in later Laravel releases.
