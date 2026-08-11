@@ -1,5 +1,6 @@
 parameters:
   phpstanLaravelValidation:
+    laravelVersion: '10.0.0'
     formRequests:
       enabled: true
       trustedClasses:

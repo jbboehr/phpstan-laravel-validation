@@ -31,6 +31,9 @@ use Illuminate\Validation\Factory;
 use Illuminate\Validation\Validator;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\BasicRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\ContainerInjectedRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\InheritedEmptyWithValidatorRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\KeyedValidatedRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\NumericKeyValidatedRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\IntermediateWithValidatorRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\ThisConstantChildRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\TraitWithValidatorRequest;
@@ -85,6 +88,43 @@ final class FormRequestLaravelRuntimeTest extends \PHPStan\Testing\PHPStanTestCa
 
         self::assertSame(['child' => 'required|array'], $request->rules());
         self::assertSame(['child' => ['value']], $request->validated());
+    }
+
+    public function testInheritedEmptyWithValidatorLeavesValidatedOutputUnchanged(): void
+    {
+        $request = $this->resolveRequest(InheritedEmptyWithValidatorRequest::class, [
+            'inherited_empty_hook' => 'kept',
+        ]);
+
+        self::assertSame(
+            ['inherited_empty_hook' => 'kept'],
+            $request->validated()
+        );
+    }
+
+    public function testKeyedValidatedDelegatesToDataGet(): void
+    {
+        $request = $this->resolveRequest(KeyedValidatedRequest::class, [
+            'name' => 'Ada',
+            'nickname' => null,
+            'profile' => ['email' => 'ada@example.com'],
+        ]);
+
+        self::assertSame('Ada', $request->validated('name'));
+        self::assertNull($request->validated('nickname', 'fallback'));
+        self::assertSame('ada@example.com', $request->validated('profile.email'));
+        self::assertSame('fallback', $request->validated('profile.note', 'fallback'));
+        self::assertSame('fallback', $request->validated('absent', 'fallback'));
+        self::assertSame('lazy', $request->validated('absent', static fn (): string => 'lazy'));
+    }
+
+    public function testIntegerKeyedValidatedUsesLaravelArrayKeySemantics(): void
+    {
+        $request = $this->resolveRequest(NumericKeyValidatedRequest::class, [0 => 'zero']);
+
+        self::assertSame('zero', $request->validated(0));
+        self::assertSame('zero', $request->validated('0'));
+        self::assertNull($request->validated(1));
     }
 
     public function testIntermediateWithValidatorHookCanReplaceTheEffectiveRules(): void
@@ -143,7 +183,7 @@ final class FormRequestLaravelRuntimeTest extends \PHPStan\Testing\PHPStanTestCa
     /**
      * @template T of FormRequest
      * @param class-string<T> $requestClass
-     * @param array<string, mixed> $input
+     * @param array<array-key, mixed> $input
      * @return T
      */
     private function resolveRequest(string $requestClass, array $input): FormRequest

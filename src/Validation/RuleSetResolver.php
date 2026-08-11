@@ -24,6 +24,8 @@ namespace jbboehr\PhpstanLaravelValidation\Validation;
 use jbboehr\PhpstanLaravelValidation\Evaluator\UnsafeConstExprEvaluator;
 use PhpParser\ConstExprEvaluationException;
 use PhpParser\Node\Expr;
+use PhpParser\Node\Identifier;
+use PhpParser\Node\Name;
 use PHPStan\Analyser\Scope;
 use PHPStan\Type\Constant\ConstantArrayType;
 use PHPStan\Type\Type;
@@ -158,7 +160,76 @@ final class RuleSetResolver
             ?? $this->inRuleExpressionResolver->resolve($expression, $scope)
             ?? $this->notInRuleExpressionResolver->resolve($expression, $scope)
             ?? $this->arrayRuleExpressionResolver->resolve($expression, $scope)
-            ?? $this->arrayKeysRuleExpressionResolver->resolve($expression, $scope);
+            ?? $this->arrayKeysRuleExpressionResolver->resolve($expression, $scope)
+            ?? $this->resolveDatabaseRuleExpression($expression, $scope);
+    }
+
+    private function resolveDatabaseRuleExpression(Expr $expression, Scope $scope): ?Rule
+    {
+        if (!$this->laravelVersionContext->isSupported()) {
+            return null;
+        }
+
+        if ($expression instanceof Expr\StaticCall
+            && $expression->class instanceof Name
+            && $expression->name instanceof Identifier
+            && $this->resolveName($expression->class, $scope) === \Illuminate\Validation\Rule::class
+        ) {
+            return match ($expression->name->toLowerString()) {
+                'exists' => Rule::create('Exists'),
+                'unique' => Rule::create('Unique'),
+                default => null,
+            };
+        }
+
+        if ($expression instanceof Expr\New_
+            && $expression->class instanceof Name
+        ) {
+            return match ($this->resolveName($expression->class, $scope)) {
+                \Illuminate\Validation\Rules\Exists::class => Rule::create('Exists'),
+                \Illuminate\Validation\Rules\Unique::class => Rule::create('Unique'),
+                default => null,
+            };
+        }
+
+        if (!$expression instanceof Expr\MethodCall
+            || !$expression->name instanceof Identifier
+        ) {
+            return null;
+        }
+
+        $rule = $this->resolveDatabaseRuleExpression($expression->var, $scope);
+        if ($rule === null) {
+            return null;
+        }
+
+        $methodName = $expression->name->toLowerString();
+        $sharedMethods = [
+            'where',
+            'wherenot',
+            'wherenull',
+            'wherenotnull',
+            'wherein',
+            'wherenotin',
+            'withouttrashed',
+            'onlytrashed',
+            'using',
+        ];
+        if (in_array($methodName, $sharedMethods, true)
+            || ($rule->getRuleName() === 'Unique' && in_array($methodName, ['ignore', 'ignoremodel'], true))
+        ) {
+            return $rule;
+        }
+
+        return null;
+    }
+
+    private function resolveName(Name $name, Scope $scope): string
+    {
+        $resolvedName = $name->getAttribute('resolvedName');
+        return $resolvedName instanceof Name
+            ? $resolvedName->toString()
+            : $scope->resolveName($name);
     }
 
     private function containsResolvableBuiltInRuleExpression(Expr\Array_ $expression, Scope $scope): bool

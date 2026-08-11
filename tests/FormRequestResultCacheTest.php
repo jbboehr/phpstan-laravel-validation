@@ -187,6 +187,36 @@ PHP);
         self::assertSame(0, $second->getExitCode(), $second->getErrorOutput() . $second->getOutput());
     }
 
+    public function testRegistryManifestIsWrittenAndCorruptionFallsBackSafely(): void
+    {
+        $this->writeRequest("return ['value' => 'required|string'];");
+
+        $first = $this->analyse();
+        self::assertSame(0, $first->getExitCode(), $first->getErrorOutput() . $first->getOutput());
+
+        $manifests = glob(
+            $this->projectDirectory . '/cache/phpstan-laravel-validation/form-requests-*.json'
+        );
+        self::assertIsArray($manifests);
+        self::assertCount(1, $manifests);
+        $contents = file_get_contents($manifests[0]);
+        self::assertIsString($contents);
+        $manifest = json_decode($contents, true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($manifest);
+        self::assertSame(2, $manifest['schema'] ?? null);
+        $descriptorHash = $manifest['descriptorHash'] ?? null;
+        self::assertIsString($descriptorHash);
+        self::assertMatchesRegularExpression('/^[a-f0-9]{64}$/D', $descriptorHash);
+
+        $warm = $this->analyse(true);
+        self::assertSame(0, $warm->getExitCode(), $warm->getErrorOutput() . $warm->getOutput());
+        self::assertSame($contents, file_get_contents($manifests[0]));
+
+        self::assertNotFalse(file_put_contents($manifests[0], '{corrupt'));
+        $second = $this->analyse(true);
+        self::assertSame(0, $second->getExitCode(), $second->getErrorOutput() . $second->getOutput());
+    }
+
     private function analyse(bool $failWithoutResultCache = false): Process
     {
         $command = [

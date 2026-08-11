@@ -146,7 +146,7 @@ parameters:
 
 When enabled, the extension resolves statically available return expressions
 from `rules()` on conventional concrete `FormRequest` classes and applies the
-resulting shape to whole-payload `validated()` and `validated(null)` calls:
+resulting shape to whole-payload and supported keyed `validated()` calls:
 
 ```php
 final class StorePersonRequest extends \Illuminate\Foundation\Http\FormRequest
@@ -179,9 +179,13 @@ not currently expanded unless PHPStan can expose the complete constant result.
 `FormRequest` is a validator lifecycle, not just a `rules()` method. Inference
 therefore falls back when the request overrides `validated()`,
 `getValidatorInstance()`, `createDefaultValidator()`, `validationRules()`, or
-`passedValidation()`, or declares `validator()`, `withValidator()`, or
-`after()`. Those hooks can replace the effective validator, mutate its rules,
-or alter what a later `validated()` call returns.
+`passedValidation()`, or declares `validator()`, a non-empty
+`withValidator()`, or `after()`. Those hooks can replace the effective
+validator, mutate its rules, or alter what a later `validated()` call returns.
+A userland `withValidator()` body containing no executable statements is
+recognized as a no-op, including when inherited or provided by a trait. Any
+executable statement or body the parser cannot verify restores the conservative
+fallback.
 
 A project can explicitly assert that a particular class's lifecycle hooks do
 not invalidate its `rules()` contract:
@@ -207,10 +211,15 @@ Adding an exact class to `trustedClasses` also makes it discoverable, but that
 setting simultaneously asserts that its lifecycle hooks are safe; it is not a
 risk-free discovery-only option.
 
-Keyed `validated($key)` calls are left to Laravel's declared type (or another
-extension), as are `safe()` calls. The inferred contract also assumes callers
-do not replace the resolved validator through the inherited public
-`setValidator()` method before calling `validated()`.
+Constant string and integer keys, ordinary dotted paths, finite constant-key
+unions, and explicit defaults participate in `validated($key, $default)`
+inference. Optional paths include the default type; an omitted default is
+`null`. Dynamic keys, wildcard or first/last traversal, segment arrays,
+object-property traversal, and `Closure` defaults remain `mixed` when their
+runtime result cannot be described soundly. `safe()` calls are still left to
+Laravel's declared type. The inferred contract also assumes callers do not
+replace the resolved validator through the inherited public `setValidator()`
+method before calling `validated()`.
 
 ### Enum rule objects
 
@@ -341,6 +350,33 @@ those runtime contracts.
 Before Laravel 13.24, or when arguments are dynamic, unpacked, `Arrayable`, or
 otherwise unavailable to analysis, inference remains conservative. Assigned
 builder objects and direct `ArrayKeys` construction also remain opaque.
+
+### Database rule builders
+
+Fresh inline `Rule::exists()` and `Rule::unique()` builders are recognized as
+type-neutral predicates. Their database query changes whether validation
+succeeds, but successful validation preserves the original input value, so an
+adjacent value rule remains responsible for the native PHP type:
+
+```php
+$validated = Validator::make($input, [
+    'parent_id' => [
+        'nullable',
+        'uuid',
+        Rule::exists('folders', 'id')->where('owner_id', $ownerId),
+    ],
+])->validated();
+
+\PHPStan\dumpType($validated);
+// array{parent_id?: string|null}
+```
+
+Direct construction of Laravel's exact `Exists` and `Unique` classes is also
+recognized. The supported fluent chain includes their `where*()`, soft-delete,
+query-callback, and unique-ignore methods because those methods return the same
+rule object and do not transform validated output. Assigned builders,
+subclasses, conditional `when()` or `unless()` chains, dynamic factory calls,
+and unknown methods remain conservative.
 
 ### Custom validation rules
 

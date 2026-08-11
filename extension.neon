@@ -46,6 +46,7 @@ services:
     arguments:
       parser: @currentPhpVersionSimpleDirectParser
       workingDirectory: %currentWorkingDirectory%
+      tmpDirectory: %tmpDir%
       enabled: %phpstanLaravelValidation.formRequests.enabled%
       trustedClasses: %phpstanLaravelValidation.formRequests.trustedClasses%
       analysedPaths: %analysedPaths%

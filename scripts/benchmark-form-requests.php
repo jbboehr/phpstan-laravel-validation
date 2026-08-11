@@ -133,6 +133,7 @@ $metadata = [
     'laravel' => $versions['laravel/framework'] ?? 'unknown',
     'larastan' => $versions['larastan/larastan'] ?? 'unknown',
     'extension' => $versions['jbboehr/phpstan-laravel-validation'] ?? 'unknown',
+    'extensionSource' => formRequestBenchmarkExtensionSource($extensionConfiguration),
     'extensionAlreadyLoaded' => $extensionAlreadyLoaded ? 'yes' : 'no',
     'extensionLoadingDetection' => $extensionLoadingDetection,
     'logicalCpus' => formRequestBenchmarkLogicalCpuCount(),
@@ -898,6 +899,7 @@ function captureFormRequestBenchmarkCommand(array $command): string
         ? trim($stdout)
         : 'unknown' . (is_string($stderr) && $stderr !== '' ? ': ' . trim($stderr) : '');
 }
+
 /** @return array{stdout: resource, stderr: resource}|null */
 function captureFormRequestBenchmarkOutputPipes(mixed $pipes): ?array
 {
@@ -918,4 +920,28 @@ function captureFormRequestBenchmarkOutputPipes(mixed $pipes): ?array
     }
 
     return ['stdout' => $stdout, 'stderr' => $stderr];
+}
+
+function formRequestBenchmarkExtensionSource(string $configuration): string
+{
+    $root = realpath(dirname($configuration));
+    if (!is_string($root)) {
+        return 'unknown';
+    }
+
+    $commit = captureFormRequestBenchmarkCommand(['git', '-C', $root, 'rev-parse', 'HEAD']);
+    if (str_starts_with($commit, 'unknown')) {
+        return $commit;
+    }
+
+    $status = captureFormRequestBenchmarkCommand([
+        'git',
+        '-C',
+        $root,
+        'status',
+        '--short',
+        '--untracked-files=no',
+    ]);
+
+    return $commit . ($status === '' ? '' : '+working-tree');
 }

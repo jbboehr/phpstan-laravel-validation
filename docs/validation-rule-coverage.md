@@ -72,9 +72,9 @@ separate dimensions.
 | Accepted-value handling | Rule names | Focused static coverage | Meaning |
 | --- | ---: | ---: | --- |
 | Direct type contribution | 57 | 57 | A native value type is emitted and has dedicated focused static coverage |
-| Explicitly neutral | 45 | 11 | The rule does not narrow the local value type, whether intentionally or because a correlated model is unavailable |
+| Explicitly neutral | 45 | 13 | The rule does not narrow the local value type, whether intentionally or because a correlated model is unavailable |
 | Conservative `mixed` fallback | 12 | 0 | No built-in accepted-value model is applied |
-| **Total reserved names** | **114** | **73 files** | Covers the current Laravel 13.24 name inventory, including `Enum` and `Password` |
+| **Total reserved names** | **114** | **74 files** | Covers the current Laravel 13.24 name inventory, including `Enum` and `Password` |
 
 The repository's generated Laravel fixtures provide broader conformance
 coverage than the focused-file count suggests. Focused files are still
@@ -190,8 +190,8 @@ fluent builders through `Illuminate\Validation\Rule` and classes under
 
 Current static extraction treats them in three ways:
 
-- fresh inline `Enum`, `Rule::in()`, `Rule::notIn()`, `Rule::array()`, and
-  `Rule::arrayKeys()`
+- fresh inline `Enum`, `Rule::in()`, `Rule::notIn()`, `Rule::array()`,
+  `Rule::arrayKeys()`, `Rule::exists()`, and `Rule::unique()`
   expressions receive dedicated extraction of their statically visible
   semantics;
 - predicate objects implementing Laravel's rule contracts are treated like
@@ -202,9 +202,9 @@ Current static extraction treats them in three ways:
 
 | Current extraction | Representative Laravel objects | Consequence |
 | --- | --- | --- |
-| Dedicated built-in extraction | `Enum`, `Rule::in()`, `Rule::notIn()`, `Rule::array()`, `Rule::arrayKeys()` | Fresh inline `Enum` expressions contribute case objects plus the backing and weakly coerced values Laravel can preserve; `Rule::in()`, `Rule::array()`, and `Rule::arrayKeys()` recover literal scalar parameters; `Rule::notIn()` contributes a neutral predicate without evaluating the forbidden set; dynamic or mutated object state stays `mixed` |
+| Dedicated built-in extraction | `Enum`, `Rule::in()`, `Rule::notIn()`, `Rule::array()`, `Rule::arrayKeys()`, `Rule::exists()`, `Rule::unique()` | Fresh inline `Enum` expressions contribute case objects plus the backing and weakly coerced values Laravel can preserve; `Rule::in()`, `Rule::array()`, and `Rule::arrayKeys()` recover literal scalar parameters; the exclusion and database builders contribute neutral predicates without executing their comparisons or queries; dynamic or unsupported object state stays `mixed` |
 | Custom predicate with `mixed` accepted type | `AnyOf`, `Can`, `Email`, `File`, `ImageFile`, `Password` | Adjacent built-in string rules survive, but object state and built-in semantics are not recovered |
-| Opaque `Stringable` builder | direct `ArrayKeys` and `ArrayRule` construction, `Contains`, `Date`, `Dimensions`, `DoesntContain`, `ExcludeIf`, `ExcludeUnless`, `Exists`, `Numeric`, `ProhibitedIf`, `ProhibitedUnless`, `RequiredIf`, `RequiredUnless`, `StringRule`, `Unique` | The path widens to optional `mixed`, even when the builder serializes to a supported string rule |
+| Opaque `Stringable` builder | direct `ArrayKeys` and `ArrayRule` construction, `Contains`, `Date`, `Dimensions`, `DoesntContain`, `ExcludeIf`, `ExcludeUnless`, `Numeric`, `ProhibitedIf`, `ProhibitedUnless`, `RequiredIf`, `RequiredUnless`, `StringRule`, and assigned or unsupported `Exists` / `Unique` chains | The path widens to optional `mixed`, even when the builder serializes to a supported string rule |
 | Opaque runtime program | `Rule::when`, `Rule::unless`, `Rule::forEach`, `NestedRules`, macros | Runtime callbacks or macro state provide no generally available static contract |
 
 Built-in builder support remains a separate implementation track. Treating
@@ -213,7 +213,9 @@ imprecise for constant builder expressions whose constructor and fluent-call
 state are statically available. Fresh inline `Rule::arrayKeys()` calls now
 recover the same string contract confirmed by focused runtime coverage;
 assigned objects and direct construction still lose their key state and remain
-opaque.
+opaque. Fresh exact `Exists` and `Unique` objects and their verified fluent
+query modifiers contribute neutral predicates; their database state affects
+acceptance, not the native type Laravel preserves.
 
 ## Prioritized work
 

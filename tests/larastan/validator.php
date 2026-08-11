@@ -48,4 +48,6 @@ function inspectFormRequest(BasicRequest $request): void
         'array{name: string, age?: float|int|string|Stringable|true}',
         $request->validated()
     );
+    assertType('string', $request->validated('name'));
+    assertType('float|int|string|Stringable|true|null', $request->validated('age'));
 }

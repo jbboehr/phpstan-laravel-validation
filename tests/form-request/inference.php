@@ -11,14 +11,21 @@ use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\AfterRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\ConcreteInheritedRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\ConditionalRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\CreateDefaultValidatorRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\DatabaseRuleRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\EmptyTraitWithValidatorRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\CustomValidatorRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\CustomRuleRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\ClassConstantRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\ContainerInjectedRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\GetValidatorInstanceRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\IntermediateWithValidatorRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\InheritedEmptyWithValidatorRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\KeyedValidatedRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\NumericKeyValidatedRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\OverriddenValidatedRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\OverriddenEmptyWithValidatorRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\PassedValidationRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\ReturnOnlyWithValidatorRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\SelfConstantChildRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\StaticConstantChildRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\ThisConstantChildRequest;
@@ -42,7 +49,7 @@ function inspectBasic(BasicRequest $request): void
         'array{name: string, age?: float|int|string|Stringable|true}',
         $request->validated(null)
     );
-    assertType('mixed', $request->validated('name'));
+    assertType('string', $request->validated('name'));
 
     $null = null;
     assertType(
@@ -110,7 +117,7 @@ function inspectFallbacks(
     TraitAfterRequest $traitAfter
 ): void {
     assertType('mixed', $unresolved->validated());
-    assertType('mixed', $withValidator->validated());
+    assertType('array{unsafe: string}', $withValidator->validated());
     assertType('mixed', $passedValidation->validated());
     assertType('mixed', $after->validated());
     assertType('mixed', $customValidator->validated());
@@ -121,17 +128,82 @@ function inspectFallbacks(
     assertType('mixed', $traitAfter->validated());
 }
 
+function inspectEmptyWithValidatorHooks(
+    InheritedEmptyWithValidatorRequest $inherited,
+    EmptyTraitWithValidatorRequest $trait,
+    OverriddenEmptyWithValidatorRequest $overridden,
+    ReturnOnlyWithValidatorRequest $returnOnly
+): void {
+    assertType('array{inherited_empty_hook: string}', $inherited->validated());
+    assertType('array{trait_empty_hook: string}', $trait->validated());
+    assertType('mixed', $overridden->validated());
+    assertType('mixed', $returnOnly->validated());
+}
+
 function inspectTrusted(
     TrustedWithValidatorRequest $request,
     TrustedSubclassRequest $subclass
 ): void {
     assertType('array{trusted: string}', $request->validated());
-    assertType('mixed', $subclass->validated());
+    assertType('array{trusted: string}', $subclass->validated());
 }
 
 function inspectOverride(OverriddenValidatedRequest $request): void
 {
     assertType('string', $request->validated());
+}
+
+function inspectKeyedValidated(KeyedValidatedRequest $request, string $dynamicKey): void
+{
+    assertType('string', $request->validated('name'));
+    assertType('string|null', $request->validated('nickname'));
+    assertType('float|int|string|Stringable|true|null', $request->validated('age'));
+    assertType('float|int|string|Stringable|true', $request->validated('age', 'unknown'));
+    assertType('non-empty-string', $request->validated('profile.email'));
+    assertType('string|null', $request->validated('profile.note'));
+    assertType('null', $request->validated('absent'));
+    assertType('42', $request->validated('absent', 42));
+    assertType('42', $request->validated(default: 42, key: 'absent'));
+    assertType(
+        'array{name: string, nickname?: string|null, age?: float|int|string|Stringable|true, '
+        . 'profile: array{email: non-empty-string, note?: string}, '
+        . 'items?: array<int|string, array{id: float|int|numeric-string|Stringable|true}>|string}',
+        $request->validated(default: 42)
+    );
+    assertType('null', $request->validated('name.character'));
+    assertType('null', $request->validated(''));
+    assertType('mixed', $request->validated('absent', static fn (): string => 'fallback'));
+    assertType('mixed', $request->validated('items.*.id'));
+    assertType('mixed', $request->validated('profile.{first}'));
+    assertType('mixed', $request->validated('profile.\\{first}'));
+    assertType('mixed', $request->validated('profile.\\*'));
+    assertType('mixed', $request->validated($dynamicKey));
+
+    $key = random_int(0, 1) === 1 ? 'name' : 'age';
+    assertType('float|int|string|Stringable|true|null', $request->validated($key));
+
+    $nullableKey = random_int(0, 1) === 1 ? 'name' : null;
+    assertType(
+        'array{name: string, nickname?: string|null, age?: float|int|string|Stringable|true, '
+        . 'profile: array{email: non-empty-string, note?: string}, '
+        . 'items?: array<int|string, array{id: float|int|numeric-string|Stringable|true}>|string}|string',
+        $request->validated($nullableKey)
+    );
+}
+
+function inspectDatabaseRuleRequest(DatabaseRuleRequest $request): void
+{
+    assertType(
+        'array{parent_id?: float|int|string|Stringable|true|null}',
+        $request->validated()
+    );
+}
+
+function inspectNumericKeyValidated(NumericKeyValidatedRequest $request): void
+{
+    assertType('string', $request->validated(0));
+    assertType('string', $request->validated('0'));
+    assertType('null', $request->validated(1));
 }
 
 /** @param BasicRequest|TraitRequest $request */

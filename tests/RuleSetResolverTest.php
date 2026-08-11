@@ -26,6 +26,8 @@ use jbboehr\PhpstanLaravelValidation\Test\CustomRules\UnknownRule;
 use jbboehr\PhpstanLaravelValidation\Validation\RuleSetResolver;
 use jbboehr\PhpstanLaravelValidation\Validation\TypeResolver;
 use PhpParser\Node\Expr;
+use PhpParser\Node\Identifier;
+use PhpParser\Node\Name\FullyQualified;
 use PhpParser\Node\Scalar\String_;
 use PHPStan\Analyser\Scope;
 use PHPStan\Testing\PHPStanTestCase;
@@ -44,7 +46,10 @@ final class RuleSetResolverTest extends PHPStanTestCase
 {
     public static function getAdditionalConfigFiles(): array
     {
-        return [__DIR__ . '/../extension.neon'];
+        return [
+            __DIR__ . '/../extension.neon',
+            __DIR__ . '/phpstan.neon',
+        ];
     }
 
     public function testResolvesStaticObjectRuleWithoutEvaluatingIt(): void
@@ -136,6 +141,48 @@ final class RuleSetResolverTest extends PHPStanTestCase
     public function testReturnsNoRulesWhenStaticResolutionAndEvaluationFail(): void
     {
         self::assertSame([], $this->resolve(new MixedType()));
+    }
+
+    public function testResolvesFreshDatabaseRuleBuilderAsNeutralPredicate(): void
+    {
+        $expression = new Expr\Array_([
+            new Expr\ArrayItem(
+                new Expr\Array_([
+                    new Expr\ArrayItem(new String_('required')),
+                    new Expr\ArrayItem(new Expr\MethodCall(
+                        new Expr\StaticCall(
+                            new FullyQualified(\Illuminate\Validation\Rule::class),
+                            new Identifier('exists')
+                        ),
+                        new Identifier('where')
+                    )),
+                ]),
+                new String_('value')
+            ),
+        ]);
+        $scope = $this->createMock(Scope::class);
+        $scope->method('getType')->willReturnCallback(
+            static fn (Expr $node): Type => $node instanceof String_
+                ? new ConstantStringType($node->value)
+                : new MixedType()
+        );
+        $scope->method('resolveName')->willReturnCallback(
+            static fn (\PhpParser\Node\Name $name): string => $name->toString()
+        );
+
+        $trees = self::getContainer()
+            ->getByType(RuleSetResolver::class)
+            ->resolve($expression, $scope);
+
+        self::assertCount(1, $trees);
+        self::assertSame('array{value: mixed}', self::describe($trees[0]));
+        self::assertSame(
+            ['Required', 'Exists'],
+            array_map(
+                static fn (\jbboehr\PhpstanLaravelValidation\Validation\Rule $rule): string => $rule->getRuleName(),
+                $trees[0]->resolvePath('value')->getRules()
+            )
+        );
     }
 
     /**

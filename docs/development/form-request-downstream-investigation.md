@@ -11,7 +11,8 @@ This report tests the experimental FormRequest integration against
 This is a pinned development investigation, not a compatibility or performance
 promise for later revisions.
 
-Investigation date: 2026-08-10.
+Initial investigation date: 2026-08-10. Follow-up implementation and rerun:
+2026-08-11.
 
 ## Result
 
@@ -19,6 +20,8 @@ Koel demonstrates that the integration can recover useful structural types
 across a large conventional FormRequest corpus. Pterodactyl demonstrates the
 cost of the conservative lifecycle gate: a harmless-looking hook on a shared
 base class can deliberately leave most requests broad.
+
+Initial implementation:
 
 | App | Requests | Eligible | Shapes | Broad | Native errors | Enabled errors |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -30,10 +33,26 @@ produced the same diagnostic hash within each application. Pterodactyl's 29
 diagnostics were present before this extension was loaded. No new crash,
 soundness regression, or downstream diagnostic was found.
 
+After recognizing provably empty `withValidator()` bodies and selected
+database builders:
+
+| App | Requests | Eligible | Shapes | Broad | Native errors | Enabled errors |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Koel | 97 | 94 | 85 | 9 | 0 | 0 |
+| Pterodactyl | 113 | 98 | 48 | 50 | 29 | 29 |
+
+Pterodactyl's remaining lifecycle exclusions are 11 custom `validated()`
+implementations, one `getValidatorInstance()` override, and three non-empty
+`withValidator()` hooks. Ten otherwise eligible requests have unresolved rules
+and 40 resolve to conservative `mixed`; eligibility is not itself a promise of
+a useful shape.
+
 The integration has a measurable startup cost when enabled. The cleanest cold
 serial comparison added 2.36 seconds and 6.2 MiB in Koel, and 1.24 seconds and
 3.2 MiB in Pterodactyl. Merely registering the extension while leaving
-FormRequests disabled was within run-to-run noise.
+FormRequests disabled was within run-to-run noise. The follow-up manifest
+reduces the warm incremental cost to approximately 0.05 seconds in Koel and
+0.03 seconds in Pterodactyl.
 
 ## What the applications exercise
 
@@ -56,11 +75,13 @@ and an honest precision limit:
 | --- | --- |
 | Native Larastan | `array<string, mixed>` |
 | FormRequests enabled | `array{name?: string, parent_id?: mixed}` |
+| Follow-up | `array{name?: string, parent_id?: string&#124;null}` |
 
-The extension recovers the output keys and the `name` predicate. `parent_id`
-remains `mixed` because its fluent `Rule::exists(...)->where(...)` object has no
-supported static output contract. Widening that leaf is preferable to claiming
-a native type Laravel does not establish.
+The extension recovers the output keys and the `name` predicate. Initially,
+the fluent `Rule::exists(...)->where(...)` object made `parent_id` opaque. The
+follow-up recognizes the database rule as a type-neutral predicate, allowing
+the adjacent `nullable|uuid` rules to establish `string|null` without claiming
+that the database check transforms the value.
 
 Three Koel requests override `passedValidation()` and therefore fail the
 lifecycle gate. This is expected: the hook runs after validation and can mutate
@@ -72,7 +93,7 @@ Pterodactyl has 117 PHP files under `app/Http/Requests`, 113 concrete
 FormRequests, 77 `rules()` implementations, and 24 calls to `validated()` in 15
 application files.
 
-Only 27 concrete classes pass the lifecycle gate:
+Initially, only 27 concrete classes passed the lifecycle gate:
 
 | Eligibility result | Classes |
 | --- | ---: |
@@ -81,16 +102,16 @@ Only 27 concrete classes pass the lifecycle gate:
 | `validated()` overridden | 11 |
 | `getValidatorInstance()` overridden | 1 |
 
-The principal cause is `ApplicationApiRequest`. It declares a no-op
+The principal cause was `ApplicationApiRequest`. It declares a no-op
 `withValidator()` method, and 83 concrete requests descend from it. The
-extension does not attempt to prove arbitrary hook bodies harmless, so those
-requests remain broad. Eleven descendants are classified earlier because they
-also override `validated()`.
+initial extension did not attempt to prove arbitrary hook bodies harmless, so
+those requests remained broad. Eleven descendants were classified earlier
+because they also override `validated()`.
 
-That conservatism is justified for soundness but costly for this codebase:
-discovery still examines the requests even though most cannot be narrowed. A
-future slice could recognize a narrowly defined, statically empty lifecycle
-hook, provided inherited and overridden behavior remain conservative.
+The follow-up accepts only a parsed `withValidator()` body with no executable
+statements. That admits the inherited no-op without generalizing to arbitrary
+hooks, increasing eligibility to 98 requests and structural shapes to 48.
+Non-empty overrides remain excluded.
 
 The inventory probe produced shapes for 19 of the 27 eligible classes. Eight
 eligible requests retained broad types because their `rules()` expressions
@@ -102,7 +123,9 @@ were not statically resolvable. Representative probes were:
 - `Admin\Egg\EggFormRequest` remains `array` because the class declares a
   validator lifecycle hook.
 - `Api\Application\Locations\StoreLocationRequest` remains
-  `array<string, mixed>` because of the inherited no-op `withValidator()`.
+  `array<string, mixed>` after the follow-up because its rules are assembled
+  from `Location::getRules()` through a runtime collection pipeline. The
+  inherited no-op hook is no longer the blocker.
 
 ## Performance result
 
@@ -140,6 +163,27 @@ analysis faster.
 
 The total cold serial impact relative to native was 1.24 seconds, 15.5%, and
 4.4 MiB. The native and extension-disabled cold serial medians were identical.
+
+### Follow-up performance
+
+The cache manifest avoids parsing and resolving every request merely to answer
+PHPStan's result-cache metadata query when the discovered source contents and
+Composer metadata are unchanged. Five-sample medians after the implementation
+were:
+
+| App | Cache | Mode | Off | On | Increment |
+| --- | --- | --- | ---: | ---: | ---: |
+| Koel | Cold | One | 24.58 s | 26.83 s | +2.25 s |
+| Koel | Cold | Default | 6.77 s | 8.69 s | +1.92 s |
+| Koel | Warm | Default | 0.35 s | 0.40 s | +0.05 s |
+| Pterodactyl | Cold | One | 7.92 s | 9.33 s | +1.41 s |
+| Pterodactyl | Cold | Default | 3.32 s | 4.93 s | +1.61 s |
+| Pterodactyl | Warm | Default | 0.29 s | 0.32 s | +0.03 s |
+
+All follow-up samples retained the same application-specific diagnostic hash.
+Cold analysis still builds the registry, and Pterodactyl now resolves many
+more eligible requests, so this optimization primarily addresses repeated
+cached invocations rather than eliminating cold discovery.
 
 ### Raw wall-time samples
 
@@ -196,19 +240,19 @@ PHPStan coordinator in default-worker mode, not aggregate process-tree memory,
 so the parallel RSS figures are retained in the machine-readable results but
 are not interpreted here.
 
-The warm percentages look dramatic because they compare a fixed discovery and
-resolution cost with a very small cached scan. PHPStan asks the registry for
-result-cache metadata in each fresh process. The extension must rediscover the
-relevant source classes and describe their inferred types before PHPStan can
-decide whether its previous result cache is valid. On these applications that
-adds approximately 0.55 seconds for Pterodactyl and 0.85 seconds for Koel.
+In the initial run, the warm percentages looked dramatic because they compared
+a fixed discovery and resolution cost with a very small cached scan. PHPStan
+asks the registry for result-cache metadata in each fresh process. The
+extension must rediscover the relevant source classes and describe their
+inferred types before PHPStan can decide whether its previous result cache is
+valid. On these applications that adds approximately 0.55 seconds for
+Pterodactyl and 0.85 seconds for Koel.
 
-This is the main actionable performance finding. The integration is disabled
-by default, so ordinary extension users do not pay it. Projects opting into
-FormRequests do pay it on incremental command invocations as well as cold
-analysis. Any optimization must preserve cache invalidation when request
-classes, inherited rules, custom contracts, trusted-class configuration, or
-Laravel versions change.
+The manifest follow-up removes most of that fixed warm cost while preserving
+content-based invalidation. The integration is disabled by default, so
+ordinary extension users do not pay its cold discovery cost. Projects opting
+into FormRequests still pay for initial analysis and whenever relevant source
+or Composer metadata changes.
 
 Pterodactyl initially exhausted its project's effective 128 MiB limit when the
 audit first enabled FormRequests. A controlled rerun used a 2 GiB limit and
@@ -239,8 +283,11 @@ not a 280 MiB registry regression.
 - Native scan: level 4 over `app`.
 - Native diagnostics: 29.
 
-Both targets used `phpstan-laravel-validation` from `develop` at
-`e8ec818eb51b`.
+The initial targets used `phpstan-laravel-validation` from `develop` at
+`e8ec818eb51b`. The follow-up used the local working tree based on
+`0bf439b46f17`; Composer's path-dependency lock reference remained at the
+older commit, which is why the harness now records the resolved extension
+source revision separately from package lock metadata.
 
 Both benchmarks used PHP 8.5.9 on NixOS, Linux 7.1.5, on an AMD Ryzen 9
 9950X3D with 16 cores and 32 logical CPUs. The PHPStan memory limit was fixed
@@ -316,17 +363,10 @@ the extension by another mechanism, or `0` when a locked extension installer
 is disabled and does not load it. The chosen posture is recorded in benchmark
 metadata.
 
-## Follow-up candidates
+## Remaining candidates
 
-1. Profile and reduce the registry's fresh-process discovery and cache-hash
-   cost, using these two applications as before-and-after workloads.
-1. Investigate narrowly recognizing inherited lifecycle hooks whose bodies are
-   provably empty. Do not generalize this to arbitrary hooks, and keep override
-   behavior conservative.
-1. Add static contracts for selected common fluent rule objects, such as the
-   `Rule::exists(...)->where(...)` case seen in Koel, as separate rule-resolver
-   slices with Laravel runtime verification.
-
-The first item has the broadest impact. The second would materially improve
-Pterodactyl but needs a careful soundness design. The third improves precision
-independently of FormRequest discovery.
+1. Profile cold discovery separately now that warm cache hashing is cheap.
+1. Extend selected rule-object support only where Laravel runtime evidence
+   establishes a useful static contract.
+1. Investigate `safe()` and additional FormRequest access patterns separately;
+   neither follows automatically from keyed `validated()` support.
