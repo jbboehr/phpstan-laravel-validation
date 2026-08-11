@@ -20,12 +20,12 @@ the repository's generated fixtures:
 | --- | --- | ---: | --- |
 | 10.50.2 | [`3ff39b7a`](https://github.com/laravel/framework/commit/3ff39b7a9b83e633383ec9b019827ed54b6d38bc) | 102 | Pinned fixture |
 | 11.55.0 | [`dc7ec34a`](https://github.com/laravel/framework/commit/dc7ec34ae95bacf4a63b96ec81482b4f3e702289) | 107 | Pinned fixture and current latest |
-| 12.64.0 | [`727a8ea2`](https://github.com/laravel/framework/commit/727a8ea2949c23ca8b5316b86a00984b6017b7a0) | 110 | Pinned fixture; 12.65.0 has the same rule inventory |
+| 12.64.0 | [`727a8ea2`](https://github.com/laravel/framework/commit/727a8ea2949c23ca8b5316b86a00984b6017b7a0) | 110 | Pinned fixture; 12.65.0 and 12.66.0 have the same rule inventory |
 | 13.23.0 | [`92a70722`](https://github.com/laravel/framework/commit/92a707229148e57f08a249211c8a5a194159c619) | 111 | Pinned fixture |
-| 13.24.0 | [`6d481710`](https://github.com/laravel/framework/commit/6d481710375d2aa67656922ef760cdd2b18bcfe0) | 112 | Current latest; adds `array_keys` |
+| 13.24.0 | [`6d481710`](https://github.com/laravel/framework/commit/6d481710375d2aa67656922ef760cdd2b18bcfe0) | 112 | Pinned boundary fixture; adds `array_keys`; 13.25.0 has the same rule inventory |
 
 `Enum` and `Password` are rule objects rather than `validate*` methods. With
-those included, the current Laravel 13.24 surface corresponds exactly to the
+those included, the current Laravel 13.25 surface corresponds exactly to the
 114 names reserved by `TypeResolver::BUILT_IN_RULE_NAMES`.
 
 Laravel added these rules and rule-object features during the supported major
@@ -74,7 +74,7 @@ separate dimensions.
 | Direct type contribution | 57 | 57 | A native value type is emitted and has dedicated focused static coverage |
 | Explicitly neutral | 45 | 13 | The rule does not narrow the local value type, whether intentionally or because a correlated model is unavailable |
 | Conservative `mixed` fallback | 12 | 0 | No built-in accepted-value model is applied |
-| **Total reserved names** | **114** | **74 files** | Covers the current Laravel 13.24 name inventory, including `Enum` and `Password` |
+| **Total reserved names** | **114** | **74 files** | Covers the current Laravel 13.25 name inventory, including `Enum` and `Password` |
 
 The repository's generated Laravel fixtures provide broader conformance
 coverage than the focused-file count suggests. Focused files are still

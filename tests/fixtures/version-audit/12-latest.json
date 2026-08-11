@@ -1,8 +1,8 @@
 {
     "profile": "12-latest",
     "constraint": "^12.0",
-    "recordedVersion": "12.65.0",
-    "commit": "99a8fb3153f962a323377d6742be08da86bcccb8",
+    "recordedVersion": "12.66.0",
+    "commit": "82a53323c701a668f9054cbeb1d6b6cdbb6a5e10",
     "cases": {
         "accepted.true": {
             "concern": "native value",

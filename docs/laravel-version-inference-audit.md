@@ -63,7 +63,7 @@ inference.
 | `12.22.0` | `12.22.0` | 8.2 | 12.22.0 | [`6ab00c913ef6`](https://github.com/laravel/framework/commit/6ab00c913ef6ec6fad0bd506f7452c0bb9e792c3) |
 | `12.39.0` | `12.39.0` | 8.2 | 12.39.0 | [`1a6176129ef2`](https://github.com/laravel/framework/commit/1a6176129ef28eaf42b6b4a6250025120c3d8dac) |
 | `12.40.0` | `12.40.0` | 8.2 | 12.40.0 | [`3159215d904a`](https://github.com/laravel/framework/commit/3159215d904a2b04c5b903bce0328d54f1688d0f) |
-| `12-latest` | `^12.0` | 8.2 | 12.65.0 | [`99a8fb3153f9`](https://github.com/laravel/framework/commit/99a8fb3153f962a323377d6742be08da86bcccb8) |
+| `12-latest` | `^12.0` | 8.2 | 12.66.0 | [`82a53323c701`](https://github.com/laravel/framework/commit/82a53323c701a668f9054cbeb1d6b6cdbb6a5e10) |
 | `13.0.0` | `13.0.0` | 8.3 | 13.0.0 | [`3e33f431a053`](https://github.com/laravel/framework/commit/3e33f431a05365d008742ff8001b92641086d5f8) |
 | `13.3.0` | `13.3.0` | 8.3 | 13.3.0 | [`118b7063c44a`](https://github.com/laravel/framework/commit/118b7063c44a2f3421d1646f5ddf08defcfd1db3) |
 | `13.4.0` | `13.4.0` | 8.3 | 13.4.0 | [`912de244f88a`](https://github.com/laravel/framework/commit/912de244f88a69742b76e8a2807f6765947776da) |
@@ -71,7 +71,7 @@ inference.
 | `13.21.0` | `13.21.0` | 8.3 | 13.21.0 | [`d1e02ce7b7e2`](https://github.com/laravel/framework/commit/d1e02ce7b7e25146177a1a0137c37bccb32d26d3) |
 | `13.23.0` | `13.23.0` | 8.3 | 13.23.0 | [`92a707229148`](https://github.com/laravel/framework/commit/92a707229148e57f08a249211c8a5a194159c619) |
 | `13.24.0` | `13.24.0` | 8.3 | 13.24.0 | [`6d481710375d`](https://github.com/laravel/framework/commit/6d481710375d2aa67656922ef760cdd2b18bcfe0) |
-| `13-latest` | `^13.0` | 8.3 | 13.24.0 | [`6d481710375d`](https://github.com/laravel/framework/commit/6d481710375d2aa67656922ef760cdd2b18bcfe0) |
+| `13-latest` | `^13.0` | 8.3 | 13.25.0 | [`ed36fe882bd4`](https://github.com/laravel/framework/commit/ed36fe882bd4eed4e6ff75343cbad8dbda03fdba) |
 
 The `*-latest` constraints intentionally float in CI. Their committed
 baselines record the releases above. A later patch release that changes any

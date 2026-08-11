@@ -424,8 +424,8 @@ through 13, and its committed upstream fixtures are pinned to:
 | --- | --- | --- |
 | 10 | 10.50.2 | [`3ff39b7a9b83`](https://github.com/laravel/framework/commit/3ff39b7a9b83e633383ec9b019827ed54b6d38bc) |
 | 11 | 11.55.0 | [`dc7ec34ae95b`](https://github.com/laravel/framework/commit/dc7ec34ae95bacf4a63b96ec81482b4f3e702289) |
-| 12 | 12.65.0 | [`99a8fb3153f9`](https://github.com/laravel/framework/commit/99a8fb3153f962a323377d6742be08da86bcccb8) |
-| 13 | 13.24.0 | [`6d481710375d`](https://github.com/laravel/framework/commit/6d481710375d2aa67656922ef760cdd2b18bcfe0) |
+| 12 | 12.66.0 | [`82a53323c701`](https://github.com/laravel/framework/commit/82a53323c701a668f9054cbeb1d6b6cdbb6a5e10) |
+| 13 | 13.25.0 | [`ed36fe882bd4`](https://github.com/laravel/framework/commit/ed36fe882bd4eed4e6ff75343cbad8dbda03fdba) |
 
 The [CI matrix](../.github/workflows/ci.yml) installs every supported major,
 its first release, and known semantic boundary releases, then runs the complete
