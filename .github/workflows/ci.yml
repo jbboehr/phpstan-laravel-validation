@@ -93,6 +93,10 @@ jobs:
         name: "Test | PHP ${{ matrix.php-version }} | Laravel ${{ matrix.laravel-profile }}"
         strategy:
             fail-fast: false
+            # Bound concurrent Composer traffic from the roughly 100-profile
+            # Cartesian matrix. GitHub-hosted runners otherwise produce
+            # intermittent package download and API failures under fan-out.
+            max-parallel: 12
             matrix:
                 php-version:
                     - "8.1"
@@ -246,10 +250,26 @@ jobs:
                       ${{ runner.os }}-php-${{ matrix.php-version }}-laravel-${{ matrix.laravel-profile }}-
 
             - name: Install dependencies
-              run: composer install --prefer-dist --no-progress --ignore-platform-req=php+
+              run: |
+                  for attempt in 1 2 3; do
+                      composer install --prefer-dist --no-progress --ignore-platform-req=php+ && break
+                      if [[ "$attempt" -eq 3 ]]; then
+                          exit 1
+                      fi
+                      echo "::warning::Composer install failed on attempt $attempt; retrying"
+                      sleep "$((attempt * 10))"
+                  done
 
             - name: Install laravel
-              run: composer require --prefer-dist --no-progress --with-all-dependencies --dev --ignore-platform-req=php+ --no-blocking laravel/framework:${{ matrix.laravel-constraint }}
+              run: |
+                  for attempt in 1 2 3; do
+                      composer require --prefer-dist --no-progress --with-all-dependencies --dev --ignore-platform-req=php+ --no-blocking laravel/framework:${{ matrix.laravel-constraint }} && break
+                      if [[ "$attempt" -eq 3 ]]; then
+                          exit 1
+                      fi
+                      echo "::warning::Composer require failed on attempt $attempt; retrying"
+                      sleep "$((attempt * 10))"
+                  done
 
             - name: Run test suite
               env:
