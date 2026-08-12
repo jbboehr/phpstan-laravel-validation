@@ -35,7 +35,8 @@ final class FacadeValidateExtension implements DynamicStaticMethodReturnTypeExte
 {
     public function __construct(
         private RuleSetResolver $ruleSetResolver,
-        private TypeResolver $typeResolver
+        private TypeResolver $typeResolver,
+        private CallArgumentResolver $callArgumentResolver
     ) {
     }
 
@@ -55,11 +56,15 @@ final class FacadeValidateExtension implements DynamicStaticMethodReturnTypeExte
         Scope $scope
     ): ?\PHPStan\Type\Type {
         try {
-            if (count($methodCall->getArgs()) < 2) {
+            $rulesArg = $this->callArgumentResolver->find(
+                $methodCall->getArgs(),
+                'rules',
+                1
+            );
+            if ($rulesArg === null) {
                 return null;
             }
 
-            $rulesArg = $methodCall->getArgs()[1];
             $ruleTrees = $this->ruleSetResolver->resolve($rulesArg->value, $scope);
             if ($ruleTrees === []) {
                 return null;

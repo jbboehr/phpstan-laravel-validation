@@ -33,3 +33,16 @@ $validateWithDynamicReplacementRules = static function (Factory $factory, array 
         ->validated();
     assertType('array', $validated);
 };
+
+$namedReplacement = $factory
+    ->make([], ['before' => 'required|string'])
+    ->setRules(rules: ['after' => 'required|string'])
+    ->validated();
+assertType('array{after: string}', $namedReplacement);
+
+$replacementSpread = [['after' => 'required|string']];
+$spreadReplacement = $factory
+    ->make([], ['before' => 'required|string'])
+    ->setRules(...$replacementSpread)
+    ->validated();
+assertType('array', $spreadReplacement);

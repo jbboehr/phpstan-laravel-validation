@@ -20,3 +20,13 @@ $rawOptional = $request->validate([
     'value' => 'array',
 ]);
 assertType('array{value?: array|string}', $rawOptional);
+
+$namedValidated = $request->validate(
+    rules: ['value' => 'required|string']
+);
+assertType('array{value: string}', $namedValidated);
+
+$requestSpread = [[
+    'value' => 'required|string',
+]];
+assertType('array', $request->validate(...$requestSpread));

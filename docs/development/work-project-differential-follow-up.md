@@ -15,7 +15,7 @@ for the proprietary application.
 | Slice | Finding | Kind | Priority | Status |
 | ---: | --- | --- | --- | --- |
 | 1 | Normalize Laravel's `int` and `bool` aliases | Precision defect | High | Implemented locally |
-| 2 | Infer `Illuminate\Validation\Factory::validate()` | Missing entrypoint | High | Pending |
+| 2 | Infer `Illuminate\Validation\Factory::validate()` | Missing entrypoint | High | Implemented locally |
 | 3 | Model `includeUnvalidatedArrayKeys()` configuration | Conditional soundness | Highest risk | Pending |
 | 4 | Preserve listness through safe nested projection | Precision defect | Medium | Pending |
 | 5 | Narrow native numerics for numeric `in` parameters | Precision improvement | Low | Pending |
@@ -59,6 +59,15 @@ Add a dynamic method return-type extension or extend the existing factory
 extension without changing `make()`'s validator-object result. Cover nested
 dotted rules, unresolved rules, custom contracts, named arguments, and
 coexistence with Larastan.
+
+The existing factory method extension now evaluates direct `validate()` calls
+while preserving `make()`'s validator-object result. Static fixtures cover
+nested dotted rules, named arguments in source order, broad fallback for
+dynamic or unpacked rules, declared custom-rule contracts, and both Larastan
+registration orders. A shared argument resolver applies the same named and
+unpacked-argument handling across every validation entrypoint. A runtime
+witness calls the direct method positionally and with named arguments and will
+run against every supported Laravel CI profile.
 
 ## Slice 3: unvalidated nested array keys
 

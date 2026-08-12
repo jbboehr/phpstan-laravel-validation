@@ -114,6 +114,11 @@ $factoryValidated = $factory->make([], [
 ])->validated();
 assertType('array{value: string}', $factoryValidated);
 
+$factoryDirectValidated = $factory->validate([], [
+    'value' => ['required', new AttributeRule()],
+]);
+assertType('array{value: non-empty-string}', $factoryDirectValidated);
+
 $helperValidated = validator([], [
     'value' => ['required', 'string', new UnknownRule()],
 ])->validated();

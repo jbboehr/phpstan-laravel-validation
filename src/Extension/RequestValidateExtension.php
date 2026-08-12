@@ -38,6 +38,7 @@ final class RequestValidateExtension implements DynamicMethodReturnTypeExtension
     public function __construct(
         private RuleSetResolver $ruleSetResolver,
         private TypeResolver $typeResolver,
+        private CallArgumentResolver $callArgumentResolver,
         bool $assumeHttpInputNormalization
     ) {
         $this->assumeHttpInputNormalization = $assumeHttpInputNormalization;
@@ -59,11 +60,15 @@ final class RequestValidateExtension implements DynamicMethodReturnTypeExtension
         Scope $scope
     ): ?\PHPStan\Type\Type {
         try {
-            if (count($methodCall->getArgs()) < 1) {
+            $rulesArg = $this->callArgumentResolver->find(
+                $methodCall->getArgs(),
+                'rules',
+                0
+            );
+            if ($rulesArg === null) {
                 return null;
             }
 
-            $rulesArg = $methodCall->getArgs()[0];
             $ruleTrees = $this->ruleSetResolver->resolve($rulesArg->value, $scope);
             if ($ruleTrees === []) {
                 return null;

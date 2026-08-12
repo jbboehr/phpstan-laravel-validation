@@ -23,3 +23,24 @@ $validator = \Illuminate\Support\Facades\Validator::make([], [
 ]);
 $validated = $controller->validateWith($validator, new \Illuminate\Http\Request());
 assertType("float|int|numeric-string|Stringable|true", $validated['amount']);
+
+$namedValidated = $controller->validate(
+    rules: ['value' => 'required|string'],
+    request: new \Illuminate\Http\Request()
+);
+assertType('array{value: string}', $namedValidated);
+
+$controllerSpread = [['value' => 'required|string']];
+assertType(
+    'array',
+    $controller->validate(new \Illuminate\Http\Request(), ...$controllerSpread)
+);
+
+$validatedWithoutRequest = $controller->validateWith(validator: $validator);
+assertType(
+    "float|int|numeric-string|Stringable|true",
+    $validatedWithoutRequest['amount']
+);
+
+$validateWithSpread = [$validator];
+assertType('array', $controller->validateWith(...$validateWithSpread));

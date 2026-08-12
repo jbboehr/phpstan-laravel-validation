@@ -25,6 +25,7 @@ use jbboehr\PhpstanLaravelValidation\ShouldNotHappenException;
 use jbboehr\PhpstanLaravelValidation\Type\ValidatorType;
 use jbboehr\PhpstanLaravelValidation\Validation\InvalidCustomRuleContractException;
 use jbboehr\PhpstanLaravelValidation\Validation\RuleSetResolver;
+use jbboehr\PhpstanLaravelValidation\Validation\TypeResolver;
 use PhpParser\Node\Expr\MethodCall;
 use PHPStan\Analyser\Scope;
 use PHPStan\Reflection\MethodReflection;
@@ -34,7 +35,9 @@ use PHPStan\Type\TypeCombinator;
 final class FactoryMakeExtension implements DynamicMethodReturnTypeExtension
 {
     public function __construct(
-        private RuleSetResolver $ruleSetResolver
+        private RuleSetResolver $ruleSetResolver,
+        private TypeResolver $typeResolver,
+        private CallArgumentResolver $callArgumentResolver
     ) {
     }
 
@@ -45,7 +48,7 @@ final class FactoryMakeExtension implements DynamicMethodReturnTypeExtension
 
     public function isMethodSupported(MethodReflection $methodReflection): bool
     {
-        return $methodReflection->getName() === 'make';
+        return in_array($methodReflection->getName(), ['make', 'validate'], true);
     }
 
     public function getTypeFromMethodCall(
@@ -54,14 +57,25 @@ final class FactoryMakeExtension implements DynamicMethodReturnTypeExtension
         Scope $scope
     ): ?\PHPStan\Type\Type {
         try {
-            if (count($methodCall->getArgs()) < 2) {
+            $rulesArg = $this->callArgumentResolver->find(
+                $methodCall->getArgs(),
+                'rules',
+                1
+            );
+            if ($rulesArg === null) {
                 return null;
             }
 
-            $rulesArg = $methodCall->getArgs()[1];
             $ruleTrees = $this->ruleSetResolver->resolve($rulesArg->value, $scope);
             if ($ruleTrees === []) {
                 return null;
+            }
+
+            if ($methodReflection->getName() === 'validate') {
+                return TypeCombinator::union(...array_map(
+                    fn ($ruleTree) => $this->typeResolver->evaluate($ruleTree),
+                    $ruleTrees
+                ));
             }
 
             return TypeCombinator::union(...array_map(

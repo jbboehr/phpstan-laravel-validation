@@ -51,6 +51,14 @@ $data = $request->validate([
 
 The explicit `person` rule makes that offset required. Without it, wildcard rules only constrain matching elements, so the inferred shape uses `person?`: the offset may be absent, but its value is still a non-null array when present.
 
+The same rule-set inference applies to
+`Illuminate\Validation\Factory::make($data, $rules)` and direct
+`Factory::validate($data, $rules)` calls, including when `data` and `rules` are
+passed as named arguments. Dynamic rule sets retain Laravel's broad declared
+return types. Calls that supply the relevant argument only through `...`
+unpacking also retain those broad types rather than guessing which unpacked
+element contains the rules.
+
 If the input data does not match the rules array, an `\Illuminate\Validation\ValidationException` is thrown. For successful input, this extension conservatively infers the values and shape Laravel may preserve in the validated output.
 
 ## Installation

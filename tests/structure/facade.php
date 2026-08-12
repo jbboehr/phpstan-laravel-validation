@@ -14,3 +14,25 @@ if (isset($validated['person'][0])) {
     assertType('non-empty-string', $validated['person'][0]['email']);
     assertType('string', $validated['person'][0]['first_name']);
 }
+
+$namedValidated = \Illuminate\Support\Facades\Validator::validate(
+    rules: ['value' => 'required|string'],
+    data: []
+);
+assertType('array{value: string}', $namedValidated);
+
+$namedMade = \Illuminate\Support\Facades\Validator::make(
+    rules: ['value' => 'required|string'],
+    data: []
+)->validated();
+assertType('array{value: string}', $namedMade);
+
+$facadeSpread = [['value' => 'required|string'], []];
+assertType(
+    'array',
+    \Illuminate\Support\Facades\Validator::validate([], ...$facadeSpread)
+);
+assertType(
+    'array',
+    \Illuminate\Support\Facades\Validator::make([], ...$facadeSpread)->validated()
+);

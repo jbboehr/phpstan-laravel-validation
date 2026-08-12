@@ -34,7 +34,8 @@ use PHPStan\Type\TypeCombinator;
 final class ValidatorSetRulesExtension implements DynamicMethodReturnTypeExtension
 {
     public function __construct(
-        private RuleSetResolver $ruleSetResolver
+        private RuleSetResolver $ruleSetResolver,
+        private CallArgumentResolver $callArgumentResolver
     ) {
     }
 
@@ -54,11 +55,16 @@ final class ValidatorSetRulesExtension implements DynamicMethodReturnTypeExtensi
         Scope $scope
     ): ?\PHPStan\Type\Type {
         try {
-            if (count($methodCall->getArgs()) < 1) {
+            $rulesArg = $this->callArgumentResolver->find(
+                $methodCall->getArgs(),
+                'rules',
+                0
+            );
+            if ($rulesArg === null) {
                 return null;
             }
 
-            $ruleTrees = $this->ruleSetResolver->resolve($methodCall->getArgs()[0]->value, $scope);
+            $ruleTrees = $this->ruleSetResolver->resolve($rulesArg->value, $scope);
             if ($ruleTrees === []) {
                 return null;
             }

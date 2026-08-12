@@ -35,7 +35,8 @@ use PHPStan\Type\TypeCombinator;
 final class ValidatorFunctionExtension implements DynamicFunctionReturnTypeExtension
 {
     public function __construct(
-        private RuleSetResolver $ruleSetResolver
+        private RuleSetResolver $ruleSetResolver,
+        private CallArgumentResolver $callArgumentResolver
     ) {
     }
 
@@ -54,11 +55,15 @@ final class ValidatorFunctionExtension implements DynamicFunctionReturnTypeExten
                 return new ObjectType(\Illuminate\Contracts\Validation\Factory::class);
             }
 
-            if (count($functionCall->getArgs()) < 2) {
+            $rulesArg = $this->callArgumentResolver->find(
+                $functionCall->getArgs(),
+                'rules',
+                1
+            );
+            if ($rulesArg === null) {
                 return null;
             }
 
-            $rulesArg = $functionCall->getArgs()[1];
             $ruleTrees = $this->ruleSetResolver->resolve($rulesArg->value, $scope);
             if ($ruleTrees === []) {
                 return null;

@@ -64,6 +64,7 @@ services:
       - phpstan.resultCacheMetaExtension
   - class: jbboehr\PhpstanLaravelValidation\Validation\TypeResolver
   - class: jbboehr\PhpstanLaravelValidation\Type\ValidatorTypeHelper
+  - class: jbboehr\PhpstanLaravelValidation\Extension\CallArgumentResolver
   - class: jbboehr\PhpstanLaravelValidation\Extension\ControllerValidateExtension
     arguments:
       assumeHttpInputNormalization: %phpstanLaravelValidation.assumeHttpInputNormalization%

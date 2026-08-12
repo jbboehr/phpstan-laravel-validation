@@ -32,7 +32,8 @@ use PHPStan\Type\DynamicMethodReturnTypeExtension;
 final class ControllerValidateWithExtension implements DynamicMethodReturnTypeExtension
 {
     public function __construct(
-        private ValidatorTypeHelper $validatorTypeHelper
+        private ValidatorTypeHelper $validatorTypeHelper,
+        private CallArgumentResolver $callArgumentResolver
     ) {
     }
 
@@ -57,11 +58,16 @@ final class ControllerValidateWithExtension implements DynamicMethodReturnTypeEx
                 return null;
             }
 
-            if (count($methodCall->getArgs()) < 2) {
+            $validatorArg = $this->callArgumentResolver->find(
+                $methodCall->getArgs(),
+                'validator',
+                0
+            );
+            if ($validatorArg === null) {
                 return null;
             }
 
-            $validatorType = $scope->getType($methodCall->getArgs()[0]->value);
+            $validatorType = $scope->getType($validatorArg->value);
             return $this->validatorTypeHelper->resolveValidatedType($validatorType);
         } catch (\Throwable $e) {
             throw new ShouldNotHappenException($e->getMessage(), $e);

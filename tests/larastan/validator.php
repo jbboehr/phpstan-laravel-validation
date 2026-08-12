@@ -42,6 +42,12 @@ $unknownCustom = $factory->make([], [
 ])->validated();
 assertType('array{value: string}', $unknownCustom);
 
+$factoryDirect = $factory->validate([], [
+    'payload' => 'required|array',
+    'payload.name' => 'required|string',
+]);
+assertType('array{payload: array{name: string}}', $factoryDirect);
+
 function inspectFormRequest(BasicRequest $request): void
 {
     assertType(

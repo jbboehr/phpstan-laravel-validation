@@ -177,6 +177,45 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         );
     }
 
+    public function testFactoryValidateReturnsOutputAcceptedByInference(): void
+    {
+        self::getContainer();
+
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $data = [
+            'person' => [
+                'name' => 'Ada',
+                'age' => '42',
+            ],
+        ];
+        $rules = [
+            'person' => 'required|array',
+            'person.name' => 'required|string',
+            'person.age' => 'required|integer',
+        ];
+
+        $validated = $factory->validate($data, $rules);
+        self::assertSame($data, $validated);
+        self::assertSame(
+            $factory->make($data, $rules)->validated(),
+            $validated
+        );
+        self::assertSame(
+            $validated,
+            $factory->validate(rules: $rules, data: $data)
+        );
+
+        $rulesType = (new TypeResolver())->evaluate(RuleParser::parse($rules));
+        self::assertTrue(
+            $rulesType->accepts($this->convertToType($validated), true)->yes()
+        );
+    }
+
     /**
      * @dataProvider unconditionalAcceptanceRuleProvider
      */
