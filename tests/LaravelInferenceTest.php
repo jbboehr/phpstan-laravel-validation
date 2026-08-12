@@ -216,6 +216,167 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         );
     }
 
+    public function testFactoryUnvalidatedArrayKeyModesMatchInference(): void
+    {
+        self::getContainer();
+
+        $laravelVersion = ltrim(
+            (string) InstalledVersions::getPrettyVersion('laravel/framework'),
+            'v'
+        );
+        $context = new LaravelVersionContext('', $laravelVersion);
+        $newFactory = static fn (): \Illuminate\Validation\Factory =>
+            new \Illuminate\Validation\Factory(
+                new \Illuminate\Translation\Translator(
+                    new \Illuminate\Translation\ArrayLoader(),
+                    'en'
+                )
+            );
+
+        $cases = [
+            'associative parent' => [
+                [
+                    'payload' => [
+                        'name' => 'Ada',
+                        'admin' => true,
+                    ],
+                ],
+                [
+                    'payload' => 'required|array',
+                    'payload.name' => 'required|string',
+                ],
+                ['payload' => ['name' => 'Ada']],
+            ],
+            'list-shaped parent' => [
+                [
+                    'items' => [
+                        ['id' => '1', 'extra' => 'a'],
+                        ['id' => '2', 'extra' => 'b'],
+                    ],
+                ],
+                [
+                    'items' => 'required|array',
+                    'items.*.id' => 'required|integer',
+                ],
+                [
+                    'items' => [
+                        ['id' => '1'],
+                        ['id' => '2'],
+                    ],
+                ],
+            ],
+        ];
+
+        if ($context->isAtLeast('11.23.0')) {
+            $cases['literal list parent'] = [
+                [
+                    'items' => [
+                        ['id' => '1', 'extra' => 'a'],
+                        ['id' => '2', 'extra' => 'b'],
+                    ],
+                ],
+                [
+                    'items' => 'required|list',
+                    'items.*.id' => 'required|integer',
+                ],
+                [
+                    'items' => [
+                        ['id' => '1'],
+                        ['id' => '2'],
+                    ],
+                ],
+            ];
+            $cases['literal list parent with sparse nested matches'] = [
+                [
+                    'items' => [
+                        ['other' => 'x'],
+                        ['id' => '2'],
+                    ],
+                ],
+                [
+                    'items' => 'required|list',
+                    'items.*.id' => 'sometimes|integer',
+                ],
+                [
+                    'items' => [
+                        1 => ['id' => '2'],
+                    ],
+                ],
+            ];
+        }
+
+        foreach ($cases as $name => [$data, $rules, $expectedDefault]) {
+            $defaultFactory = $newFactory();
+            $default = $defaultFactory->validate($data, $rules);
+            self::assertSame($expectedDefault, $default, $name . ': default output');
+
+            $includedFactory = $newFactory();
+            $includedFactory->includeUnvalidatedArrayKeys();
+            $included = $includedFactory->validate($data, $rules);
+            self::assertSame($data, $included, $name . ': included output');
+
+            $includedFactory->excludeUnvalidatedArrayKeys();
+            self::assertSame(
+                $expectedDefault,
+                $includedFactory->validate($data, $rules),
+                $name . ': restored default output'
+            );
+
+            $ruleTree = RuleParser::parse($rules, $context);
+            $defaultType = (new TypeResolver($context))->evaluate($ruleTree);
+            $includedType = (new TypeResolver($context, null, true))->evaluate($ruleTree);
+            self::assertTrue(
+                $defaultType->accepts($this->convertToType($default), true)->yes(),
+                $name . ': default inference contains runtime output'
+            );
+            self::assertTrue(
+                $includedType->accepts($this->convertToType($included), true)->yes(),
+                $name . ': included inference contains runtime output'
+            );
+        }
+
+        $mutatedCases = [
+            'excluded required array offset' => [
+                [
+                    'payload' => [
+                        'name' => 'Ada',
+                        'other' => true,
+                    ],
+                ],
+                [
+                    'payload' => 'required|array|required_array_keys:name',
+                    'payload.name' => 'exclude',
+                ],
+                ['payload' => ['other' => true]],
+            ],
+        ];
+
+        if ($context->isAtLeast('11.0.3')) {
+            $mutatedCases['excluded list element'] = [
+                ['items' => ['zero', 'one']],
+                [
+                    'items' => 'required|list',
+                    'items.0' => 'exclude',
+                ],
+                ['items' => [1 => 'one']],
+            ];
+        }
+
+        foreach ($mutatedCases as $name => [$data, $rules, $expected]) {
+            $factory = $newFactory();
+            $factory->includeUnvalidatedArrayKeys();
+            $validated = $factory->validate($data, $rules);
+            self::assertSame($expected, $validated, $name . ': included output');
+
+            $ruleTree = RuleParser::parse($rules, $context);
+            $includedType = (new TypeResolver($context, null, true))->evaluate($ruleTree);
+            self::assertTrue(
+                $includedType->accepts($this->convertToType($validated), true)->yes(),
+                $name . ': included inference contains mutated runtime output'
+            );
+        }
+    }
+
     /**
      * @dataProvider unconditionalAcceptanceRuleProvider
      */

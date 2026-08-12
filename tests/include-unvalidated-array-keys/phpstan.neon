@@ -1,0 +1,6 @@
+parameters:
+  phpstanLaravelValidation:
+    includeUnvalidatedArrayKeys: true
+    laravelVersion: '12.0.0'
+    formRequests:
+      enabled: true

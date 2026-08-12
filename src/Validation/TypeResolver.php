@@ -36,6 +36,14 @@ use PHPStan\Type\StringType;
 
 final class TypeResolver
 {
+    private const EXCLUSION_RULE_NAMES = [
+        Rule::RULE_EXCLUDE,
+        Rule::RULE_EXCLUDE_IF,
+        Rule::RULE_EXCLUDE_UNLESS,
+        Rule::RULE_EXCLUDE_WITH,
+        Rule::RULE_EXCLUDE_WITHOUT,
+    ];
+
     private const BUILT_IN_RULE_NAMES = [
         'Accepted', 'AcceptedIf', 'ActiveUrl', 'After', 'AfterOrEqual', 'Alpha', 'AlphaDash', 'AlphaNum',
         'Array', 'ArrayKeys', 'Ascii', 'Bail', 'Base64', 'Before', 'BeforeOrEqual', 'Between', 'Boolean', 'Confirmed',
@@ -66,7 +74,8 @@ final class TypeResolver
 
     public function __construct(
         private ?LaravelVersionContext $laravelVersionContext = null,
-        private ?CustomRuleTypeResolver $customRuleTypeResolver = null
+        private ?CustomRuleTypeResolver $customRuleTypeResolver = null,
+        private bool $includeUnvalidatedArrayKeys = false
     ) {
     }
 
@@ -92,6 +101,27 @@ final class TypeResolver
             && count($node->getRules()) > 0
         ) {
             $leafType = $this->evaluateLeaf($node, $assumeHttpInputNormalization);
+            if (
+                $this->includeUnvalidatedArrayKeys
+                && !$leafType->isArray()->no()
+                && $this->hasPotentiallyExcludedDirectChild($node)
+            ) {
+                // Exclusion rules mutate Validator::$data before validated()
+                // reads the parent. Removing a direct list element can make
+                // its keys sparse, while removing a required array offset
+                // invalidates the parent's pre-exclusion constraint.
+                $keyType = $node->hasBareListRule()
+                    ? new Type\IntegerType()
+                    : Type\TypeCombinator::union(
+                        new Type\IntegerType(),
+                        new Type\StringType()
+                    );
+                $leafType = Type\TypeCombinator::union(
+                    $leafType,
+                    new Type\ArrayType($keyType, new MixedType())
+                );
+            }
+
             if ($node->isArray() || $this->hasRequiredArrayKeysRule($node)) {
                 // Parameterized array and required-array-key rules describe
                 // the complete parent Laravel preserves. Their array type is
@@ -99,7 +129,12 @@ final class TypeResolver
                 // nested rule output.
                 $type = $leafType;
             } else {
-                $type = $leafType->isArray()->no()
+                // Inclusion preserves the complete parent instead of choosing
+                // between preservation and reconstructed child output. Keep
+                // constraints such as listness from the parent's own rule.
+                $parentIsOnlyOutcome = $this->includeUnvalidatedArrayKeys
+                    || $leafType->isArray()->no();
+                $type = $parentIsOnlyOutcome
                     ? $leafType
                     : Type\TypeCombinator::union($type, $leafType);
             }
@@ -362,6 +397,10 @@ final class TypeResolver
      */
     private function mayReconstructParentFromNestedRules(RuleTreeNode $node): bool
     {
+        if ($this->includeUnvalidatedArrayKeys) {
+            return false;
+        }
+
         if ($node->hasBareArrayRule()) {
             return true;
         }
@@ -381,6 +420,10 @@ final class TypeResolver
      */
     private function mayPreserveCompleteParent(RuleTreeNode $node): bool
     {
+        if ($this->includeUnvalidatedArrayKeys) {
+            return true;
+        }
+
         if ($node->hasBareArrayRule()) {
             return false;
         }
@@ -953,6 +996,19 @@ final class TypeResolver
         return false;
     }
 
+    private function hasPotentiallyExcludedDirectChild(RuleTreeNode $node): bool
+    {
+        foreach ($node as $child) {
+            foreach ($child->getRules() as $rule) {
+                if (in_array($rule->getRuleName(), self::EXCLUSION_RULE_NAMES, true)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     /**
      * A required_array_keys parameter constrains input, but a bare array rule
      * can rebuild validated output from child rules and discard unvalidated
@@ -979,13 +1035,7 @@ final class TypeResolver
         }
 
         foreach ($child->getRules() as $rule) {
-            if (in_array($rule->getRuleName(), [
-                Rule::RULE_EXCLUDE,
-                Rule::RULE_EXCLUDE_IF,
-                Rule::RULE_EXCLUDE_UNLESS,
-                Rule::RULE_EXCLUDE_WITH,
-                Rule::RULE_EXCLUDE_WITHOUT,
-            ], true)) {
+            if (in_array($rule->getRuleName(), self::EXCLUSION_RULE_NAMES, true)) {
                 return false;
             }
         }

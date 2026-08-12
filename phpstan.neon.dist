@@ -31,6 +31,7 @@ parameters:
         - tests/normalized
         - tests/custom-rules
         - tests/form-request
+        - tests/include-unvalidated-array-keys
         - tests/rules
         - tests/structure
         - tests/version-aware

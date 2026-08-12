@@ -186,6 +186,12 @@ or `required` wildcard descendant does not imply that the wildcard collection
 has any elements, so presence improvements must preserve the existing
 wildcard-boundary behavior.
 
+Nested-projection descriptions assume Laravel's default factory setting that
+excludes unvalidated array keys. Projects that call
+`includeUnvalidatedArrayKeys()` must enable the extension's matching option;
+affected bare `array` and version-aware `list` parents then widen so
+unmentioned nested keys remain possible.
+
 ## Built-in rule objects and fluent builders
 
 String rules are only part of Laravel's public surface. Laravel 13.24 exposes

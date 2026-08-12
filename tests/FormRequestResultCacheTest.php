@@ -51,22 +51,7 @@ final class FormRequestResultCacheTest extends \PHPUnit\Framework\TestCase
     }
 }
 JSON);
-        $this->writeProjectFile('phpstan.neon', sprintf(
-            <<<'NEON'
-includes:
-    - %s
-
-parameters:
-    level: max
-    paths:
-        - src
-    tmpDir: cache
-    phpstanLaravelValidation:
-        formRequests:
-            enabled: true
-NEON,
-            dirname(__DIR__) . '/extension.neon'
-        ));
+        $this->writeConfig(false);
         $this->writeProjectFile('src/Controller.php', <<<'PHP'
 <?php
 
@@ -81,6 +66,28 @@ function consume(CacheRequest $request): int
     return strlen($validated['value']);
 }
 PHP);
+    }
+
+    private function writeConfig(bool $includeUnvalidatedArrayKeys): void
+    {
+        $this->writeProjectFile('phpstan.neon', sprintf(
+            <<<'NEON'
+includes:
+    - %s
+
+parameters:
+    level: max
+    paths:
+        - src
+    tmpDir: cache
+    phpstanLaravelValidation:
+        includeUnvalidatedArrayKeys: %s
+        formRequests:
+            enabled: true
+NEON,
+            dirname(__DIR__) . '/extension.neon',
+            $includeUnvalidatedArrayKeys ? 'true' : 'false'
+        ));
     }
 
     protected function tearDown(): void
@@ -185,6 +192,42 @@ PHP);
 
         $second = $this->analyse(true);
         self::assertSame(0, $second->getExitCode(), $second->getErrorOutput() . $second->getOutput());
+    }
+
+    public function testChangingIncludedArrayKeyAssumptionInvalidatesCachedCaller(): void
+    {
+        $this->writeRequest(<<<'PHP'
+return [
+    'payload' => 'required|array',
+    'payload.name' => 'required|string',
+];
+PHP);
+        $this->writeProjectFile('src/Controller.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+function consume(CacheRequest $request): int
+{
+    $validated = $request->validated();
+
+    return strlen($validated['payload']['name']);
+}
+PHP);
+
+        $first = $this->analyse();
+        self::assertSame(0, $first->getExitCode(), $first->getErrorOutput() . $first->getOutput());
+
+        $this->writeConfig(true);
+
+        $second = $this->analyse();
+        self::assertSame(1, $second->getExitCode());
+        self::assertStringContainsString(
+            'Parameter #1 $string of function strlen expects string, mixed given.',
+            $second->getErrorOutput() . $second->getOutput()
+        );
     }
 
     public function testRegistryManifestIsWrittenAndCorruptionFallsBackSafely(): void

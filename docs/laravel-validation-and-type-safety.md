@@ -188,6 +188,8 @@ Laravel provides several different mechanisms that are easy to conflate:
 - With the validator factory's default exclusion setting, adding
   `user.name => required|string` below a bare `array` parent rebuilds the
   parent from validated children and omits unmentioned siblings.
+- Calling `includeUnvalidatedArrayKeys()` on the factory disables that
+  reconstruction and preserves unmentioned siblings again.
 - A parameterized parent such as `array:name` is not Laravel's literal
   reconstruction marker. It preserves the complete permitted parent around
   nested rules, even when those rules emit nothing.
@@ -453,6 +455,7 @@ with FormRequest lifecycle behavior covered by
 | Bare arrays preserve nested keys | `LaravelInferenceTest::testArrayRuleWithoutKeyParametersPreservesNestedKeys` | [`tests/rules/array.php`](../tests/rules/array.php) |
 | Array key lists reject undeclared keys | `LaravelInferenceTest::testArrayRuleKeyParametersRejectUndeclaredNestedKeys` | [`tests/rules/array.php`](../tests/rules/array.php) |
 | Nested child rules project validated keys | `LaravelInferenceTest::testParentAndChildRulesAcceptRuntimeOutput` | [`tests/structure/parent-rules.php`](../tests/structure/parent-rules.php) |
+| Factory configuration changes nested projection | `LaravelInferenceTest::testFactoryUnvalidatedArrayKeyModesMatchInference` | [`tests/include-unvalidated-array-keys/inference.php`](../tests/include-unvalidated-array-keys/inference.php) |
 | Parameterized arrays preserve the permitted parent around nested rules | `PresenceLaravelRuntimeTest::testRuntimeProjection` (named parameterized-parent cases) and the version-audit snapshots | [`tests/rules/missing.php`](../tests/rules/missing.php) and `TypeResolverTest::testParameterizedArrayParentIsPreservedAroundNestedRules` |
 | Literal `list` joins nested reconstruction in Laravel 11.23 | `LaravelInferenceTest::testListRuleFollowsRuntimeVersionBoundary` on the 11.22 and 11.23 profiles | [`tests/version-aware/list.php`](../tests/version-aware/list.php), [`tests/version-aware/list-projection.php`](../tests/version-aware/list-projection.php), and `TypeResolverTest::testListParentProjectionChangesInLaravel1123` |
 | Custom predicates preserve successful original values | `CustomRulesLaravelRuntimeTest::testObjectRulesPreserveSuccessfulValuesAndRejectOthers`, `testClosureRulePreservesSuccessfulOriginalValue`, and `testRegisteredStringRulePreservesSuccessfulOriginalValue` | [`tests/custom-rules/inference.php`](../tests/custom-rules/inference.php) |
@@ -469,7 +472,7 @@ actual successful output. Expected types are changed only after checking
 Laravel behavior, and runtime-only evidence is not presented as completed
 static support.
 
-Last reviewed: 2026-08-07.
+Last reviewed: 2026-08-11.
 
 ## Conclusion
 

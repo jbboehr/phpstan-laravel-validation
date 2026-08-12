@@ -16,7 +16,7 @@ for the proprietary application.
 | ---: | --- | --- | --- | --- |
 | 1 | Normalize Laravel's `int` and `bool` aliases | Precision defect | High | Implemented locally |
 | 2 | Infer `Illuminate\Validation\Factory::validate()` | Missing entrypoint | High | Implemented locally |
-| 3 | Model `includeUnvalidatedArrayKeys()` configuration | Conditional soundness | Highest risk | Pending |
+| 3 | Model `includeUnvalidatedArrayKeys()` configuration | Conditional soundness | Highest risk | Implemented locally |
 | 4 | Preserve listness through safe nested projection | Precision defect | Medium | Pending |
 | 5 | Narrow native numerics for numeric `in` parameters | Precision improvement | Low | Pending |
 
@@ -88,6 +88,27 @@ through 13, nested arrays and lists, facade/factory/request/FormRequest static
 fixtures, result-cache coverage, and a prominent statement of the modeled
 assumption. Directly constructed `Validator` instances remain outside current
 inference and must not be accidentally narrowed.
+
+The `includeUnvalidatedArrayKeys` option defaults to `false`, matching
+Laravel's factory default. Enabling it prevents bare `array` and version-aware
+`list` parents from being treated as closed nested projections. Runtime tests
+cover both factory modes for associative and list-shaped data on every Laravel
+CI profile; a Laravel 11.23+ branch also covers literal `list` reconstruction.
+One configuration-specific fixture covers factory, facade, request,
+controller, and FormRequest output while confirming that direct Validator
+construction remains broad. PHPStan's project-configuration hash invalidates
+cached results when the option changes, with a subprocess regression test
+covering the transition. Direct exclusion rules receive separate runtime and
+static witnesses because Laravel mutates the validated parent before returning
+it; listness and required-offset guarantees are widened when that mutation can
+remove an immediate child.
+
+A possible follow-up is a PHPStan rule that reports direct calls to
+`Factory::includeUnvalidatedArrayKeys()` (including facade passthroughs) while
+the matching extension option remains disabled. Such a diagnostic would make
+common configuration mismatches visible, but it cannot replace the explicit
+option: application boot code may be outside analyzed paths, and a later
+`excludeUnvalidatedArrayKeys()` call can restore the default behavior.
 
 ## Slice 4: nested list projection
 

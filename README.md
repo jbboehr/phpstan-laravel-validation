@@ -140,6 +140,41 @@ validation cannot observe values introduced afterward by request mutation.
 Projects with custom trimming exceptions or `skipWhen()` callbacks should
 leave it disabled.
 
+### Unvalidated nested array keys
+
+Laravel's validation factory excludes unvalidated nested array keys by
+default. An application that calls `includeUnvalidatedArrayKeys()` changes the
+shape returned from bare `array` and, where supported by Laravel, `list`
+parents with nested child rules. Configure that factory-wide behavior
+explicitly:
+
+```neon
+parameters:
+    phpstanLaravelValidation:
+        includeUnvalidatedArrayKeys: true
+```
+
+The default is `false`, matching Laravel's factory default. When enabled, the
+extension conservatively widens affected nested parents because unmentioned
+keys may survive in `validated()`. This applies consistently to inferred
+factory, facade, request, controller, validator-helper, and FormRequest output.
+Affected bare `array` parents widen to `array`, so the inferred types of their
+validated children are no longer retained. Bare `list` parents retain only
+their listness unless a direct exclusion rule can remove an element.
+
+The extension does not boot the application or attempt to discover a call in a
+service provider. Treat this option as an assertion about the factories whose
+output the extension infers: enable it only when those factories include
+unvalidated keys. It is not a conservative setting for mixed factory modes. In
+particular, an excluding factory can reconstruct a bare `list` parent with
+sparse keys. An including factory normally preserves the parent, but nested
+exclusion rules mutate its data before `validated()` reads it and can also make
+the result sparse. The extension widens parents with direct exclusion rules to
+cover that behavior. A single global option cannot precisely model mixed
+factory modes. A directly constructed `Illuminate\Validation\Validator`
+retains Laravel's broad declared return type and is not narrowed from this
+assumption.
+
 ### Form requests
 
 FormRequest inference is experimental and disabled by default. Enable it
