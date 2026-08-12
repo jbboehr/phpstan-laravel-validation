@@ -38,6 +38,13 @@ fallbacks, and a three-configuration performance benchmark against pinned Koel
 and Pterodactyl revisions. It shows useful structural recovery in Koel and the
 cost of a shared lifecycle hook in Pterodactyl.
 
+### [Work-project differential follow-up](work-project-differential-follow-up.md)
+
+This turns sanitized differential-testing findings from a large Laravel 11
+application into implementation slices. It distinguishes confirmed precision
+and entrypoint gaps from a configuration-dependent soundness risk, and records
+the verification required before each slice is complete.
+
 ## Maintenance rules
 
 - Keep exact application, framework, PHPStan, Larastan, PHP, and extension

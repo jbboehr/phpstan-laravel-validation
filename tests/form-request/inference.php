@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace jbboehr\PhpstanLaravelValidation\Test\FormRequestFixtures;
 
 use Illuminate\Foundation\Http\FormRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\AliasRulesRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\AttributedRulesRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\BasicRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\AfterRequest;
@@ -38,6 +39,14 @@ use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\UnresolvedRequest
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\WithValidatorRequest;
 
 use function PHPStan\Testing\assertType;
+
+function inspectAliases(AliasRulesRequest $request): void
+{
+    assertType(
+        "array{id: float|int|numeric-string|Stringable|true, flag: 0|1|'0'|'1'|bool}",
+        $request->validated()
+    );
+}
 
 function inspectBasic(BasicRequest $request): void
 {

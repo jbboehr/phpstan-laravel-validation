@@ -105,6 +105,19 @@ final class RuleParserTest extends TestCase
         self::assertSame('RequiredWithoutAll', RuleParser::normalizeName('required-without_all'));
     }
 
+    public function testNormalizesLaravelRuleAliases(): void
+    {
+        self::assertSame('Integer', RuleParser::normalizeName('int'));
+        self::assertSame('Boolean', RuleParser::normalizeName('bool'));
+        self::assertSame('Integer', RuleParser::normalizeName('Int'));
+        self::assertSame('Boolean', RuleParser::normalizeName('Bool'));
+
+        self::assertSame('Integer', RuleParser::parseStringRule('Int')->getRuleName());
+        $boolean = RuleParser::parseArrayRule(['bool']);
+        self::assertInstanceOf(Rule::class, $boolean);
+        self::assertSame('Boolean', $boolean->getRuleName());
+    }
+
     public function testNonArrayRuleMapProducesAnEmptyTree(): void
     {
         self::assertCount(0, RuleParser::parse(null));

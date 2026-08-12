@@ -122,6 +122,62 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
     }
 
     /**
+     * @return iterable<string, array{string, string, mixed, mixed}>
+     */
+    public static function ruleAliasProvider(): iterable
+    {
+        yield 'integer' => ['int', 'integer', '42', 'not-an-integer'];
+        yield 'boolean' => ['bool', 'boolean', '1', '2'];
+    }
+
+    /**
+     * @dataProvider ruleAliasProvider
+     */
+    public function testRuleAliasesMatchCanonicalRules(
+        string $alias,
+        string $canonical,
+        mixed $accepted,
+        mixed $rejected
+    ): void {
+        self::getContainer();
+
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+
+        foreach ([[$accepted, true], [$rejected, false]] as [$value, $expectedPasses]) {
+            $aliasValidator = $factory->make(['value' => $value], [
+                'value' => 'required|' . $alias,
+            ]);
+            $canonicalValidator = $factory->make(['value' => $value], [
+                'value' => 'required|' . $canonical,
+            ]);
+
+            $canonicalPasses = $canonicalValidator->passes();
+            $aliasPasses = $aliasValidator->passes();
+            self::assertSame($expectedPasses, $canonicalPasses);
+            self::assertSame($canonicalPasses, $aliasPasses);
+            if ($canonicalPasses) {
+                self::assertSame($canonicalValidator->validated(), $aliasValidator->validated());
+            }
+        }
+
+        $aliasType = (new TypeResolver())->evaluate(RuleParser::parse([
+            'value' => 'required|' . $alias,
+        ]));
+        $canonicalType = (new TypeResolver())->evaluate(RuleParser::parse([
+            'value' => 'required|' . $canonical,
+        ]));
+        self::assertSame(
+            $canonicalType->describe(Type\VerbosityLevel::precise()),
+            $aliasType->describe(Type\VerbosityLevel::precise())
+        );
+    }
+
+    /**
      * @dataProvider unconditionalAcceptanceRuleProvider
      */
     public function testUnconditionalAcceptanceRulesRequireMatchedPaths(string $rule, string $valid): void

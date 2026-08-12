@@ -92,6 +92,7 @@ final class TypeResolverTest extends PHPStanTestCase
 
         yield 'array' => ['array', 'array'];
         yield 'boolean' => ['boolean', "0|1|'0'|'1'|bool"];
+        yield 'boolean alias' => ['bool', "0|1|'0'|'1'|bool"];
 
         yield 'declined' => ['declined', "0|'0'|'false'|'no'|'off'|false"];
         yield 'declined if' => ['declined_if:other,value', 'mixed'];
@@ -108,6 +109,9 @@ final class TypeResolverTest extends PHPStanTestCase
         foreach ($numericRules as $rule) {
             yield $rule => [$rule, 'float|int|numeric-string'];
         }
+
+        yield 'integer alias' => ['int', 'float|int|numeric-string|Stringable|true'];
+        yield 'integer strict alias' => ['int:strict', 'float|int|numeric-string|Stringable|true'];
 
         yield 'integer' => ['integer', 'float|int|numeric-string|Stringable|true'];
         yield 'integer strict' => ['integer:strict', 'float|int|numeric-string|Stringable|true'];
@@ -246,8 +250,14 @@ final class TypeResolverTest extends PHPStanTestCase
         self::assertSame($broadType, self::resolveForVersion([
             'value' => 'required|integer:strict',
         ], '12.21.0'));
+        self::assertSame($broadType, self::resolveForVersion([
+            'value' => 'required|int:strict',
+        ], '12.21.0'));
         self::assertSame('array{value: int}', self::resolveForVersion([
             'value' => 'required|integer:strict',
+        ], '12.22.0'));
+        self::assertSame('array{value: int}', self::resolveForVersion([
+            'value' => 'required|int:strict',
         ], '12.22.0'));
         self::assertSame($broadType, self::resolveForVersion([
             'value' => 'required|integer',

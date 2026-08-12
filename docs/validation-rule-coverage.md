@@ -101,6 +101,10 @@ This is not synonymous with complete rule support. For example, `Accepted`
 and `Declined` contribute exact value unions and required matched paths, while
 `Array` also participates in nested projection behavior.
 
+Laravel's `int` and `bool` aliases are normalized to the canonical `Integer`
+and `Boolean` rules before type resolution, matching
+`ValidationRuleParser::normalizeRule()` on every supported major.
+
 Allowed-key `Array` and `ArrayKeys` rules also interact with `List`. Inference
 retains only the longest permitted consecutive integer prefix beginning at
 zero, including the empty-array-only overlap when all allowed keys are

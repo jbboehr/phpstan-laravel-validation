@@ -146,8 +146,15 @@ final class RuleParser
 
     public static function normalizeName(string $str): string
     {
-        return implode(array_map(function (string $word) {
+        $normalized = implode(array_map(function (string $word) {
             return ucfirst($word);
         }, explode(' ', str_replace(['-', '_'], ' ', $str))));
+
+        // Laravel rewrites these aliases after normalizing names to StudlyCase.
+        return match ($normalized) {
+            'Int' => 'Integer',
+            'Bool' => 'Boolean',
+            default => $normalized,
+        };
     }
 }
