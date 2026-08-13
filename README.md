@@ -305,11 +305,17 @@ $validated = Validator::make($input, [
 ```
 
 The union includes every native value Laravel can accept and preserve through
-its loose string comparison; numeric parameters therefore produce the same
-broad numeric union as a string `in` rule. From Laravel 10.21.1, literal enum
-arguments are serialized to their case names or backing values. This does not
-make `Rule::in([Status::Draft])` an enum-object rule: it validates the
-serialized scalar parameter and preserves the original accepted input.
+its loose string comparison. Numeric parameters can narrow safely
+representable native integers to literals, but retain broad `float`,
+`numeric-string`, and `Stringable` branches because PHP's string conversion
+and Laravel's loose comparison admit equivalence classes PHPStan cannot
+express. A builder containing a float also retains broad `int`: application
+code can change PHP's `precision` before Laravel stringifies the builder, so
+the analyzed spelling need not be the runtime spelling. From Laravel 10.21.1,
+literal enum arguments are serialized to their case names or backing values.
+This does not make
+`Rule::in([Status::Draft])` an enum-object rule: it validates the serialized
+scalar parameter and preserves the original accepted input.
 
 Constant scalar arrays are supported while the factory call remains visible.
 Assigned builder objects, unpacked or dynamic arguments, `Arrayable` and

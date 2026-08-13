@@ -48,6 +48,19 @@ final class RuleParameterExpressionResolver
      */
     public function resolve(array $arguments, Scope $scope, string $enumValueBoundary): ?array
     {
+        $resolution = $this->resolveWithMetadata($arguments, $scope, $enumValueBoundary);
+        return $resolution['parameters'] ?? null;
+    }
+
+    /**
+     * @param list<Arg> $arguments
+     * @return array{parameters: list<string>, hasRuntimeFormattedFloatParameter: bool}|null
+     */
+    public function resolveWithMetadata(
+        array $arguments,
+        Scope $scope,
+        string $enumValueBoundary
+    ): ?array {
         foreach ($arguments as $argument) {
             if ($argument->unpack) {
                 return null;
@@ -55,7 +68,10 @@ final class RuleParameterExpressionResolver
         }
 
         if ($arguments === []) {
-            return [];
+            return [
+                'parameters' => [],
+                'hasRuntimeFormattedFloatParameter' => false,
+            ];
         }
 
         $firstExpression = $arguments[0]->value;
@@ -76,22 +92,30 @@ final class RuleParameterExpressionResolver
         }
 
         $parameters = [];
+        $hasRuntimeFormattedFloatParameter = false;
         foreach ($arguments as $argument) {
-            $parameter = $this->resolveExpressionValue(
+            $resolution = $this->resolveExpressionValue(
                 $argument->value,
                 $scope,
                 $enumValueBoundary
             );
-            if ($parameter === null) {
+            if ($resolution === null) {
                 return null;
             }
-            $parameters[] = $parameter;
+            $parameters[] = $resolution['parameter'];
+            $hasRuntimeFormattedFloatParameter = $hasRuntimeFormattedFloatParameter
+                || $resolution['runtimeFormattedFloat'];
         }
 
-        return $parameters;
+        return [
+            'parameters' => $parameters,
+            'hasRuntimeFormattedFloatParameter' => $hasRuntimeFormattedFloatParameter,
+        ];
     }
 
-    /** @return list<string>|null */
+    /**
+     * @return array{parameters: list<string>, hasRuntimeFormattedFloatParameter: bool}|null
+     */
     private function resolveConstantArrayType(Type $type, string $enumValueBoundary): ?array
     {
         $arrays = $type->getConstantArrays();
@@ -100,26 +124,33 @@ final class RuleParameterExpressionResolver
         }
 
         $parameters = [];
+        $hasRuntimeFormattedFloatParameter = false;
         foreach ($arrays[0]->getValueTypes() as $index => $valueType) {
             if ($arrays[0]->isOptionalKey($index)) {
                 return null;
             }
 
-            $parameter = $this->resolveTypeValue($valueType, $enumValueBoundary);
-            if ($parameter === null) {
+            $resolution = $this->resolveTypeValue($valueType, $enumValueBoundary);
+            if ($resolution === null) {
                 return null;
             }
-            $parameters[] = $parameter;
+            $parameters[] = $resolution['parameter'];
+            $hasRuntimeFormattedFloatParameter = $hasRuntimeFormattedFloatParameter
+                || $resolution['runtimeFormattedFloat'];
         }
 
-        return $parameters;
+        return [
+            'parameters' => $parameters,
+            'hasRuntimeFormattedFloatParameter' => $hasRuntimeFormattedFloatParameter,
+        ];
     }
 
+    /** @return array{parameter: string, runtimeFormattedFloat: bool}|null */
     private function resolveExpressionValue(
         Expr $expression,
         Scope $scope,
         string $enumValueBoundary
-    ): ?string {
+    ): ?array {
         $value = $this->resolveTypeValue($scope->getType($expression), $enumValueBoundary);
         if ($value !== null) {
             return $value;
@@ -133,26 +164,33 @@ final class RuleParameterExpressionResolver
             return null;
         }
 
-        return $this->resolveEnumCaseValue(
+        $value = $this->resolveEnumCaseValue(
             $this->resolveName($expression->class, $scope),
             $expression->name->toString(),
             $enumValueBoundary
         );
+        return $value === null
+            ? null
+            : ['parameter' => $value, 'runtimeFormattedFloat' => false];
     }
 
-    private function resolveTypeValue(Type $type, string $enumValueBoundary): ?string
+    /** @return array{parameter: string, runtimeFormattedFloat: bool}|null */
+    private function resolveTypeValue(Type $type, string $enumValueBoundary): ?array
     {
         if ($type->isNull()->yes()) {
-            return '';
+            return ['parameter' => '', 'runtimeFormattedFloat' => false];
         }
 
         $enumCases = $type->getEnumCases();
         if (count($enumCases) === 1) {
-            return $this->resolveEnumCaseValue(
+            $value = $this->resolveEnumCaseValue(
                 $enumCases[0]->getClassName(),
                 $enumCases[0]->getEnumCaseName(),
                 $enumValueBoundary
             );
+            return $value === null
+                ? null
+                : ['parameter' => $value, 'runtimeFormattedFloat' => false];
         }
 
         if (!$type->isConstantScalarValue()->yes()) {
@@ -164,7 +202,10 @@ final class RuleParameterExpressionResolver
             return null;
         }
 
-        return (string) $values[0];
+        return [
+            'parameter' => (string) $values[0],
+            'runtimeFormattedFloat' => is_float($values[0]),
+        ];
     }
 
     private function resolveEnumCaseValue(

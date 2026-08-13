@@ -1302,6 +1302,10 @@ final class TypeResolver
             if (is_numeric($parameter)) {
                 $hasNumericParameter = true;
                 $acceptsTrue = $acceptsTrue || (float) $parameter === 1.0;
+                $integerType = $this->resolveIntegerTypeForNumericInParameter($parameter);
+                if ($integerType !== null) {
+                    $types[] = $integerType;
+                }
             } else {
                 $types[] = new ConstantStringType($parameter);
             }
@@ -1320,8 +1324,19 @@ final class TypeResolver
                 new StringType(),
                 new AccessoryNumericStringType(),
             ]);
-            $types[] = new Type\IntegerType();
+
+            // PHP formats floats according to its configurable precision
+            // before Laravel compares them. Multiple nearby float values can
+            // therefore stringify to the same numeric parameter, and PHPStan
+            // has no type for that formatting-dependent equivalence class.
             $types[] = new Type\FloatType();
+            if ($rule->hasRuntimeFormattedFloatParameter()) {
+                // Rule::in() stringifies float arguments when Laravel parses
+                // the builder. Application code can change PHP's precision
+                // first, so analysis cannot know which native integer that
+                // runtime-formatted parameter may compare equal to.
+                $types[] = new Type\IntegerType();
+            }
         }
 
         if ($acceptsTrue) {
@@ -1334,5 +1349,52 @@ final class TypeResolver
         }
 
         return Type\TypeCombinator::union(...$types);
+    }
+
+    private function resolveIntegerTypeForNumericInParameter(string $parameter): ?Type\Type
+    {
+        if (
+            preg_match(
+                '/^[\x20\t\n\r\v\f]*([+-]?)([0-9]+)[\x20\t\n\r\v\f]*$/D',
+                $parameter,
+                $matches
+            ) === 1
+        ) {
+            $digits = ltrim($matches[2], '0');
+            if ($digits === '') {
+                $digits = '0';
+            }
+
+            $normalized = $matches[1] === '-' && $digits !== '0'
+                ? '-' . $digits
+                : $digits;
+            $integer = (int) $parameter;
+
+            // Exact decimal integer spellings, including signs, whitespace,
+            // and leading zeroes, compare to only one native integer while
+            // the normalized value remains inside this PHP runtime's range.
+            return (string) $integer === $normalized
+                ? new ConstantIntegerType($integer)
+                : null;
+        }
+
+        $numericValue = (float) $parameter;
+        if (!is_finite($numericValue) || floor($numericValue) !== $numericValue) {
+            return null;
+        }
+
+        // Decimal and exponent spellings are compared as floats. Above the
+        // largest exactly represented integer, one parameter may accept
+        // several adjacent native integers. Retain the broad branch there.
+        if (
+            abs($numericValue) > 9007199254740991.0
+            || $numericValue < PHP_INT_MIN
+            || $numericValue > PHP_INT_MAX
+        ) {
+            return new Type\IntegerType();
+        }
+
+        $integer = (int) $numericValue;
+        return new ConstantIntegerType($integer);
     }
 }

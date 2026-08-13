@@ -79,10 +79,20 @@ return ! is_array($value) && in_array((string) $value, $parameters);
 For `required|in:1`, Laravel accepts and preserves `'1'`, `1`,
 `1.0`, `true`, numeric-equivalent strings such as `'01'`, and a
 compatible `Stringable` object. The cast is used for comparison and then
-discarded, so a sound analyzer again needs the same broad preserved-value
-union. `in:1` is not an enum-like declaration of a literal output value. This
-is not an analyzer inventing an inconvenient edge case. It is Laravel
-preserving values admitted by the runtime contract Laravel created.
+discarded. The native integer branch can be narrowed to literal `1`, but the
+sound inferred type remains surprising:
+
+```php
+1|float|numeric-string|Stringable|true
+```
+
+The `float` branch cannot be narrowed to `1.0`: PHP's configurable float
+formatting allows nearby floats to stringify as `'1'`. PHPStan also has no
+type for the numeric-string equivalence class admitted by Laravel's loose
+comparison. `in:1` is therefore not an enum-like declaration of a literal
+output value. This is not an analyzer inventing an inconvenient edge case. It
+is Laravel preserving values admitted by the runtime contract Laravel
+created.
 
 The more faithfully static analysis models this behavior, the less the rule
 resembles the narrow declaration it appears to be.
@@ -451,7 +461,7 @@ with FormRequest lifecycle behavior covered by
 | `integer` can preserve non-integers | `LaravelInferenceTest::testIntegerRuleCanPreserveNonIntegerValues` | [`tests/rules/integer.php`](../tests/rules/integer.php) |
 | `integer:strict` differs by Laravel release | `LaravelInferenceTest::testIntegerStrictRuleFollowsRuntimeSupport` and `testIntegerStrictRuleAcceptsAndPreservesNativeInteger` | Boundary coverage in [`tests/TypeResolverTest.php`](../tests/TypeResolverTest.php), [`tests/version-aware/inference.php`](../tests/version-aware/inference.php), and the version-audit snapshots |
 | `base64` exists only from Laravel 13.21 and requires a native non-empty string | `LaravelInferenceTest::testBase64RuleFollowsRuntimeVersionBoundary` | Boundary coverage in [`tests/TypeResolverTest.php`](../tests/TypeResolverTest.php) and [`tests/version-aware/base64.php`](../tests/version-aware/base64.php) |
-| Scalar `in` preserves coercible inputs | `LaravelInferenceTest::testScalarInRuleAcceptsRuntimeValues` | [`tests/rules/in.php`](../tests/rules/in.php) |
+| Scalar `in` preserves coercible inputs and admits parameter-dependent integer equivalence classes | `LaravelInferenceTest::testScalarInRuleAcceptsRuntimeValues`, `testNumericInRuleNarrowsOnlyItsRepresentableNativeIntegerClass`, and `testLargeFloatingPointInParameterAcceptsMultipleNativeIntegers` | [`tests/rules/in.php`](../tests/rules/in.php) and `TypeResolverTest::testNumericInParametersNarrowOnlyRepresentableIntegerClasses` |
 | Optional blanks bypass non-implicit rules | `LaravelInferenceTest::testBlankStringBypassesOptionalNonImplicitRules` | [`tests/structure/empty-string.php`](../tests/structure/empty-string.php) |
 | HTTP normalization changes blank behavior | `LaravelInferenceTest::testDefaultHttpInputNormalizationChangesOptionalBlankBehavior`, `testTrimStringsAloneDoesNotEliminateBlankStringBypass`, and `testDefaultPasswordTrimExceptionVariesByLaravelMajor` | [`tests/normalized/request.php`](../tests/normalized/request.php), [`tests/structure/request.php`](../tests/structure/request.php), and [`tests/version-aware/inference.php`](../tests/version-aware/inference.php) |
 | Conditional acceptance broadens values | `LaravelInferenceTest::testConditionalValueRulesRemainConservative` | [`tests/rules/accepted-if.php`](../tests/rules/accepted-if.php) |
@@ -477,7 +487,7 @@ actual successful output. Expected types are changed only after checking
 Laravel behavior, and runtime-only evidence is not presented as completed
 static support.
 
-Last reviewed: 2026-08-11.
+Last reviewed: 2026-08-12.
 
 ## Conclusion
 

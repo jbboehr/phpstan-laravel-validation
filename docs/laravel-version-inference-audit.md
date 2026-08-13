@@ -53,11 +53,11 @@ inference.
 | `10.32.1` | `10.32.1` | 8.1 | 10.32.1 | [`b30e44f20d24`](https://github.com/laravel/framework/commit/b30e44f20d244f7ba125283e14a8bbac167f4e5b) |
 | `10.33.0` | `10.33.0` | 8.1 | 10.33.0 | [`4536872e3e5b`](https://github.com/laravel/framework/commit/4536872e3e5b6be51b1f655dafd12c9a4fa0cfe8) |
 | `10.34.0` | `10.34.0` | 8.1 | 10.34.0 | [`92b78fdd1f38`](https://github.com/laravel/framework/commit/92b78fdd1f386425a88f443a728efd176c666244) |
-| `10-latest` | `^10.0` | 8.1 | 10.50.2 | [`3ff39b7a9b83`](https://github.com/laravel/framework/commit/3ff39b7a9b83e633383ec9b019827ed54b6d38bc) |
+| `10-latest` | `^10.0` | 8.1 | 10.50.3 | [`74e222cee687`](https://github.com/laravel/framework/commit/74e222cee687f957d95aaadddae69270e3205cf7) |
 | `11.0.0` | `11.0.0` | 8.2 | 11.0.0 | [`6089f679d6d2`](https://github.com/laravel/framework/commit/6089f679d6d29e6071a6448ed5e96de02e57fedb) |
 | `11.22.0` | `11.22.0` | 8.2 | 11.22.0 | [`868c75beacc4`](https://github.com/laravel/framework/commit/868c75beacc47d0f361b919bbc155c0b619bf3d5) |
 | `11.23.0` | `11.23.0` | 8.2 | 11.23.0 | [`576f6f5d63f6`](https://github.com/laravel/framework/commit/576f6f5d63f68afb36dc062e728e717ddeb1a4aa) |
-| `11-latest` | `^11.0` | 8.2 | 11.55.0 | [`dc7ec34ae95b`](https://github.com/laravel/framework/commit/dc7ec34ae95bacf4a63b96ec81482b4f3e702289) |
+| `11-latest` | `^11.0` | 8.2 | 11.55.1 | [`8d786e25c5fb`](https://github.com/laravel/framework/commit/8d786e25c5fb41eb472e86b465b328b494a0da89) |
 | `12.0.0` | `12.0.0` | 8.2 | 12.0.0 | [`bd8aeb64d3f9`](https://github.com/laravel/framework/commit/bd8aeb64d3f9fa4b11690d702bdf289f5f32ae97) |
 | `12.21.0` | `12.21.0` | 8.2 | 12.21.0 | [`ac8c4e73bf1b`](https://github.com/laravel/framework/commit/ac8c4e73bf1b5387b709f7736d41427e6af1c93b) |
 | `12.22.0` | `12.22.0` | 8.2 | 12.22.0 | [`6ab00c913ef6`](https://github.com/laravel/framework/commit/6ab00c913ef6ec6fad0bd506f7452c0bb9e792c3) |
@@ -661,8 +661,15 @@ The remaining invariant imprecision witnesses have less direct causes:
 
 - Rules such as `email`, `date`, `multiple_of`, digit limits, regular
   expressions, and scalar `in` necessarily accept fewer values than their
-  native PHP supertypes can describe. Some may support parameter-aware
-  refinements; others require predicates PHPStan cannot express.
+  native PHP supertypes can describe. Numeric string-rule `in` parameters now
+  remove the broad integer branch when their native integer equivalence class
+  is safely representable, so `in.other_integer` is classified as
+  `candidate-outside-inference`; its float, numeric-string, and `Stringable`
+  equivalence classes remain broader than PHPStan can express. Float-bearing
+  `Rule::in()` builders additionally retain broad `int` because runtime PHP
+  precision can change their serialized parameter. Other rules may support
+  similar parameter-aware refinements or require predicates PHPStan cannot
+  express.
 - Optional blank-string bypass currently contributes all `string` values even
   though only blank strings bypass the remaining predicates. PHPStan has no
   ordinary native type for Laravel's complete blank-string set.
@@ -831,4 +838,4 @@ Environment-dependent rules should remain conservative unless their runtime
 services can be replaced with deterministic test doubles and their static
 contract can be stated without booting arbitrary application behavior.
 
-Last reviewed: 2026-08-09.
+Last reviewed: 2026-08-12.

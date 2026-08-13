@@ -146,10 +146,10 @@ final class TypeResolverTest extends PHPStanTestCase
         self::assertSame("array{value: 'only'|Stringable}", self::resolve([
             'value' => 'required|in:only',
         ]));
-        self::assertSame('array{value: float|int|numeric-string|Stringable|true}', self::resolve([
+        self::assertSame('array{value: 1|float|numeric-string|Stringable|true}', self::resolve([
             'value' => 'required|in:1',
         ]));
-        self::assertSame('array{value: float|int|numeric-string|Stringable}', self::resolve([
+        self::assertSame('array{value: 2|float|numeric-string|Stringable}', self::resolve([
             'value' => 'required|in:2',
         ]));
         self::assertSame('array{value?: string|Stringable|false|null}', self::resolve([
@@ -1116,7 +1116,83 @@ final class TypeResolverTest extends PHPStanTestCase
         $node->push(Rule::create('In', [1]));
 
         self::assertSame(
-            'float|int|numeric-string|Stringable|true',
+            '1|float|numeric-string|Stringable|true',
+            (new TypeResolver())->evaluateLeaf($node)->describe(VerbosityLevel::precise())
+        );
+    }
+
+    /**
+     * @return iterable<string, array{list<scalar|null>, string}>
+     */
+    public static function numericInParameterProvider(): iterable
+    {
+        $one = '1|float|numeric-string|Stringable|true';
+
+        yield 'canonical integer' => [['1'], $one];
+        yield 'leading zero integer' => [['01'], $one];
+        yield 'whitespace integer' => [[' 1 '], $one];
+        yield 'explicit positive integer' => [['+1'], $one];
+        yield 'integer-valued decimal' => [['1.0'], $one];
+        yield 'integer-valued exponent' => [['1e3'], '1000|float|numeric-string|Stringable'];
+        yield 'negative exponent integer' => [['-3e0'], '-3|float|numeric-string|Stringable'];
+        yield 'negative zero' => [['-0'], '0|float|numeric-string|Stringable'];
+        yield 'underflow to zero' => [['1e-4000'], '0|float|numeric-string|Stringable'];
+        yield 'fractional parameter' => [['1.5'], 'float|numeric-string|Stringable'];
+        yield 'overflowing exponent' => [['1e309'], 'float|numeric-string|Stringable'];
+        yield 'non-finite spellings' => [
+            ['INF', '-INF', 'NAN'],
+            "'-INF'|'INF'|'NAN'|float|Stringable",
+        ];
+        yield 'maximum native integer' => [
+            [(string) PHP_INT_MAX],
+            PHP_INT_MAX . '|float|numeric-string|Stringable',
+        ];
+        yield 'decimal integer outside native range' => [
+            [(string) PHP_INT_MAX . '0'],
+            'float|numeric-string|Stringable',
+        ];
+        yield 'unsafe float-sized integer' => [
+            ['9007199254740992.0'],
+            'float|int|numeric-string|Stringable',
+        ];
+        yield 'multiple numeric parameters' => [
+            ['1', '2.5', '-3e0'],
+            '-3|1|float|numeric-string|Stringable|true',
+        ];
+    }
+
+    /**
+     * @dataProvider numericInParameterProvider
+     * @param list<scalar|null> $parameters
+     */
+    public function testNumericInParametersNarrowOnlyRepresentableIntegerClasses(
+        array $parameters,
+        string $expectedType
+    ): void {
+        self::getContainer();
+        $node = RuleParser::parse([])->resolvePath('value');
+        $node->push(Rule::create(Rule::RULE_REQUIRED));
+        $node->push(Rule::create('In', $parameters));
+
+        self::assertSame(
+            $expectedType,
+            (new TypeResolver())->evaluateLeaf($node)->describe(VerbosityLevel::precise())
+        );
+    }
+
+    public function testFloatOriginInBuilderRetainsBroadIntegerFallback(): void
+    {
+        self::getContainer();
+        self::assertNotSame(
+            Rule::create('In', ['2.5'])->getCacheKey(),
+            Rule::inBuilder(['2.5'], true)->getCacheKey()
+        );
+        $node = RuleParser::parse([])->resolvePath('value');
+        $node->push(Rule::create(Rule::RULE_REQUIRED));
+        $node->push(Rule::inBuilder(['2.5'], true));
+
+        self::assertSame(
+            'float|int|numeric-string|Stringable',
             (new TypeResolver())->evaluateLeaf($node)->describe(VerbosityLevel::precise())
         );
     }

@@ -56,6 +56,33 @@ final class InRuleBuilderLaravelRuntimeTest extends \PHPStan\Testing\PHPStanTest
         $this->assertRejected($rule, false);
     }
 
+    public function testNumericBuilderPreservesIntegerAndFormattingEquivalentFloatValues(): void
+    {
+        $rule = Rule::in([1, 2.5, -3.0]);
+
+        foreach ([1, -3, 1.00000000000001, 2.5] as $value) {
+            $this->assertAcceptedAndPreserved($rule, $value);
+        }
+
+        $this->assertRejected($rule, 2);
+        $this->assertRejected($rule, -2);
+    }
+
+    public function testFloatBuilderCanAcceptAnIntegerAfterRuntimePrecisionChanges(): void
+    {
+        $originalPrecision = ini_get('precision');
+
+        try {
+            self::assertNotFalse(ini_set('precision', '1'));
+            $rule = Rule::in([2.5]);
+
+            self::assertSame('in:"2"', (string) $rule);
+            $this->assertAcceptedAndPreserved($rule, 2);
+        } finally {
+            ini_set('precision', $originalPrecision);
+        }
+    }
+
     public function testFalseAndOptionalBlankValuesRetainTheirOriginalRepresentation(): void
     {
         $falseRule = Rule::in([false]);

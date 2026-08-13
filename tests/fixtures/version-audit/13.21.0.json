@@ -2713,7 +2713,7 @@
                 "exception": null
             },
             "inference": {
-                "type": "array{value: float|int|numeric-string|Stringable|true}",
+                "type": "array{value: 1|float|numeric-string|Stringable|true}",
                 "outputType": "array{value: 1}",
                 "containsOutput": "yes",
                 "exception": null,
@@ -2743,7 +2743,7 @@
                 "exception": null
             },
             "inference": {
-                "type": "array{value: float|int|numeric-string|Stringable|true}",
+                "type": "array{value: 1|float|numeric-string|Stringable|true}",
                 "outputType": "array{value: 1.0}",
                 "containsOutput": "yes",
                 "exception": null,
@@ -2773,7 +2773,7 @@
                 "exception": null
             },
             "inference": {
-                "type": "array{value: float|int|numeric-string|Stringable|true}",
+                "type": "array{value: 1|float|numeric-string|Stringable|true}",
                 "outputType": "array{value: true}",
                 "containsOutput": "yes",
                 "exception": null,
@@ -2803,7 +2803,7 @@
                 "exception": null
             },
             "inference": {
-                "type": "array{value: float|int|numeric-string|Stringable|true}",
+                "type": "array{value: 1|float|numeric-string|Stringable|true}",
                 "outputType": "array{value: '01'}",
                 "containsOutput": "yes",
                 "exception": null,
@@ -2831,7 +2831,7 @@
                 "exception": null
             },
             "inference": {
-                "type": "array{value: float|int|numeric-string|Stringable|true}",
+                "type": "array{value: 1|float|numeric-string|Stringable|true}",
                 "outputType": null,
                 "containsOutput": null,
                 "exception": null,
@@ -2839,9 +2839,9 @@
             },
             "precision": {
                 "candidateOutputType": "array{value: 2}",
-                "containedByInference": "yes",
+                "containedByInference": "no",
                 "preservedOnSuccess": null,
-                "classification": "observed-imprecision"
+                "classification": "candidate-outside-inference"
             }
         },
         "in.other_float": {
@@ -2859,7 +2859,7 @@
                 "exception": null
             },
             "inference": {
-                "type": "array{value: float|int|numeric-string|Stringable|true}",
+                "type": "array{value: 1|float|numeric-string|Stringable|true}",
                 "outputType": null,
                 "containsOutput": null,
                 "exception": null,
@@ -2887,7 +2887,7 @@
                 "exception": null
             },
             "inference": {
-                "type": "array{value: float|int|numeric-string|Stringable|true}",
+                "type": "array{value: 1|float|numeric-string|Stringable|true}",
                 "outputType": null,
                 "containsOutput": null,
                 "exception": null,

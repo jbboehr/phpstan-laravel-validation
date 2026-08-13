@@ -60,19 +60,23 @@ final class InRuleExpressionResolver
             return null;
         }
 
-        $parameters = $this->parameterExpressionResolver->resolve(
+        $resolution = $this->parameterExpressionResolver->resolveWithMetadata(
             array_values($arguments),
             $scope,
             self::ENUM_VALUE_BOUNDARY
         );
-        if ($parameters === null) {
+        if ($resolution === null) {
             return null;
         }
+        $parameters = $resolution['parameters'];
 
         // An empty builder serializes as `in:`. Laravel's CSV parser exposes
         // that sole empty parameter as null; resolveTypeIn normalizes it back
         // to the empty string used by the loose runtime comparison.
-        return Rule::create('In', $parameters === [] ? [null] : $parameters);
+        return Rule::inBuilder(
+            $parameters === [] ? [null] : $parameters,
+            $resolution['hasRuntimeFormattedFloatParameter']
+        );
     }
 
     private function resolveName(Name $name, Scope $scope): string

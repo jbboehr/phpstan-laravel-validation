@@ -2486,6 +2486,16 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         yield 'equivalent exponent string' => ['1e0', 'in:1'];
         yield 'stringable object' => [new \Illuminate\Support\Stringable('one'), 'in:one'];
         yield 'false for empty parameter' => [false, 'in:'];
+        yield 'integer for decimal parameter' => [1, 'in:1.0'];
+        yield 'integer for exponent parameter' => [1000, 'in:1e3'];
+        yield 'integer for whitespace parameter' => [1, 'in: 1 '];
+        yield 'integer for explicit positive parameter' => [1, 'in:+1'];
+        yield 'zero for negative zero parameter' => [0, 'in:-0'];
+        yield 'zero for underflow parameter' => [0, 'in:1e-4000'];
+        yield 'nearby float with identical string representation' => [1.00000000000001, 'in:1'];
+        yield 'positive infinity spelling' => [INF, 'in:INF'];
+        yield 'negative infinity spelling' => [-INF, 'in:-INF'];
+        yield 'not-a-number spelling' => [NAN, 'in:NAN'];
     }
 
     /**
@@ -2504,11 +2514,58 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         $rules = ['value' => 'required|' . $rule];
         $validator = $factory->make(['value' => $value], $rules);
 
-        self::assertTrue($validator->passes());
-        self::assertSame(['value' => $value], $validator->validated());
+        $nanCoercionWarnings = [];
+        $previousErrorHandler = null;
+        $nanErrorHandlerInstalled = false;
+        if (PHP_VERSION_ID >= 80500 && is_float($value) && is_nan($value)) {
+            $previousErrorHandler = set_error_handler(
+                static function (int $severity, string $message, string $file, int $line) use (
+                    &$nanCoercionWarnings,
+                    &$previousErrorHandler
+                ): bool {
+                    if (
+                        $severity === E_WARNING
+                        && str_ends_with(
+                            str_replace('\\', '/', $file),
+                            '/Illuminate/Validation/Concerns/ValidatesAttributes.php'
+                        )
+                        && str_contains($message, 'NAN value was coerced to string')
+                    ) {
+                        $nanCoercionWarnings[] = $message;
+                        return true;
+                    }
+
+                    return $previousErrorHandler !== null
+                        ? $previousErrorHandler($severity, $message, $file, $line) === true
+                        : false;
+                }
+            );
+            $nanErrorHandlerInstalled = true;
+        }
+
+        try {
+            self::assertTrue($validator->passes());
+        } finally {
+            if ($nanErrorHandlerInstalled) {
+                restore_error_handler();
+            }
+        }
+
+        if (PHP_VERSION_ID >= 80500 && is_float($value) && is_nan($value)) {
+            self::assertCount(1, $nanCoercionWarnings);
+        }
+
+        $validated = $validator->validated();
+        if (is_float($value) && is_nan($value)) {
+            self::assertArrayHasKey('value', $validated);
+            self::assertIsFloat($validated['value']);
+            self::assertTrue(is_nan($validated['value']));
+        } else {
+            self::assertSame(['value' => $value], $validated);
+        }
 
         $rulesType = (new TypeResolver())->evaluate(RuleParser::parse($rules));
-        $validatedType = $this->convertToType($validator->validated());
+        $validatedType = $this->convertToType($validated);
         self::assertTrue($rulesType->accepts($validatedType, true)->yes());
     }
 
@@ -2559,6 +2616,79 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         $validator = $factory->make(['value' => $value], $rules);
 
         self::assertFalse($validator->passes());
+    }
+
+    public function testNumericInRuleNarrowsOnlyItsRepresentableNativeIntegerClass(): void
+    {
+        self::getContainer();
+
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $cases = [
+            'canonical integer' => [1, 'required|in:1'],
+            'leading zero integer' => [1, 'required|in:01'],
+            'whitespace integer' => [1, 'required|in: 1 '],
+            'explicit positive integer' => [1, 'required|in:+1'],
+            'integer-valued decimal' => [1, 'required|in:1.0'],
+            'integer-valued exponent' => [1000, 'required|in:1e3'],
+            'negative exponent integer' => [-3, 'required|in:-3e0'],
+            'negative zero' => [0, 'required|in:-0'],
+            'underflow to zero' => [0, 'required|in:1e-4000'],
+            'maximum native integer' => [PHP_INT_MAX, 'required|in:' . PHP_INT_MAX],
+        ];
+
+        foreach ($cases as $name => [$value, $rule]) {
+            $validator = $factory->make(['value' => $value], ['value' => $rule]);
+            self::assertTrue($validator->passes(), $name . ': runtime accepts integer');
+            self::assertSame(['value' => $value], $validator->validated(), $name . ': preserved output');
+
+            $rulesType = (new TypeResolver())->evaluate(RuleParser::parse(['value' => $rule]));
+            self::assertTrue($rulesType->accepts(
+                $this->convertToType($validator->validated()),
+                true
+            )->yes(), $name . ': inference contains output');
+        }
+
+        $rejected = $factory->make(['value' => 2], ['value' => 'required|in:1,2.5,-3e0']);
+        self::assertFalse($rejected->passes());
+        $rejectedType = (new TypeResolver())->evaluate(RuleParser::parse([
+            'value' => 'required|in:1,2.5,-3e0',
+        ]));
+        self::assertTrue($rejectedType->isSuperTypeOf(
+            $this->convertToType(['value' => 2]),
+        )->no());
+    }
+
+    public function testLargeFloatingPointInParameterAcceptsMultipleNativeIntegers(): void
+    {
+        if (PHP_INT_SIZE < 8) {
+            self::markTestSkipped('The floating-point equivalence witness requires 64-bit integers.');
+        }
+
+        self::getContainer();
+
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $rule = 'required|in:9223372036854775807.0';
+        $rulesType = (new TypeResolver())->evaluate(RuleParser::parse(['value' => $rule]));
+
+        foreach ([PHP_INT_MAX, PHP_INT_MAX - 1, PHP_INT_MAX - 2] as $value) {
+            $validator = $factory->make(['value' => $value], ['value' => $rule]);
+            self::assertTrue($validator->passes());
+            self::assertSame(['value' => $value], $validator->validated());
+            self::assertTrue($rulesType->accepts(
+                $this->convertToType($validator->validated()),
+                true
+            )->yes());
+        }
     }
 
     public function testScalarInRuleAcceptsAResourceWithTheSameStringValue(): void

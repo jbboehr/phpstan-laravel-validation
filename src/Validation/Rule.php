@@ -93,13 +93,29 @@ final class Rule
     }
 
     /**
+     * @param array<int, mixed> $parameters
+     */
+    public static function inBuilder(
+        array $parameters,
+        bool $hasRuntimeFormattedFloatParameter
+    ): self {
+        return new self(
+            'In',
+            $parameters,
+            null,
+            $hasRuntimeFormattedFloatParameter
+        );
+    }
+
+    /**
      * @param string $ruleName
      * @param array<int, mixed> $parameters
      */
     public function __construct(
         private string $ruleName,
         private array $parameters = [],
-        private ?Type $acceptedType = null
+        private ?Type $acceptedType = null,
+        private bool $hasRuntimeFormattedFloatParameter = false
     ) {
     }
 
@@ -121,12 +137,18 @@ final class Rule
         return $this->acceptedType;
     }
 
+    public function hasRuntimeFormattedFloatParameter(): bool
+    {
+        return $this->hasRuntimeFormattedFloatParameter;
+    }
+
     public function getCacheKey(): string
     {
         return hash('sha256', serialize([
             $this->ruleName,
             $this->parameters,
             $this->acceptedType?->describe(VerbosityLevel::cache()),
+            $this->hasRuntimeFormattedFloatParameter,
         ]));
     }
 }

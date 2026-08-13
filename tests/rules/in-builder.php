@@ -18,9 +18,12 @@ final class LookalikeInRuleFactory
 }
 
 $allowed = ['one', 'two'];
+$floatAllowed = [2.5];
 $validator = Validator::make([], [
     'strings' => ['required', Rule::in(['one', 'a,b', 'a"b'])],
     'numeric' => ['required', Rule::in([1])],
+    'numeric_multiple' => ['required', Rule::in([1, 2.5, -3.0])],
+    'float_constant_array' => ['required', Rule::in($floatAllowed)],
     'optional' => [Rule::in(['one'])],
     'scalar' => ['required', Rule::in('one')],
     'constant_array' => ['required', Rule::in($allowed)],
@@ -29,7 +32,9 @@ $validator = Validator::make([], [
 
 assertType(
     "array{strings: 'a\"b'|'a,b'|'one'|Stringable, "
-        . 'numeric: float|int|numeric-string|Stringable|true, '
+        . 'numeric: 1|float|numeric-string|Stringable|true, '
+        . 'numeric_multiple: float|int|numeric-string|Stringable|true, '
+        . 'float_constant_array: float|int|numeric-string|Stringable, '
         . "optional?: string|Stringable, scalar: 'one'|Stringable, "
         . "constant_array: 'one'|'two'|Stringable, empty: ''|Stringable|false|null}",
     $validator->validated()

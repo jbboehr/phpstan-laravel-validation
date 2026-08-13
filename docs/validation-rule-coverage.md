@@ -87,7 +87,7 @@ The following 57 names contribute a concrete type today:
 
 | Family | Rules | Current contribution |
 | --- | --- | --- |
-| Exact accepted sets | `Accepted`, `Boolean`, `Declined`, `In` | Literal unions or parameter-aware scalar unions; fresh inline `Rule::in()` builders can supply the `In` parameters |
+| Exact accepted sets | `Accepted`, `Boolean`, `Declined`, `In` | Literal unions or parameter-aware scalar unions; numeric `In` parameters narrow safely representable native integers while retaining broader float, numeric-string, and object equivalence classes; fresh inline `Rule::in()` builders can supply the parameters, with float-bearing builders retaining `int` for runtime precision changes |
 | String predicates | `ActiveUrl`, `Alpha`, `CurrentPassword`, `Email`, `Ip`, `Ipv4`, `Ipv6`, `MacAddress`, `Timezone`, `Ulid`, `Url`, `Uuid` | Usually `non-empty-string` |
 | Native string checks | `Lowercase`, `String`, `Uppercase` | `string` |
 | Coercive text checks | `AlphaDash`, `AlphaNum`, `Json`, `NotRegex`, `Regex` | Unions containing the native scalar or `Stringable` values Laravel preserves |

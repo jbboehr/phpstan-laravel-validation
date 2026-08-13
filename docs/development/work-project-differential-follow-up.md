@@ -147,17 +147,23 @@ not discard the outer list guarantee.
 
 ## Slice 5: numeric membership precision
 
-Numeric `in` parameters require a broad `numeric-string` and `Stringable`
-branch because Laravel casts values to strings and compares loosely. Current
-inference also uses unrestricted `int` and `float` branches. Finite literal
-parameters could narrow those native branches to the corresponding constant
-integers and floats while leaving the string and object branches broad.
+Implemented locally. Numeric `in` parameters now narrow native integer
+alternatives to constants when PHP's comparison has one safely representable
+integer equivalence class. This covers canonical integers, signs, whitespace,
+leading zeroes, integer-valued decimals and exponents, negative zero, and
+underflow to zero. Multiple parameters contribute the union of their safe
+integer alternatives. Fresh `Rule::in()` builders use the same model unless a
+parameter originated as a float; those builders retain broad `int` because
+application code can change PHP's `precision` before Laravel performs the
+runtime stringification.
 
-This improvement must cover exponent notation, whitespace and leading-zero
-strings, integer-valued floats, negative zero, non-finite float spellings,
-multiple numeric parameters, and both string rules and fresh `Rule::in()`
-builders. If PHPStan cannot represent a runtime equivalence class faithfully,
-retain the broader type.
+The `numeric-string` and `Stringable` branches remain broad. The native
+`float` branch also remains broad: PHP's configurable float-to-string
+precision lets nearby floats produce the same comparison string, so a
+constant-float union would be unsound. Integer-valued decimal or exponent
+parameters above the exactly representable float range retain broad `int`
+when adjacent native integers can compare equal. Runtime and static tests cover
+these limits, including non-finite spellings and rejected integer candidates.
 
 ## Lower-priority observations
 

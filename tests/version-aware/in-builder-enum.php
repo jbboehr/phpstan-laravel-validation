@@ -21,7 +21,7 @@ $validator = Validator::make([], [
 
 assertType(
     "array{pure: 'Draft'|'Published'|Stringable, "
-        . 'string_backed: float|int|numeric-string|Stringable|true, '
-        . 'integer_backed: float|int|numeric-string|Stringable}',
+        . 'string_backed: 1|float|numeric-string|Stringable|true, '
+        . 'integer_backed: 2|float|numeric-string|Stringable}',
     $validator->validated()
 );
