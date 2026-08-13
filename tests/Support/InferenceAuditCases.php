@@ -129,6 +129,26 @@ final class InferenceAuditCases
             'max_digits.too_many' => $case(1234, 'required|max_digits:3', 'predicate precision'),
             'min_digits.integer' => $case(12, 'required|min_digits:2'),
             'min_digits.too_few' => $case(1, 'required|min_digits:2', 'predicate precision'),
+            'min.string' => $case('x', 'required|string|min:1'),
+            'min.optional_blank_string' => $case('', 'string|min:1', 'blank-value bypass'),
+            'min.array' => $case(['item'], 'required|array|min:1'),
+            'min.empty_array' => $case([], 'required|array|min:1', 'predicate precision'),
+            'min.array_excluded_child' => [
+                'data' => ['items' => ['removed']],
+                'rules' => [
+                    'items' => 'required|array|min:1',
+                    'items.0' => 'exclude',
+                ],
+                'concern' => 'input size before output projection',
+            ],
+            'min.parameterized_array_excluded_child' => [
+                'data' => ['items' => ['name' => 'removed']],
+                'rules' => [
+                    'items' => 'required|array:name|min:1',
+                    'items.name' => 'exclude',
+                ],
+                'concern' => 'allowed-key input size before output projection',
+            ],
             'alpha.string' => $case('abc', 'required|alpha'),
             'alpha_num.integer' => $case(123, 'required|alpha_num'),
             'alpha_num.negative' => $case(-1, 'required|alpha_num'),
@@ -418,7 +438,8 @@ final class InferenceAuditCases
                 'evidence' => [
                     'boolean.native', 'integer.native', 'integer_strict.string', 'numeric.string',
                     'digits.integer', 'digits_between.integer', 'decimal.string', 'multiple_of.float',
-                    'max_digits.integer', 'min_digits.integer',
+                    'max_digits.integer', 'min_digits.integer', 'min.string', 'min.array',
+                    'min.array_excluded_child', 'min.parameterized_array_excluded_child',
                 ],
             ],
             'text predicates' => [

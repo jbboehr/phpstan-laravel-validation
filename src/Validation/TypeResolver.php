@@ -26,6 +26,7 @@ use PHPStan\Type\Accessory\AccessoryArrayListType;
 use PHPStan\Type\Accessory\AccessoryNonEmptyStringType;
 use PHPStan\Type\Accessory\AccessoryNumericStringType;
 use PHPStan\Type\Accessory\HasOffsetType;
+use PHPStan\Type\Accessory\NonEmptyArrayType;
 use PHPStan\Type\Constant\ConstantArrayTypeBuilder;
 use PHPStan\Type\Constant\ConstantBooleanType;
 use PHPStan\Type\Constant\ConstantIntegerType;
@@ -277,6 +278,8 @@ final class TypeResolver
             $type = Type\TypeCombinator::intersect(...$types);
         }
 
+        $type = $this->refinePositiveMinimum($node, $type);
+
         if (
             $node->allowsBlankStringBypass()
             && $this->blankStringCanReachValidation($node, $assumeHttpInputNormalization)
@@ -285,6 +288,66 @@ final class TypeResolver
         }
 
         return $type;
+    }
+
+    private function refinePositiveMinimum(RuleTreeNode $node, Type\Type $type): Type\Type
+    {
+        if (!$this->hasPositiveMinimum($node)) {
+            return $type;
+        }
+
+        if ($type->isString()->yes()) {
+            return Type\TypeCombinator::intersect(
+                $type,
+                new AccessoryNonEmptyStringType()
+            );
+        }
+
+        if ($type->isArray()->yes()) {
+            // Min constrains the array before nested rules project validated
+            // output. A direct exclusion can remove its last element after
+            // the parent has passed, so input non-emptiness is not an output
+            // invariant in that branch.
+            if ($this->hasPotentiallyExcludedDirectChild($node)) {
+                return $type;
+            }
+
+            return Type\TypeCombinator::intersect(
+                $type,
+                new NonEmptyArrayType()
+            );
+        }
+
+        return $type;
+    }
+
+    private function hasPositiveMinimum(RuleTreeNode $node): bool
+    {
+        foreach ($node->getRules() as $rule) {
+            if ($rule->getRuleName() !== 'Min') {
+                continue;
+            }
+
+            $parameters = $rule->getParameters();
+            if (!isset($parameters[0]) || !is_scalar($parameters[0])) {
+                continue;
+            }
+
+            $parameter = trim((string) $parameters[0]);
+            if (
+                !is_numeric($parameter)
+                || str_starts_with($parameter, '-')
+            ) {
+                continue;
+            }
+
+            $mantissa = explode('e', strtolower($parameter), 2)[0];
+            if (strpbrk($mantissa, '123456789') !== false) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function blankStringCanReachValidation(

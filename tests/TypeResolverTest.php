@@ -342,6 +342,71 @@ final class TypeResolverTest extends PHPStanTestCase
         ], '13.21.0', true));
     }
 
+    public function testPositiveMinimumRefinesKnownStringAndArrayTypes(): void
+    {
+        self::assertSame('array{value: non-empty-string}', self::resolve([
+            'value' => 'required|string|min:1',
+        ]));
+        self::assertSame('array{value?: string}', self::resolve([
+            'value' => 'string|min:1',
+        ]));
+        self::assertSame('array{value?: non-empty-string}', self::resolve([
+            'value' => 'string|min:1',
+        ], true));
+
+        self::assertSame('array{value: non-empty-array}', self::resolve([
+            'value' => 'required|array|min:1',
+        ]));
+        self::assertSame('array{value?: non-empty-array|string}', self::resolve([
+            'value' => 'array|min:1',
+        ]));
+        self::assertSame('array{value?: non-empty-array|string|null}', self::resolve([
+            'value' => 'nullable|array|min:1',
+        ]));
+        self::assertSame('array{value: non-empty-array|string}', self::resolve([
+            'value' => 'present|array|min:1',
+        ]));
+    }
+
+    public function testMinimumRefinementRequiresADefinitelyPositiveNumericParameter(): void
+    {
+        foreach (['0', '-1', 'invalid'] as $minimum) {
+            self::assertSame('array{value: array}', self::resolve([
+                'value' => 'required|array|min:' . $minimum,
+            ]));
+        }
+
+        foreach (['+1', ' 1 ', '1e-4000'] as $minimum) {
+            self::assertSame('array{value: non-empty-array}', self::resolve([
+                'value' => 'required|array|min:' . $minimum,
+            ]));
+        }
+
+        self::assertSame('array{value: float|int|numeric-string}', self::resolve([
+            'value' => 'required|numeric|min:1',
+        ]));
+        self::assertSame('array{value: mixed}', self::resolve([
+            'value' => 'required|min:1',
+        ]));
+
+        self::assertSame('array{items?: array<int|string, mixed>}', self::resolve([
+            'items' => 'required|array|min:1',
+            'items.0' => 'exclude',
+        ]));
+        self::assertSame('array{items: array{name?: mixed}}', self::resolve([
+            'items' => 'required|array:name|min:1',
+            'items.name' => 'exclude',
+        ]));
+        self::assertSame('array{items: array{name: mixed}}', self::resolve([
+            'items' => 'required|array:name|min:1',
+            'items.name.secret' => 'exclude',
+        ]));
+        self::assertSame('array{payload?: array{name?: string}}', self::resolve([
+            'payload' => 'required|array|min:1',
+            'payload.name' => 'sometimes|string',
+        ]));
+    }
+
     public function testVersionAwareExtensionsInference(): void
     {
         $file = 'Symfony\\Component\\HttpFoundation\\File\\File';
@@ -397,6 +462,12 @@ final class TypeResolverTest extends PHPStanTestCase
         ], '11.0.2'));
         self::assertSame('array{value: list}', self::resolveForVersion([
             'value' => 'required|list',
+        ], '11.0.3'));
+        self::assertSame('array{value: non-empty-list}', self::resolveForVersion([
+            'value' => 'required|list|min:1',
+        ], '11.0.3'));
+        self::assertSame('array{value?: non-empty-list|string}', self::resolveForVersion([
+            'value' => 'list|min:1',
         ], '11.0.3'));
         self::assertSame('array{value: list}', self::resolveForVersion([
             'value' => 'required|list',

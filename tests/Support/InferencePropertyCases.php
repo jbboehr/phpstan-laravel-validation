@@ -24,7 +24,7 @@ namespace jbboehr\PhpstanLaravelValidation\Test\Support;
 final class InferencePropertyCases
 {
     public const SCALAR_COUNT = 1620;
-    public const STRUCTURAL_COUNT = 140;
+    public const STRUCTURAL_COUNT = 180;
     public const CONDITIONAL_COUNT = 280;
 
     /**
@@ -105,6 +105,20 @@ final class InferencePropertyCases
             'bare-array' => ['payload' => 'array'],
             'allowed-keys' => ['payload' => 'array:name,email'],
             'required-name' => ['payload' => 'array', 'payload.name' => 'required|string'],
+            'minimum-one' => ['payload' => 'array|min:1'],
+            'required-minimum-one' => ['payload' => 'required|array|min:1'],
+            'minimum-one-optional-child' => [
+                'payload' => 'array|min:1',
+                'payload.name' => 'sometimes|string',
+            ],
+            'minimum-one-missing-child' => [
+                'payload' => 'array|min:1',
+                'payload.name' => 'missing',
+            ],
+            'allowed-keys-minimum-one-excluded-child' => [
+                'payload' => 'required|array:name|min:1',
+                'payload.name' => 'exclude',
+            ],
             'optional-nullable-name' => ['payload' => 'array', 'payload.name' => 'sometimes|nullable|string'],
             'allowed-keys-missing-child' => [
                 'payload' => 'array:name,email',

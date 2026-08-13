@@ -119,7 +119,7 @@ are omitted from the snapshot.
 An additional Eris property suite takes 250 seed-dependent draws in each of
 three bounded domains: scalar presence and native representations, nested
 projection and wildcards, and cross-field presence and exclusion. Their finite
-catalogs contain 1,620, 140, and 280 possible combinations respectively; draws
+catalogs contain 1,620, 180, and 280 possible combinations respectively; draws
 are made with replacement and are not claims of exhaustive coverage. Each
 property requires at least 30 percent of its trials to produce successful
 Laravel output so a mostly rejected sample cannot pass vacuously. It then runs
@@ -767,7 +767,7 @@ generated trials without finding a containment failure. Across the sweep, the
 generated index combinations visited all 1,620 scalar, the then-current 100
 structural, and 280 conditional catalog entries at least once. This strengthens
 the local evidence but does not exercise those sequences against every
-supported Laravel release. The structural catalog has since grown to 140.
+supported Laravel release. The structural catalog has since grown to 180.
 
 CI already runs the reproducible default seed throughout the Laravel/PHP
 matrix. A useful lower-priority follow-up is a periodic or manually triggered

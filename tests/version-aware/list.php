@@ -21,6 +21,15 @@ assertType('list', $validated['required_value']);
 assertType('list|string', $validated['optional_value']);
 assertType('list|string|null', $validated['nullable_value']);
 
+$minimum = \Illuminate\Support\Facades\Validator::make([], [
+    'required_value' => 'required|list|min:1',
+    'optional_value' => 'list|min:1',
+])->validated();
+assertType(
+    'array{required_value: non-empty-list, optional_value?: non-empty-list|string}',
+    $minimum
+);
+
 $allowedKeyList = \Illuminate\Support\Facades\Validator::make([], [
     'value' => 'array:name|list',
 ])->validated();

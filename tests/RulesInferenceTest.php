@@ -68,6 +68,7 @@ class RulesInferenceTest extends \PHPStan\Testing\TypeInferenceTestCase
         yield from self::gatherAssertTypes(__DIR__ . '/rules/json.php');
         yield from self::gatherAssertTypes(__DIR__ . '/rules/lowercase.php');
         yield from self::gatherAssertTypes(__DIR__ . '/rules/mac-address.php');
+        yield from self::gatherAssertTypes(__DIR__ . '/rules/min.php');
         yield from self::gatherAssertTypes(__DIR__ . '/rules/max-digits.php');
         yield from self::gatherAssertTypes(__DIR__ . '/rules/missing.php');
         yield from self::gatherAssertTypes(__DIR__ . '/rules/mimes.php');

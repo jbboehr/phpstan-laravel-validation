@@ -72,9 +72,9 @@ separate dimensions.
 | Accepted-value handling | Rule names | Focused static coverage | Meaning |
 | --- | ---: | ---: | --- |
 | Direct type contribution | 57 | 57 | A native value type is emitted and has dedicated focused static coverage |
-| Explicitly neutral | 45 | 13 | The rule does not narrow the local value type, whether intentionally or because a correlated model is unavailable |
+| Explicitly neutral | 45 | 14 | The rule does not independently narrow the local value type, whether intentionally or because a correlated model is unavailable |
 | Conservative `mixed` fallback | 12 | 0 | No built-in accepted-value model is applied |
-| **Total reserved names** | **114** | **74 files** | Covers the current Laravel 13.25 name inventory, including `Enum` and `Password` |
+| **Total reserved names** | **114** | **75 files** | Covers the current Laravel 13.25 name inventory, including `Enum` and `Password` |
 
 The repository's generated Laravel fixtures provide broader conformance
 coverage than the focused-file count suggests. Focused files are still
@@ -126,6 +126,9 @@ These 45 names are recognized and deliberately contribute no local value type:
 
 Neutral does not mean ignored. `Required`, `Present`, `Missing`, `Nullable`,
 `Sometimes`, and the `Exclude*` family have separate tree-level handling.
+`Min` also refines a known adjacent string or collection type to its non-empty
+form when its parameter is definitely positive; it remains neutral without a
+native-family rule because Laravel may instead measure a number or file.
 Conditional required, presence, missing, and exclusion rules remain
 conservative because the output is not represented as a correlated union over
 the controlling field.

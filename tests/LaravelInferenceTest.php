@@ -2691,6 +2691,97 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         }
     }
 
+    public function testPositiveMinimumRefinesKnownStringAndCollectionTypes(): void
+    {
+        self::getContainer();
+
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $cases = [
+            'required string' => ['x', 'required|string|min:1'],
+            'optional blank string' => ['', 'string|min:1'],
+            'required array' => [[1], 'required|array|min:1'],
+            'optional blank array rule' => ['', 'array|min:1'],
+            'positive underflow array minimum' => [[1], 'required|array|min:1e-4000'],
+        ];
+        $context = new LaravelVersionContext('', self::frameworkVersion());
+        if ($context->isAtLeast('11.0.3')) {
+            $cases['required list'] = [[1], 'required|list|min:1'];
+        }
+
+        foreach ($cases as $name => [$value, $rule]) {
+            $validator = $factory->make(['value' => $value], ['value' => $rule]);
+            self::assertTrue($validator->passes(), $name);
+            self::assertSame(['value' => $value], $validator->validated(), $name);
+
+            $rulesType = (new TypeResolver($context))->evaluate(
+                RuleParser::parse(['value' => $rule], $context)
+            );
+            self::assertTrue($rulesType->accepts(
+                $this->convertToType($validator->validated()),
+                true
+            )->yes(), $name . ': inference contains output');
+        }
+
+        foreach ([
+            'empty required array' => [[], 'required|array|min:1'],
+            'empty required list' => [[], 'required|list|min:1'],
+        ] as $name => [$value, $rule]) {
+            if (str_contains($rule, 'list') && !$context->isAtLeast('11.0.3')) {
+                continue;
+            }
+
+            self::assertFalse(
+                $factory->make(['value' => $value], ['value' => $rule])->passes(),
+                $name
+            );
+        }
+
+        $excludedCases = [
+            'bare array' => [
+                ['items' => ['removed']],
+                [
+                    'items' => 'required|array|min:1',
+                    'items.0' => 'exclude',
+                ],
+                ['items' => []],
+            ],
+            'parameterized array' => [
+                ['items' => ['name' => 'removed']],
+                [
+                    'items' => 'required|array:name|min:1',
+                    'items.name' => 'exclude',
+                ],
+                ['items' => []],
+            ],
+            'deeper exclusion retains the allowed key' => [
+                ['items' => ['name' => ['secret' => 'removed']]],
+                [
+                    'items' => 'required|array:name|min:1',
+                    'items.name.secret' => 'exclude',
+                ],
+                ['items' => ['name' => []]],
+            ],
+        ];
+
+        foreach ($excludedCases as $name => [$data, $rules, $expected]) {
+            $excluded = $factory->make($data, $rules);
+            self::assertTrue($excluded->passes(), $name);
+            self::assertSame($expected, $excluded->validated(), $name);
+            $excludedType = (new TypeResolver($context))->evaluate(
+                RuleParser::parse($rules, $context)
+            );
+            self::assertTrue($excludedType->accepts(
+                $this->convertToType($excluded->validated()),
+                true
+            )->yes(), $name . ': inference contains output');
+        }
+    }
+
     public function testScalarInRuleAcceptsAResourceWithTheSameStringValue(): void
     {
         self::getContainer();

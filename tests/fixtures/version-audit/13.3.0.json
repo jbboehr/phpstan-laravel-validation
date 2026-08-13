@@ -1132,6 +1132,194 @@
                 "classification": "observed-imprecision"
             }
         },
+        "min.string": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|string|min:1"
+            },
+            "input": {
+                "value": "x"
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": "x"
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: non-empty-string}",
+                "outputType": "array{value: 'x'}",
+                "containsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            },
+            "precision": {
+                "candidateOutputType": "array{value: 'x'}",
+                "containedByInference": "yes",
+                "preservedOnSuccess": true,
+                "classification": "observed-realizable"
+            }
+        },
+        "min.optional_blank_string": {
+            "concern": "blank-value bypass",
+            "rules": {
+                "value": "string|min:1"
+            },
+            "input": {
+                "value": ""
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": ""
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value?: string}",
+                "outputType": "array{value: ''}",
+                "containsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            },
+            "precision": {
+                "candidateOutputType": "array{value: ''}",
+                "containedByInference": "yes",
+                "preservedOnSuccess": true,
+                "classification": "observed-realizable"
+            }
+        },
+        "min.array": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|array|min:1"
+            },
+            "input": {
+                "value": [
+                    "item"
+                ]
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": [
+                        "item"
+                    ]
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: non-empty-array}",
+                "outputType": "array{value: array{'item'}}",
+                "containsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            },
+            "precision": {
+                "candidateOutputType": "array{value: array{'item'}}",
+                "containedByInference": "yes",
+                "preservedOnSuccess": true,
+                "classification": "observed-realizable"
+            }
+        },
+        "min.empty_array": {
+            "concern": "predicate precision",
+            "rules": {
+                "value": "required|array|min:1"
+            },
+            "input": {
+                "value": []
+            },
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: non-empty-array}",
+                "outputType": null,
+                "containsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            },
+            "precision": {
+                "candidateOutputType": "array{value: array{}}",
+                "containedByInference": "no",
+                "preservedOnSuccess": null,
+                "classification": "candidate-outside-inference"
+            }
+        },
+        "min.array_excluded_child": {
+            "concern": "input size before output projection",
+            "rules": {
+                "items": "required|array|min:1",
+                "items.0": "exclude"
+            },
+            "input": {
+                "items": [
+                    "removed"
+                ]
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "items": []
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{items?: array<int|string, mixed>}",
+                "outputType": "array{items: array{}}",
+                "containsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            },
+            "precision": {
+                "candidateOutputType": null,
+                "containedByInference": null,
+                "preservedOnSuccess": null,
+                "classification": "not-probed"
+            }
+        },
+        "min.parameterized_array_excluded_child": {
+            "concern": "allowed-key input size before output projection",
+            "rules": {
+                "items": "required|array:name|min:1",
+                "items.name": "exclude"
+            },
+            "input": {
+                "items": {
+                    "name": "removed"
+                }
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "items": []
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{items: array{name?: mixed}}",
+                "outputType": "array{items: array{}}",
+                "containsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            },
+            "precision": {
+                "candidateOutputType": null,
+                "containedByInference": null,
+                "preservedOnSuccess": null,
+                "classification": "not-probed"
+            }
+        },
         "alpha.string": {
             "concern": "native value",
             "rules": {

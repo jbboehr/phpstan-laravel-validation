@@ -14,11 +14,12 @@ for the proprietary application.
 
 | Slice | Finding | Kind | Priority | Status |
 | ---: | --- | --- | --- | --- |
-| 1 | Normalize Laravel's `int` and `bool` aliases | Precision defect | High | Implemented locally |
-| 2 | Infer `Illuminate\Validation\Factory::validate()` | Missing entrypoint | High | Implemented locally |
-| 3 | Model `includeUnvalidatedArrayKeys()` configuration | Conditional soundness | Highest risk | Implemented locally |
-| 4 | Preserve listness through safe nested projection | Precision defect | Medium | Implemented locally |
-| 5 | Narrow native numerics for numeric `in` parameters | Precision improvement | Low | Pending |
+| 1 | Normalize Laravel's `int` and `bool` aliases | Precision defect | High | Implemented |
+| 2 | Infer `Illuminate\Validation\Factory::validate()` | Missing entrypoint | High | Implemented |
+| 3 | Model `includeUnvalidatedArrayKeys()` configuration | Conditional soundness | Highest risk | Implemented |
+| 4 | Preserve listness through safe nested projection | Precision defect | Medium | Implemented |
+| 5 | Narrow native numerics for numeric `in` parameters | Precision improvement | Low | Implemented |
+| 6 | Refine positive `min` constraints on known strings and collections | Precision improvement | Low | Implemented locally |
 
 Slice order balances practical impact and isolation. Slice 3 carries the
 greatest soundness risk, but slices 1 and 2 are small, independent corrections.
@@ -165,14 +166,33 @@ parameters above the exactly representable float range retain broad `int`
 when adjacent native integers can compare equal. Runtime and static tests cover
 these limits, including non-finite spellings and rejected integer candidates.
 
+## Slice 6: positive minimum size precision
+
+Implemented locally. A definitely positive `min` parameter now refines an
+adjacent native `string` rule to `non-empty-string` and an adjacent `array` or
+supported `list` rule to its non-empty form. `Min` remains neutral by itself:
+without an adjacent native-family rule, Laravel may measure a number, string,
+array, or file, so inferring a standalone type would be false.
+
+Optional blank strings still bypass both the native-family rule and `min`, so
+they remain in non-normalized output. HTTP-normalized analysis can remove that
+blank branch where the configured request path justifies it. Zero, negative,
+non-numeric, and missing parameters do not refine. Exact decimal parsing
+recognizes positive values too small for a native float, such as `1e-4000`,
+without rounding them to zero during analysis.
+
+Runtime witnesses cover strings, arrays, lists where supported, optional blank
+bypass, empty-collection rejection, and exponent parameters across the Laravel
+10 through 13 CI matrix. Structural property cases exercise nested projection,
+including allowed-key arrays emptied by exclusion, and missing-child
+interactions so an input-size constraint is not confused with the shape Laravel
+returns after projection.
+
 ## Lower-priority observations
 
 - `integer` accepts a subset of `numeric-string` that PHPStan does not expose
   as a standard accessory type. Do not replace the sound broad branch with a
   convenient but false narrower type.
-- Positive `min` parameters can sometimes prove `non-empty-string`,
-  `non-empty-array`, or size bounds. This is independent parameter-sensitive
-  inference work and should not be folded into the slices above.
 - The report's escaped paths, nullable values, exclusions, enums, JSON,
   numeric rule keys, and date behaviors agreed with current inference and need
   no corrective work.
