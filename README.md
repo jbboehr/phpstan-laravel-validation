@@ -175,6 +175,15 @@ factory modes. A directly constructed `Illuminate\Validation\Validator`
 retains Laravel's broad declared return type and is not narrowed from this
 assumption.
 
+PHPStan reports
+`laravelValidation.unvalidatedArrayKeysConfiguration` when a direct
+`Factory` method call or statically resolved `Validator` facade call switches
+to the mode opposite this option. The diagnostic is intentionally call-local:
+it does not execute service providers, follow arbitrary container aliases, or
+claim to determine the final mode after later calls. It makes visible
+configuration contradictions that analysis can actually see; the option
+remains the source of truth for inferred output.
+
 ### Form requests
 
 FormRequest inference is experimental and disabled by default. Enable it

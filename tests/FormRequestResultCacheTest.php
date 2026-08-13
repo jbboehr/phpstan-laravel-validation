@@ -230,6 +230,35 @@ PHP);
         );
     }
 
+    public function testFactoryModeDiagnosticFollowsIncludedArrayKeysOption(): void
+    {
+        $this->writeProjectFile('src/Controller.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+function configure(\Illuminate\Validation\Factory $factory): void
+{
+    $factory->includeUnvalidatedArrayKeys();
+}
+PHP);
+
+        $first = $this->analyse();
+        self::assertSame(1, $first->getExitCode());
+        self::assertStringContainsString(
+            'Calling includeUnvalidatedArrayKeys() conflicts with '
+                . 'phpstanLaravelValidation.includeUnvalidatedArrayKeys: false',
+            $first->getErrorOutput() . $first->getOutput()
+        );
+
+        $this->writeConfig(true);
+
+        $second = $this->analyse();
+        self::assertSame(0, $second->getExitCode(), $second->getErrorOutput() . $second->getOutput());
+    }
+
     public function testRegistryManifestIsWrittenAndCorruptionFallsBackSafely(): void
     {
         $this->writeRequest("return ['value' => 'required|string'];");

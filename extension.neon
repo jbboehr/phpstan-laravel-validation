@@ -69,6 +69,11 @@ services:
       includeUnvalidatedArrayKeys: %phpstanLaravelValidation.includeUnvalidatedArrayKeys%
   - class: jbboehr\PhpstanLaravelValidation\Type\ValidatorTypeHelper
   - class: jbboehr\PhpstanLaravelValidation\Extension\CallArgumentResolver
+  - class: jbboehr\PhpstanLaravelValidation\Rule\UnvalidatedArrayKeysConfigurationRule
+    arguments:
+      includeUnvalidatedArrayKeys: %phpstanLaravelValidation.includeUnvalidatedArrayKeys%
+    tags:
+      - phpstan.rules.rule
   - class: jbboehr\PhpstanLaravelValidation\Extension\ControllerValidateExtension
     arguments:
       assumeHttpInputNormalization: %phpstanLaravelValidation.assumeHttpInputNormalization%

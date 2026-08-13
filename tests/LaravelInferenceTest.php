@@ -311,7 +311,7 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
             self::assertSame($expectedDefault, $default, $name . ': default output');
 
             $includedFactory = $newFactory();
-            $includedFactory->includeUnvalidatedArrayKeys();
+            self::enableIncludedArrayKeysForRuntimeProbe($includedFactory);
             $included = $includedFactory->validate($data, $rules);
             self::assertSame($data, $included, $name . ': included output');
 
@@ -449,7 +449,7 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
             foreach (['default' => false, 'included' => true] as $mode => $includeUnvalidatedArrayKeys) {
                 $factory = $newFactory();
                 if ($includeUnvalidatedArrayKeys) {
-                    $factory->includeUnvalidatedArrayKeys();
+                    self::enableIncludedArrayKeysForRuntimeProbe($factory);
                 }
 
                 $validated = $factory->validate($data, $rules);
@@ -2517,7 +2517,8 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         $nanCoercionWarnings = [];
         $previousErrorHandler = null;
         $nanErrorHandlerInstalled = false;
-        if (PHP_VERSION_ID >= 80500 && is_float($value) && is_nan($value)) {
+        $isNanValue = is_float($value) && is_nan($value);
+        if ($isNanValue) {
             $previousErrorHandler = set_error_handler(
                 static function (int $severity, string $message, string $file, int $line) use (
                     &$nanCoercionWarnings,
@@ -2551,8 +2552,11 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
             }
         }
 
-        if (PHP_VERSION_ID >= 80500 && is_float($value) && is_nan($value)) {
-            self::assertCount(1, $nanCoercionWarnings);
+        if ($isNanValue) {
+            self::assertCount(
+                version_compare(phpversion(), '8.5.0', '>=') ? 1 : 0,
+                $nanCoercionWarnings
+            );
         }
 
         $validated = $validator->validated();
@@ -2993,5 +2997,11 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
     private function convertToType(mixed $data): Type\Type
     {
         return LaravelValueType::fromValue($data);
+    }
+
+    private static function enableIncludedArrayKeysForRuntimeProbe(
+        \Illuminate\Validation\Factory $factory
+    ): void {
+        \Closure::fromCallable([$factory, 'includeUnvalidatedArrayKeys'])();
     }
 }

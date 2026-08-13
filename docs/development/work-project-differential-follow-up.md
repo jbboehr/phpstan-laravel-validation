@@ -104,12 +104,13 @@ static witnesses because Laravel mutates the validated parent before returning
 it; listness and required-offset guarantees are widened when that mutation can
 remove an immediate child.
 
-A possible follow-up is a PHPStan rule that reports direct calls to
-`Factory::includeUnvalidatedArrayKeys()` (including facade passthroughs) while
-the matching extension option remains disabled. Such a diagnostic would make
-common configuration mismatches visible, but it cannot replace the explicit
-option: application boot code may be outside analyzed paths, and a later
-`excludeUnvalidatedArrayKeys()` call can restore the default behavior.
+The extension now reports direct factory calls and statically resolved facade
+calls that switch to the mode opposite the configured option. Both directions
+matter: included keys can invalidate closed parent shapes, while restoring
+exclusion can reconstruct a list with sparse keys. The diagnostic remains
+call-local and cannot replace the explicit option. Application boot code may
+be outside analyzed paths, container aliases may be indirect, and a later call
+can reverse the mode again.
 
 ## Slice 4: nested list projection
 
