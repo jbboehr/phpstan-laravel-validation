@@ -8,6 +8,14 @@ must emit a type that contains those values.
 Nix is convenient for switching PHP versions, but it is not required. The
 canonical test and audit commands use PHP and Composer directly.
 
+`composer cs` also uses Akashi to format-check every inline PHP fence in the
+README and `docs/`. Run that check alone with `composer docs:format`. This
+initial dogfooding integration checks maintained examples for PHP formatting;
+it does not execute illustrative fragments or PHPStan-only examples as though
+they were standalone runtime programs. Akashi's formatter is currently
+check-only, so apply a reported documentation diff by hand; `composer cs:fix`
+formats PHP source files only.
+
 ## Choose the smallest useful test
 
 | Question | Test layer | Typical location |

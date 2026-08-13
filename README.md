@@ -542,7 +542,9 @@ The [testing and runtime verification guide](docs/testing.md) explains which
 test layer to use, how to write named Laravel runtime cases, how to replay Eris
 seeds, and how to run the portable cross-version Composer audit. Nix is an
 optional convenience for selecting PHP versions, not a test prerequisite.
-Apply formatting changes with `composer cs:fix`.
+Apply PHP source formatting changes with `composer cs:fix`. Akashi's
+documentation-fence formatter is currently check-only; correct those fences by
+applying the diff reported by `composer docs:format`.
 
 Mutation testing uses an isolated toolchain because Infection requires PHP 8.3 or newer while this package supports PHP 8.1. Install it and run it from the project root with:
 

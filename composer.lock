@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "c1d898a5d3b8579b8d126bb2514cdacb",
+    "content-hash": "ab60b023a2177d4b3025e9a6ebd6bfda",
     "packages": [
         {
             "name": "nikic/php-parser",
@@ -129,6 +129,71 @@
         }
     ],
     "packages-dev": [
+        {
+            "name": "arokettu/random-polyfill",
+            "version": "1.0.6",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/arokettu/php-random-polyfill.git",
+                "reference": "1f7e9cf63b06883319074d878a4c2b9fb92042c4"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/arokettu/php-random-polyfill/zipball/1f7e9cf63b06883319074d878a4c2b9fb92042c4",
+                "reference": "1f7e9cf63b06883319074d878a4c2b9fb92042c4",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">= 7.1",
+                "symfony/polyfill-php80": "^1.22",
+                "symfony/polyfill-php81": "^1.22",
+                "symfony/polyfill-php82": "^1.27"
+            },
+            "provide": {
+                "ext-random": "8.2.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^7.5 || ^8.5 || 9.5.*",
+                "psy/psysh": "*",
+                "sandfox.dev/code-standard": "^1.2025.09.11",
+                "squizlabs/php_codesniffer": "*"
+            },
+            "suggest": {
+                "ext-gmp": "For significantly faster calculation"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-0": {
+                    "Random\\": "src",
+                    "Arokettu\\Random\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "authors": [
+                {
+                    "name": "Anton Smirnov",
+                    "email": "sandfox+composer@sandfox.me",
+                    "homepage": "https://sandfox.me/",
+                    "role": "developer"
+                }
+            ],
+            "description": "Random Extension Polyfill for PHP",
+            "homepage": "https://sandfox.dev/php/random-polyfill.html",
+            "keywords": [
+                "polyfill",
+                "random"
+            ],
+            "support": {
+                "chat": "https://gitter.im/arokettu/community",
+                "docs": "https://php-random-polyfill.readthedocs.io/",
+                "issues": "https://github.com/arokettu/php-random-polyfill/issues",
+                "source": "https://github.com/arokettu/php-random-polyfill"
+            },
+            "time": "2026-04-13T15:38:34+00:00"
+        },
         {
             "name": "brick/math",
             "version": "0.12.3",
@@ -964,6 +1029,82 @@
             "time": "2026-07-17T13:53:03+00:00"
         },
         {
+            "name": "jbboehr/akashi",
+            "version": "dev-master",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/jbboehr/akashi.php.git",
+                "reference": "fda959d9b3bd3f2f7beb200a5f4ebd0c5cfb3d5e"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/jbboehr/akashi.php/zipball/fda959d9b3bd3f2f7beb200a5f4ebd0c5cfb3d5e",
+                "reference": "fda959d9b3bd3f2f7beb200a5f4ebd0c5cfb3d5e",
+                "shasum": ""
+            },
+            "require": {
+                "arokettu/random-polyfill": ">=1.0.6 <1.99",
+                "composer-runtime-api": "^2.2",
+                "league/commonmark": "^2.8.3",
+                "nikic/php-parser": "^4.19.5 || ^5.8",
+                "php": "^8.1",
+                "sebastian/diff": "^5.1.1 || ^6.0.2",
+                "symfony/process": "^6.4 || ^7.4"
+            },
+            "require-dev": {
+                "brianium/paratest": "^7.3",
+                "ext-dom": "*",
+                "friendsofphp/php-cs-fixer": "^3",
+                "infection/infection": "^0.28.1 || ^0.32.6",
+                "jbboehr/doctrine-of-the-second-sun": "dev-master",
+                "phpstan/phpstan": "^2.2.5",
+                "phpstan/phpstan-deprecation-rules": "^2.0",
+                "phpstan/phpstan-phpunit": "^2.0.13",
+                "phpstan/phpstan-strict-rules": "^2.0",
+                "phpunit/phpunit": "^10.5 || ^11.5",
+                "spaze/phpstan-disallowed-calls": "^4.14"
+            },
+            "suggest": {
+                "friendsofphp/php-cs-fixer": "Enables optional formatting checks for inline Markdown and PHPDoc examples.",
+                "phpstan/phpstan": "Enables PHPStan documentation-example verification (PHPStan 1.12 or 2.x).",
+                "phpunit/phpunit": "Enables runtime and PHPStan test integration (PHPUnit 10.5 or 11.5)."
+            },
+            "default-branch": true,
+            "bin": [
+                "bin/akashi"
+            ],
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "jbboehr\\Akashi\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "AGPL-3.0-only WITH romic-exception"
+            ],
+            "authors": [
+                {
+                    "name": "John Boehr",
+                    "email": "jbboehr@gmail.com"
+                }
+            ],
+            "description": "Test PHP examples in Markdown and PHPDoc through PHPUnit and PHPStan.",
+            "homepage": "https://github.com/jbboehr/akashi.php",
+            "keywords": [
+                "PHPStan",
+                "doctest",
+                "documentation",
+                "phpunit",
+                "testing"
+            ],
+            "support": {
+                "issues": "https://github.com/jbboehr/akashi.php/issues",
+                "source": "https://github.com/jbboehr/akashi.php"
+            },
+            "time": "2026-08-13T05:59:09+00:00"
+        },
+        {
             "name": "jbboehr/doctrine-of-the-second-sun",
             "version": "dev-master",
             "source": {
@@ -1380,16 +1521,16 @@
         },
         {
             "name": "league/commonmark",
-            "version": "2.9.0",
+            "version": "2.10.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/thephpleague/commonmark.git",
-                "reference": "5703d83ba3da3b2e356a5fedc848ed6d8ffb6529"
+                "reference": "d2d1aa8b35e072966c89bc0c66cf926e56767dc4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/thephpleague/commonmark/zipball/5703d83ba3da3b2e356a5fedc848ed6d8ffb6529",
-                "reference": "5703d83ba3da3b2e356a5fedc848ed6d8ffb6529",
+                "url": "https://api.github.com/repos/thephpleague/commonmark/zipball/d2d1aa8b35e072966c89bc0c66cf926e56767dc4",
+                "reference": "d2d1aa8b35e072966c89bc0c66cf926e56767dc4",
                 "shasum": ""
             },
             "require": {
@@ -1426,7 +1567,7 @@
             "type": "library",
             "extra": {
                 "branch-alias": {
-                    "dev-main": "2.10-dev"
+                    "dev-main": "2.11-dev"
                 }
             },
             "autoload": {
@@ -1483,7 +1624,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-08-03T13:42:31+00:00"
+            "time": "2026-08-11T16:06:25+00:00"
         },
         {
             "name": "league/config",
@@ -5822,6 +5963,166 @@
             "time": "2026-04-10T16:19:22+00:00"
         },
         {
+            "name": "symfony/polyfill-php81",
+            "version": "v1.38.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/symfony/polyfill-php81.git",
+                "reference": "6bfb9c766cacffbc8e118cb87217d08ed84e5cd7"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/symfony/polyfill-php81/zipball/6bfb9c766cacffbc8e118cb87217d08ed84e5cd7",
+                "reference": "6bfb9c766cacffbc8e118cb87217d08ed84e5cd7",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.2"
+            },
+            "type": "library",
+            "extra": {
+                "thanks": {
+                    "url": "https://github.com/symfony/polyfill",
+                    "name": "symfony/polyfill"
+                }
+            },
+            "autoload": {
+                "files": [
+                    "bootstrap.php"
+                ],
+                "psr-4": {
+                    "Symfony\\Polyfill\\Php81\\": ""
+                },
+                "classmap": [
+                    "Resources/stubs"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Nicolas Grekas",
+                    "email": "p@tchwork.com"
+                },
+                {
+                    "name": "Symfony Community",
+                    "homepage": "https://symfony.com/contributors"
+                }
+            ],
+            "description": "Symfony polyfill backporting some PHP 8.1+ features to lower PHP versions",
+            "homepage": "https://symfony.com",
+            "keywords": [
+                "compatibility",
+                "polyfill",
+                "portable",
+                "shim"
+            ],
+            "support": {
+                "source": "https://github.com/symfony/polyfill-php81/tree/v1.38.1"
+            },
+            "funding": [
+                {
+                    "url": "https://symfony.com/sponsor",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/fabpot",
+                    "type": "github"
+                },
+                {
+                    "url": "https://github.com/nicolas-grekas",
+                    "type": "github"
+                },
+                {
+                    "url": "https://tidelift.com/funding/github/packagist/symfony/symfony",
+                    "type": "tidelift"
+                }
+            ],
+            "time": "2026-05-26T12:45:58+00:00"
+        },
+        {
+            "name": "symfony/polyfill-php82",
+            "version": "v1.38.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/symfony/polyfill-php82.git",
+                "reference": "002dc0cfe5fd4ed6033d48f27d4f19a486c4b04b"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/symfony/polyfill-php82/zipball/002dc0cfe5fd4ed6033d48f27d4f19a486c4b04b",
+                "reference": "002dc0cfe5fd4ed6033d48f27d4f19a486c4b04b",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.2"
+            },
+            "type": "library",
+            "extra": {
+                "thanks": {
+                    "url": "https://github.com/symfony/polyfill",
+                    "name": "symfony/polyfill"
+                }
+            },
+            "autoload": {
+                "files": [
+                    "bootstrap.php"
+                ],
+                "psr-4": {
+                    "Symfony\\Polyfill\\Php82\\": ""
+                },
+                "classmap": [
+                    "Resources/stubs"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Nicolas Grekas",
+                    "email": "p@tchwork.com"
+                },
+                {
+                    "name": "Symfony Community",
+                    "homepage": "https://symfony.com/contributors"
+                }
+            ],
+            "description": "Symfony polyfill backporting some PHP 8.2+ features to lower PHP versions",
+            "homepage": "https://symfony.com",
+            "keywords": [
+                "compatibility",
+                "polyfill",
+                "portable",
+                "shim"
+            ],
+            "support": {
+                "source": "https://github.com/symfony/polyfill-php82/tree/v1.38.1"
+            },
+            "funding": [
+                {
+                    "url": "https://symfony.com/sponsor",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/fabpot",
+                    "type": "github"
+                },
+                {
+                    "url": "https://github.com/nicolas-grekas",
+                    "type": "github"
+                },
+                {
+                    "url": "https://tidelift.com/funding/github/packagist/symfony/symfony",
+                    "type": "tidelift"
+                }
+            ],
+            "time": "2026-05-26T12:45:58+00:00"
+        },
+        {
             "name": "symfony/polyfill-php83",
             "version": "v1.41.0",
             "source": {
@@ -6926,6 +7227,7 @@
     "aliases": [],
     "minimum-stability": "stable",
     "stability-flags": {
+        "jbboehr/akashi": 20,
         "jbboehr/doctrine-of-the-second-sun": 20
     },
     "prefer-stable": false,
