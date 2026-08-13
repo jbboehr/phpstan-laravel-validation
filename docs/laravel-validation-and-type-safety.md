@@ -193,6 +193,11 @@ Laravel provides several different mechanisms that are easy to conflate:
 - A parameterized parent such as `array:name` is not Laravel's literal
   reconstruction marker. It preserves the complete permitted parent around
   nested rules, even when those rules emit nothing.
+- Laravel 11.23 makes a literal `list` another reconstruction marker. A
+  required first wildcard projection can preserve listness. An earlier
+  optional path can instead emit later numeric keys first, while a missing or
+  excluded path can remove elements; the returned array may therefore be
+  sparse or merely ordered as `1, 0` rather than `0, 1`.
 
 The key list restricts acceptable input keys. Nested rules can project selected
 children into the output, but whether that projection replaces the parent also
@@ -457,7 +462,7 @@ with FormRequest lifecycle behavior covered by
 | Nested child rules project validated keys | `LaravelInferenceTest::testParentAndChildRulesAcceptRuntimeOutput` | [`tests/structure/parent-rules.php`](../tests/structure/parent-rules.php) |
 | Factory configuration changes nested projection | `LaravelInferenceTest::testFactoryUnvalidatedArrayKeyModesMatchInference` | [`tests/include-unvalidated-array-keys/inference.php`](../tests/include-unvalidated-array-keys/inference.php) |
 | Parameterized arrays preserve the permitted parent around nested rules | `PresenceLaravelRuntimeTest::testRuntimeProjection` (named parameterized-parent cases) and the version-audit snapshots | [`tests/rules/missing.php`](../tests/rules/missing.php) and `TypeResolverTest::testParameterizedArrayParentIsPreservedAroundNestedRules` |
-| Literal `list` joins nested reconstruction in Laravel 11.23 | `LaravelInferenceTest::testListRuleFollowsRuntimeVersionBoundary` on the 11.22 and 11.23 profiles | [`tests/version-aware/list.php`](../tests/version-aware/list.php), [`tests/version-aware/list-projection.php`](../tests/version-aware/list-projection.php), and `TypeResolverTest::testListParentProjectionChangesInLaravel1123` |
+| Literal `list` joins nested reconstruction in Laravel 11.23; projection order can preserve, sparsify, or reorder its keys | `LaravelInferenceTest::testListRuleFollowsRuntimeVersionBoundary` and `testFactoryUnvalidatedArrayKeyModesMatchInference` on the 11.22 and 11.23 profiles | [`tests/version-aware/list.php`](../tests/version-aware/list.php), [`tests/version-aware/list-projection.php`](../tests/version-aware/list-projection.php), and `TypeResolverTest::testListParentProjectionChangesInLaravel1123` |
 | Custom predicates preserve successful original values | `CustomRulesLaravelRuntimeTest::testObjectRulesPreserveSuccessfulValuesAndRejectOthers`, `testClosureRulePreservesSuccessfulOriginalValue`, and `testRegisteredStringRulePreservesSuccessfulOriginalValue` | [`tests/custom-rules/inference.php`](../tests/custom-rules/inference.php) |
 | FormRequest lifecycle hooks can change effective rules and later output | `FormRequestLaravelRuntimeTest::testWithValidatorCanReplaceTheEffectiveRules`, `testIntermediateWithValidatorHookCanReplaceTheEffectiveRules`, `testTraitWithValidatorHookCanReplaceTheEffectiveRules`, `testPassedValidationCanReplaceRulesAfterSuccessfulValidation`, and `testCustomValidatorCanIgnoreRulesMethod` | [`tests/form-request/inference.php`](../tests/form-request/inference.php) |
 

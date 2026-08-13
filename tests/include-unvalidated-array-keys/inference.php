@@ -29,6 +29,25 @@ assertType(
     $factory->validate([], $listRules)
 );
 
+$directListRules = [
+    'items' => 'list',
+    'items.*' => 'required|string',
+];
+assertType(
+    'array{items?: list<string>|string}',
+    $factory->validate([], $directListRules)
+);
+
+$nestedListExclusionRules = [
+    'items' => 'required|list',
+    'items.*.id' => 'required|string',
+    'items.*.tmp' => 'exclude_if:mode,hidden|string',
+];
+assertType(
+    'array{items: list}',
+    $factory->validate([], $nestedListExclusionRules)
+);
+
 $wildcardRules = [
     'items' => 'required|array',
     'items.*.id' => 'required|integer',

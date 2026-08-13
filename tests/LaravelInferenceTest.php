@@ -349,6 +349,46 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
                 ],
                 ['payload' => ['other' => true]],
             ],
+            'blank parent after nested conditional exclusion' => [
+                [
+                    'user' => '',
+                    'mode' => 'hidden',
+                ],
+                [
+                    'user' => 'array',
+                    'user.profile.name' => 'exclude_if:mode,hidden|string',
+                    'mode' => 'required|string',
+                ],
+                [
+                    'user' => '',
+                    'mode' => 'hidden',
+                ],
+            ],
+            'intermediate parent survives nested conditional exclusion' => [
+                [
+                    'user' => [
+                        'profile' => [
+                            'name' => 'Ada',
+                            'other' => true,
+                        ],
+                    ],
+                    'mode' => 'hidden',
+                ],
+                [
+                    'user' => 'array',
+                    'user.profile' => 'array',
+                    'user.profile.name' => 'exclude_if:mode,hidden|string',
+                    'mode' => 'required|string',
+                ],
+                [
+                    'user' => [
+                        'profile' => [
+                            'other' => true,
+                        ],
+                    ],
+                    'mode' => 'hidden',
+                ],
+            ],
         ];
 
         if ($context->isAtLeast('11.0.3')) {
@@ -360,20 +400,72 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
                 ],
                 ['items' => [1 => 'one']],
             ];
+            $mutatedCases['nested list exclusion preserves outer order'] = [
+                [
+                    'items' => [
+                        ['id' => 'zero', 'tmp' => 'drop'],
+                        ['id' => 'one', 'tmp' => 'drop'],
+                    ],
+                    'mode' => 'hidden',
+                ],
+                [
+                    'items' => 'required|list',
+                    'items.*.id' => 'required|string',
+                    'items.*.tmp' => 'exclude_if:mode,hidden|string',
+                    'mode' => 'required|string',
+                ],
+                $context->isAtLeast('11.23.0')
+                    ? [
+                        'mode' => 'hidden',
+                        'items' => [
+                            ['id' => 'zero'],
+                            ['id' => 'one'],
+                        ],
+                    ]
+                    : [
+                        'items' => [
+                            ['id' => 'zero'],
+                            ['id' => 'one'],
+                        ],
+                        'mode' => 'hidden',
+                    ],
+                [
+                    'items' => [
+                        ['id' => 'zero'],
+                        ['id' => 'one'],
+                    ],
+                    'mode' => 'hidden',
+                ],
+            ];
         }
 
-        foreach ($mutatedCases as $name => [$data, $rules, $expected]) {
-            $factory = $newFactory();
-            $factory->includeUnvalidatedArrayKeys();
-            $validated = $factory->validate($data, $rules);
-            self::assertSame($expected, $validated, $name . ': included output');
+        foreach ($mutatedCases as $name => $case) {
+            [$data, $rules, $expectedDefault] = $case;
+            $expectedByMode = [
+                'default' => $expectedDefault,
+                'included' => $case[3] ?? $expectedDefault,
+            ];
 
-            $ruleTree = RuleParser::parse($rules, $context);
-            $includedType = (new TypeResolver($context, null, true))->evaluate($ruleTree);
-            self::assertTrue(
-                $includedType->accepts($this->convertToType($validated), true)->yes(),
-                $name . ': included inference contains mutated runtime output'
-            );
+            foreach (['default' => false, 'included' => true] as $mode => $includeUnvalidatedArrayKeys) {
+                $factory = $newFactory();
+                if ($includeUnvalidatedArrayKeys) {
+                    $factory->includeUnvalidatedArrayKeys();
+                }
+
+                $validated = $factory->validate($data, $rules);
+                self::assertSame($expectedByMode[$mode], $validated, $name . ': ' . $mode . ' output');
+
+                $ruleTree = RuleParser::parse($rules, $context);
+                $type = (new TypeResolver(
+                    $context,
+                    null,
+                    $includeUnvalidatedArrayKeys
+                ))->evaluate($ruleTree);
+                self::assertTrue(
+                    $type->accepts($this->convertToType($validated), true)->yes(),
+                    $name . ': ' . $mode . ' inference contains mutated runtime output'
+                );
+            }
         }
     }
 
@@ -1534,6 +1626,271 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
                 true
             )->yes());
         }
+
+        $directProjectionRules = [
+            'items' => 'required|list',
+            'items.*' => 'required|string',
+        ];
+        $directProjectionInput = ['items' => ['zero', 'one']];
+        $directProjection = $factory->make($directProjectionInput, $directProjectionRules);
+        self::assertTrue($directProjection->passes());
+        self::assertSame($directProjectionInput, $directProjection->validated());
+
+        $directProjectionType = (new TypeResolver($context))->evaluate(RuleParser::parse(
+            $directProjectionRules,
+            $context
+        ));
+        self::assertSame(
+            'array{items: list<string>}',
+            $directProjectionType->describe(Type\VerbosityLevel::precise())
+        );
+        self::assertTrue($directProjectionType->isSuperTypeOf(
+            $this->convertToType($directProjection->validated())
+        )->yes());
+
+        foreach (
+            [
+                'optional direct list' => [
+                    'list',
+                    'array{items?: list<string>|string}',
+                ],
+                'present direct list' => [
+                    'present|list',
+                    'array{items: list<string>|string}',
+                ],
+            ] as $name => [$parentRule, $expectedType]
+        ) {
+            $blankRules = [
+                'items' => $parentRule,
+                'items.*' => 'required|string',
+            ];
+            $blank = $factory->make(['items' => ''], $blankRules);
+            self::assertTrue($blank->passes(), $name . ': blank input passes');
+            self::assertSame(['items' => ''], $blank->validated(), $name . ': blank output');
+
+            $blankType = (new TypeResolver($context))->evaluate(RuleParser::parse(
+                $blankRules,
+                $context
+            ));
+            self::assertSame(
+                $expectedType,
+                $blankType->describe(Type\VerbosityLevel::precise()),
+                $name . ': inferred type'
+            );
+            self::assertTrue($blankType->isSuperTypeOf(
+                $this->convertToType($blank->validated())
+            )->yes(), $name . ': inference contains blank output');
+        }
+
+        $constrainedProjectionRules = [
+            'items' => 'required|list|array:0,1|required_array_keys:0',
+            'items.*' => 'required|string',
+        ];
+        $constrainedProjection = $factory->make(
+            $directProjectionInput,
+            $constrainedProjectionRules
+        );
+        self::assertTrue($constrainedProjection->passes());
+        self::assertSame($directProjectionInput, $constrainedProjection->validated());
+        self::assertSame(
+            'array{items: list{0: string, 1?: string}}',
+            (new TypeResolver($context))->evaluate(RuleParser::parse(
+                $constrainedProjectionRules,
+                $context
+            ))->describe(Type\VerbosityLevel::precise())
+        );
+
+        $nestedProjectionRules = [
+            'items' => 'required|list',
+            'items.*.id' => 'required|string',
+        ];
+        $nestedProjectionInput = ['items' => [['id' => 'zero'], ['id' => 'one']]];
+        $nestedProjection = $factory->make($nestedProjectionInput, $nestedProjectionRules);
+        self::assertTrue($nestedProjection->passes());
+        self::assertSame($nestedProjectionInput, $nestedProjection->validated());
+
+        $nestedProjectionType = (new TypeResolver($context))->evaluate(RuleParser::parse(
+            $nestedProjectionRules,
+            $context
+        ));
+        self::assertSame(
+            version_compare($laravelVersion, '11.23.0', '>=')
+                ? 'array{items: list<array{id: string}>}'
+                : 'array{items: list}',
+            $nestedProjectionType->describe(Type\VerbosityLevel::precise())
+        );
+        self::assertTrue($nestedProjectionType->isSuperTypeOf(
+            $this->convertToType($nestedProjection->validated())
+        )->yes());
+
+        $reorderedProjectionRules = [
+            'items' => 'required|list',
+            'items.*.id' => 'sometimes|string',
+            'items.*.name' => 'required|string',
+        ];
+        $reorderedProjectionInput = [
+            'items' => [
+                ['name' => 'zero'],
+                ['id' => 'one', 'name' => 'one'],
+            ],
+        ];
+        $reorderedProjection = $factory->make(
+            $reorderedProjectionInput,
+            $reorderedProjectionRules
+        );
+        self::assertTrue($reorderedProjection->passes());
+        self::assertSame(
+            version_compare($laravelVersion, '11.23.0', '>=')
+                ? [
+                    'items' => [
+                        1 => ['id' => 'one', 'name' => 'one'],
+                        0 => ['name' => 'zero'],
+                    ],
+                ]
+                : $reorderedProjectionInput,
+            $reorderedProjection->validated()
+        );
+
+        $reorderedProjectionType = (new TypeResolver($context))->evaluate(RuleParser::parse(
+            $reorderedProjectionRules,
+            $context
+        ));
+        self::assertTrue($reorderedProjectionType->isSuperTypeOf(
+            $this->convertToType($reorderedProjection->validated())
+        )->yes());
+        if (version_compare($laravelVersion, '11.23.0', '>=')) {
+            self::assertSame(
+                'array{items: array<int|string, array{id?: string, name: string}>}',
+                $reorderedProjectionType->describe(Type\VerbosityLevel::precise())
+            );
+        }
+
+        $optionalProjectionRules = [
+            'items' => 'required|list',
+            'items.*.id' => 'sometimes|string',
+        ];
+        $optionalProjectionInput = [
+            'items' => [
+                ['other' => 'zero'],
+                ['id' => 'one'],
+            ],
+        ];
+        $optionalProjection = $factory->make($optionalProjectionInput, $optionalProjectionRules);
+        self::assertTrue($optionalProjection->passes());
+        self::assertSame(
+            version_compare($laravelVersion, '11.23.0', '>=')
+                ? ['items' => [1 => ['id' => 'one']]]
+                : $optionalProjectionInput,
+            $optionalProjection->validated()
+        );
+
+        $optionalProjectionType = (new TypeResolver($context))->evaluate(RuleParser::parse(
+            $optionalProjectionRules,
+            $context
+        ));
+        self::assertTrue($optionalProjectionType->isSuperTypeOf(
+            $this->convertToType($optionalProjection->validated())
+        )->yes());
+
+        $deepProjectionRules = [
+            'items' => 'required|list',
+            'items.*.*.id' => 'required|string',
+        ];
+        $deepProjectionInput = [
+            'items' => [
+                [],
+                [['id' => 'one']],
+            ],
+        ];
+        $deepProjection = $factory->make($deepProjectionInput, $deepProjectionRules);
+        self::assertTrue($deepProjection->passes());
+        self::assertSame(
+            version_compare($laravelVersion, '11.23.0', '>=')
+                ? ['items' => [1 => [['id' => 'one']]]]
+                : $deepProjectionInput,
+            $deepProjection->validated()
+        );
+
+        $deepProjectionType = (new TypeResolver($context))->evaluate(RuleParser::parse(
+            $deepProjectionRules,
+            $context
+        ));
+        self::assertTrue($deepProjectionType->isSuperTypeOf(
+            $this->convertToType($deepProjection->validated())
+        )->yes());
+
+        $conditionalExclusionRules = [
+            'items' => 'required|list',
+            'items.*.id' => 'required|string|exclude_if:items.*.drop,true',
+        ];
+        $conditionalExclusionInput = [
+            'items' => [
+                ['id' => 'zero', 'drop' => true],
+                ['id' => 'one', 'drop' => false],
+            ],
+        ];
+        $conditionalExclusion = $factory->make(
+            $conditionalExclusionInput,
+            $conditionalExclusionRules
+        );
+        self::assertTrue($conditionalExclusion->passes());
+        self::assertSame(
+            version_compare($laravelVersion, '11.23.0', '>=')
+                ? ['items' => [1 => ['id' => 'one']]]
+                : [
+                    'items' => [
+                        ['drop' => true],
+                        ['id' => 'one', 'drop' => false],
+                    ],
+                ],
+            $conditionalExclusion->validated()
+        );
+
+        $conditionalExclusionType = (new TypeResolver($context))->evaluate(RuleParser::parse(
+            $conditionalExclusionRules,
+            $context
+        ));
+        self::assertTrue($conditionalExclusionType->isSuperTypeOf(
+            $this->convertToType($conditionalExclusion->validated())
+        )->yes());
+
+        $orderedExclusionRules = [
+            'items' => 'required|list',
+            'items.*.id' => 'required|string',
+            'items.*.tmp' => 'exclude_if:mode,hidden|string',
+        ];
+        $orderedExclusionInput = [
+            'items' => [
+                ['id' => 'zero', 'tmp' => 'drop'],
+                ['id' => 'one', 'tmp' => 'drop'],
+            ],
+            'mode' => 'hidden',
+        ];
+        $orderedExclusion = $factory->make($orderedExclusionInput, $orderedExclusionRules);
+        self::assertTrue($orderedExclusion->passes());
+        self::assertSame(
+            [
+                'items' => [
+                    ['id' => 'zero'],
+                    ['id' => 'one'],
+                ],
+            ],
+            $orderedExclusion->validated()
+        );
+
+        $orderedExclusionType = (new TypeResolver($context))->evaluate(RuleParser::parse(
+            $orderedExclusionRules,
+            $context
+        ));
+        self::assertTrue($orderedExclusionType->isSuperTypeOf(
+            $this->convertToType($orderedExclusion->validated())
+        )->yes());
+        self::assertSame(
+            version_compare($laravelVersion, '11.23.0', '>=')
+                ? 'array{items: list<array{id: string, tmp?: string}>}'
+                : 'array{items: list}',
+            $orderedExclusionType->describe(Type\VerbosityLevel::precise())
+        );
 
         $allowedKeyListRules = ['value' => 'array:name|list'];
         $allowedKeyList = $factory->make(['value' => []], $allowedKeyListRules);

@@ -542,10 +542,156 @@ final class TypeResolverTest extends PHPStanTestCase
         );
         self::assertSame('array{items?: mixed}', self::resolve($rules));
 
+        $directRules = [
+            'items' => 'required|list',
+            'items.*' => 'required|string',
+        ];
+        self::assertSame(
+            'array{items: list<string>}',
+            self::resolveForVersion($directRules, '11.22.0')
+        );
+        self::assertSame(
+            'array{items: list<string>}',
+            self::resolveForVersion($directRules, '11.23.0')
+        );
+
+        $optionalDirectRules = [
+            'items' => 'list',
+            'items.*' => 'required|string',
+        ];
+        self::assertSame(
+            'array{items?: list<string>|string}',
+            self::resolveForVersion($optionalDirectRules, '11.22.0')
+        );
+        self::assertSame(
+            'array{items?: list<string>|string}',
+            self::resolveForVersion($optionalDirectRules, '11.23.0')
+        );
+        self::assertSame(
+            'array{items: list<string>|string}',
+            self::resolveForVersion([
+                'items' => 'present|list',
+                'items.*' => 'required|string',
+            ], '11.23.0')
+        );
+
+        self::assertSame(
+            'array{items: list{0?: string, 1?: string}}',
+            self::resolveForVersion([
+                'items' => 'required|list|array:0,1',
+                'items.*' => 'required|string',
+            ], '11.23.0')
+        );
+        self::assertSame(
+            'array{items: non-empty-list<string>&hasOffset(0)}',
+            self::resolveForVersion([
+                'items' => 'required|list|required_array_keys:0',
+                'items.*' => 'required|string',
+            ], '11.23.0')
+        );
+
+        $nestedRules = [
+            'items' => 'required|list',
+            'items.*.id' => 'required|string',
+        ];
+        self::assertSame(
+            'array{items: list}',
+            self::resolveForVersion($nestedRules, '11.22.0')
+        );
+        self::assertSame(
+            'array{items: list<array{id: string}>}',
+            self::resolveForVersion($nestedRules, '11.23.0')
+        );
+
+        self::assertSame(
+            'array{items?: array<int|string, array{id?: string}>}',
+            self::resolveForVersion([
+                'items' => 'required|list',
+                'items.*.id' => 'sometimes|string',
+            ], '11.23.0')
+        );
+        self::assertSame(
+            'array{items?: array<int, mixed>}',
+            self::resolveForVersion([
+                'items' => 'required|list',
+                'items.0' => 'exclude',
+            ], '11.23.0')
+        );
+
+        self::assertSame(
+            'array{items: array<int|string, array{id?: string, name: string}>}',
+            self::resolveForVersion([
+                'items' => 'required|list',
+                'items.*.id' => 'sometimes|string',
+                'items.*.name' => 'required|string',
+            ], '11.23.0')
+        );
+
+        self::assertSame(
+            'array{items: list<array{id: string, tmp?: string}>}',
+            self::resolveForVersion([
+                'items' => 'required|list',
+                'items.*.id' => 'required|string',
+                'items.*.tmp' => 'exclude_if:mode,hidden|string',
+            ], '11.23.0')
+        );
+
+        $conditionalExclusionRules = [
+            'items' => 'required|list',
+            'items.*.id' => 'required|string|exclude_if:items.*.drop,true',
+        ];
+        self::assertSame(
+            'array{items: array<int|string, mixed>}',
+            self::resolveForVersion($conditionalExclusionRules, '11.22.0')
+        );
+        self::assertSame(
+            'array{items?: array<int|string, mixed>}',
+            self::resolveForVersion($conditionalExclusionRules, '11.23.0')
+        );
+
         self::assertSame('array{payload: string}', self::resolveForVersion([
             'payload' => 'required|string',
             'payload.child' => 'missing',
         ], '13.24.0'));
+    }
+
+    public function testNestedExclusionWideningStopsAtProjectionBoundaries(): void
+    {
+        $context = new LaravelVersionContext('', '11.23.0');
+        $intermediateRules = [
+            'user' => 'array',
+            'user.profile' => 'array',
+            'user.profile.name' => 'exclude_if:mode,hidden|string',
+        ];
+        self::assertSame(
+            'array{user?: array{profile?: array<int|string, mixed>|string}}',
+            self::resolveForVersion($intermediateRules, '11.23.0')
+        );
+
+        $includedListRules = [
+            'items' => 'required|list',
+            'items.*.id' => 'required|string',
+            'items.*.tmp' => 'exclude_if:mode,hidden|string',
+        ];
+        self::assertSame(
+            'array{items: list}',
+            (new TypeResolver($context, null, true))
+                ->evaluate(RuleParser::parse($includedListRules, $context))
+                ->describe(VerbosityLevel::precise())
+        );
+
+        $rawParentRules = [
+            'user' => 'array',
+            'user.profile.name' => 'exclude_if:mode,hidden|string',
+        ];
+        self::assertSame(
+            'array{user?: array<int|string, mixed>|string}',
+            self::resolveForVersion($rawParentRules, '11.23.0')
+        );
+        self::assertSame(
+            'array{user?: array<int|string, mixed>}',
+            self::resolveForVersion($rawParentRules, '11.23.0', true)
+        );
     }
 
     public function testVersionAwareDefaultHttpNormalizationExceptions(): void
@@ -799,7 +945,7 @@ final class TypeResolverTest extends PHPStanTestCase
             'user.name' => 'string',
         ]));
 
-        self::assertSame('array{user?: array{name?: string}}', self::resolve([
+        self::assertSame('array{user?: array<int|string, mixed>}', self::resolve([
             'user' => 'required|array|required_array_keys:name',
             'user.name' => 'exclude_if:mode,hidden|string',
         ]));

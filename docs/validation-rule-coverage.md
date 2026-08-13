@@ -141,6 +141,15 @@ from Laravel 11.23 it also uses a literal `list`. An allowed-key form such as
 `array:name` preserves its complete permitted parent value even when every
 nested rule is `missing`.
 
+A literal `list` can retain listness when the first effective wildcard
+projection path emits every matched element in input order. Direct scalar
+children keep their element type from the rule's 11.0.3 introduction; required
+nested children gain a precise projected element shape when literal-list
+reconstruction begins in 11.23. An earlier optional path can make Laravel append
+numeric keys out of order even when a later required path eventually emits
+every element. Such paths, deeper wildcards, and element exclusions remain
+broad when Laravel can produce sparse or reordered integer keys.
+
 ## Rules currently falling back to `mixed`
 
 These 12 reserved names have no built-in accepted-value contribution. The

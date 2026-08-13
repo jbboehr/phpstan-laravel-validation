@@ -17,7 +17,7 @@ for the proprietary application.
 | 1 | Normalize Laravel's `int` and `bool` aliases | Precision defect | High | Implemented locally |
 | 2 | Infer `Illuminate\Validation\Factory::validate()` | Missing entrypoint | High | Implemented locally |
 | 3 | Model `includeUnvalidatedArrayKeys()` configuration | Conditional soundness | Highest risk | Implemented locally |
-| 4 | Preserve listness through safe nested projection | Precision defect | Medium | Pending |
+| 4 | Preserve listness through safe nested projection | Precision defect | Medium | Implemented locally |
 | 5 | Narrow native numerics for numeric `in` parameters | Precision improvement | Low | Pending |
 
 Slice order balances practical impact and isolation. Slice 3 carries the
@@ -119,10 +119,31 @@ emits `array<int|string, string>`.
 
 Do not intersect every nested list with PHPStan's list accessory. Exclusion,
 missing-child projection, and conditional branches can remove individual
-elements or the parent and can produce sparse output. Preserve listness only
-when every matched input element is guaranteed to contribute output. Test the
-Laravel 11.22/11.23 reconstruction boundary, zero matches, exclusions,
-conditional rules, and deeper wildcard paths before narrowing.
+elements or the parent and can produce sparse output. Rule insertion order also
+matters: an optional path can emit key `1` before a later required path appends
+key `0`. Preserve listness only when the first effective projection path emits
+every matched input element in original order. Test the Laravel 11.22/11.23
+reconstruction boundary, zero matches, exclusions, conditional rules, and
+deeper wildcard paths before narrowing.
+
+The implementation now retains PHPStan's list accessory when a bare `list`
+parent has one wildcard projection whose first effective path emits every
+matched element in input order. A direct scalar child keeps its element type on
+every version that provides the built-in rule, including the parent's blank
+bypass and allowed-key or required-offset constraints. A required nested child
+keeps listness before Laravel 11.23 and gains its projected element shape from
+11.23, when Laravel begins rebuilding literal-list parents from nested rules.
+
+Runtime witnesses cover the 11.22/11.23 boundary and continue through the
+supported 12 and 13 profiles. Optional descendants, deeper wildcard paths,
+zero-match branches, earlier optional projection paths, and exclusions remain
+broad where output can become sparse, reordered, or disappear. The exclusion
+probes also exposed a neighboring soundness issue: Laravel removes excluded
+descendants before either factory mode returns, so listness and
+`required_array_keys` guarantees are now widened
+whenever that mutation can escape the projected shape. Widening stops at a
+surviving intermediate rule, and nested field removal in inclusion mode does
+not discard the outer list guarantee.
 
 ## Slice 5: numeric membership precision
 

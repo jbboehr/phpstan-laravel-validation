@@ -31,3 +31,52 @@ $preservedParent = \Illuminate\Support\Facades\Validator::make([], [
     'items.*.id' => 'missing',
 ])->validated();
 assertType('array{items: array<int|string, mixed>}', $preservedParent);
+
+$directProjection = \Illuminate\Support\Facades\Validator::make([], [
+    'items' => 'required|list',
+    'items.*' => 'required|string',
+])->validated();
+assertType('array{items: list<string>}', $directProjection);
+
+$optionalDirectProjection = \Illuminate\Support\Facades\Validator::make([], [
+    'items' => 'list',
+    'items.*' => 'required|string',
+])->validated();
+assertType('array{items?: list<string>|string}', $optionalDirectProjection);
+
+$presentDirectProjection = \Illuminate\Support\Facades\Validator::make([], [
+    'items' => 'present|list',
+    'items.*' => 'required|string',
+])->validated();
+assertType('array{items: list<string>|string}', $presentDirectProjection);
+
+$constrainedDirectProjection = \Illuminate\Support\Facades\Validator::make([], [
+    'items' => 'required|list|array:0,1|required_array_keys:0',
+    'items.*' => 'required|string',
+])->validated();
+assertType('array{items: list{0: string, 1?: string}}', $constrainedDirectProjection);
+
+$nestedProjection = \Illuminate\Support\Facades\Validator::make([], [
+    'items' => 'required|list',
+    'items.*.id' => 'required|string',
+])->validated();
+assertType('array{items: list}', $nestedProjection);
+
+$excludedElement = \Illuminate\Support\Facades\Validator::make([], [
+    'items' => 'required|list',
+    'items.0' => 'exclude',
+])->validated();
+assertType('array{items: array<int, mixed>}', $excludedElement);
+
+$conditionalExclusion = \Illuminate\Support\Facades\Validator::make([], [
+    'items' => 'required|list',
+    'items.*.id' => 'required|string|exclude_if:items.*.drop,true',
+])->validated();
+assertType('array{items: array<int|string, mixed>}', $conditionalExclusion);
+
+$orderedNestedExclusion = \Illuminate\Support\Facades\Validator::make([], [
+    'items' => 'required|list',
+    'items.*.id' => 'required|string',
+    'items.*.tmp' => 'exclude_if:mode,hidden|string',
+])->validated();
+assertType('array{items: list}', $orderedNestedExclusion);

@@ -91,6 +91,32 @@ final class TypeResolver
             $type = $this->evaluateLeaf($node, $assumeHttpInputNormalization);
         }
 
+        $exclusionMutatedParentType = $this->resolveExclusionMutatedParentType(
+            $node,
+            $assumeHttpInputNormalization
+        );
+        if ($exclusionMutatedParentType !== null) {
+            $type = Type\TypeCombinator::union($type, $exclusionMutatedParentType);
+        }
+
+        $directWildcardDescribesList = $this->directWildcardProjectionDescribesPreservedList($node);
+        if ($directWildcardDescribesList) {
+            // A direct wildcard validates every complete list element, so its
+            // projected element type can be combined with constraints from
+            // the parent rule. Retain the non-array blank bypass separately.
+            $type = Type\TypeCombinator::intersect(
+                $type,
+                $this->evaluateLeaf($node, $assumeHttpInputNormalization)
+            );
+
+            if (
+                $node->allowsBlankStringBypass()
+                && $this->blankStringCanReachValidation($node, $assumeHttpInputNormalization)
+            ) {
+                $type = Type\TypeCombinator::union($type, new StringType());
+            }
+        }
+
         // Unless Laravel definitely reconstructs this parent from its nested
         // rules, validated() may preserve the complete parent value. A literal
         // `array` always reconstructs; a literal `list` does so only from
@@ -99,26 +125,13 @@ final class TypeResolver
             $node->hasChildren()
             && $this->mayPreserveCompleteParent($node)
             && count($node->getRules()) > 0
+            && !$directWildcardDescribesList
         ) {
             $leafType = $this->evaluateLeaf($node, $assumeHttpInputNormalization);
-            if (
-                $this->includeUnvalidatedArrayKeys
-                && !$leafType->isArray()->no()
-                && $this->hasPotentiallyExcludedDirectChild($node)
-            ) {
-                // Exclusion rules mutate Validator::$data before validated()
-                // reads the parent. Removing a direct list element can make
-                // its keys sparse, while removing a required array offset
-                // invalidates the parent's pre-exclusion constraint.
-                $keyType = $node->hasBareListRule()
-                    ? new Type\IntegerType()
-                    : Type\TypeCombinator::union(
-                        new Type\IntegerType(),
-                        new Type\StringType()
-                    );
+            if ($exclusionMutatedParentType !== null) {
                 $leafType = Type\TypeCombinator::union(
                     $leafType,
-                    new Type\ArrayType($keyType, new MixedType())
+                    $exclusionMutatedParentType
                 );
             }
 
@@ -218,9 +231,18 @@ final class TypeResolver
             ? Type\TypeCombinator::union(...$valueTypes)
             : new MixedType();
 
-        return new Type\ArrayType(
+        $type = new Type\ArrayType(
             Type\TypeCombinator::union(new Type\IntegerType(), new Type\StringType()),
             $valueType
+        );
+
+        if (!$this->wildcardProjectionPreservesList($node)) {
+            return $type;
+        }
+
+        return Type\TypeCombinator::intersect(
+            $type,
+            new AccessoryArrayListType()
         );
     }
 
@@ -443,6 +465,70 @@ final class TypeResolver
             if ($key === '*' || $this->hasWildcardDescendant($child)) {
                 return true;
             }
+        }
+
+        return false;
+    }
+
+    private function wildcardProjectionPreservesList(RuleTreeNode $node): bool
+    {
+        if (
+            !$node->hasBareListRule()
+            || $this->laravelVersionContext === null
+            || !$this->laravelVersionContext->isAtLeast('11.0.3')
+            || count($node) !== 1
+        ) {
+            return false;
+        }
+
+        foreach ($node as $key => $child) {
+            if ($key !== '*') {
+                return false;
+            }
+
+            if (!$child->hasChildren()) {
+                return !$child->isExcluded()
+                    && !$this->isUnconditionallyMissingProjection($child)
+                    && !$this->isOutputOptional($child);
+            }
+
+            // Laravel projects wildcard paths in rule insertion order. The
+            // first path that can emit output must cover every matched list
+            // element; otherwise a later required path can append an earlier
+            // numeric key and produce insertion order such as [1, 0]. Rules
+            // directly on this intermediate node lose their ordering relative
+            // to descendants in RuleTreeNode, so decline that ambiguous case.
+            if (count($child->getRules()) > 0) {
+                return false;
+            }
+
+            foreach ($child as $nestedKey => $nestedChild) {
+                if (
+                    $nestedChild->isExcluded()
+                    || $this->isUnconditionallyMissingProjection($nestedChild)
+                ) {
+                    continue;
+                }
+
+                return $nestedKey !== '*'
+                    && !$nestedChild->hasChildren()
+                    && !$this->isOutputOptional($nestedChild);
+            }
+
+            return false;
+        }
+
+        return false;
+    }
+
+    private function directWildcardProjectionDescribesPreservedList(RuleTreeNode $node): bool
+    {
+        if (!$this->wildcardProjectionPreservesList($node)) {
+            return false;
+        }
+
+        foreach ($node as $child) {
+            return !$child->hasChildren();
         }
 
         return false;
@@ -989,6 +1075,91 @@ final class TypeResolver
     {
         foreach ($node->getRules() as $rule) {
             if ($rule->getRuleName() === Rule::RULE_REQUIRED_ARRAY_KEYS) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function resolveExclusionMutatedParentType(
+        RuleTreeNode $node,
+        bool $assumeHttpInputNormalization
+    ): ?Type\Type {
+        if (
+            !$node->hasChildren()
+            || (
+                !$node->hasBareArrayRule()
+                && !$node->hasBareListRule()
+                && !$this->hasRequiredArrayKeysRule($node)
+            )
+        ) {
+            return null;
+        }
+
+        $hasDirectExclusion = $this->hasPotentiallyExcludedDirectChild($node);
+        if ($this->includeUnvalidatedArrayKeys) {
+            $mayExposeMutation = $hasDirectExclusion;
+        } else {
+            $mayExposeMutation = $hasDirectExclusion
+                && $this->mayPreserveCompleteParent($node);
+            if (
+                !$mayExposeMutation
+                && $this->mayReconstructParentFromNestedRules($node)
+                && $this->isOutputOptional($node)
+            ) {
+                $mayExposeMutation = $this->hasExclusionThatCanEraseProjectedChild($node);
+            }
+        }
+
+        if (!$mayExposeMutation) {
+            return null;
+        }
+
+        // Exclusion rules mutate Validator::$data and remove concrete rules
+        // before validated() projects the parent. A list can therefore become
+        // sparse, and a required array offset can disappear entirely.
+        $keyType = $node->hasBareListRule()
+            && $this->laravelVersionContext !== null
+            && $this->laravelVersionContext->isAtLeast('11.0.3')
+            ? new Type\IntegerType()
+            : Type\TypeCombinator::union(
+                new Type\IntegerType(),
+                new Type\StringType()
+            );
+
+        $type = new Type\ArrayType($keyType, new MixedType());
+        if (
+            $node->allowsBlankStringBypass()
+            && $this->blankStringCanReachValidation($node, $assumeHttpInputNormalization)
+        ) {
+            return Type\TypeCombinator::union($type, new StringType());
+        }
+
+        return $type;
+    }
+
+    private function hasExclusionThatCanEraseProjectedChild(RuleTreeNode $node): bool
+    {
+        foreach ($node as $child) {
+            foreach ($child->getRules() as $rule) {
+                if (in_array($rule->getRuleName(), self::EXCLUSION_RULE_NAMES, true)) {
+                    return true;
+                }
+            }
+
+            // A concrete non-exclusion rule keeps this child in Laravel's
+            // projected rule set even if a deeper path is removed. Descendant
+            // exclusions may mutate the child, but cannot expose the complete
+            // raw value of this parent.
+            if (count($child->getRules()) > 0) {
+                continue;
+            }
+
+            if (
+                $this->isOutputOptional($child)
+                && $this->hasExclusionThatCanEraseProjectedChild($child)
+            ) {
                 return true;
             }
         }
