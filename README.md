@@ -409,6 +409,34 @@ Before Laravel 13.24, or when arguments are dynamic, unpacked, `Arrayable`, or
 otherwise unavailable to analysis, inference remains conservative. Assigned
 builder objects and direct `ArrayKeys` construction also remain opaque.
 
+### File rule builders
+
+Fresh inline file builders are recovered as Symfony file predicates:
+
+```php
+$validated = Validator::make($input, [
+    'document' => ['required', Rule::file()->extensions(['pdf'])->max('10mb')],
+    'avatar' => ['required', File::image()->dimensions(
+        Rule::dimensions(['max_width' => 2048, 'max_height' => 2048])
+    )],
+])->validated();
+
+\PHPStan\dumpType($validated);
+// array{document: Symfony\Component\HttpFoundation\File\File,
+//   avatar: Symfony\Component\HttpFoundation\File\File}
+```
+
+Exact `Rule::file()`, `Rule::imageFile()`, `File::types()`, `File::image()`,
+`new File()`, and `new ImageFile()` expressions are recognized. Size, MIME,
+extension, encoding, dimension, and additional-rule fluent constraints retain
+the same successful native value type. The `extensions()` and `encoding()`
+methods follow their Laravel 10.34 and 12.40 introduction boundaries.
+
+Assigned builders, subclasses and their late-bound `self` / `parent` / `static`
+forwarding calls, global `File::default()` configuration, conditional `when()`
+or `unless()` chains, dynamic calls, macros, and unknown methods remain
+conservative because their runtime contract is not visible in the expression.
+
 ### Database rule builders
 
 Fresh inline `Rule::exists()` and `Rule::unique()` builders are recognized as

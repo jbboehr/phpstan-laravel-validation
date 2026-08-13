@@ -161,7 +161,80 @@ final class RuleSetResolver
             ?? $this->notInRuleExpressionResolver->resolve($expression, $scope)
             ?? $this->arrayRuleExpressionResolver->resolve($expression, $scope)
             ?? $this->arrayKeysRuleExpressionResolver->resolve($expression, $scope)
+            ?? $this->resolveFileRuleExpression($expression, $scope)
             ?? $this->resolveDatabaseRuleExpression($expression, $scope);
+    }
+
+    private function resolveFileRuleExpression(Expr $expression, Scope $scope): ?Rule
+    {
+        if (!$this->laravelVersionContext->isSupported()) {
+            return null;
+        }
+
+        if ($expression instanceof Expr\StaticCall
+            && $expression->class instanceof Name
+            && $expression->name instanceof Identifier
+        ) {
+            if ($expression->class->isSpecialClassName()) {
+                return null;
+            }
+
+            $className = $this->resolveName($expression->class, $scope);
+            $methodName = $expression->name->toLowerString();
+
+            if ($className === \Illuminate\Validation\Rule::class) {
+                return match ($methodName) {
+                    'file' => Rule::create('File'),
+                    'imagefile' => Rule::create('Image'),
+                    default => null,
+                };
+            }
+
+            if (in_array($className, [
+                \Illuminate\Validation\Rules\File::class,
+                \Illuminate\Validation\Rules\ImageFile::class,
+            ], true)) {
+                return match ($methodName) {
+                    'image' => Rule::create('Image'),
+                    'types' => Rule::create(
+                        $className === \Illuminate\Validation\Rules\ImageFile::class ? 'Image' : 'File'
+                    ),
+                    default => null,
+                };
+            }
+        }
+
+        if ($expression instanceof Expr\New_
+            && $expression->class instanceof Name
+        ) {
+            return match ($this->resolveName($expression->class, $scope)) {
+                \Illuminate\Validation\Rules\File::class => Rule::create('File'),
+                \Illuminate\Validation\Rules\ImageFile::class => Rule::create('Image'),
+                default => null,
+            };
+        }
+
+        if (!$expression instanceof Expr\MethodCall
+            || !$expression->name instanceof Identifier
+        ) {
+            return null;
+        }
+
+        $rule = $this->resolveFileRuleExpression($expression->var, $scope);
+        if ($rule === null) {
+            return null;
+        }
+
+        $methodName = $expression->name->toLowerString();
+        if (in_array($methodName, ['size', 'between', 'min', 'max', 'rules'], true)
+            || ($methodName === 'extensions' && $this->laravelVersionContext->isAtLeast('10.34.0'))
+            || ($methodName === 'encoding' && $this->laravelVersionContext->isAtLeast('12.40.0'))
+            || ($methodName === 'dimensions' && $rule->getRuleName() === 'Image')
+        ) {
+            return $rule;
+        }
+
+        return null;
     }
 
     private function resolveDatabaseRuleExpression(Expr $expression, Scope $scope): ?Rule

@@ -93,7 +93,7 @@ The following 57 names contribute a concrete type today:
 | Coercive text checks | `AlphaDash`, `AlphaNum`, `Json`, `NotRegex`, `Regex` | Unions containing the native scalar or `Stringable` values Laravel preserves |
 | Date checks | `After`, `AfterOrEqual`, `Before`, `BeforeOrEqual`, `Date`, `DateEquals`, `DateFormat` | Numeric scalars, non-empty strings, and where applicable `DateTimeInterface` |
 | Numeric checks | `Decimal`, `Digits`, `DigitsBetween`, `Integer`, `MaxDigits`, `MinDigits`, `MultipleOf`, `Numeric` | Numeric strings and the native numeric values Laravel accepts and preserves |
-| Arrays and files | `Array`, `RequiredArrayKeys`, `Dimensions`, `File`, `Image`, `Mimes`, `Mimetypes` | Array shapes, required-offset constraints, or Symfony file objects; fresh inline `Rule::array()` builders supply allowed keys from Laravel 11.7 |
+| Arrays and files | `Array`, `RequiredArrayKeys`, `Dimensions`, `File`, `Image`, `Mimes`, `Mimetypes` | Array shapes, required-offset constraints, or Symfony file objects; fresh inline array and file builders recover their built-in rule semantics at the applicable Laravel version |
 | Built-in object rules | `Enum` | Statically visible enum cases, backing values, and the weakly coerced native values Laravel preserves; literal `only`/`except` state is modeled from Laravel 10.46 |
 | Version-sensitive | `ArrayKeys`, `Ascii`, `Base64`, `Contains`, `DoesntContain`, `Encoding`, `Extensions`, `HexColor`, `InArrayKeys`, `List` | `ArrayKeys` contributes an optional-key shape from Laravel 13.24, including from fresh inline `Rule::arrayKeys()` builders; `Encoding` contributes its preserved array, scalar, `Stringable`, and null union from 12.40; `Extensions` contributes a Symfony file from 10.34; `Contains`, `DoesntContain`, and `InArrayKeys` contribute `array<mixed>` from 11.8, 12.22, and 12.16; `Base64`, `HexColor`, and `List` remain `mixed` before 13.21, 10.33, and 11.0.3; `List` changes nested projection in 11.23 |
 
@@ -210,10 +210,11 @@ String rules are only part of Laravel's public surface. Laravel 13.24 exposes
 fluent builders through `Illuminate\Validation\Rule` and classes under
 `Illuminate\Validation\Rules`.
 
-Current static extraction treats them in three ways:
+Current static extraction treats them in four ways:
 
 - fresh inline `Enum`, `Rule::in()`, `Rule::notIn()`, `Rule::array()`,
-  `Rule::arrayKeys()`, `Rule::exists()`, and `Rule::unique()`
+  `Rule::arrayKeys()`, `Rule::file()`, `Rule::imageFile()`, `File::types()`,
+  `File::image()`, `Rule::exists()`, and `Rule::unique()`
   expressions receive dedicated extraction of their statically visible
   semantics;
 - predicate objects implementing Laravel's rule contracts are treated like
@@ -221,11 +222,12 @@ Current static extraction treats them in three ways:
   contract;
 - `Stringable` builders that do not implement a predicate contract are opaque,
   making the affected path optional and `mixed`.
+- callbacks, macros, and other open-ended runtime programs remain opaque.
 
 | Current extraction | Representative Laravel objects | Consequence |
 | --- | --- | --- |
-| Dedicated built-in extraction | `Enum`, `Rule::in()`, `Rule::notIn()`, `Rule::array()`, `Rule::arrayKeys()`, `Rule::exists()`, `Rule::unique()` | Fresh inline `Enum` expressions contribute case objects plus the backing and weakly coerced values Laravel can preserve; `Rule::in()`, `Rule::array()`, and `Rule::arrayKeys()` recover literal scalar parameters; the exclusion and database builders contribute neutral predicates without executing their comparisons or queries; dynamic or unsupported object state stays `mixed` |
-| Custom predicate with `mixed` accepted type | `AnyOf`, `Can`, `Email`, `File`, `ImageFile`, `Password` | Adjacent built-in string rules survive, but object state and built-in semantics are not recovered |
+| Dedicated built-in extraction | `Enum`, `Rule::in()`, `Rule::notIn()`, `Rule::array()`, `Rule::arrayKeys()`, `Rule::file()`, `Rule::imageFile()`, exact `File` / `ImageFile` construction, `Rule::exists()`, `Rule::unique()` | Fresh inline expressions recover statically visible enum, accepted-set, allowed-key, file, image, exclusion, and database-predicate semantics without executing application code; dynamic or unsupported object state stays `mixed` |
+| Custom predicate with `mixed` accepted type | `AnyOf`, `Can`, `Email`, `Password`, assigned or unsupported `File` / `ImageFile` builders | Adjacent built-in string rules survive, but object state and built-in semantics are not recovered |
 | Opaque `Stringable` builder | direct `ArrayKeys` and `ArrayRule` construction, `Contains`, `Date`, `Dimensions`, `DoesntContain`, `ExcludeIf`, `ExcludeUnless`, `Numeric`, `ProhibitedIf`, `ProhibitedUnless`, `RequiredIf`, `RequiredUnless`, `StringRule`, and assigned or unsupported `Exists` / `Unique` chains | The path widens to optional `mixed`, even when the builder serializes to a supported string rule |
 | Opaque runtime program | `Rule::when`, `Rule::unless`, `Rule::forEach`, `NestedRules`, macros | Runtime callbacks or macro state provide no generally available static contract |
 
@@ -237,7 +239,11 @@ recover the same string contract confirmed by focused runtime coverage;
 assigned objects and direct construction still lose their key state and remain
 opaque. Fresh exact `Exists` and `Unique` objects and their verified fluent
 query modifiers contribute neutral predicates; their database state affects
-acceptance, not the native type Laravel preserves.
+acceptance, not the native type Laravel preserves. Fresh exact `File` and
+`ImageFile` builders contribute Symfony file types through their verified
+fluent size, MIME, extension, encoding, dimension, and additional-rule
+constraints. Defaults, callbacks, macros, subclasses, and assigned builders
+remain opaque, as do late-bound `self`, `parent`, and `static` forwarding calls.
 
 ## Prioritized work
 
@@ -251,8 +257,9 @@ correlations can be represented without making every branch required.
 ### 2. Support statically resolvable built-in builders
 
 Recover the string-rule equivalent or direct contract for constant fluent
-builders, continuing with typed string/numeric/date/file builders. Callback
-builders must remain opaque when their branch cannot be resolved.
+builders, continuing with typed string, numeric, and date builders. Callback
+builders must remain opaque when their branch cannot be resolved; file builders
+now provide the conservative model described above.
 
 ### 3. Add correlated structural refinements
 

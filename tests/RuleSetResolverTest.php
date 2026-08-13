@@ -21,8 +21,16 @@ declare(strict_types=1);
 
 namespace jbboehr\PhpstanLaravelValidation\Test;
 
+use jbboehr\PhpstanLaravelValidation\Evaluator\UnsafeConstExprEvaluator;
 use jbboehr\PhpstanLaravelValidation\Test\CustomRules\StringableRuleBuilder;
 use jbboehr\PhpstanLaravelValidation\Test\CustomRules\UnknownRule;
+use jbboehr\PhpstanLaravelValidation\Validation\ArrayKeysRuleExpressionResolver;
+use jbboehr\PhpstanLaravelValidation\Validation\ArrayRuleExpressionResolver;
+use jbboehr\PhpstanLaravelValidation\Validation\CustomRuleTypeResolver;
+use jbboehr\PhpstanLaravelValidation\Validation\EnumRuleExpressionResolver;
+use jbboehr\PhpstanLaravelValidation\Validation\InRuleExpressionResolver;
+use jbboehr\PhpstanLaravelValidation\Validation\LaravelVersionContext;
+use jbboehr\PhpstanLaravelValidation\Validation\NotInRuleExpressionResolver;
 use jbboehr\PhpstanLaravelValidation\Validation\RuleSetResolver;
 use jbboehr\PhpstanLaravelValidation\Validation\TypeResolver;
 use PhpParser\Node\Expr;
@@ -186,6 +194,64 @@ final class RuleSetResolverTest extends PHPStanTestCase
     }
 
     /**
+     * @dataProvider fileBuilderMethodVersionProvider
+     */
+    public function testFileBuilderMethodsFollowTheirLaravelVersionBoundaries(
+        string $method,
+        string $version,
+        bool $recognized
+    ): void {
+        $expression = new Expr\Array_([
+            new Expr\ArrayItem(
+                new Expr\Array_([
+                    new Expr\ArrayItem(new String_('required')),
+                    new Expr\ArrayItem(new Expr\MethodCall(
+                        new Expr\StaticCall(
+                            new FullyQualified(\Illuminate\Validation\Rule::class),
+                            new Identifier('file')
+                        ),
+                        new Identifier($method)
+                    )),
+                ]),
+                new String_('value')
+            ),
+        ]);
+        $scope = $this->createMock(Scope::class);
+        $scope->method('getType')->willReturnCallback(
+            static fn (Expr $node): Type => $node instanceof String_
+                ? new ConstantStringType($node->value)
+                : new MixedType()
+        );
+        $scope->method('resolveName')->willReturnCallback(
+            static fn (\PhpParser\Node\Name $name): string => $name->toString()
+        );
+
+        $trees = $this->resolverForVersion($version)->resolve($expression, $scope);
+
+        if (!$recognized) {
+            self::assertSame([], $trees);
+            return;
+        }
+
+        self::assertCount(1, $trees);
+        self::assertSame(
+            'array{value: Symfony\\Component\\HttpFoundation\\File\\File}',
+            self::describe($trees[0])
+        );
+    }
+
+    /**
+     * @return iterable<string, array{string, string, bool}>
+     */
+    public static function fileBuilderMethodVersionProvider(): iterable
+    {
+        yield 'extensions before introduction' => ['extensions', '10.33.0', false];
+        yield 'extensions at introduction' => ['extensions', '10.34.0', true];
+        yield 'encoding before introduction' => ['encoding', '12.39.0', false];
+        yield 'encoding at introduction' => ['encoding', '12.40.0', true];
+    }
+
+    /**
      * @param array<array-key, Type> $items
      * @param list<array-key> $optionalKeys
      */
@@ -214,6 +280,22 @@ final class RuleSetResolverTest extends PHPStanTestCase
         return self::getContainer()
             ->getByType(RuleSetResolver::class)
             ->resolve($expression, $scope);
+    }
+
+    private function resolverForVersion(string $version): RuleSetResolver
+    {
+        $container = self::getContainer();
+
+        return new RuleSetResolver(
+            $container->getByType(UnsafeConstExprEvaluator::class),
+            $container->getByType(CustomRuleTypeResolver::class),
+            $container->getByType(EnumRuleExpressionResolver::class),
+            $container->getByType(InRuleExpressionResolver::class),
+            $container->getByType(NotInRuleExpressionResolver::class),
+            $container->getByType(ArrayRuleExpressionResolver::class),
+            $container->getByType(ArrayKeysRuleExpressionResolver::class),
+            new LaravelVersionContext('', $version)
+        );
     }
 
     private static function describe(
