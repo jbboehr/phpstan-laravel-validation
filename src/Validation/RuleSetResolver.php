@@ -44,6 +44,7 @@ final class RuleSetResolver
         private ArrayRuleExpressionResolver $arrayRuleExpressionResolver,
         private ArrayKeysRuleExpressionResolver $arrayKeysRuleExpressionResolver,
         private NumericRuleExpressionResolver $numericRuleExpressionResolver,
+        private StringRuleExpressionResolver $stringRuleExpressionResolver,
         private LaravelVersionContext $laravelVersionContext
     ) {
     }
@@ -167,6 +168,7 @@ final class RuleSetResolver
             ?? $this->arrayRuleExpressionResolver->resolve($expression, $scope)
             ?? $this->arrayKeysRuleExpressionResolver->resolve($expression, $scope)
             ?? $this->numericRuleExpressionResolver->resolve($expression, $scope)
+            ?? $this->stringRuleExpressionResolver->resolve($expression, $scope)
             ?? $this->resolveFileRuleExpression($expression, $scope)
             ?? $this->resolveDatabaseRuleExpression($expression, $scope);
     }

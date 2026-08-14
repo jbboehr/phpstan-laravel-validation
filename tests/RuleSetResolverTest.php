@@ -33,6 +33,7 @@ use jbboehr\PhpstanLaravelValidation\Validation\LaravelVersionContext;
 use jbboehr\PhpstanLaravelValidation\Validation\NotInRuleExpressionResolver;
 use jbboehr\PhpstanLaravelValidation\Validation\NumericRuleExpressionResolver;
 use jbboehr\PhpstanLaravelValidation\Validation\RuleSetResolver;
+use jbboehr\PhpstanLaravelValidation\Validation\StringRuleExpressionResolver;
 use jbboehr\PhpstanLaravelValidation\Validation\TypeResolver;
 use PhpParser\Node\Expr;
 use PhpParser\Node\Identifier;
@@ -296,6 +297,7 @@ final class RuleSetResolverTest extends PHPStanTestCase
             $container->getByType(ArrayRuleExpressionResolver::class),
             $container->getByType(ArrayKeysRuleExpressionResolver::class),
             $container->getByType(NumericRuleExpressionResolver::class),
+            $container->getByType(StringRuleExpressionResolver::class),
             new LaravelVersionContext('', $version)
         );
     }

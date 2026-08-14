@@ -40,6 +40,7 @@ services:
   - class: jbboehr\PhpstanLaravelValidation\Validation\ArrayRuleExpressionResolver
   - class: jbboehr\PhpstanLaravelValidation\Validation\ArrayKeysRuleExpressionResolver
   - class: jbboehr\PhpstanLaravelValidation\Validation\NumericRuleExpressionResolver
+  - class: jbboehr\PhpstanLaravelValidation\Validation\StringRuleExpressionResolver
   - class: jbboehr\PhpstanLaravelValidation\Validation\RuleSetResolver
   - class: jbboehr\PhpstanLaravelValidation\Validation\FormRequestRuleTypeResolver
     arguments:

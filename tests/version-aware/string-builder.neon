@@ -1,0 +1,4 @@
+parameters:
+  phpstanLaravelValidation:
+    # Rule::string() and StringRule were introduced in Laravel 12.55.
+    laravelVersion: '12.55.0'

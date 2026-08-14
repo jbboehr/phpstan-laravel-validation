@@ -439,6 +439,32 @@ Assigned builders, subclasses, conditional `when()` or `unless()` chains,
 dynamic calls, and unknown methods remain conservative because their complete
 runtime state is not statically visible.
 
+### String rule builders
+
+Laravel 12.55 introduced `Rule::string()` and `StringRule`. Fresh inline
+factory calls, direct construction, and chains of the builder's declared
+predicate methods infer a native `string`:
+
+```php
+$validated = Validator::make($input, [
+    'name' => ['required', Rule::string()->between(1, 100)],
+    'code' => ['required', Rule::string()->uppercase()],
+])->validated();
+
+\PHPStan\dumpType($validated);
+// Laravel 12.55+: array{name: string, code: string}
+```
+
+The builder begins with Laravel's native `string` rule. Its fluent predicates
+constrain the accepted contents or length but do not convert other values into
+strings. Inference currently recovers that native representation rather than
+every content refinement: for example, `Rule::string()->min(1)` remains
+`string`, while the equivalent `string|min:1` rule string can be refined to
+`non-empty-string`. Optional blank strings retain Laravel's ordinary
+non-implicit-rule bypass. Assigned builders, subclasses, conditional `when()`
+or `unless()` chains, dynamic calls, and unknown methods remain conservative
+because their complete runtime state is not statically visible.
+
 ### File rule builders
 
 Fresh inline file builders are recovered as Symfony file predicates:
