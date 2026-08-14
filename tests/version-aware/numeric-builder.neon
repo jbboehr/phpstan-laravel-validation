@@ -1,0 +1,4 @@
+parameters:
+  phpstanLaravelValidation:
+    # Numeric::integer(strict: true) was introduced in Laravel 12.55.
+    laravelVersion: '12.55.0'

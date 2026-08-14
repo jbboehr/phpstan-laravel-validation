@@ -43,6 +43,7 @@ final class RuleSetResolver
         private NotInRuleExpressionResolver $notInRuleExpressionResolver,
         private ArrayRuleExpressionResolver $arrayRuleExpressionResolver,
         private ArrayKeysRuleExpressionResolver $arrayKeysRuleExpressionResolver,
+        private NumericRuleExpressionResolver $numericRuleExpressionResolver,
         private LaravelVersionContext $laravelVersionContext
     ) {
     }
@@ -156,11 +157,16 @@ final class RuleSetResolver
 
     private function resolveBuiltInRuleExpression(Expr $expression, Scope $scope): ?Rule
     {
+        if ($expression instanceof Expr\CallLike && $expression->isFirstClassCallable()) {
+            return null;
+        }
+
         return $this->enumRuleExpressionResolver->resolve($expression, $scope)
             ?? $this->inRuleExpressionResolver->resolve($expression, $scope)
             ?? $this->notInRuleExpressionResolver->resolve($expression, $scope)
             ?? $this->arrayRuleExpressionResolver->resolve($expression, $scope)
             ?? $this->arrayKeysRuleExpressionResolver->resolve($expression, $scope)
+            ?? $this->numericRuleExpressionResolver->resolve($expression, $scope)
             ?? $this->resolveFileRuleExpression($expression, $scope)
             ?? $this->resolveDatabaseRuleExpression($expression, $scope);
     }

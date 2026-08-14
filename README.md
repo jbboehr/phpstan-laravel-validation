@@ -409,6 +409,36 @@ Before Laravel 13.24, or when arguments are dynamic, unpacked, `Arrayable`, or
 otherwise unavailable to analysis, inference remains conservative. Assigned
 builder objects and direct `ArrayKeys` construction also remain opaque.
 
+### Numeric rule builders
+
+Laravel 11.42 introduced `Rule::numeric()` and the corresponding `Numeric`
+builder. Fresh inline factory calls, direct construction, and their declared
+predicate methods retain Laravel's preserved numeric representations:
+
+```php
+$validated = Validator::make($input, [
+    'amount' => ['required', Rule::numeric()->between(1, 100)],
+    'count' => ['required', Rule::numeric()->integer(strict: true)],
+])->validated();
+
+\PHPStan\dumpType($validated);
+// Laravel 12.55+: array{amount: float|int|numeric-string, count: int}
+```
+
+The non-strict `integer()`, `digits()`, `digitsBetween()`, and `exactly()`
+methods do not imply a native `int`: Laravel still preserves integral floats
+and numeric strings, and PHPStan has no ordinary type for only the integral
+members of those families. Laravel 12.55 adds the builder's
+`integer(strict: true)` option, which does justify `int`. Earlier releases
+ignore a positional boolean passed to `integer()`, so inference retains the
+broader numeric union there. Other fluent methods constrain which numeric
+values pass without changing their possible native PHP representations.
+
+Optional blank strings retain Laravel's ordinary non-implicit-rule bypass.
+Assigned builders, subclasses, conditional `when()` or `unless()` chains,
+dynamic calls, and unknown methods remain conservative because their complete
+runtime state is not statically visible.
+
 ### File rule builders
 
 Fresh inline file builders are recovered as Symfony file predicates:

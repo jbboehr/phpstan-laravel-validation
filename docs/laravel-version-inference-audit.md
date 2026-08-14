@@ -21,6 +21,11 @@ adds `extensions` in 10.34, `encoding` in 12.40, the native-string-only
 changes a literal `list` parent from preservation to nested reconstruction.
 Laravel 11.7 adds the `Rule::array()` builder via
 [`8c684a222143`](https://github.com/laravel/framework/commit/8c684a222143fee9f9eff53b544c1f54a27b9e9e).
+Two further builder boundaries come from Laravel's upstream implementation and
+tag history. Laravel 11.42 adds the fluent `Numeric` builder via
+[`75b6392fd7c8`](https://github.com/laravel/framework/commit/75b6392fd7c8bee0ed7f1e490ba47241de7d0d31),
+and Laravel 12.55 adds its strict integer option via
+[`73b393274b25`](https://github.com/laravel/framework/commit/73b393274b2531995116ef30a83d8091e6934af8).
 Laravel's `Enum` rule adds literal `only`/`except` filters in 10.46 via
 [`8d47be393e43`](https://github.com/laravel/framework/commit/8d47be393e43ffeacd49556471110454f868da5f).
 Laravel 10.21.1 also teaches the `In` and `NotIn` builders to serialize enum
@@ -134,7 +139,7 @@ observed evidence; it does not prove universal soundness.
 | Area | Representative probes | Result |
 | --- | --- | --- |
 | Accepted and declined values | `accepted.true`, `accepted_if.inactive`, `declined.false`, `declined_if.inactive` | No observed release difference |
-| Boolean and numeric predicates | `boolean.*`, `integer.*`, `numeric.*`, `digits*`, `decimal`, `multiple_of`, `max_digits`, `min_digits` | `integer:strict` boundary at 12.22 |
+| Boolean and numeric predicates | `boolean.*`, `integer.*`, `numeric.*`, `digits*`, `decimal`, `multiple_of`, `max_digits`, `min_digits`, and fresh fluent numeric builders | `integer:strict` begins at 12.22; the exact 11.42 and 12.55 builder cutovers are pinned by the linked upstream commits, tag history, and focused static fixtures, while cross-profile PHPUnit confirms representative behavior before and after them |
 | Text predicates | `alpha*`, `ascii.*`, `string`, `lowercase`, `uppercase`, `regex`, `not_regex` | `ascii` boundary at 13.4 |
 | Hex colors | valid strings, compatible `Stringable`, optional blank input, and unsupported-rule behavior | Rule introduction at 10.33; native-string boundary at 13.4, covered by the cross-profile PHPUnit suite |
 | File extensions | valid and failed uploads, a compatible Symfony file subclass, invalid native values, optional blank input, and unsupported-rule behavior | `extensions` begins at Laravel 10.34, covered by the cross-profile PHPUnit suite rather than the portable audit corpus |
@@ -809,8 +814,8 @@ numeric rule keys, while the resolver specializes `integer:strict`, `ascii`,
 `base64`, `encoding`, `extensions`, `hex_color`, `array_keys`, `contains`,
 `in_array_keys`, `doesnt_contain`, `list` value types, `list` parent
 reconstruction, fresh `Rule::array()` and `Rule::arrayKeys()` builder
-extraction, and default HTTP normalization only at the verified boundaries
-above.
+extraction, fresh numeric-builder extraction and strict integer mode, and
+default HTTP normalization only at the verified boundaries above.
 It ignores installed-package datasets belonging to unrelated project roots,
 so a globally installed tool or another registered autoloader cannot silently
 select the Laravel contract. The same context contributes its effective

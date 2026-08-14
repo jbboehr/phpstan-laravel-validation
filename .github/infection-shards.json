@@ -24,6 +24,7 @@
             "src/Validation/EnumRuleExpressionResolver.php",
             "src/Validation/InRuleExpressionResolver.php",
             "src/Validation/NotInRuleExpressionResolver.php",
+            "src/Validation/NumericRuleExpressionResolver.php",
             "src/Validation/RuleParameterExpressionResolver.php",
             "src/Validation/RuleSetResolver.php",
             "src/Validation/StaticRuleValue.php"

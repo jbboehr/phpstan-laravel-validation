@@ -1,0 +1,4 @@
+parameters:
+  phpstanLaravelValidation:
+    # Passing a positional flag does not enable strict mode before Laravel 12.55.
+    laravelVersion: '12.54.0'

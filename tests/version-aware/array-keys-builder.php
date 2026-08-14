@@ -90,6 +90,7 @@ $opaque = Validator::make([], [
     'dynamic_array_item' => ['required', Rule::arrayKeys([dynamicAllowedArrayKey()])],
     'arrayable' => ['required', Rule::arrayKeys(collect(['name']))],
     'unpacked_argument' => ['required', Rule::arrayKeys(...['name'])],
+    'first_class_callable' => ['required', Rule::arrayKeys(...)],
     'unpacked_array_item' => ['required', Rule::arrayKeys([...['name']])],
     'dynamic_class' => ['required', $factory::arrayKeys(['name'])],
     'dynamic_method' => ['required', Rule::$method(['name'])],
@@ -98,7 +99,8 @@ $opaque = Validator::make([], [
 ])->validated();
 assertType(
     'array{assigned?: mixed, dynamic_expression?: mixed, dynamic_array_item?: mixed, '
-        . 'arrayable?: mixed, unpacked_argument?: mixed, unpacked_array_item?: mixed, '
+        . 'arrayable?: mixed, unpacked_argument?: mixed, first_class_callable: mixed, '
+        . 'unpacked_array_item?: mixed, '
         . 'dynamic_class?: mixed, dynamic_method?: mixed, different_class?: mixed, '
         . 'different_method: array{name?: mixed}}',
     $opaque
