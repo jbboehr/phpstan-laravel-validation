@@ -39,7 +39,8 @@
             "src/Validation/InvalidCustomRuleContractException.php",
             "src/Validation/InvalidRuleException.php",
             "src/Validation/Rule.php",
-            "src/Validation/RuleParser.php"
+            "src/Validation/RuleParser.php",
+            "src/Rule/UnvalidatedArrayKeysConfigurationRule.php"
         ]
     }
 }

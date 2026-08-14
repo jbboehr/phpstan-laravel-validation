@@ -557,10 +557,26 @@ discover registered aliases.
 
 ## Development
 
-Install the project dependencies and run the main checks with:
+Enter the reproducible development environment and install dependencies into
+the ordinary mutable local `vendor/` directory:
 
 ```bash
+nix develop
 composer install
+nix flake check --keep-going -L
+```
+
+The flake check is the complete normal validation surface. It runs PHPUnit on
+PHP 8.1 through 8.5, the full suite against the latest supported Laravel
+majors, every pinned Laravel runtime-audit profile, PHPStan, php-cs-fixer,
+documentation formatting, Composer validation, PHP linting, and the Larastan
+and minimum-PHPStan consumer checks. Each is a separate derivation for useful
+failure attribution and caching. Nix-managed Composer repositories are built
+from committed lockfiles and do not use the local `vendor/` directory.
+
+Focused Composer commands remain available during interactive development:
+
+```bash
 composer exec phpunit
 composer exec phpstan analyse
 composer cs
@@ -568,17 +584,18 @@ composer cs
 
 The [testing and runtime verification guide](docs/testing.md) explains which
 test layer to use, how to write named Laravel runtime cases, how to replay Eris
-seeds, and how to run the portable cross-version Composer audit. Nix is an
-optional convenience for selecting PHP versions, not a test prerequisite.
+seeds, and how to run the portable cross-version Composer audit. The
+[contributing guide](CONTRIBUTING.md) documents Nix dependency-hash updates.
 Apply PHP source formatting changes with `composer cs:fix`. Akashi's
 documentation-fence formatter is currently check-only; correct those fences by
 applying the diff reported by `composer docs:format`.
 
-Mutation testing uses an isolated toolchain because Infection requires PHP 8.3 or newer while this package supports PHP 8.1. Install it and run it from the project root with:
+Mutation testing uses an isolated toolchain because Infection requires PHP 8.3
+or newer while this package supports PHP 8.1. It is deliberately excluded from
+`nix flake check`; run the explicit Nix package from the project root with:
 
 ```bash
-composer --working-dir=tools/infection install
-composer infection
+nix build -L .#mutation
 ```
 
 PHPStan type-inference fixtures intended to cover extension code must run their
@@ -592,7 +609,13 @@ active in-process mutant. The `property` group is also excluded because
 rerunning hundreds of generated cases for each mutant would be
 disproportionate; promoted deterministic regressions remain available to
 Infection. A coverage driver supported by Infection, such as PCOV, is
-required; the `php85` Nix development shell includes PCOV.
+required. The mutation package supplies PHP 8.5 with PCOV and preserves the
+thresholds, timeouts, test exclusions, and worker count from
+`infection.json5.dist`. It divides the source into four cached shard
+derivations, each using its configured four Infection workers, then aggregates
+the existing project-wide thresholds. GitHub builds those shards serially so a
+four-core runner is not oversubscribed. The `php85` Nix development shell also
+includes PCOV for focused manual investigation.
 
 ## License
 

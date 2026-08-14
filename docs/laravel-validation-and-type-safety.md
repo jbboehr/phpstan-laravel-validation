@@ -444,9 +444,9 @@ through 13, and its committed upstream fixtures are pinned to:
 | 12 | 12.66.0 | [`82a53323c701`](https://github.com/laravel/framework/commit/82a53323c701a668f9054cbeb1d6b6cdbb6a5e10) |
 | 13 | 13.25.0 | [`ed36fe882bd4`](https://github.com/laravel/framework/commit/ed36fe882bd4eed4e6ff75343cbad8dbda03fdba) |
 
-The [CI matrix](../.github/workflows/ci.yml) installs every supported major,
-its first release, and known semantic boundary releases, then runs the complete
-PHPUnit suite. The separate
+The [exhaustive Nix matrix](../.github/workflows/ci.yml) runs every supported
+major's complete PHPUnit suite and independently checks the first release and
+known semantic boundaries through pinned runtime-audit jobs. The separate
 [Laravel-version inference audit](laravel-version-inference-audit.md) records
 boundary profiles, runtime snapshots, and audit limitations.
 

@@ -683,23 +683,23 @@ successful output in the supported context needs it.
 
 ## CI enforcement
 
-The main CI test matrix now runs every audit profile across every project PHP
-version at or above that Laravel major's supported PHP floor:
+The exhaustive Nix matrix runs every audit profile once on the PHP floor for
+its Laravel major. Each profile has a committed Composer lock and an offline
+Nix dependency closure, and each appears as an independent GitHub Actions job.
+The deterministic audit compares the recorded contract, checks containment of
+successful output, and records the reverse precision classification.
 
-- Laravel 10 profiles on PHP 8.1 through 8.5;
-- Laravel 11 and 12 profiles on PHP 8.2 through 8.5; and
-- Laravel 13 profiles on PHP 8.3 through 8.5.
-
-This produces 70 Laravel/PHP combinations. Each job installs the profile's
-exact or floating Composer constraint and exposes its profile name through
-`LARAVEL_AUDIT_BASELINE`. The deterministic audit compares the recorded
-contract, checks containment of successful output, and records the reverse
-precision classification. The same job separately runs the bounded property
-suite and requires containment for every successful generated output.
+A separate PHPUnit matrix runs the complete suite on every supported project
+PHP version, 8.1 through 8.5. Additional complete-suite jobs install the latest
+locked Laravel 11, 12, and 13 closures; the root lock supplies Laravel 10.
+Separating framework-boundary evidence from PHP compatibility retains both
+dimensions without multiplying them into a 70-job Cartesian matrix.
 
 The exact boundary releases are not substitutes for the floating latest
-profiles. The former preserve known historical contracts; the latter detect
-new patch-release behavior.
+profiles. The former preserve known historical contracts; the latter record
+the newest release present when their Nix locks were refreshed. Run the
+portable Composer matrix when checking for a newer patch release, then review
+and refresh the corresponding lock and baseline deliberately.
 
 ## Reproducing the audit
 
@@ -832,7 +832,7 @@ opportunities have already been applied and remain covered by the pinned
 runtime profiles. Unconditional `present` and `missing` now also refine output
 presence without conflating key existence with non-blank requiredness; focused
 runtime tests cover their named, nested, blank-value, and wildcard behavior
-through the cross-profile CI matrix.
+through the pinned profile audits and supported-major PHPUnit jobs.
 
 Environment-dependent rules should remain conservative unless their runtime
 services can be replaced with deterministic test doubles and their static

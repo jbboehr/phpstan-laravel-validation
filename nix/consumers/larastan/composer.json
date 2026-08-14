@@ -1,0 +1,39 @@
+{
+    "name": "jbboehr/phpstan-laravel-validation-larastan-consumer",
+    "description": "Larastan compatibility closure for phpstan-laravel-validation",
+    "type": "project",
+    "license": "AGPL-3.0-or-later",
+    "require": {
+        "php": "^8.3",
+        "composer-runtime-api": "^2.1",
+        "phpstan/phpstan": "^2.1.5",
+        "nikic/php-parser": "^4.15 || ^5.1"
+    },
+    "require-dev": {
+        "brick/varexporter": "^0.6.0",
+        "giorgiosironi/eris": "^1.1",
+        "jbboehr/akashi": "dev-master",
+        "jbboehr/doctrine-of-the-second-sun": "dev-master",
+        "larastan/larastan": "^3.0",
+        "laravel/framework": "^13.0",
+        "php-cs-fixer/shim": "^3",
+        "phpstan/phpstan-phpunit": "^2.0",
+        "phpstan/phpstan-strict-rules": "^2.0",
+        "phpunit/phpunit": "^10.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "jbboehr\\PhpstanLaravelValidation\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "jbboehr\\PhpstanLaravelValidation\\Test\\": "tests/"
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "preferred-install": "dist",
+        "allow-plugins": false
+    }
+}

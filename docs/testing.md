@@ -5,8 +5,15 @@ rule name. A change to inference therefore needs two independent pieces of
 evidence: Laravel must actually produce the values being modeled, and PHPStan
 must emit a type that contains those values.
 
-Nix is convenient for switching PHP versions, but it is not required. The
-canonical test and audit commands use PHP and Composer directly.
+The complete normal validation suite is exposed through Nix:
+
+```sh
+nix flake check --keep-going -L
+```
+
+Focused test and audit commands still use PHP and Composer directly. This
+keeps individual regressions easy to reproduce without making contributors
+translate ordinary PHPUnit options into Nix expressions.
 
 `composer cs` also uses Akashi to format-check every inline PHP fence in the
 README and `docs/`. Run that check alone with `composer docs:format`. This
@@ -175,7 +182,7 @@ reviewed reference but fail only when the observed case results change, so a
 new patch release remains visible without making every unchanged release a CI
 failure.
 
-### Optional Nix convenience
+### Nix profile-shell convenience
 
 If Nix is available, the wrapper selects the minimum compatible project shell
 for each profile and delegates to the same portable matrix runner:
@@ -191,7 +198,14 @@ same canonical PHP implementation.
 
 ## Before submitting an inference change
 
-Run the focused tests while developing, then run:
+Run focused tests while developing, then run the complete normal suite:
+
+```sh
+nix flake check --keep-going -L
+```
+
+The equivalent focused Composer commands remain useful when diagnosing an
+individual layer:
 
 ```sh
 composer exec phpunit
@@ -208,10 +222,15 @@ also narrowly ignores mutations that make `RuleTreeNode::resolvePath()` recurse
 without consuming input: those mutants can exhaust PHP's native stack before
 Infection's timeout can stop the process.
 
-CI divides the source tree into the shards declared in
-`.github/infection-shards.json`. Individual shard jobs disable Infection's MSI
-and covered-MSI minimums because differently sized shards cannot meaningfully
-enforce whole-project percentages. The final `Mutation testing | PHP 8.5` job
-combines their counts and enforces the project-wide MSI, covered-MSI, timeout,
-and expected-ignore thresholds. A local full-repository `composer infection`
-run continues to enforce the values in `infection.json5.dist` directly.
+Mutation testing is an explicit Nix package rather than a flake check:
+
+```sh
+nix build -L .#mutation
+```
+
+GitHub's exhaustive Nix matrix adds that package to the normal check set. The
+package builds the four source shards independently, each with the configured
+four Infection workers. GitHub schedules the shard derivations serially to
+avoid oversubscribing its four-core runner. The aggregate derivation enforces
+the project-wide MSI, covered-MSI, timeout, and expected-ignore behavior.
+Ordinary `nix flake check` never runs it.

@@ -14,18 +14,9 @@ permissions:
     contents: read
 
 jobs:
-    lint:
+    baseline:
+        name: Conventional PHP baseline | PHP 8.5
         runs-on: ubuntu-latest
-        name: "Lint | PHP ${{ matrix.php-version }}"
-        strategy:
-            fail-fast: false
-            matrix:
-                php-version:
-                    - "8.1"
-                    - "8.2"
-                    - "8.3"
-                    - "8.4"
-                    - "8.5"
         steps:
             - uses: actions/checkout@v7
 
@@ -33,513 +24,107 @@ jobs:
               uses: shivammathur/setup-php@v2
               with:
                   coverage: "none"
-                  php-version: "${{ matrix.php-version }}"
+                  php-version: "8.5"
                   tools: composer:v2
 
-            - name: Validate composer.json and composer.lock
+            - name: Cache Composer packages
+              uses: actions/cache@v6
+              with:
+                  path: vendor
+                  key: ${{ runner.os }}-php-8.5-${{ hashFiles('composer.lock') }}
+                  restore-keys: |
+                      ${{ runner.os }}-php-8.5-
+
+            - name: Install dependencies
+              run: composer install --prefer-dist --no-interaction --no-progress --ignore-platform-req=php+
+
+            - name: Validate Composer files
               run: composer validate --strict
 
-            - name: Cache Composer packages
-              id: composer-cache
-              uses: actions/cache@v6
-              with:
-                  path: vendor
-                  key: ${{ runner.os }}-php-${{ matrix.php-version }}-${{ hashFiles('**/composer.lock') }}
-                  restore-keys: |
-                      ${{ runner.os }}-php-${{ matrix.php-version }}-
+            - name: PHPUnit
+              run: php vendor/bin/phpunit --no-coverage
 
-            - name: Install dependencies
-              run: composer install --prefer-dist --no-progress --ignore-platform-req=php+
+            - name: PHPStan
+              run: php vendor/bin/phpstan analyse --no-progress
 
-            - name: PHP-CS-Fixer
-              run: composer cs
+            - name: php-cs-fixer
+              run: php vendor/bin/php-cs-fixer fix --config=.php-cs-fixer.dist.php --dry-run --diff
 
-            - name: phpstan
-              run: php vendor/bin/phpstan analyze
-
-    minimum-phpstan:
+    nix-matrix:
+        name: Generate exhaustive Nix matrix
         runs-on: ubuntu-latest
-        name: "Minimum PHPStan | PHP 8.1 | PHPStan 2.1.5"
-        steps:
-            - uses: actions/checkout@v7
-
-            - name: Install PHP
-              uses: shivammathur/setup-php@v2
-              with:
-                  coverage: "none"
-                  php-version: "8.1"
-                  tools: composer:v2
-
-            - name: Install minimum supported PHPStan
-              run: >-
-                  composer update
-                  phpstan/phpstan
-                  phpstan/phpstan-phpunit
-                  phpstan/phpstan-strict-rules
-                  --with phpstan/phpstan:2.1.5
-                  --with-all-dependencies
-                  --prefer-dist
-                  --no-interaction
-                  --no-progress
-
-            - name: phpstan
-              run: php vendor/bin/phpstan analyze
-
-            - name: Run test suite
-              run: php vendor/bin/phpunit
-
-    test:
-        runs-on: ubuntu-latest
-        name: "Test | PHP ${{ matrix.php-version }} | Laravel ${{ matrix.laravel-profile }}"
-        strategy:
-            fail-fast: false
-            # Bound concurrent Composer traffic from the roughly 100-profile
-            # Cartesian matrix. GitHub-hosted runners otherwise produce
-            # intermittent package download and API failures under fan-out.
-            max-parallel: 12
-            matrix:
-                php-version:
-                    - "8.1"
-                    - "8.2"
-                    - "8.3"
-                    - "8.4"
-                    - "8.5"
-                laravel-profile:
-                    - "10.0.0"
-                    - "10.32.1"
-                    - "10.33.0"
-                    - "10.34.0"
-                    - "10-latest"
-                    - "11.0.0"
-                    - "11.22.0"
-                    - "11.23.0"
-                    - "11-latest"
-                    - "12.0.0"
-                    - "12.21.0"
-                    - "12.22.0"
-                    - "12.39.0"
-                    - "12.40.0"
-                    - "12-latest"
-                    - "13.0.0"
-                    - "13.3.0"
-                    - "13.4.0"
-                    - "13.20.0"
-                    - "13.21.0"
-                    - "13.23.0"
-                    - "13.24.0"
-                    - "13-latest"
-                include:
-                    - laravel-profile: "10.0.0"
-                      laravel-constraint: "10.0.0"
-                    - laravel-profile: "10.32.1"
-                      laravel-constraint: "10.32.1"
-                    - laravel-profile: "10.33.0"
-                      laravel-constraint: "10.33.0"
-                    - laravel-profile: "10.34.0"
-                      laravel-constraint: "10.34.0"
-                    - laravel-profile: "10-latest"
-                      laravel-constraint: "^10.0"
-                    - laravel-profile: "11.0.0"
-                      laravel-constraint: "11.0.0"
-                    - laravel-profile: "11.22.0"
-                      laravel-constraint: "11.22.0"
-                    - laravel-profile: "11.23.0"
-                      laravel-constraint: "11.23.0"
-                    - laravel-profile: "11-latest"
-                      laravel-constraint: "^11.0"
-                    - laravel-profile: "12.0.0"
-                      laravel-constraint: "12.0.0"
-                    - laravel-profile: "12.21.0"
-                      laravel-constraint: "12.21.0"
-                    - laravel-profile: "12.22.0"
-                      laravel-constraint: "12.22.0"
-                    - laravel-profile: "12.39.0"
-                      laravel-constraint: "12.39.0"
-                    - laravel-profile: "12.40.0"
-                      laravel-constraint: "12.40.0"
-                    - laravel-profile: "12-latest"
-                      laravel-constraint: "^12.0"
-                    - laravel-profile: "13.0.0"
-                      laravel-constraint: "13.0.0"
-                    - laravel-profile: "13.3.0"
-                      laravel-constraint: "13.3.0"
-                    - laravel-profile: "13.4.0"
-                      laravel-constraint: "13.4.0"
-                    - laravel-profile: "13.20.0"
-                      laravel-constraint: "13.20.0"
-                    - laravel-profile: "13.21.0"
-                      laravel-constraint: "13.21.0"
-                    - laravel-profile: "13.23.0"
-                      laravel-constraint: "13.23.0"
-                    - laravel-profile: "13.24.0"
-                      laravel-constraint: "13.24.0"
-                    - laravel-profile: "13-latest"
-                      laravel-constraint: "^13.0"
-                exclude:
-                    # Laravel 11 and 12 require PHP ^8.2
-                    - php-version: "8.1"
-                      laravel-profile: "11.0.0"
-                    - php-version: "8.1"
-                      laravel-profile: "11.22.0"
-                    - php-version: "8.1"
-                      laravel-profile: "11.23.0"
-                    - php-version: "8.1"
-                      laravel-profile: "11-latest"
-                    - php-version: "8.1"
-                      laravel-profile: "12.0.0"
-                    - php-version: "8.1"
-                      laravel-profile: "12.21.0"
-                    - php-version: "8.1"
-                      laravel-profile: "12.22.0"
-                    - php-version: "8.1"
-                      laravel-profile: "12.39.0"
-                    - php-version: "8.1"
-                      laravel-profile: "12.40.0"
-                    - php-version: "8.1"
-                      laravel-profile: "12-latest"
-                    # Laravel 13 requires PHP ^8.3
-                    - php-version: "8.1"
-                      laravel-profile: "13.0.0"
-                    - php-version: "8.2"
-                      laravel-profile: "13.0.0"
-                    - php-version: "8.1"
-                      laravel-profile: "13.3.0"
-                    - php-version: "8.2"
-                      laravel-profile: "13.3.0"
-                    - php-version: "8.1"
-                      laravel-profile: "13.4.0"
-                    - php-version: "8.2"
-                      laravel-profile: "13.4.0"
-                    - php-version: "8.1"
-                      laravel-profile: "13.20.0"
-                    - php-version: "8.2"
-                      laravel-profile: "13.20.0"
-                    - php-version: "8.1"
-                      laravel-profile: "13.21.0"
-                    - php-version: "8.2"
-                      laravel-profile: "13.21.0"
-                    - php-version: "8.1"
-                      laravel-profile: "13.23.0"
-                    - php-version: "8.2"
-                      laravel-profile: "13.23.0"
-                    - php-version: "8.1"
-                      laravel-profile: "13.24.0"
-                    - php-version: "8.2"
-                      laravel-profile: "13.24.0"
-                    - php-version: "8.1"
-                      laravel-profile: "13-latest"
-                    - php-version: "8.2"
-                      laravel-profile: "13-latest"
-        steps:
-            - uses: actions/checkout@v7
-
-            - name: Install PHP
-              uses: shivammathur/setup-php@v2
-              with:
-                  coverage: "none"
-                  php-version: "${{ matrix.php-version }}"
-                  tools: composer:v2
-
-            - name: Cache Composer packages
-              id: composer-cache
-              uses: actions/cache@v6
-              with:
-                  path: vendor
-                  key: ${{ runner.os }}-php-${{ matrix.php-version }}-laravel-${{ matrix.laravel-profile }}-${{ hashFiles('**/composer.lock') }}
-                  restore-keys: |
-                      ${{ runner.os }}-php-${{ matrix.php-version }}-laravel-${{ matrix.laravel-profile }}-
-
-            - name: Install dependencies
-              run: |
-                  for attempt in 1 2 3; do
-                      composer install --prefer-dist --no-progress --ignore-platform-req=php+ && break
-                      if [[ "$attempt" -eq 3 ]]; then
-                          exit 1
-                      fi
-                      echo "::warning::Composer install failed on attempt $attempt; retrying"
-                      sleep "$((attempt * 10))"
-                  done
-
-            - name: Install laravel
-              run: |
-                  for attempt in 1 2 3; do
-                      composer require --prefer-dist --no-progress --with-all-dependencies --dev --ignore-platform-req=php+ --no-blocking laravel/framework:${{ matrix.laravel-constraint }} && break
-                      if [[ "$attempt" -eq 3 ]]; then
-                          exit 1
-                      fi
-                      echo "::warning::Composer require failed on attempt $attempt; retrying"
-                      sleep "$((attempt * 10))"
-                  done
-
-            - name: Run test suite
-              env:
-                  LARAVEL_AUDIT_BASELINE: ${{ matrix.laravel-profile }}
-              run: php vendor/bin/phpunit
-
-    coverage:
-        runs-on: ubuntu-latest
-        name: "Coverage | PHP ${{ matrix.php-version }}"
-        strategy:
-            matrix:
-                php-version:
-                    - "8.5"
-        steps:
-            - uses: actions/checkout@v7
-
-            - name: Install PHP
-              uses: shivammathur/setup-php@v2
-              with:
-                  coverage: pcov
-                  php-version: "${{ matrix.php-version }}"
-                  tools: composer:v2
-
-            - name: Cache Composer packages
-              id: composer-cache
-              uses: actions/cache@v6
-              with:
-                  path: vendor
-                  key: ${{ runner.os }}-php-${{ matrix.php-version }}-${{ hashFiles('**/composer.lock') }}
-                  restore-keys: |
-                      ${{ runner.os }}-php-${{ matrix.php-version }}-
-
-            - name: Install dependencies
-              run: composer install --prefer-dist --no-progress
-
-            - name: Run test suite with coverage
-              run: >-
-                  php vendor/bin/phpunit
-                  --coverage-clover clover.xml
-                  --coverage-text
-                  --show-uncovered-for-coverage-text
-                  --only-summary-for-coverage-text
-
-            # Code Climate disabled its coverage API in July 2025. Keep this
-            # disabled until coverage reporting is migrated to Qlty.
-            # - name: Upload code coverage
-            #   uses: paambaati/codeclimate-action@v9.0.0
-            #   env:
-            #       CC_TEST_REPORTER_ID: 3f8f6d064fc0b063230c71511f07aec326a2eb84f3c5653161b5f087aae315f9
-            #   with:
-            #       coverageCommand: "true"
-            #       coverageLocations: |
-            #           clover.xml:clover
-
-    infection-plan:
-        runs-on: ubuntu-latest
-        name: "Mutation shard inventory"
         outputs:
-            matrix: ${{ steps.shards.outputs.matrix }}
-            shard_count: ${{ steps.shards.outputs.count }}
-        steps:
-            - uses: actions/checkout@v7
-
-            - name: Install PHP
-              uses: shivammathur/setup-php@v2
-              with:
-                  coverage: "none"
-                  php-version: "8.1"
-
-            - name: Validate mutation shards
-              id: shards
-              run: |
-                  matrix="$(php scripts/infection-shards.php)"
-                  echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
-                  echo "count=$(printf '%s' "$matrix" | jq '.include | length')" >> "$GITHUB_OUTPUT"
-
-    infection:
-        needs: infection-plan
-        runs-on: ubuntu-latest
-        name: "Mutation testing | ${{ matrix.shard }} | PHP 8.5"
-        timeout-minutes: 35
-        strategy:
-            fail-fast: false
-            max-parallel: 4
-            matrix: ${{ fromJSON(needs.infection-plan.outputs.matrix) }}
-        steps:
-            - uses: actions/checkout@v7
-
-            - name: Install PHP
-              uses: shivammathur/setup-php@v2
-              with:
-                  coverage: pcov
-                  php-version: "8.5"
-                  tools: composer:v2
-
-            - name: Cache Composer packages
-              uses: actions/cache@v6
-              with:
-                  path: |
-                      vendor
-                      tools/infection/vendor
-                  key: ${{ runner.os }}-php-8.5-infection-${{ hashFiles('composer.lock', 'tools/infection/composer.lock') }}
-                  restore-keys: |
-                      ${{ runner.os }}-php-8.5-infection-
-
-            - name: Install project dependencies
-              run: composer install --prefer-dist --no-progress
-
-            - name: Install Infection
-              run: composer --working-dir=tools/infection install --prefer-dist --no-progress
-
-            - name: Run mutation tests
-              env:
-                  COMPOSER_PROCESS_TIMEOUT: 1800
-              # Each public-repository ubuntu-latest runner has four advertised
-              # CPUs. The known native crashes came from non-progressing mutants,
-              # not worker concurrency, so use the available parallelism.
-              # The whole-repository MSI threshold cannot be applied independently
-              # to source shards with different amounts of uncovered code. The
-              # summary job reconstructs both whole-repository scores instead.
-              run: >-
-                  composer infection --
-                  ${{ matrix.paths }}
-                  --logger-github=false
-                  --logger-summary-json=infection-summary.json
-                  --min-msi=0
-                  --min-covered-msi=0
-                  --threads=${{ matrix.threads }}
-
-            - name: Upload mutation reports
-              if: always()
-              uses: actions/upload-artifact@v7
-              with:
-                  name: infection-reports-${{ matrix.shard }}
-                  path: |
-                      infection.log
-                      infection-summary.json
-                      infection-summary.log
-                  if-no-files-found: warn
-
-    infection-summary:
-        if: always()
-        needs:
-            - infection-plan
-            - infection
-        runs-on: ubuntu-latest
-        name: "Mutation testing | PHP 8.5"
-        steps:
-            - name: Download mutation reports
-              if: needs.infection-plan.result == 'success'
-              uses: actions/download-artifact@v8
-              with:
-                  pattern: infection-reports-*
-                  path: infection-reports
-
-            - name: Enforce aggregate mutation thresholds
-              if: needs.infection-plan.result == 'success'
-              env:
-                  EXPECTED_REPORTS: ${{ needs.infection-plan.outputs.shard_count }}
-                  # Keep these aligned with infection.json5.dist.
-                  MAX_TIMEOUTS: 10
-                  MIN_MSI: 50
-                  MIN_COVERED_MSI: 80
-                  EXPECTED_IGNORED_MUTANTS: 5
-              run: |
-                  mapfile -t reports < <(find infection-reports -type f -name infection-summary.json -print | sort)
-                  if [ "${#reports[@]}" -ne "$EXPECTED_REPORTS" ]; then
-                      echo "Expected $EXPECTED_REPORTS Infection reports, found ${#reports[@]}." >&2
-                      exit 1
-                  fi
-
-                  aggregate="$(jq -s '
-                      {
-                          total: map(.stats.totalMutantsCount - .stats.skippedCount - .stats.ignoredCount) | add,
-                          covered: map(.stats.totalMutantsCount - .stats.skippedCount - .stats.ignoredCount - .stats.notCoveredCount) | add,
-                          detected: map(.stats.killedCount + .stats.errorCount + .stats.syntaxErrorCount) | add,
-                          ignored: map(.stats.ignoredCount) | add,
-                          timeouts: map(.stats.timeOutCount) | add
-                      }
-                      | .msi = (if .total == 0 then 0 else ((10000 * .detected / .total | round) / 100) end)
-                      | .coveredMsi = (if .covered == 0 then 0 else ((10000 * .detected / .covered | round) / 100) end)
-                  ' "${reports[@]}")"
-
-                  jq . <<< "$aggregate"
-                  failed=0
-
-                  timeout_count="$(jq -r '.timeouts' <<< "$aggregate")"
-                  if [ "$timeout_count" -gt "$MAX_TIMEOUTS" ]; then
-                      echo "Timed-out mutants $timeout_count exceed the maximum $MAX_TIMEOUTS." >&2
-                      failed=1
-                  fi
-
-                  ignored_count="$(jq -r '.ignored' <<< "$aggregate")"
-                  if [ "$ignored_count" -ne "$EXPECTED_IGNORED_MUTANTS" ]; then
-                      echo "Expected $EXPECTED_IGNORED_MUTANTS ignored mutants, found $ignored_count; check the resolvePath() ignore patterns." >&2
-                      failed=1
-                  fi
-
-                  msi="$(jq -r '.msi' <<< "$aggregate")"
-                  if ! jq -e ".msi >= $MIN_MSI" <<< "$aggregate" >/dev/null; then
-                      echo "Aggregate MSI $msi% is below the required $MIN_MSI%." >&2
-                      failed=1
-                  fi
-
-                  covered_msi="$(jq -r '.coveredMsi' <<< "$aggregate")"
-                  if ! jq -e ".coveredMsi >= $MIN_COVERED_MSI" <<< "$aggregate" >/dev/null; then
-                      echo "Aggregate covered MSI $covered_msi% is below the required $MIN_COVERED_MSI%." >&2
-                      failed=1
-                  fi
-
-                  exit "$failed"
-
-            - name: Require successful mutation shards
-              if: always()
-              env:
-                  INFECTION_RESULT: ${{ needs.infection.result }}
-                  PLAN_RESULT: ${{ needs.infection-plan.result }}
-              run: >-
-                  test "$PLAN_RESULT" = success
-                  && test "$INFECTION_RESULT" = success
-
-    larastan:
-        runs-on: ubuntu-latest
-        name: "Larastan compatibility | PHP 8.5 | Laravel 13"
-        steps:
-            - uses: actions/checkout@v7
-
-            - name: Install PHP
-              uses: shivammathur/setup-php@v2
-              with:
-                  coverage: "none"
-                  php-version: "8.5"
-                  tools: composer:v2
-
-            - name: Cache Composer packages
-              id: composer-cache
-              uses: actions/cache@v6
-              with:
-                  path: vendor
-                  key: ${{ runner.os }}-php-8.5-larastan-${{ hashFiles('**/composer.lock') }}
-                  restore-keys: |
-                      ${{ runner.os }}-php-8.5-larastan-
-
-            - name: Install dependencies
-              run: composer install --prefer-dist --no-progress --ignore-platform-req=php+
-
-            - name: Install Larastan and Laravel
-              run: >-
-                  composer require
-                  --prefer-dist
-                  --no-progress
-                  --with-all-dependencies
-                  --dev
-                  --ignore-platform-req=php+
-                  --no-blocking
-                  larastan/larastan:^3.0
-                  laravel/framework:^13.0
-
-            - name: Run Larastan compatibility tests
-              run: php vendor/bin/phpunit --group larastan --fail-on-skipped
-
-    nix:
-        runs-on: ubuntu-latest
+            matrix: ${{ steps.matrix.outputs.matrix }}
         steps:
             - uses: actions/checkout@v7
 
             - uses: cachix/install-nix-action@v31
+
+            - id: matrix
+              name: Evaluate nix-github-actions matrix
+              run: |
+                  set -Eeu
+                  matrix="$(nix eval --json '.#legacyPackages.x86_64-linux.githubActions.matrix')"
+                  echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+    nix-build:
+        name: Nix | ${{ matrix.name }}
+        needs: nix-matrix
+        runs-on: ${{ matrix.os }}
+        timeout-minutes: 90
+        strategy:
+            fail-fast: false
+            max-parallel: 12
+            matrix: ${{ fromJSON(needs.nix-matrix.outputs.matrix) }}
+        steps:
+            - uses: actions/checkout@v7
+
+            - uses: cachix/install-nix-action@v31
+
+            - name: Use the nix-phps binary cache
+              uses: cachix/cachix-action@v17
               with:
-                  nix_path: nixpkgs=channel:nixos-26.05
+                  name: fossar
+                  skipPush: true
 
-#            - run: nix build -L
+            - name: Build ${{ matrix.attr }}
+              shell: bash
+              env:
+                  NIX_INSTALLABLE: .#${{ matrix.attr }}
+                  NIX_MATRIX_NAME: ${{ matrix.name }}
+              run: |
+                  max_jobs=4
+                  if [ "$NIX_MATRIX_NAME" = "mutation" ]; then
+                      # Each Infection shard already uses four workers. Build
+                      # the shards serially to avoid running sixteen workers
+                      # on a four-core GitHub-hosted runner.
+                      max_jobs=1
+                  fi
 
-            - run: nix flake check -L
+                  set +e
+                  nix build -L --keep-going --max-jobs "$max_jobs" "$NIX_INSTALLABLE" 2>&1 | tee "$RUNNER_TEMP/nix-build.log"
+                  nix_status=${PIPESTATUS[0]}
+                  set -e
+
+                  if [ "$nix_status" -ne 0 ]; then
+                      mapfile -t replacement_hashes < <(
+                          sed -nE 's/^[[:space:]]*got:[[:space:]]+(sha256-[^[:space:]]+).*$/\1/p' \
+                              "$RUNNER_TEMP/nix-build.log" | sort -u
+                      )
+
+                      if [ "${#replacement_hashes[@]}" -gt 0 ]; then
+                          {
+                              echo "## Nix Composer vendor hash update"
+                              echo
+                              echo "Nix reported the following authoritative replacement hash values:"
+                              echo
+                              for replacement_hash in "${replacement_hashes[@]}"; do
+                                  echo "- \`$replacement_hash\`"
+                              done
+                              echo
+                              echo "Update the matching entry in \`nix/vendor-hashes.nix\`, then rerun the failed target."
+                          } | tee -a "$GITHUB_STEP_SUMMARY"
+                      fi
+                  fi
+
+                  exit "$nix_status"
