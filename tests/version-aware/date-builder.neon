@@ -1,0 +1,4 @@
+parameters:
+  phpstanLaravelValidation:
+    # Rule lists began expanding pipe-delimited Date builders in Laravel 11.41.
+    laravelVersion: '11.41.0'

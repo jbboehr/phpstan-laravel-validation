@@ -1,0 +1,4 @@
+parameters:
+  phpstanLaravelValidation:
+    # Rule::date() and Date were introduced in Laravel 11.40.
+    laravelVersion: '11.39.0'

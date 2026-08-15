@@ -349,6 +349,57 @@
         })
         auditProfileNames);
 
+      dateParserProfileNames = [
+        "11.40.0"
+        "11.41.0"
+        "11.43.1"
+        "11.43.2"
+      ];
+      dateParserManifest = profile:
+        builtins.toJSON {
+          name = "phpstan-laravel-validation/date-parser-audit";
+          description = "Nix Laravel runtime for the Date rule parser audit";
+          type = "project";
+          license = "AGPL-3.0-or-later";
+          require = {"laravel/framework" = profile;};
+          minimum-stability = "stable";
+          prefer-stable = true;
+          config = {
+            allow-plugins = false;
+            sort-packages = true;
+          };
+        };
+      dateParserClosure = profile: let
+        manifestContents = dateParserManifest profile;
+        manifest = pkgs.writeTextDir "composer.json" manifestContents;
+      in
+        mkComposerClosure {
+          name = "date-parser-${profile}";
+          php = phpVersions.php82;
+          composerSource = manifest;
+          composerJson = "${manifest}/composer.json";
+          composerJsonContents = manifestContents;
+          composerLock = ./nix/composer-locks/date-parser/${profile}.lock;
+          vendorHash = vendorHashes.dateParser.${profile};
+        };
+      dateParserCheck = profile: let
+        php = phpVersions.php82;
+        closure = dateParserClosure profile;
+      in
+        mkSourceCheck {
+          name = "date-parser-${profile}";
+          inherit php;
+          command = ''
+            ${php}/bin/php scripts/date-rule-parser-audit.php \
+              --laravel-autoload=${closure.vendor}/share/php/${closure.vendorPname}/vendor/autoload.php
+          '';
+        };
+      dateParserChecks = builtins.listToAttrs (map (profile: {
+          name = "date-parser-${profile}";
+          value = dateParserCheck profile;
+        })
+        dateParserProfileNames);
+
       mutationShardDefinitions = builtins.fromJSON (builtins.readFile ./.github/infection-shards.json);
       mutationShardNames = builtins.attrNames mutationShardDefinitions;
       mutationShard = shard: let
@@ -545,7 +596,8 @@
             command = "php vendor/bin/phpunit --group larastan --fail-on-skipped --no-coverage";
           };
         }
-        // auditChecks;
+        // auditChecks
+        // dateParserChecks;
 
       packages.mutation =
         pkgs.runCommand "phpstan-laravel-validation-mutation" {

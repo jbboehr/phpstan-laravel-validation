@@ -13,16 +13,30 @@ type. Three release boundaries change contracts exercised by that corpus:
 - `integer:strict` begins enforcing native integers in Laravel 12.22; and
 - `ascii` begins requiring a native string in Laravel 13.4.
 
-The cross-profile runtime suite records ten additional rule boundaries
-outside that portable corpus: Laravel adds `hex_color` in 10.33, Laravel 13.4
+The cross-profile runtime suite and focused builder fixtures record additional
+boundaries outside that portable corpus: Laravel adds `hex_color` in 10.33, Laravel 13.4
 stops `hex_color` from accepting compatible `Stringable` objects, and Laravel
 adds `extensions` in 10.34, `encoding` in 12.40, the native-string-only
 `base64` rule in 13.21, and `array_keys` in 13.24. Laravel 11.23 separately
 changes a literal `list` parent from preservation to nested reconstruction.
 Laravel 11.7 adds the `Rule::array()` builder via
 [`8c684a222143`](https://github.com/laravel/framework/commit/8c684a222143fee9f9eff53b544c1f54a27b9e9e).
-Three further builder boundaries come from Laravel's upstream implementation
-and tag history. Laravel 11.42 adds the fluent `Numeric` builder via
+Further builder boundaries come from Laravel's upstream implementation and tag
+history. Laravel 11.40 adds the fluent `Date` builder via
+[`1049c0370b24`](https://github.com/laravel/framework/commit/1049c0370b24a0d08ba5f3f2c8019b3249a31851),
+but Laravel's validation parser did not expand its pipe-delimited chains inside
+rule lists until 11.41 via
+[`b7fca4b8fe48`](https://github.com/laravel/framework/commit/b7fca4b8fe48ad6502accb974fdc1dde5993fb91),
+or as standalone field rules until 11.43.2 via
+[`1f5e3833ae2b`](https://github.com/laravel/framework/commit/1f5e3833ae2b6cb933a451493ab5c64635663a87).
+Laravel 12.44 adds `Rule::dateTime()` plus the builder's now-relative
+predicates via
+[`00ed6626514a`](https://github.com/laravel/framework/commit/00ed6626514a482dff22b0c7b77ab7b3226b1178).
+Laravel 12.3 had already changed `Date::format()` from a `date|date_format`
+intersection to a single `date_format` constraint via
+[`726434c6d8b3`](https://github.com/laravel/framework/commit/726434c6d8b3a34a66a73c7fe2322f6f632a2339);
+both forms require the same sound native output family.
+Laravel 11.42 adds the fluent `Numeric` builder via
 [`75b6392fd7c8`](https://github.com/laravel/framework/commit/75b6392fd7c8bee0ed7f1e490ba47241de7d0d31),
 and Laravel 12.55 adds its strict integer option via
 [`73b393274b25`](https://github.com/laravel/framework/commit/73b393274b2531995116ef30a83d8091e6934af8).
@@ -146,7 +160,7 @@ observed evidence; it does not prove universal soundness.
 | Hex colors | valid strings, compatible `Stringable`, optional blank input, and unsupported-rule behavior | Rule introduction at 10.33; native-string boundary at 13.4, covered by the cross-profile PHPUnit suite |
 | File extensions | valid and failed uploads, a compatible Symfony file subclass, invalid native values, optional blank input, and unsupported-rule behavior | `extensions` begins at Laravel 10.34, covered by the cross-profile PHPUnit suite rather than the portable audit corpus |
 | Character encoding | strings, arrays, scalars, `Stringable`, `null`, valid and invalid file contents, invalid uploads and parameters, and unsupported-rule behavior | `encoding` begins at Laravel 12.40, covered by the cross-profile PHPUnit suite rather than the portable audit corpus |
-| JSON, dates, and membership | `json.*`, `date*`, comparisons, scalar `in`, and fresh `Rule::in()` / `Rule::notIn()` builders | Scalar behavior is stable; enum-valued builders begin in Laravel 10.21.1, covered by the cross-profile PHPUnit suite |
+| JSON, dates, and membership | `json.*`, `date*`, comparisons, fresh fluent date builders, scalar `in`, and fresh `Rule::in()` / `Rule::notIn()` builders | Scalar behavior is stable; the date builder begins in 11.40, chains become usable in rule lists at 11.41 and standalone at 11.43.2, and `dateTime` plus now-relative predicates arrive in 12.44; enum-valued membership builders begin in 10.21.1. Builder boundaries are pinned by upstream commits, exact-version runtime checks, focused static fixtures, and cross-profile PHPUnit |
 | Network and identifiers | `email`, `ip`, `ipv4`, `ipv6`, `mac_address`, `timezone`, `url`, `uuid`, `ulid` | No observed release difference |
 | Arrays and projection | bare and keyed arrays, parameterized-parent preservation, required array offsets, numeric rule keys, nested child projection, wildcards, parent-plus-child rules, and fresh `Rule::array()` builders | Numeric rule-key boundary at Laravel 12; `Rule::array()` begins at Laravel 11.7 and `list` reconstruction changes at Laravel 11.23, covered by the cross-profile PHPUnit suite |
 | Array-only predicates | required and optional values, non-array rejection, preserved associative and nested arrays | `contains`, `in_array_keys`, and `doesnt_contain` begin at Laravel 11.8, 12.16, and 12.22, covered by the cross-profile PHPUnit suite rather than the portable audit corpus |
@@ -696,6 +710,12 @@ Nix dependency closure, and each appears as an independent GitHub Actions job.
 The deterministic audit compares the recorded contract, checks containment of
 successful output, and records the reverse precision classification.
 
+Four focused Nix checks separately run
+[`date-rule-parser-audit.php`](../scripts/date-rule-parser-audit.php) against
+exact Laravel 11.40.0, 11.41.0, 11.43.1, and 11.43.2 dependency closures. They
+verify the otherwise easy-to-miss distinction between a Date chain nested in a
+rule list and the same builder used as a standalone field rule.
+
 A separate PHPUnit matrix runs the complete suite on every supported project
 PHP version, 8.1 through 8.5. Additional complete-suite jobs install the latest
 locked Laravel 11, 12, and 13 closures; the root lock supplies Laravel 10.
@@ -816,8 +836,9 @@ numeric rule keys, while the resolver specializes `integer:strict`, `ascii`,
 `base64`, `encoding`, `extensions`, `hex_color`, `array_keys`, `contains`,
 `in_array_keys`, `doesnt_contain`, `list` value types, `list` parent
 reconstruction, fresh `Rule::array()` and `Rule::arrayKeys()` builder
-extraction, fresh numeric- and string-builder extraction, strict integer mode,
-and default HTTP normalization only at the verified boundaries above.
+extraction, fresh date-, numeric-, and string-builder extraction, strict
+integer mode, and default HTTP normalization only at the verified boundaries
+above.
 It ignores installed-package datasets belonging to unrelated project roots,
 so a globally installed tool or another registered autoloader cannot silently
 select the Laravel contract. The same context contributes its effective

@@ -1,0 +1,4 @@
+parameters:
+  phpstanLaravelValidation:
+    # Standalone pipe-delimited Date builders are expanded from Laravel 11.43.2.
+    laravelVersion: '11.43.2'

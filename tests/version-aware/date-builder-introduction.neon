@@ -1,0 +1,4 @@
+parameters:
+  phpstanLaravelValidation:
+    # The builder exists, but pipe-delimited Date chains are not yet expanded.
+    laravelVersion: '11.40.0'

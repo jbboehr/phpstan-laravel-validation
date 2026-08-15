@@ -465,6 +465,41 @@ non-implicit-rule bypass. Assigned builders, subclasses, conditional `when()`
 or `unless()` chains, dynamic calls, and unknown methods remain conservative
 because their complete runtime state is not statically visible.
 
+### Date rule builders
+
+Laravel 11.40 introduced `Rule::date()` and the corresponding `Date` builder,
+but its parser initially understood only builders that serialized to one rule.
+Laravel 11.41 began expanding pipe-delimited fluent chains inside rule lists,
+and Laravel 11.43.2 extended that behavior to a builder used as a field's
+standalone rule. At the applicable boundary, fresh inline factory calls, direct
+construction, and the builder's declared comparison predicates recover
+Laravel's preserved date family. Calling `format()` changes that family because
+Laravel's `date_format` rule rejects `DateTimeInterface` objects:
+
+```php
+$validated = Validator::make($input, [
+    'published_on' => ['required', Rule::date()->format('Y-m-d')],
+    'deadline' => ['required', Rule::date()->afterToday()],
+])->validated();
+
+\PHPStan\dumpType($validated);
+// Laravel 11.41+: array{
+//   published_on: float|int|non-empty-string,
+//   deadline: DateTimeInterface|float|int|non-empty-string
+// }
+```
+
+Laravel 12.44 adds `Rule::dateTime()` and the `past()`, `future()`,
+`nowOrPast()`, and `nowOrFuture()` predicates. `dateTime()` has the same native
+family as a formatted date. Laravel 12.3 changed how `format()` serializes, but
+both forms produce that same sound output family.
+
+These builders validate and preserve successful input; they do not parse it
+into a canonical date object. Optional blank strings retain Laravel's ordinary
+non-implicit-rule bypass. Assigned builders, subclasses, conditional
+`when()` or `unless()` chains, macros, dynamic calls, and unknown methods
+remain conservative because their runtime state is not statically visible.
+
 ### File rule builders
 
 Fresh inline file builders are recovered as Symfony file predicates:

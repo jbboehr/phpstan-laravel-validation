@@ -27,6 +27,7 @@ use jbboehr\PhpstanLaravelValidation\Test\CustomRules\UnknownRule;
 use jbboehr\PhpstanLaravelValidation\Validation\ArrayKeysRuleExpressionResolver;
 use jbboehr\PhpstanLaravelValidation\Validation\ArrayRuleExpressionResolver;
 use jbboehr\PhpstanLaravelValidation\Validation\CustomRuleTypeResolver;
+use jbboehr\PhpstanLaravelValidation\Validation\DateRuleExpressionResolver;
 use jbboehr\PhpstanLaravelValidation\Validation\EnumRuleExpressionResolver;
 use jbboehr\PhpstanLaravelValidation\Validation\InRuleExpressionResolver;
 use jbboehr\PhpstanLaravelValidation\Validation\LaravelVersionContext;
@@ -296,6 +297,7 @@ final class RuleSetResolverTest extends PHPStanTestCase
             $container->getByType(NotInRuleExpressionResolver::class),
             $container->getByType(ArrayRuleExpressionResolver::class),
             $container->getByType(ArrayKeysRuleExpressionResolver::class),
+            $container->getByType(DateRuleExpressionResolver::class),
             $container->getByType(NumericRuleExpressionResolver::class),
             $container->getByType(StringRuleExpressionResolver::class),
             new LaravelVersionContext('', $version)

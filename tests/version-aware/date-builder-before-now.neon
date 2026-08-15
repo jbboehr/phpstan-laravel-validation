@@ -1,0 +1,4 @@
+parameters:
+  phpstanLaravelValidation:
+    # Rule::dateTime() and Date's now-relative predicates arrived in 12.44.
+    laravelVersion: '12.43.0'

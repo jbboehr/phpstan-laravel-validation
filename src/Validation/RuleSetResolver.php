@@ -34,6 +34,7 @@ use PHPStan\Type\UnionType;
 final class RuleSetResolver
 {
     private const MAX_ALTERNATIVES = 128;
+    private const RULE_LIST_EXPRESSION_DEPTH = 2;
 
     public function __construct(
         private UnsafeConstExprEvaluator $constExprEvaluator,
@@ -43,6 +44,7 @@ final class RuleSetResolver
         private NotInRuleExpressionResolver $notInRuleExpressionResolver,
         private ArrayRuleExpressionResolver $arrayRuleExpressionResolver,
         private ArrayKeysRuleExpressionResolver $arrayKeysRuleExpressionResolver,
+        private DateRuleExpressionResolver $dateRuleExpressionResolver,
         private NumericRuleExpressionResolver $numericRuleExpressionResolver,
         private StringRuleExpressionResolver $stringRuleExpressionResolver,
         private LaravelVersionContext $laravelVersionContext
@@ -55,7 +57,7 @@ final class RuleSetResolver
     public function resolve(Expr $expression, Scope $scope): array
     {
         try {
-            $values = $this->expandExpression($expression, $scope)
+            $values = $this->expandExpression($expression, $scope, 0)
                 ?? $this->expandType($scope->getType($expression));
             $trees = [];
             foreach ($values as $value) {
@@ -93,9 +95,13 @@ final class RuleSetResolver
      *
      * @return list<mixed>|null
      */
-    private function expandExpression(Expr $expression, Scope $scope): ?array
+    private function expandExpression(Expr $expression, Scope $scope, int $depth): ?array
     {
-        $rule = $this->resolveBuiltInRuleExpression($expression, $scope);
+        $rule = $this->resolveBuiltInRuleExpression(
+            $expression,
+            $scope,
+            $depth >= self::RULE_LIST_EXPRESSION_DEPTH
+        );
         if ($rule !== null) {
             return [$rule];
         }
@@ -104,7 +110,7 @@ final class RuleSetResolver
             return null;
         }
 
-        if (!$this->containsResolvableBuiltInRuleExpression($expression, $scope)) {
+        if (!$this->containsResolvableBuiltInRuleExpression($expression, $scope, $depth)) {
             return null;
         }
 
@@ -133,7 +139,7 @@ final class RuleSetResolver
                 }
             }
 
-            $values = $this->expandExpression($item->value, $scope);
+            $values = $this->expandExpression($item->value, $scope, $depth + 1);
             if ($values === null) {
                 $values = $this->expandType($scope->getType($item->value));
             } else {
@@ -156,8 +162,11 @@ final class RuleSetResolver
         return $specialized ? $results : null;
     }
 
-    private function resolveBuiltInRuleExpression(Expr $expression, Scope $scope): ?Rule
-    {
+    private function resolveBuiltInRuleExpression(
+        Expr $expression,
+        Scope $scope,
+        bool $insideRuleList
+    ): ?Rule {
         if ($expression instanceof Expr\CallLike && $expression->isFirstClassCallable()) {
             return null;
         }
@@ -167,6 +176,7 @@ final class RuleSetResolver
             ?? $this->notInRuleExpressionResolver->resolve($expression, $scope)
             ?? $this->arrayRuleExpressionResolver->resolve($expression, $scope)
             ?? $this->arrayKeysRuleExpressionResolver->resolve($expression, $scope)
+            ?? $this->dateRuleExpressionResolver->resolve($expression, $scope, $insideRuleList)
             ?? $this->numericRuleExpressionResolver->resolve($expression, $scope)
             ?? $this->stringRuleExpressionResolver->resolve($expression, $scope)
             ?? $this->resolveFileRuleExpression($expression, $scope)
@@ -313,16 +323,23 @@ final class RuleSetResolver
             : $scope->resolveName($name);
     }
 
-    private function containsResolvableBuiltInRuleExpression(Expr\Array_ $expression, Scope $scope): bool
-    {
+    private function containsResolvableBuiltInRuleExpression(
+        Expr\Array_ $expression,
+        Scope $scope,
+        int $depth
+    ): bool {
         foreach ($expression->items as $item) {
-            if ($this->resolveBuiltInRuleExpression($item->value, $scope) !== null) {
+            if ($this->resolveBuiltInRuleExpression(
+                $item->value,
+                $scope,
+                $depth + 1 >= self::RULE_LIST_EXPRESSION_DEPTH
+            ) !== null) {
                 return true;
             }
 
             if (
                 $item->value instanceof Expr\Array_
-                && $this->containsResolvableBuiltInRuleExpression($item->value, $scope)
+                && $this->containsResolvableBuiltInRuleExpression($item->value, $scope, $depth + 1)
             ) {
                 return true;
             }

@@ -7,6 +7,13 @@
   larastan = "sha256-T6mjZTz/GGyD0/q5MeCobu6UD9Umi5mtnX3pwsDiqSU=";
   infection = "sha256-zhl3+EGwHxl+hUaNY9g+JH9YaGD9pidfPDRSG/d7MCI=";
 
+  dateParser = {
+    "11.40.0" = "sha256-k+9w2A3C1PcQ4Dk0gYo+xKGmlSGp7iEmedYAbKvOis8=";
+    "11.41.0" = "sha256-9M3M1TSWQXy5ePUwwE3fZCq2FpNiWssQJ7T3TX0XMY0=";
+    "11.43.1" = "sha256-+er5bWBjn8NwGXNZ9G7RINrZH8HD86HQkdaepkK490c=";
+    "11.43.2" = "sha256-Ry7jhHxw0INxEcaufEuiXMGgMeqU+IQletJiNMK6hJc=";
+  };
+
   audit = {
     "10.0.0" = "sha256-jg8/8D5P1dnWUCrANqVPCMBUyDCCSR1SQnjR6nlTIG8=";
     "10.32.1" = "sha256-LeDBDnZi83Q6c2D9JaQdpdUsdsf+HM/0K5KuYO8BHEo=";

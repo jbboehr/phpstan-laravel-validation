@@ -1,0 +1,4 @@
+parameters:
+  phpstanLaravelValidation:
+    # Rule lists expand Date chains, but standalone Date objects do not yet.
+    laravelVersion: '11.43.1'
