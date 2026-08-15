@@ -460,9 +460,10 @@ observed in this pinned BookStack configuration.
    That is an external action and was intentionally not performed here.
 1. Repeat the smoke test against a future BookStack release when preparing a
    release candidate.
-1. Use a different downstream application to investigate FormRequest
-   integration. BookStack cannot supply that evidence because it has no
-   FormRequest classes.
+
+The previously proposed FormRequest follow-up was completed against Koel and
+Pterodactyl. See the
+[FormRequest downstream investigation](form-request-downstream-investigation.md).
 
 ## Commands and observed results
 

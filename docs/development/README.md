@@ -40,10 +40,11 @@ cost of a shared lifecycle hook in Pterodactyl.
 
 ### [Work-project differential follow-up](work-project-differential-follow-up.md)
 
-This turns sanitized differential-testing findings from a large Laravel 11
-application into implementation slices. It distinguishes confirmed precision
-and entrypoint gaps from a configuration-dependent soundness risk, and records
-the verification required before each slice is complete.
+This records six completed implementation slices derived from sanitized
+differential-testing findings in a large Laravel 11 application. It
+distinguishes confirmed precision and entrypoint gaps from a
+configuration-dependent soundness risk, and preserves the verification behind
+each change.
 
 ## Maintenance rules
 

@@ -178,7 +178,9 @@ only extension performance.
   among the extension's parser, evaluator, version context, and dynamic return
   type extensions.
 
-A future performance investigation would be most valuable if it adds a second
-application that uses many FormRequests, or if a profiler identifies a concrete
-hot path worth isolating. This benchmark is suitable as a manual before/after
-check when such a change is proposed; it is intentionally not part of CI.
+The subsequent
+[FormRequest downstream investigation](form-request-downstream-investigation.md)
+added Koel and Pterodactyl as applications with substantial FormRequest usage
+and measured the registry's cost. This BookStack benchmark remains suitable as
+a manual before/after check when a concrete hot path is proposed; it is
+intentionally not part of CI.

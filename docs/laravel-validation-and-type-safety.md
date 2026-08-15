@@ -435,14 +435,14 @@ than reconstructing a type from Laravel's interacting rule semantics.
 
 The concrete behaviors in this document are tested against Laravel itself
 rather than inferred from rule names. The repository supports Laravel 10
-through 13, and its committed upstream fixtures are pinned to:
+through 13, and its generated upstream-export fixtures are pinned to:
 
 | Laravel | Release | Commit |
 | --- | --- | --- |
 | 10 | 10.50.2 | [`3ff39b7a9b83`](https://github.com/laravel/framework/commit/3ff39b7a9b83e633383ec9b019827ed54b6d38bc) |
 | 11 | 11.55.0 | [`dc7ec34ae95b`](https://github.com/laravel/framework/commit/dc7ec34ae95bacf4a63b96ec81482b4f3e702289) |
-| 12 | 12.66.0 | [`82a53323c701`](https://github.com/laravel/framework/commit/82a53323c701a668f9054cbeb1d6b6cdbb6a5e10) |
-| 13 | 13.25.0 | [`ed36fe882bd4`](https://github.com/laravel/framework/commit/ed36fe882bd4eed4e6ff75343cbad8dbda03fdba) |
+| 12 | 12.64.0 | [`727a8ea2949c`](https://github.com/laravel/framework/commit/727a8ea2949c23ca8b5316b86a00984b6017b7a0) |
+| 13 | 13.23.0 | [`92a707229148`](https://github.com/laravel/framework/commit/92a707229148e57f08a249211c8a5a194159c619) |
 
 The [exhaustive Nix matrix](../.github/workflows/ci.yml) runs every supported
 major's complete PHPUnit suite and independently checks the first release and
@@ -487,7 +487,7 @@ actual successful output. Expected types are changed only after checking
 Laravel behavior, and runtime-only evidence is not presented as completed
 static support.
 
-Last reviewed: 2026-08-12.
+Last reviewed: 2026-08-14.
 
 ## Conclusion
 

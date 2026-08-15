@@ -866,4 +866,4 @@ Environment-dependent rules should remain conservative unless their runtime
 services can be replaced with deterministic test doubles and their static
 contract can be stated without booting arbitrary application behavior.
 
-Last reviewed: 2026-08-12.
+Last reviewed: 2026-08-14.

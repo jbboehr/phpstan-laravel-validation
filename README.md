@@ -23,7 +23,10 @@
 
 ## Explanation
 
-For constant, supported rule sets, this extension aims to infer a sound type for Laravel's validated output. The inferred type may be broader than expected because Laravel preserves input types and can produce dynamic output shapes.
+For supported, statically resolvable rule expressions, this extension aims to
+infer a sound type for Laravel's validated output. The inferred type may be
+broader than expected because Laravel preserves input types and can produce
+dynamic output shapes.
 
 ```php
 $request = new \Illuminate\Http\Request();
