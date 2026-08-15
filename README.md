@@ -62,8 +62,8 @@ return types. Calls that supply the relevant argument only through `...`
 unpacking also retain those broad types rather than guessing which unpacked
 element contains the rules.
 
-A successful direct facade call can also refine safe, statically resolvable
-top-level fields in the caller's original array:
+A successful direct facade or `Factory::validate()` call can also refine safe,
+statically resolvable top-level fields in the caller's original array:
 
 ```php
 /** @var array<string, mixed> $input */
@@ -79,7 +79,9 @@ to mutate program state. Nested and wildcard paths, exclusion and missing
 rules, and rule sets containing custom or opaque runtime behavior are not used
 to narrow the caller's array. Guaranteed fields are added; an optional field is
 narrowed only when the input's existing type already proves that the field is
-present.
+present. This post-call refinement assumes Laravel's ordinary factory and
+validator execution; application-defined replacements for that execution path
+can invalidate the inferred constraint.
 
 If the input data does not match the rules array, an `\Illuminate\Validation\ValidationException` is thrown. For successful input, this extension conservatively infers the values and shape Laravel may preserve in the validated output.
 

@@ -95,6 +95,7 @@ services:
   - class: jbboehr\PhpstanLaravelValidation\Extension\FactoryMakeExtension
     tags:
       - phpstan.broker.dynamicMethodReturnTypeExtension
+      - phpstan.typeSpecifier.methodTypeSpecifyingExtension
   - class: jbboehr\PhpstanLaravelValidation\Extension\FormRequestValidatedExtension
     tags:
       - phpstan.broker.dynamicMethodReturnTypeExtension

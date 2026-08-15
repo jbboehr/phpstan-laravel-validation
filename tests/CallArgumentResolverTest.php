@@ -23,8 +23,11 @@ namespace jbboehr\PhpstanLaravelValidation\Test;
 
 use jbboehr\PhpstanLaravelValidation\Extension\CallArgumentResolver;
 use PhpParser\Node\Arg;
+use PhpParser\Node\Expr\Array_;
+use PhpParser\Node\Expr\Assign;
 use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Identifier;
+use PhpParser\Node\Name;
 
 final class CallArgumentResolverTest extends \PHPUnit\Framework\TestCase
 {
@@ -89,5 +92,66 @@ final class CallArgumentResolverTest extends \PHPUnit\Framework\TestCase
                 new Identifier('messages')
             ),
         ], 'rules', 1));
+    }
+
+    public function testRecognizesStateChangingArguments(): void
+    {
+        $data = new Arg(new Variable('data'));
+        $resolver = new CallArgumentResolver();
+
+        self::assertFalse($resolver->otherArgumentMayChangeEvaluationState([
+            $data,
+            new Arg(new Array_()),
+        ], $data));
+        self::assertTrue($resolver->otherArgumentMayChangeEvaluationState([
+            $data,
+            new Arg(new Assign(new Variable('data'), new Array_())),
+        ], $data));
+    }
+
+    public function testRecognizesIndirectlyExecutableArguments(): void
+    {
+        $data = new Arg(new Variable('data'));
+        $resolver = new CallArgumentResolver();
+        $arguments = [
+            'unpacked iterable' => new Arg(new Variable('arguments'), false, true),
+            'string cast' => new Arg(new \PhpParser\Node\Expr\Cast\String_(
+                new Variable('mutator')
+            )),
+            'concatenation' => new Arg(new \PhpParser\Node\Expr\BinaryOp\Concat(
+                new Variable('mutator'),
+                new \PhpParser\Node\Scalar\String_('')
+            )),
+            'interpolated string' => new Arg(
+                new \PhpParser\Node\Scalar\InterpolatedString([
+                    new Variable('mutator'),
+                ])
+            ),
+            'clone' => new Arg(new \PhpParser\Node\Expr\Clone_(
+                new Variable('mutator')
+            )),
+            'print' => new Arg(new \PhpParser\Node\Expr\Print_(
+                new Variable('mutator')
+            )),
+            'shell execution' => new Arg(new \PhpParser\Node\Expr\ShellExec([])),
+            'yield' => new Arg(new \PhpParser\Node\Expr\Yield_()),
+            'yield from' => new Arg(new \PhpParser\Node\Expr\YieldFrom(
+                new Variable('iterator')
+            )),
+            'class constant fetch' => new Arg(new \PhpParser\Node\Expr\ClassConstFetch(
+                new Name('Rules'),
+                new Identifier('VALUE')
+            )),
+        ];
+
+        foreach ($arguments as $description => $argument) {
+            self::assertTrue(
+                $resolver->otherArgumentMayChangeEvaluationState([
+                    $data,
+                    $argument,
+                ], $data),
+                $description
+            );
+        }
     }
 }

@@ -131,3 +131,27 @@ function inspectArgumentWritesDoNotRefineFacadeInput(): void
     );
     assertType('array{name: 123}', $named);
 }
+
+/**
+ * @param array<string, mixed> $input
+ * @param iterable<int, array<array-key, string>> $arguments
+ */
+function inspectIndirectExecutionDoesNotRefineFacadeInput(
+    array $input,
+    \Stringable $mutator,
+    iterable $arguments
+): void {
+    \Illuminate\Support\Facades\Validator::validate(
+        $input,
+        ['name' => 'required|string'],
+        [(string) $mutator]
+    );
+    assertType('array<string, mixed>', $input);
+
+    \Illuminate\Support\Facades\Validator::validate(
+        $input,
+        ['name' => 'required|string'],
+        ...$arguments
+    );
+    assertType('array<string, mixed>', $input);
+}

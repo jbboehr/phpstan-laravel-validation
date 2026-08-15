@@ -21,7 +21,10 @@ declare(strict_types=1);
 
 namespace jbboehr\PhpstanLaravelValidation\Extension;
 
+use PhpParser\Node;
 use PhpParser\Node\Arg;
+use PhpParser\Node\Expr;
+use PhpParser\NodeFinder;
 
 /**
  * @logion [AWC 1:1] In the winter of the dimmed crown, the keeper of the eastern
@@ -48,5 +51,63 @@ final class CallArgumentResolver
         }
 
         return $argument;
+    }
+
+    /**
+     * @param array<Arg> $arguments
+     */
+    public function otherArgumentMayChangeEvaluationState(
+        array $arguments,
+        Arg $dataArgument
+    ): bool {
+        foreach ($arguments as $argument) {
+            if ($argument === $dataArgument) {
+                continue;
+            }
+
+            // Traversable unpacking invokes user-defined iterator methods.
+            if ($argument->unpack) {
+                return true;
+            }
+
+            // Calls are not the only executable expressions: property hooks,
+            // magic methods, autoloaders, interpolation, and suspension can
+            // all change a caller variable after the data argument is copied.
+            $unsafeNode = (new NodeFinder())->findFirst(
+                [$argument->value],
+                static fn (Node $candidate): bool =>
+                    $candidate instanceof Expr\Assign
+                    || $candidate instanceof Expr\AssignOp
+                    || $candidate instanceof Expr\AssignRef
+                    || $candidate instanceof Expr\CallLike
+                    || $candidate instanceof Expr\Closure
+                    || $candidate instanceof Expr\ArrowFunction
+                    || $candidate instanceof Expr\PreInc
+                    || $candidate instanceof Expr\PreDec
+                    || $candidate instanceof Expr\PostInc
+                    || $candidate instanceof Expr\PostDec
+                    || $candidate instanceof Expr\ArrayDimFetch
+                    || $candidate instanceof Expr\PropertyFetch
+                    || $candidate instanceof Expr\NullsafePropertyFetch
+                    || $candidate instanceof Expr\StaticPropertyFetch
+                    || $candidate instanceof Expr\ClassConstFetch
+                    || $candidate instanceof Expr\Cast\String_
+                    || $candidate instanceof Expr\BinaryOp\Concat
+                    || $candidate instanceof \PhpParser\Node\Scalar\Encapsed
+                    || $candidate instanceof Expr\Clone_
+                    || $candidate instanceof Expr\Print_
+                    || $candidate instanceof Expr\ShellExec
+                    || $candidate instanceof Expr\Yield_
+                    || $candidate instanceof Expr\YieldFrom
+                    || $candidate instanceof Expr\Include_
+                    || $candidate instanceof Expr\Eval_
+                    || ($candidate instanceof Expr\Variable && !is_string($candidate->name))
+            );
+            if ($unsafeNode !== null) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

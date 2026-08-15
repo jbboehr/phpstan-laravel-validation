@@ -25,11 +25,8 @@ use jbboehr\PhpstanLaravelValidation\ShouldNotHappenException;
 use jbboehr\PhpstanLaravelValidation\Validation\InvalidCustomRuleContractException;
 use jbboehr\PhpstanLaravelValidation\Validation\RuleSetResolver;
 use jbboehr\PhpstanLaravelValidation\Validation\TypeResolver;
-use PhpParser\Node;
-use PhpParser\Node\Arg;
 use PhpParser\Node\Expr;
 use PhpParser\Node\Expr\StaticCall;
-use PhpParser\NodeFinder;
 use PHPStan\Analyser\Scope;
 use PHPStan\Analyser\SpecifiedTypes;
 use PHPStan\Analyser\TypeSpecifier;
@@ -120,7 +117,10 @@ final class FacadeValidateExtension implements
                 || $rulesArg === null
                 || !$dataArg->value instanceof Expr\Variable
                 || !is_string($dataArg->value->name)
-                || $this->otherArgumentMayChangeEvaluationState($node, $dataArg)
+                || $this->callArgumentResolver->otherArgumentMayChangeEvaluationState(
+                    $node->getArgs(),
+                    $dataArg
+                )
             ) {
                 return new SpecifiedTypes([], []);
             }
@@ -155,43 +155,5 @@ final class FacadeValidateExtension implements
     public function setTypeSpecifier(TypeSpecifier $typeSpecifier): void
     {
         $this->typeSpecifier = $typeSpecifier;
-    }
-
-    private function otherArgumentMayChangeEvaluationState(
-        StaticCall $node,
-        Arg $dataArg
-    ): bool {
-        foreach ($node->getArgs() as $argument) {
-            if ($argument === $dataArg) {
-                continue;
-            }
-
-            $unsafeNode = (new NodeFinder())->findFirst(
-                [$argument->value],
-                static fn (Node $candidate): bool =>
-                    $candidate instanceof Expr\Assign
-                    || $candidate instanceof Expr\AssignOp
-                    || $candidate instanceof Expr\AssignRef
-                    || $candidate instanceof Expr\CallLike
-                    || $candidate instanceof Expr\Closure
-                    || $candidate instanceof Expr\ArrowFunction
-                    || $candidate instanceof Expr\PreInc
-                    || $candidate instanceof Expr\PreDec
-                    || $candidate instanceof Expr\PostInc
-                    || $candidate instanceof Expr\PostDec
-                    || $candidate instanceof Expr\ArrayDimFetch
-                    || $candidate instanceof Expr\PropertyFetch
-                    || $candidate instanceof Expr\NullsafePropertyFetch
-                    || $candidate instanceof Expr\StaticPropertyFetch
-                    || $candidate instanceof Expr\Include_
-                    || $candidate instanceof Expr\Eval_
-                    || ($candidate instanceof Expr\Variable && !is_string($candidate->name))
-            );
-            if ($unsafeNode !== null) {
-                return true;
-            }
-        }
-
-        return false;
     }
 }

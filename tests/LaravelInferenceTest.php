@@ -307,6 +307,120 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         )->yes());
     }
 
+    public function testFactoryValidateConstrainsWithoutProjectingCallerInput(): void
+    {
+        self::getContainer();
+
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $data = [
+            'name' => 'Ada',
+            'flag' => '',
+            'excluded' => ['arbitrary'],
+            'conditionally_excluded' => new \stdClass(),
+            'mode' => 'draft',
+            'extra' => 42,
+        ];
+        $original = $data;
+        $rules = [
+            'name' => 'required|string',
+            'flag' => 'boolean',
+            'excluded' => 'exclude|required|string',
+            'conditionally_excluded' => 'exclude_if:mode,draft|required|string',
+            'must_be_missing' => 'missing|string',
+        ];
+
+        self::assertSame(
+            ['name' => 'Ada', 'flag' => ''],
+            $factory->validate($data, $rules)
+        );
+        self::assertSame($original, $data);
+
+        $callbackData = ['name' => 'Ada', 'other' => 'run'];
+        self::assertSame(
+            ['name' => 'Ada', 'other' => 'run'],
+            $factory->validate($callbackData, [
+                'name' => 'required|string',
+                'other' => [
+                    static function (
+                        string $attribute,
+                        mixed $value,
+                        \Closure $fail
+                    ) use (&$callbackData): void {
+                        $callbackData = ['name' => 123];
+                    },
+                ],
+            ])
+        );
+        self::assertSame(['name' => 123], $callbackData);
+
+        $argumentData = ['name' => 'Ada'];
+        self::assertSame(
+            ['name' => 'Ada'],
+            $factory->validate(
+                $argumentData,
+                ['name' => 'required|string'],
+                $argumentData = ['name' => 123]
+            )
+        );
+
+        $namedArgumentData = ['name' => 'Ada'];
+        self::assertSame(
+            ['name' => 'Ada'],
+            $factory->validate(
+                rules: ['name' => 'required|string'],
+                data: $namedArgumentData,
+                messages: $namedArgumentData = ['name' => 123]
+            )
+        );
+
+        $castData = ['name' => 'Ada'];
+        $stringMutator = new class (
+            static function () use (&$castData): void {
+                $castData = ['name' => 123];
+            }
+        ) implements \Stringable {
+            public function __construct(private \Closure $mutate)
+            {
+            }
+
+            public function __toString(): string
+            {
+                ($this->mutate)();
+
+                return 'message';
+            }
+        };
+        self::assertSame(
+            ['name' => 'Ada'],
+            $factory->validate(
+                $castData,
+                ['name' => 'required|string'],
+                [(string) $stringMutator]
+            )
+        );
+        self::assertSame(['name' => 123], $castData);
+
+        $unpackedData = ['name' => 'Ada'];
+        $unpackedArguments = (static function () use (&$unpackedData): \Generator {
+            $unpackedData = ['name' => 123];
+
+            yield [];
+        })();
+        self::assertSame(
+            ['name' => 'Ada'],
+            $factory->validate(
+                $unpackedData,
+                ['name' => 'required|string'],
+                ...$unpackedArguments
+            )
+        );
+    }
+
     public function testFactoryUnvalidatedArrayKeyModesMatchInference(): void
     {
         self::getContainer();

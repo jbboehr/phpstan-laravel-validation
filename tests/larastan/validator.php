@@ -70,6 +70,17 @@ function inspectFacadeInputWithLarastan(array $input): void
     assertType('string', $input['name']);
 }
 
+/**
+ * @param array<string, mixed> $input
+ */
+function inspectFactoryInputWithLarastan(Factory $factory, array $input): void
+{
+    $factory->validate($input, [
+        'name' => 'required|string',
+    ]);
+    assertType('string', $input['name']);
+}
+
 function inspectFormRequest(BasicRequest $request): void
 {
     assertType(
