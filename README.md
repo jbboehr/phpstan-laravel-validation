@@ -59,6 +59,25 @@ return types. Calls that supply the relevant argument only through `...`
 unpacking also retain those broad types rather than guessing which unpacked
 element contains the rules.
 
+A successful direct facade call can also refine safe, statically resolvable
+top-level fields in the caller's original array:
+
+```php
+/** @var array<string, mixed> $input */
+Validator::validate($input, ['name' => 'required|string']);
+
+\PHPStan\dumpType($input['name']); // string
+```
+
+This is an input constraint, not a claim that the original array was replaced
+by `validated()` output. Unrelated input keys may still exist. Refinement is
+limited to a simple input variable and arguments whose evaluation is known not
+to mutate program state. Nested and wildcard paths, exclusion and missing
+rules, and rule sets containing custom or opaque runtime behavior are not used
+to narrow the caller's array. Guaranteed fields are added; an optional field is
+narrowed only when the input's existing type already proves that the field is
+present.
+
 If the input data does not match the rules array, an `\Illuminate\Validation\ValidationException` is thrown. For successful input, this extension conservatively infers the values and shape Laravel may preserve in the validated output.
 
 ## Installation

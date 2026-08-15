@@ -216,6 +216,97 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         );
     }
 
+    public function testFacadeValidateConstrainsWithoutProjectingCallerInput(): void
+    {
+        self::getContainer();
+
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $data = [
+            'name' => 'Ada',
+            'flag' => '',
+            'excluded' => ['arbitrary'],
+            'conditionally_excluded' => new \stdClass(),
+            'mode' => 'draft',
+            'extra' => 42,
+        ];
+        $original = $data;
+        $rules = [
+            'name' => 'required|string',
+            'flag' => 'boolean',
+            'excluded' => 'exclude|required|string',
+            'conditionally_excluded' => 'exclude_if:mode,draft|required|string',
+            'must_be_missing' => 'missing|string',
+        ];
+
+        \Illuminate\Support\Facades\Validator::swap($factory);
+        try {
+            self::assertSame(
+                ['name' => 'Ada', 'flag' => ''],
+                \Illuminate\Support\Facades\Validator::validate($data, $rules)
+            );
+
+            $callbackData = ['name' => 'Ada', 'other' => 'run'];
+            self::assertSame(
+                ['name' => 'Ada', 'other' => 'run'],
+                \Illuminate\Support\Facades\Validator::validate($callbackData, [
+                    'name' => 'required|string',
+                    'other' => [
+                        static function (
+                            string $attribute,
+                            mixed $value,
+                            \Closure $fail
+                        ) use (&$callbackData): void {
+                            $callbackData = ['name' => 123];
+                        },
+                    ],
+                ])
+            );
+            self::assertSame(['name' => 123], $callbackData);
+
+            $argumentData = ['name' => 'Ada'];
+            self::assertSame(
+                ['name' => 'Ada'],
+                \Illuminate\Support\Facades\Validator::validate(
+                    $argumentData,
+                    ['name' => 'required|string'],
+                    $argumentData = ['name' => 123]
+                )
+            );
+
+            $namedArgumentData = ['name' => 'Ada'];
+            self::assertSame(
+                ['name' => 'Ada'],
+                \Illuminate\Support\Facades\Validator::validate(
+                    rules: ['name' => 'required|string'],
+                    data: $namedArgumentData,
+                    messages: $namedArgumentData = ['name' => 123]
+                )
+            );
+        } finally {
+            \Illuminate\Support\Facades\Validator::clearResolvedInstance('validator');
+        }
+
+        self::assertSame($original, $data);
+
+        $laravelVersion = ltrim(
+            (string) InstalledVersions::getPrettyVersion('laravel/framework'),
+            'v'
+        );
+        $context = new LaravelVersionContext('', $laravelVersion);
+        $inputType = (new TypeResolver($context))->refineSuccessfulDirectInput(
+            RuleParser::parse($rules, $context),
+            $this->convertToType($original)
+        );
+        self::assertTrue($inputType->isSuperTypeOf(
+            $this->convertToType($original)
+        )->yes());
+    }
+
     public function testFactoryUnvalidatedArrayKeyModesMatchInference(): void
     {
         self::getContainer();

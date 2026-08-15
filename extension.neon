@@ -91,6 +91,7 @@ services:
   - class: jbboehr\PhpstanLaravelValidation\Extension\FacadeValidateExtension
     tags:
       - phpstan.broker.dynamicStaticMethodReturnTypeExtension
+      - phpstan.typeSpecifier.staticMethodTypeSpecifyingExtension
   - class: jbboehr\PhpstanLaravelValidation\Extension\FactoryMakeExtension
     tags:
       - phpstan.broker.dynamicMethodReturnTypeExtension

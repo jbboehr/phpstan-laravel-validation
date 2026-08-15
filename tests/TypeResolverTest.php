@@ -27,10 +27,58 @@ use jbboehr\PhpstanLaravelValidation\Validation\Rule;
 use jbboehr\PhpstanLaravelValidation\Validation\RuleParser;
 use jbboehr\PhpstanLaravelValidation\Validation\TypeResolver;
 use PHPStan\Testing\PHPStanTestCase;
+use PHPStan\Type\Constant\ConstantArrayTypeBuilder;
+use PHPStan\Type\Constant\ConstantStringType;
+use PHPStan\Type\IntegerType;
+use PHPStan\Type\MixedType;
 use PHPStan\Type\VerbosityLevel;
 
 final class TypeResolverTest extends PHPStanTestCase
 {
+    public function testSuccessfulDirectInputKeepsOnlySafeTopLevelConstraints(): void
+    {
+        $input = ConstantArrayTypeBuilder::createEmpty();
+        $input->setOffsetValueType(new ConstantStringType('flag'), new MixedType());
+        $input->setOffsetValueType(new ConstantStringType('extra'), new IntegerType());
+        $input->setOffsetValueType(new ConstantStringType('excluded'), new MixedType());
+        $input->setOffsetValueType(new ConstantStringType('conditionally_excluded'), new MixedType());
+
+        $type = (new TypeResolver())->refineSuccessfulDirectInput(
+            RuleParser::parse([
+                'name' => 'required|string',
+                'flag' => 'boolean',
+                'excluded' => 'exclude|required|string',
+                'conditionally_excluded' => 'exclude_if:mode,draft|required|string',
+                'must_be_missing' => 'missing|string',
+                'nested.value' => 'required|string',
+                'items.*' => 'required|string',
+            ]),
+            $input->getArray()
+        );
+
+        self::assertSame(
+            'array{flag: 0|1|bool|string, extra: int, excluded: mixed, conditionally_excluded: mixed, name: string}',
+            $type->describe(VerbosityLevel::precise())
+        );
+    }
+
+    public function testSuccessfulDirectInputDeclinesExecutableRulesAnywhereInTree(): void
+    {
+        $input = ConstantArrayTypeBuilder::createEmpty();
+        $input->setOffsetValueType(new ConstantStringType('name'), new MixedType());
+        $inputType = $input->getArray();
+
+        $type = (new TypeResolver())->refineSuccessfulDirectInput(
+            RuleParser::parse([
+                'name' => 'required|string',
+                'other' => [Rule::custom(new MixedType())],
+            ]),
+            $inputType
+        );
+
+        self::assertSame($inputType, $type);
+    }
+
     /**
      * @return iterable<string, array{string, string}>
      */

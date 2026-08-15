@@ -59,6 +59,17 @@ $factoryDirect = $factory->validate([], [
 ]);
 assertType('array{payload: array{name: string}}', $factoryDirect);
 
+/**
+ * @param array<string, mixed> $input
+ */
+function inspectFacadeInputWithLarastan(array $input): void
+{
+    \Illuminate\Support\Facades\Validator::validate($input, [
+        'name' => 'required|string',
+    ]);
+    assertType('string', $input['name']);
+}
+
 function inspectFormRequest(BasicRequest $request): void
 {
     assertType(

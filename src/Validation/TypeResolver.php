@@ -192,6 +192,84 @@ final class TypeResolver
         return in_array($ruleName, self::BUILT_IN_RULE_NAMES, true);
     }
 
+    /**
+     * Describe constraints that successful validation places on the caller's
+     * original array. This is deliberately narrower in scope than evaluate():
+     * nested paths and runtime projection behavior describe validated output,
+     * not necessarily the representation of the input array.
+     */
+    public function refineSuccessfulDirectInput(
+        RuleTreeNode $node,
+        Type\Type $inputType
+    ): Type\Type {
+        // Custom and opaque rules execute application-defined behavior. A
+        // rule on any path can mutate a caller variable captured by reference,
+        // invalidating every otherwise safe direct-field constraint.
+        if ($this->hasExecutableRule($node)) {
+            return $inputType;
+        }
+
+        $type = $inputType;
+
+        foreach ($node as $key => $child) {
+            if (
+                $key === '*'
+                || $child->hasChildren()
+                || $child->isOpaque()
+                || $child->isExcluded()
+                || $child->isMissing()
+                || $this->hasExclusionRule($child)
+            ) {
+                continue;
+            }
+
+            $offsetType = is_int($key)
+                ? new ConstantIntegerType($key)
+                : new ConstantStringType($key);
+            $hasOffset = $type->hasOffsetValueType($offsetType);
+
+            // An optional rule constrains a value only when the caller's
+            // existing type already proves that the offset is present.
+            if ($child->isOptional() && !$hasOffset->yes()) {
+                continue;
+            }
+
+            $valueType = $this->evaluate($child);
+            if ($hasOffset->yes()) {
+                $valueType = Type\TypeCombinator::intersect(
+                    $type->getOffsetValueType($offsetType),
+                    $valueType
+                );
+                $type = $type->setExistingOffsetValueType($offsetType, $valueType);
+                continue;
+            }
+
+            $type = $type->setOffsetValueType($offsetType, $valueType);
+        }
+
+        return $type;
+    }
+
+    private function hasExecutableRule(RuleTreeNode $node): bool
+    {
+        foreach ($node->getRules() as $rule) {
+            if (in_array($rule->getRuleName(), [
+                Rule::RULE_CUSTOM,
+                Rule::RULE_OPAQUE,
+            ], true)) {
+                return true;
+            }
+        }
+
+        foreach ($node as $child) {
+            if ($this->hasExecutableRule($child)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function evaluateMap(RuleTreeNode $node, bool $assumeHttpInputNormalization = false): Type\Type
     {
         $builder = ConstantArrayTypeBuilder::createEmpty();
@@ -605,13 +683,18 @@ final class TypeResolver
             return false;
         }
 
-        foreach ($child->getRules() as $rule) {
+        return !$this->hasExclusionRule($child);
+    }
+
+    private function hasExclusionRule(RuleTreeNode $node): bool
+    {
+        foreach ($node->getRules() as $rule) {
             if (in_array($rule->getRuleName(), self::EXCLUSION_RULE_NAMES, true)) {
-                return false;
+                return true;
             }
         }
 
-        return true;
+        return false;
     }
 
     private function directWildcardProjectionDescribesPreservedList(RuleTreeNode $node): bool
