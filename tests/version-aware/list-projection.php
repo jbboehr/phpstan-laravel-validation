@@ -16,6 +16,30 @@ $directRequired = \Illuminate\Support\Facades\Validator::make([], [
 ])->validated();
 assertType('array{items: list<string>}', $directRequired);
 
+$directOptional = \Illuminate\Support\Facades\Validator::make([], [
+    'items' => 'required|list',
+    'items.*' => 'string',
+])->validated();
+assertType('array{items: list<string>}', $directOptional);
+
+$directNullable = \Illuminate\Support\Facades\Validator::make([], [
+    'items' => 'required|list',
+    'items.*' => 'nullable|string',
+])->validated();
+assertType('array{items: list<string|null>}', $directNullable);
+
+$directSometimes = \Illuminate\Support\Facades\Validator::make([], [
+    'items' => 'required|list',
+    'items.*' => 'sometimes|string',
+])->validated();
+assertType('array{items: list<string>}', $directSometimes);
+
+$directConditionalExclusion = \Illuminate\Support\Facades\Validator::make([], [
+    'items' => 'required|list',
+    'items.*' => 'exclude_unless:items.*,one|string',
+])->validated();
+assertType('array{items?: array<int|string, mixed>}', $directConditionalExclusion);
+
 $optionalDirect = \Illuminate\Support\Facades\Validator::make([], [
     'items' => 'list',
     'items.*' => 'required|string',

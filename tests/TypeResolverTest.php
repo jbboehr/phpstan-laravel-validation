@@ -626,6 +626,52 @@ final class TypeResolverTest extends PHPStanTestCase
             self::resolveForVersion($directRules, '11.23.0')
         );
 
+        foreach (['string', 'nullable|string', 'sometimes|string'] as $childRules) {
+            $expectedType = $childRules === 'nullable|string'
+                ? 'array{items: list<string|null>}'
+                : 'array{items: list<string>}';
+            $rules = [
+                'items' => 'required|list',
+                'items.*' => $childRules,
+            ];
+
+            self::assertSame($expectedType, self::resolveForVersion($rules, '11.22.0'));
+            self::assertSame($expectedType, self::resolveForVersion($rules, '11.23.0'));
+        }
+
+        self::assertSame(
+            'array{items?: list<string>|string|null}',
+            self::resolveForVersion([
+                'items' => 'nullable|list',
+                'items.*' => 'string',
+            ], '11.23.0')
+        );
+        self::assertSame(
+            'array{items: list<string>|string}',
+            self::resolveForVersion([
+                'items' => 'present|list',
+                'items.*' => 'string',
+            ], '11.23.0')
+        );
+        self::assertSame(
+            'array{items?: array<int|string, mixed>}',
+            self::resolveForVersion([
+                'items' => 'required|list',
+                'items.*' => 'exclude_unless:items.*,one|string',
+            ], '11.23.0')
+        );
+
+        $includedContext = new LaravelVersionContext('', '11.23.0');
+        self::assertSame(
+            'array{items: list<string>}',
+            (new TypeResolver($includedContext, null, true))
+                ->evaluate(RuleParser::parse([
+                    'items' => 'required|list',
+                    'items.*' => 'string',
+                ], $includedContext))
+                ->describe(VerbosityLevel::precise())
+        );
+
         $optionalDirectRules = [
             'items' => 'list',
             'items.*' => 'required|string',

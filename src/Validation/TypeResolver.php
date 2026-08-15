@@ -407,9 +407,15 @@ final class TypeResolver
             if ($key === '*') {
                 // A wildcard child can guarantee output only when a successful
                 // parent cannot be empty, or when the zero-match branch keeps
-                // the raw parent. Presence alone permits an empty value.
+                // the raw parent. A direct wildcard is already present for
+                // every matched element, so ordinary optional, nullable, and
+                // sometimes rules retain it even though the same rule would
+                // describe an optional literal path.
                 if (
-                    !$this->isOutputOptional($child)
+                    (
+                        $this->directWildcardChildPreservesMatchedValue($child)
+                        || !$this->isOutputOptional($child)
+                    )
                     && (
                         $node->requiresNonBlankValue()
                         || $this->canPreserveRawParentAfterZeroWildcardMatches($node)
@@ -550,9 +556,7 @@ final class TypeResolver
             }
 
             if (!$child->hasChildren()) {
-                return !$child->isExcluded()
-                    && !$this->isUnconditionallyMissingProjection($child)
-                    && !$this->isOutputOptional($child);
+                return $this->directWildcardChildPreservesMatchedValue($child);
             }
 
             // Laravel projects wildcard paths in rule insertion order. The
@@ -582,6 +586,32 @@ final class TypeResolver
         }
 
         return false;
+    }
+
+    /**
+     * Wildcard expansion creates a concrete rule path only for elements that
+     * already exist. Ordinary optionality therefore cannot omit a matched
+     * direct element from validated output; only projection-changing or
+     * opaque behavior can do so.
+     */
+    private function directWildcardChildPreservesMatchedValue(RuleTreeNode $child): bool
+    {
+        if (
+            $child->hasChildren()
+            || $child->isOpaque()
+            || $child->isExcluded()
+            || $this->isUnconditionallyMissingProjection($child)
+        ) {
+            return false;
+        }
+
+        foreach ($child->getRules() as $rule) {
+            if (in_array($rule->getRuleName(), self::EXCLUSION_RULE_NAMES, true)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private function directWildcardProjectionDescribesPreservedList(RuleTreeNode $node): bool

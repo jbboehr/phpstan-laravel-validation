@@ -1650,6 +1650,88 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
 
         foreach (
             [
+                'non-implicit child' => [
+                    'string',
+                    ['zero', ''],
+                    'array{items: list<string>}',
+                ],
+                'nullable child' => [
+                    'nullable|string',
+                    ['zero', null],
+                    'array{items: list<string|null>}',
+                ],
+                'sometimes child' => [
+                    'sometimes|string',
+                    ['zero', 'one'],
+                    'array{items: list<string>}',
+                ],
+            ] as $name => [$childRules, $items, $expectedType]
+        ) {
+            $rules = [
+                'items' => 'required|list',
+                'items.*' => $childRules,
+            ];
+            $input = ['items' => $items];
+            $validator = $factory->make($input, $rules);
+            self::assertTrue($validator->passes(), $name . ': validation passes');
+            self::assertSame($input, $validator->validated(), $name . ': validated output');
+
+            $type = (new TypeResolver($context))->evaluate(RuleParser::parse($rules, $context));
+            self::assertSame(
+                $expectedType,
+                $type->describe(Type\VerbosityLevel::precise()),
+                $name . ': inferred type'
+            );
+            self::assertTrue($type->isSuperTypeOf(
+                $this->convertToType($validator->validated())
+            )->yes(), $name . ': inference contains output');
+        }
+
+        $directConditionalExclusionRules = [
+            'items' => 'required|list',
+            'items.*' => 'exclude_unless:items.*,one|string',
+        ];
+        $directConditionalExclusion = $factory->make(
+            ['items' => ['zero', 'one']],
+            $directConditionalExclusionRules
+        );
+        self::assertTrue($directConditionalExclusion->passes());
+        self::assertSame(['items' => [1 => 'one']], $directConditionalExclusion->validated());
+        $directConditionalExclusionType = (new TypeResolver($context))->evaluate(RuleParser::parse(
+            $directConditionalExclusionRules,
+            $context
+        ));
+        self::assertSame(
+            'array{items?: array<int|string, mixed>}',
+            $directConditionalExclusionType->describe(Type\VerbosityLevel::precise())
+        );
+        self::assertTrue($directConditionalExclusionType->isSuperTypeOf(
+            $this->convertToType($directConditionalExclusion->validated())
+        )->yes());
+
+        $nullableParentRules = [
+            'items' => 'nullable|list',
+            'items.*' => 'string',
+        ];
+        $nullableParentType = (new TypeResolver($context))->evaluate(RuleParser::parse(
+            $nullableParentRules,
+            $context
+        ));
+        self::assertSame(
+            'array{items?: list<string>|string|null}',
+            $nullableParentType->describe(Type\VerbosityLevel::precise())
+        );
+        foreach ([['zero', 'one'], null] as $items) {
+            $validator = $factory->make(['items' => $items], $nullableParentRules);
+            self::assertTrue($validator->passes());
+            self::assertSame(['items' => $items], $validator->validated());
+            self::assertTrue($nullableParentType->isSuperTypeOf(
+                $this->convertToType($validator->validated())
+            )->yes());
+        }
+
+        foreach (
+            [
                 'optional direct list' => [
                     'list',
                     'array{items?: list<string>|string}',
