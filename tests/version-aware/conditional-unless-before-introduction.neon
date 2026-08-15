@@ -1,0 +1,4 @@
+parameters:
+  phpstanLaravelValidation:
+    # Rule::unless() was introduced in Laravel 10.33.
+    laravelVersion: '10.32.1'

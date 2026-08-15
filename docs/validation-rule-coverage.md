@@ -34,8 +34,8 @@ range:
 - Laravel 10.21.1: `In` and `NotIn` builders gain enum-value serialization,
   and their concrete constructors gain scalar, variadic, and `Arrayable`
   inputs in 10.36;
-- Laravel 10.33: `hex_color`, followed by `extensions` in 10.34 and
-  `Enum::only()` / `Enum::except()` in 10.46;
+- Laravel 10.33: `hex_color` and `Rule::unless()`, followed by `extensions` in
+  10.34 and `Enum::only()` / `Enum::except()` in 10.46;
 - Laravel 11: `prohibited_if_accepted`, `prohibited_if_declined`, and
   `required_if_declined`, followed by `list` in Laravel 11.0.3, the
   `Rule::array()` builder in 11.7, and `contains` in 11.8; Laravel 11.23 later
@@ -223,12 +223,13 @@ Current static extraction treats them in four ways:
 
 - fresh inline `Enum`, `Rule::in()`, `Rule::notIn()`, `Rule::array()`,
   literal-boolean `Rule::requiredIf()`, `Rule::excludeIf()`, and
-  `Rule::prohibitedIf()`, `Rule::arrayKeys()`, `Rule::contains()`, `Rule::doesntContain()`,
-  `Rule::date()`, `Rule::dateTime()`, `Rule::numeric()`, `Rule::string()`,
-  `Rule::dimensions()`, `Rule::file()`, `Rule::imageFile()`, `File::types()`,
-  `File::image()`, `Rule::exists()`, and `Rule::unique()` expressions receive
-  dedicated extraction of their statically visible semantics, as does exact
-  construction of the supported concrete builder classes;
+  `Rule::prohibitedIf()`, literal-boolean `Rule::when()` and `Rule::unless()`,
+  `Rule::arrayKeys()`, `Rule::contains()`, `Rule::doesntContain()`, `Rule::date()`,
+  `Rule::dateTime()`, `Rule::numeric()`, `Rule::string()`, `Rule::dimensions()`,
+  `Rule::file()`, `Rule::imageFile()`, `File::types()`, `File::image()`,
+  `Rule::exists()`, and `Rule::unique()` expressions receive dedicated
+  extraction of their statically visible semantics, as does exact construction
+  of the supported concrete builder classes;
 - predicate objects implementing Laravel's rule contracts are treated like
   custom predicates and contribute `mixed` unless they have an explicit custom
   contract;
@@ -238,10 +239,10 @@ Current static extraction treats them in four ways:
 
 | Current extraction | Representative Laravel objects | Consequence |
 | --- | --- | --- |
-| Dedicated built-in extraction | `Enum`, `Rule::in()`, `Rule::notIn()`, literal-boolean `Rule::requiredIf()`, `Rule::excludeIf()`, `Rule::prohibitedIf()`, `Rule::array()`, `Rule::arrayKeys()`, `Rule::contains()`, `Rule::doesntContain()`, `Rule::date()`, `Rule::dateTime()`, `Rule::numeric()`, `Rule::string()`, `Rule::dimensions()`, `Rule::file()`, `Rule::imageFile()`, exact `In` / `NotIn` / `RequiredIf` / `ExcludeIf` / `ProhibitedIf` / `ArrayRule` / `ArrayKeys` / `Contains` / `DoesntContain` / `Date` / `Numeric` / `StringRule` / `Dimensions` / `File` / `ImageFile` construction, `Rule::exists()`, `Rule::unique()` | Fresh inline expressions recover statically visible enum, accepted-set, literal presence or projection, allowed-key, array-predicate, date, numeric, string, dimensions, file, image, exclusion, and database-predicate semantics without executing application code; dynamic or unsupported object state stays `mixed` |
+| Dedicated built-in extraction | `Enum`, `Rule::in()`, `Rule::notIn()`, literal-boolean `Rule::requiredIf()`, `Rule::excludeIf()`, `Rule::prohibitedIf()`, `Rule::when()`, `Rule::unless()`, `Rule::array()`, `Rule::arrayKeys()`, `Rule::contains()`, `Rule::doesntContain()`, `Rule::date()`, `Rule::dateTime()`, `Rule::numeric()`, `Rule::string()`, `Rule::dimensions()`, `Rule::file()`, `Rule::imageFile()`, exact `In` / `NotIn` / `RequiredIf` / `ExcludeIf` / `ProhibitedIf` / `ArrayRule` / `ArrayKeys` / `Contains` / `DoesntContain` / `Date` / `Numeric` / `StringRule` / `Dimensions` / `File` / `ImageFile` construction, `Rule::exists()`, `Rule::unique()` | Fresh inline expressions recover statically visible enum, accepted-set, literal branch, presence or projection, allowed-key, array-predicate, date, numeric, string, dimensions, file, image, exclusion, and database-predicate semantics without executing application code; dynamic or unsupported object state stays `mixed` |
 | Custom predicate with `mixed` accepted type | `AnyOf`, `Can`, `Email`, `Password`, assigned or unsupported `File` / `ImageFile` builders | Adjacent built-in string rules survive, but object state and built-in semantics are not recovered |
 | Opaque `Stringable` builder | Callback-driven, dynamic, or assigned `ExcludeIf` / `ProhibitedIf` / `RequiredIf`; `ExcludeUnless`, `ProhibitedUnless`, `RequiredUnless`; assigned or unsupported `In` / `NotIn` / `ArrayRule` / `ArrayKeys` / array-predicate / `Date` / `Numeric` / `StringRule` / `Dimensions` builders; and assigned or unsupported `Exists` / `Unique` chains | The path widens to optional `mixed`, even when the builder serializes to a supported string rule |
-| Opaque runtime program | `Rule::when`, `Rule::unless`, `Rule::forEach`, `NestedRules`, macros | Runtime callbacks or macro state provide no generally available static contract |
+| Opaque runtime program | Dynamic or callback-driven `Rule::when()` / `Rule::unless()`, `Rule::forEach`, `NestedRules`, macros | Runtime callbacks or macro state provide no generally available static contract |
 
 Built-in builder support remains a separate implementation track. Treating
 these objects as arbitrary third-party validators is safe, but needlessly
@@ -277,6 +278,13 @@ Literal-boolean `RequiredIf`, `ExcludeIf`, and `ProhibitedIf` factories and
 exact constructions collapse to their unconditional rule or to Laravel's
 constraint-free empty-rule projection marker. Callback and dynamic conditions
 remain opaque.
+Literal-boolean `Rule::when()` expressions select and flatten their statically
+resolvable string or array branch. `Rule::unless()` does the same from Laravel
+10.33 after inverting the condition. An empty selected branch retains the
+explicit field marker that Laravel uses during nested output projection.
+Laravel does not recursively expand conditional wrappers selected by another
+wrapper. Dynamic conditions, callback-produced branches, branches containing
+executable calls, assigned wrappers, and unpacked arguments remain opaque.
 
 ## Prioritized work
 

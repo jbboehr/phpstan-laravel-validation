@@ -339,7 +339,7 @@ values that Laravel can accept and preserve; they are not assumed to return
 only enum objects.
 
 The expression must remain statically visible. Assigned rule objects, dynamic
-enum class strings, callback-based `when()` or `unless()` mutations, and
+enum class strings, callback-based fluent `->when()` or `->unless()` mutations, and
 non-literal filter state fall back to `mixed` rather than guessing the mutable
 object's runtime state.
 
@@ -430,6 +430,16 @@ on a nested parent can preserve unvalidated sibling keys.
 Callback conditions, non-constant booleans, assigned builders, subclasses,
 and dynamic construction remain opaque. Those forms are runtime programs, so
 analysis does not execute them or guess which rule they will produce.
+
+Fresh `Rule::when()` calls with a statically known boolean similarly expose
+the selected string or array branch. `Rule::unless()` has the same support
+from its Laravel 10.33 introduction, with the condition inverted. Selected
+rules are flattened into surrounding rule lists as Laravel flattens them, and
+an empty selected branch still marks an explicit parent path for nested output
+projection. Nested conditional wrappers are not recursively expanded because
+Laravel itself performs only one expansion pass. Dynamic conditions,
+callback-produced branches, branches containing executable calls, unpacking,
+and assigned `ConditionalRules` objects remain opaque.
 
 ### `Rule::array()` builders
 
@@ -541,7 +551,7 @@ broader numeric union there. Other fluent methods constrain which numeric
 values pass without changing their possible native PHP representations.
 
 Optional blank strings retain Laravel's ordinary non-implicit-rule bypass.
-Assigned builders, subclasses, conditional `when()` or `unless()` chains,
+Assigned builders, subclasses, conditional fluent `->when()` or `->unless()` chains,
 dynamic calls, and unknown methods remain conservative because their complete
 runtime state is not statically visible.
 
@@ -567,8 +577,8 @@ strings. Inference currently recovers that native representation rather than
 every content refinement: for example, `Rule::string()->min(1)` remains
 `string`, while the equivalent `string|min:1` rule string can be refined to
 `non-empty-string`. Optional blank strings retain Laravel's ordinary
-non-implicit-rule bypass. Assigned builders, subclasses, conditional `when()`
-or `unless()` chains, dynamic calls, and unknown methods remain conservative
+non-implicit-rule bypass. Assigned builders, subclasses, conditional fluent
+`->when()` or `->unless()` chains, dynamic calls, and unknown methods remain conservative
 because their complete runtime state is not statically visible.
 
 ### Date rule builders
@@ -602,8 +612,8 @@ both forms produce that same sound output family.
 
 These builders validate and preserve successful input; they do not parse it
 into a canonical date object. Optional blank strings retain Laravel's ordinary
-non-implicit-rule bypass. Assigned builders, subclasses, conditional
-`when()` or `unless()` chains, macros, dynamic calls, and unknown methods
+non-implicit-rule bypass. Assigned builders, subclasses, conditional fluent
+`->when()` or `->unless()` chains, macros, dynamic calls, and unknown methods
 remain conservative because their runtime state is not statically visible.
 
 ### Dimensions rule builders
@@ -626,7 +636,7 @@ including their width, height, and ratio constraints. Laravel 11.23 adds
 boundary. Laravel validates and preserves the original file rather than
 constructing a separate dimensions value.
 
-Assigned builders, subclasses, conditional `when()` or `unless()` chains,
+Assigned builders, subclasses, conditional fluent `->when()` or `->unless()` chains,
 dynamic calls, macros, and unknown methods remain conservative because their
 runtime state is not statically visible.
 
@@ -654,8 +664,8 @@ the same successful native value type. The `extensions()` and `encoding()`
 methods follow their Laravel 10.34 and 12.40 introduction boundaries.
 
 Assigned builders, subclasses and their late-bound `self` / `parent` / `static`
-forwarding calls, global `File::default()` configuration, conditional `when()`
-or `unless()` chains, dynamic calls, macros, and unknown methods remain
+forwarding calls, global `File::default()` configuration, conditional fluent
+`->when()` or `->unless()` chains, dynamic calls, macros, and unknown methods remain
 conservative because their runtime contract is not visible in the expression.
 
 ### Database rule builders
@@ -682,7 +692,7 @@ Direct construction of Laravel's exact `Exists` and `Unique` classes is also
 recognized. The supported fluent chain includes their `where*()`, soft-delete,
 query-callback, and unique-ignore methods because those methods return the same
 rule object and do not transform validated output. Assigned builders,
-subclasses, conditional `when()` or `unless()` chains, dynamic factory calls,
+subclasses, conditional fluent `->when()` or `->unless()` chains, dynamic factory calls,
 and unknown methods remain conservative.
 
 ### Custom validation rules

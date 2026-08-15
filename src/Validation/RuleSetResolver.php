@@ -23,6 +23,7 @@ namespace jbboehr\PhpstanLaravelValidation\Validation;
 
 use jbboehr\PhpstanLaravelValidation\Evaluator\UnsafeConstExprEvaluator;
 use PhpParser\ConstExprEvaluationException;
+use PhpParser\Node\ArrayItem;
 use PhpParser\Node\Expr;
 use PhpParser\Node\Identifier;
 use PhpParser\Node\Name;
@@ -112,6 +113,7 @@ final class RuleSetResolver
 
     private const MAX_ALTERNATIVES = 128;
     private const RULE_LIST_EXPRESSION_DEPTH = 2;
+    private const UNLESS_FACTORY_BOUNDARY = '10.33.0';
 
     public function __construct(
         private UnsafeConstExprEvaluator $constExprEvaluator,
@@ -174,6 +176,11 @@ final class RuleSetResolver
      */
     private function expandExpression(Expr $expression, Scope $scope, int $depth): ?array
     {
+        $conditionalRuleLists = $this->resolveLiteralConditionalRuleLists($expression, $scope);
+        if ($conditionalRuleLists !== null) {
+            return $conditionalRuleLists;
+        }
+
         $rule = $this->resolveBuiltInRuleExpression(
             $expression,
             $scope,
@@ -191,8 +198,75 @@ final class RuleSetResolver
             return null;
         }
 
+        $items = $this->normalizeArrayExpressionItems($expression, $scope);
+        if ($items === null) {
+            return null;
+        }
+
         $results = [[]];
         $specialized = false;
+
+        foreach ($items as $key => $item) {
+            if ($depth >= 1) {
+                $conditionalRuleLists = $this->resolveLiteralConditionalRuleLists(
+                    $item->value,
+                    $scope
+                );
+                if ($conditionalRuleLists !== null) {
+                    $expanded = [];
+                    foreach ($results as $result) {
+                        foreach ($conditionalRuleLists as $conditionalRuleList) {
+                            $copy = $result;
+                            foreach ($conditionalRuleList as $conditionalRule) {
+                                $copy[] = $conditionalRule;
+                            }
+                            $expanded[] = $copy;
+                        }
+                    }
+
+                    $this->guardAlternatives($expanded);
+                    $results = $expanded;
+                    $specialized = true;
+                    continue;
+                }
+            }
+
+            $values = $this->expandExpression($item->value, $scope, $depth + 1);
+            if ($values === null) {
+                $values = $this->expandType($scope->getType($item->value));
+            } else {
+                $specialized = true;
+            }
+
+            $expanded = [];
+            foreach ($results as $result) {
+                foreach ($values as $value) {
+                    $copy = $result;
+                    if ($depth >= 1) {
+                        $copy[] = $value;
+                    } else {
+                        $copy[$key] = $value;
+                    }
+                    $expanded[] = $copy;
+                }
+            }
+
+            $this->guardAlternatives($expanded);
+            $results = $expanded;
+        }
+
+        return $specialized ? $results : null;
+    }
+
+    /**
+     * Reproduce PHP's array-key normalization and last-write-wins behavior
+     * before Laravel reindexes a rule list while expanding conditionals.
+     *
+     * @return array<array-key, ArrayItem>|null
+     */
+    private function normalizeArrayExpressionItems(Expr\Array_ $expression, Scope $scope): ?array
+    {
+        $items = [];
         $nextIndex = 0;
 
         foreach ($expression->items as $item) {
@@ -216,27 +290,167 @@ final class RuleSetResolver
                 }
             }
 
-            $values = $this->expandExpression($item->value, $scope, $depth + 1);
-            if ($values === null) {
-                $values = $this->expandType($scope->getType($item->value));
-            } else {
-                $specialized = true;
+            $items[$key] = $item;
+        }
+
+        return $items;
+    }
+
+    /**
+     * Resolve the selected branch of Laravel's ConditionalRules wrapper. The
+     * empty branch retains an internal no-op because Laravel keeps the field
+     * in its filtered rule map, which can change nested output projection.
+     *
+     * @return list<array<array-key, mixed>>|null
+     */
+    private function resolveLiteralConditionalRuleLists(Expr $expression, Scope $scope): ?array
+    {
+        if (!$this->laravelVersionContext->isSupported()
+            || !$expression instanceof Expr\StaticCall
+            || $expression->isFirstClassCallable()
+            || !$expression->class instanceof Name
+            || $expression->class->isSpecialClassName()
+            || !$expression->name instanceof Identifier
+            || $this->resolveName($expression->class, $scope) !== \Illuminate\Validation\Rule::class
+        ) {
+            return null;
+        }
+
+        $method = $expression->name->toLowerString();
+        if ($method !== 'when'
+            && ($method !== 'unless'
+                || !$this->laravelVersionContext->isAtLeast(self::UNLESS_FACTORY_BOUNDARY))
+        ) {
+            return null;
+        }
+
+        $arguments = $this->resolveConditionalRuleArguments($expression);
+        if ($arguments === null
+            || !$this->isPassiveConditionalArgument($arguments['condition'])
+            || !$this->isPassiveConditionalArgument($arguments['rules'])
+            || ($arguments['defaultRules'] !== null
+                && !$this->isPassiveConditionalArgument($arguments['defaultRules']))
+        ) {
+            return null;
+        }
+
+        $conditions = $scope->getType($arguments['condition'])->getConstantScalarValues();
+        if (count($conditions) !== 1 || !is_bool($conditions[0])) {
+            return null;
+        }
+
+        $condition = $method === 'unless' ? !$conditions[0] : $conditions[0];
+        $selected = $condition ? $arguments['rules'] : $arguments['defaultRules'];
+        if ($selected === null) {
+            return [[Rule::noop()]];
+        }
+
+        $values = $this->expandExpression($selected, $scope, 1)
+            ?? $this->expandType($scope->getType($selected));
+        $ruleLists = [];
+        foreach ($values as $value) {
+            if (is_string($value)) {
+                $value = explode('|', $value);
+            } elseif ($value instanceof StaticRuleValue) {
+                $value = [$value];
+            } elseif (!is_array($value)) {
+                return null;
             }
 
-            $expanded = [];
-            foreach ($results as $result) {
-                foreach ($values as $value) {
-                    $copy = $result;
-                    $copy[$key] = $value;
-                    $expanded[] = $copy;
+            $ruleList = array_values(array_filter(
+                $value,
+                static fn (mixed $rule): bool => (bool) $rule
+            ));
+            $ruleLists[] = $ruleList === [] ? [Rule::noop()] : $ruleList;
+        }
+
+        $this->guardAlternatives($ruleLists);
+        return $ruleLists;
+    }
+
+    /**
+     * @return array{condition: Expr, rules: Expr, defaultRules: Expr|null}|null
+     */
+    private function resolveConditionalRuleArguments(Expr\StaticCall $expression): ?array
+    {
+        $parameterNames = ['condition', 'rules', 'defaultRules'];
+        $arguments = [];
+        $position = 0;
+        $sawNamedArgument = false;
+
+        foreach ($expression->getArgs() as $argument) {
+            if ($argument->unpack) {
+                return null;
+            }
+
+            if ($argument->name === null) {
+                if ($sawNamedArgument || !isset($parameterNames[$position])) {
+                    return null;
+                }
+                $name = $parameterNames[$position++];
+            } else {
+                $sawNamedArgument = true;
+                $name = $argument->name->toString();
+                if (!in_array($name, $parameterNames, true)) {
+                    return null;
                 }
             }
 
-            $this->guardAlternatives($expanded);
-            $results = $expanded;
+            if (array_key_exists($name, $arguments)) {
+                return null;
+            }
+            $arguments[$name] = $argument->value;
         }
 
-        return $specialized ? $results : null;
+        if (!isset($arguments['condition'], $arguments['rules'])) {
+            return null;
+        }
+
+        return [
+            'condition' => $arguments['condition'],
+            'rules' => $arguments['rules'],
+            'defaultRules' => $arguments['defaultRules'] ?? null,
+        ];
+    }
+
+    /**
+     * ConditionalRules evaluates every argument before choosing a branch. Keep
+     * refinement to expressions whose evaluation cannot mutate values read by
+     * a later argument and silently change which rules Laravel receives.
+     */
+    private function isPassiveConditionalArgument(Expr $expression): bool
+    {
+        if ($expression instanceof \PhpParser\Node\Scalar
+            || $expression instanceof Expr\ConstFetch
+            || ($expression instanceof Expr\Variable && is_string($expression->name))
+            || ($expression instanceof Expr\ClassConstFetch
+                && $expression->class instanceof Name
+                && $expression->class->isSpecialClassName()
+                && $expression->name instanceof Identifier)
+            || $expression instanceof Expr\Closure
+            || $expression instanceof Expr\ArrowFunction
+        ) {
+            return true;
+        }
+
+        if ($expression instanceof Expr\BooleanNot) {
+            return $this->isPassiveConditionalArgument($expression->expr);
+        }
+
+        if ($expression instanceof Expr\Array_) {
+            foreach ($expression->items as $item) {
+                if ($item->unpack
+                    || ($item->key !== null
+                        && !$this->isPassiveConditionalArgument($item->key))
+                    || !$this->isPassiveConditionalArgument($item->value)
+                ) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        return false;
     }
 
     private function resolveBuiltInRuleExpression(
@@ -451,6 +665,10 @@ final class RuleSetResolver
         int $depth
     ): bool {
         foreach ($expression->items as $item) {
+            if ($this->resolveLiteralConditionalRuleLists($item->value, $scope) !== null) {
+                return true;
+            }
+
             if ($this->resolveBuiltInRuleExpression(
                 $item->value,
                 $scope,

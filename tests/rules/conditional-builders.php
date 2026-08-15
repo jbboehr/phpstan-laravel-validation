@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\ExcludeIf;
@@ -22,6 +23,27 @@ final class CustomRequiredIf extends RequiredIf
 {
 }
 
+/** @implements Arrayable<int, string> */
+final class MutatingConditionalArrayable implements Arrayable
+{
+    /** @param Closure(): void $mutate */
+    public function __construct(private Closure $mutate)
+    {
+    }
+
+    /** @return list<string> */
+    public function toArray(): array
+    {
+        ($this->mutate)();
+        return ['blocked'];
+    }
+}
+
+final class ConditionalRuleConstants
+{
+    public const RULES = ['required', 'string'];
+}
+
 function dynamicConditionalRuleCondition(): bool
 {
     return random_int(0, 1) === 1;
@@ -29,6 +51,50 @@ function dynamicConditionalRuleCondition(): bool
 
 const LITERAL_CONDITIONAL_TRUE = true;
 const LITERAL_CONDITIONAL_FALSE = false;
+
+$whenTrue = true;
+$whenFalse = false;
+$conditionalBranches = Validator::make([], [
+    'true_string' => Rule::when(true, 'required|string'),
+    'false_default' => Rule::when(false, 'string', ['required', 'integer']),
+    'array_in_rule_list' => ['nullable', Rule::when(true, ['required', 'string'])],
+    'middle_of_rule_list' => ['required', Rule::when(true, ['string']), 'bail'],
+    'colliding_rule_key' => [0 => 'required', 0 => Rule::when(true, ['string'])],
+    'colliding_in_key' => [0 => 'required', 0 => Rule::in(['a'])],
+    'falsey_integer_branch' => Rule::when(true, [0]),
+    'falsey_float_branch' => Rule::when(true, [0.0]),
+    'local_true' => Rule::when($whenTrue, ['required', 'string']),
+    'local_false' => Rule::when($whenFalse, 'string', ['required', 'integer']),
+    'named_arguments' => Rule::when(
+        rules: ['required', 'string'],
+        defaultRules: ['required', 'integer'],
+        condition: true
+    ),
+    'unselected_callback' => Rule::when(
+        true,
+        ['required', 'string'],
+        static fn (): array => ['required', 'integer']
+    ),
+    'empty_default' => Rule::when(false, ['required', 'string']),
+])->validated();
+assertType(
+    'array{true_string: string, false_default: float|int|numeric-string|Stringable|true, '
+        . 'array_in_rule_list: string, middle_of_rule_list: string, '
+        . 'colliding_rule_key?: string, colliding_in_key?: string|Stringable, '
+        . 'falsey_integer_branch?: mixed, '
+        . 'falsey_float_branch?: mixed, '
+        . 'local_true: string, local_false: float|int|numeric-string|Stringable|true, '
+        . 'named_arguments: string, unselected_callback: string, empty_default?: mixed}',
+    $conditionalBranches
+);
+
+$conditionalProjection = Validator::make([], [
+    'standalone' => Rule::when(false, 'array'),
+    'standalone.name' => 'required|string',
+    'in_rule_list' => [Rule::when(false, 'array')],
+    'in_rule_list.name' => 'required|string',
+])->validated();
+assertType('array{standalone: mixed, in_rule_list: mixed}', $conditionalProjection);
 
 $literal = Validator::make([], [
     'factory_required_true' => ['string', Rule::requiredIf(true)],
@@ -120,6 +186,13 @@ $assignedDirect = new RequiredIf(true);
 $factoryClass = Rule::class;
 $directClass = RequiredIf::class;
 $method = 'requiredIf';
+$sideEffectRules = ['required', 'integer'];
+$sideEffectCondition = true;
+$sideEffectValues = new MutatingConditionalArrayable(
+    static function () use (&$sideEffectCondition): void {
+        $sideEffectCondition = false;
+    }
+);
 $opaque = Validator::make([], [
     'dynamic_factory' => ['required', 'string', Rule::requiredIf(dynamicConditionalRuleCondition())],
     'dynamic_direct' => ['required', 'string', new RequiredIf(dynamicConditionalRuleCondition())],
@@ -135,12 +208,43 @@ $opaque = Validator::make([], [
     'first_class_callable' => ['required', 'string', Rule::requiredIf(...)],
     'unpacked_factory' => ['required', 'string', Rule::requiredIf(...[true])],
     'unpacked_direct' => ['required', 'string', new RequiredIf(...[true])],
+    'when_dynamic_condition' => Rule::when(
+        dynamicConditionalRuleCondition(),
+        ['required', 'string'],
+        ['required', 'integer']
+    ),
+    'when_callback_rules' => Rule::when(
+        true,
+        static fn (): array => ['required', 'string']
+    ),
+    'when_first_class_callable' => ['required', 'string', Rule::when(...)],
+    'when_unpacked' => Rule::when(...[true, ['required', 'string']]),
+    'when_side_effecting_argument' => Rule::when(
+        rules: $sideEffectRules = ['required', 'string'],
+        condition: true
+    ),
+    'when_nested_wrapper' => Rule::when(
+        true,
+        [Rule::when(false, 'string', 'required|integer')]
+    ),
+    'when_built_in_call_before_condition' => Rule::when(
+        rules: [Rule::notIn($sideEffectValues), 'required', 'string'],
+        condition: $sideEffectCondition,
+        defaultRules: ['required', 'integer']
+    ),
+    'when_external_class_constant' => Rule::when(
+        rules: ConditionalRuleConstants::RULES,
+        condition: true
+    ),
 ]);
 assertType(
     'array{dynamic_factory?: mixed, dynamic_direct?: mixed, callback_factory?: mixed, '
         . 'callback_direct?: mixed, assigned_factory?: mixed, assigned_direct?: mixed, '
         . 'lookalike_factory?: mixed, subclass?: mixed, dynamic_factory_class?: mixed, '
         . 'dynamic_direct_class?: mixed, dynamic_method?: mixed, first_class_callable: string, '
-        . 'unpacked_factory?: mixed, unpacked_direct?: mixed}',
+        . 'unpacked_factory?: mixed, unpacked_direct?: mixed, when_dynamic_condition?: mixed, '
+        . 'when_callback_rules?: mixed, when_first_class_callable: string, when_unpacked?: mixed, '
+        . 'when_side_effecting_argument?: mixed, when_nested_wrapper?: mixed, '
+        . 'when_built_in_call_before_condition?: mixed, when_external_class_constant?: mixed}',
     $opaque->validated()
 );

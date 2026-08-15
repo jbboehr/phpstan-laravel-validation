@@ -21,6 +21,7 @@ declare(strict_types=1);
 
 namespace jbboehr\PhpstanLaravelValidation\Test;
 
+use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Translation\ArrayLoader;
 use Illuminate\Translation\Translator;
 use Illuminate\Validation\Factory;
@@ -33,6 +34,172 @@ use PHPUnit\Framework\Attributes\Group;
 #[Group('laravel')]
 final class ConditionalRuleBuilderLaravelRuntimeTest extends \PHPStan\Testing\PHPStanTestCase
 {
+    public function testWhenSelectsAndFlattensLiteralBranches(): void
+    {
+        $cases = [
+            'true string branch' => [
+                ['value' => 'text'],
+                ['value' => Rule::when(true, 'required|string', 'required|integer')],
+                ['required', 'string'],
+            ],
+            'false array default' => [
+                ['value' => 42],
+                ['value' => Rule::when(false, 'required|string', ['required', 'integer'])],
+                ['required', 'integer'],
+            ],
+            'branch inside rule list' => [
+                ['value' => 'text'],
+                ['value' => ['required', Rule::when(true, ['string']), 'bail']],
+                ['required', 'string', 'bail'],
+            ],
+            'named arguments' => [
+                ['value' => 'text'],
+                ['value' => Rule::when(
+                    rules: ['required', 'string'],
+                    defaultRules: ['required', 'integer'],
+                    condition: true
+                )],
+                ['required', 'string'],
+            ],
+            'unselected callback is not executed' => [
+                ['value' => 'text'],
+                ['value' => Rule::when(
+                    true,
+                    ['required', 'string'],
+                    static function (): array {
+                        throw new \LogicException('unselected branch executed');
+                    }
+                )],
+                ['required', 'string'],
+            ],
+        ];
+
+        foreach ($cases as $name => [$data, $rules, $expectedRules]) {
+            $validator = self::factory()->make($data, $rules);
+
+            self::assertSame($expectedRules, $validator->getRules()['value'], $name);
+            self::assertTrue($validator->passes(), $name);
+            self::assertSame($data, $validator->validated(), $name);
+        }
+    }
+
+    public function testWhenEmptyBranchStillMarksParentsForCompleteProjection(): void
+    {
+        $data = ['payload' => ['name' => 'Ada', 'extra' => 'preserved']];
+        foreach ([
+            'standalone' => Rule::when(false, 'array'),
+            'inside rule list' => [Rule::when(false, 'array')],
+        ] as $name => $rule) {
+            $validator = self::factory()->make($data, [
+                'payload' => $rule,
+                'payload.name' => 'required|string',
+            ]);
+
+            self::assertSame([], $validator->getRules()['payload'], $name);
+            self::assertTrue($validator->passes(), $name);
+            self::assertSame($data, $validator->validated(), $name);
+        }
+    }
+
+    public function testStandaloneWhenBranchesUseLaravelsCompleteFalseyFilter(): void
+    {
+        foreach ([0, 0.0, '0', false, null, ''] as $falseyRule) {
+            $validator = self::factory()->make([], [
+                'value' => Rule::when(true, [$falseyRule]),
+            ]);
+
+            self::assertSame([], $validator->getRules()['value']);
+            self::assertTrue($validator->passes());
+            self::assertSame([], $validator->validated());
+        }
+    }
+
+    public function testWhenDoesNotRecursivelyExpandNestedConditionalWrappers(): void
+    {
+        $this->expectException(\Error::class);
+        $this->expectExceptionMessage('could not be converted to string');
+
+        self::factory()->make(['value' => 42], [
+            'value' => Rule::when(true, [
+                Rule::when(false, 'string', 'required|integer'),
+            ]),
+        ]);
+    }
+
+    public function testRuleListKeyCollisionsOccurBeforeConditionalFlattening(): void
+    {
+        $conditionalRules = [0 => 'required'];
+        $conditionalRules[0] = Rule::when(true, ['string']);
+        $builtInRules = [0 => 'required'];
+        $builtInRules[0] = Rule::in(['a']);
+
+        foreach (['conditional' => $conditionalRules, 'built-in' => $builtInRules] as $name => $rules) {
+            $validator = self::factory()->make([], ['value' => $rules]);
+            $parsedRules = $validator->getRules()['value'];
+
+            self::assertIsArray($parsedRules, $name);
+            self::assertCount(1, $parsedRules, $name);
+            self::assertTrue($validator->passes(), $name);
+            self::assertSame([], $validator->validated(), $name);
+        }
+    }
+
+    public function testEarlierBuiltInRuleCallsCanChangeALaterNamedCondition(): void
+    {
+        $condition = true;
+        $values = new class ($condition) implements Arrayable {
+            public function __construct(private bool &$condition)
+            {
+            }
+
+            public function toArray(): array
+            {
+                $wasTrue = $this->condition;
+                $this->condition = false;
+                return $wasTrue ? ['blocked'] : [];
+            }
+        };
+        $rule = Rule::when(
+            rules: [Rule::notIn($values), 'required', 'string'],
+            condition: $condition,
+            defaultRules: ['required', 'integer']
+        );
+        $validator = self::factory()->make(['value' => 42], ['value' => $rule]);
+
+        self::assertFalse($condition);
+        self::assertSame(['required', 'integer'], $validator->getRules()['value']);
+        self::assertTrue($validator->passes());
+        self::assertSame(['value' => 42], $validator->validated());
+    }
+
+    public function testUnlessInvertsLiteralConditionsAfterItsRuntimeVersionBoundary(): void
+    {
+        if (version_compare(self::frameworkVersion(), '10.33.0', '<')) {
+            self::markTestSkipped('Rule::unless() was introduced in Laravel 10.33.');
+        }
+
+        $cases = [
+            'false selects rules' => [
+                ['value' => 'text'],
+                Rule::unless(false, 'required|string', 'required|integer'),
+                ['required', 'string'],
+            ],
+            'true selects default' => [
+                ['value' => 42],
+                Rule::unless(true, 'required|string', ['required', 'integer']),
+                ['required', 'integer'],
+            ],
+        ];
+
+        foreach ($cases as $name => [$data, $rule, $expectedRules]) {
+            $validator = self::factory()->make($data, ['value' => $rule]);
+
+            self::assertSame($expectedRules, $validator->getRules()['value'], $name);
+            self::assertTrue($validator->passes(), $name);
+            self::assertSame($data, $validator->validated(), $name);
+        }
+    }
+
     public function testLiteralConditionsSerializeLikeTheirUnconditionalRules(): void
     {
         foreach ($this->conditionalRules(false) as $name => $rule) {
@@ -211,5 +378,10 @@ final class ConditionalRuleBuilderLaravelRuntimeTest extends \PHPStan\Testing\PH
     private static function factory(): Factory
     {
         return new Factory(new Translator(new ArrayLoader(), 'en'));
+    }
+
+    private static function frameworkVersion(): string
+    {
+        return \Illuminate\Foundation\Application::VERSION;
     }
 }
