@@ -224,7 +224,8 @@ Current static extraction treats them in four ways:
   `Rule::date()`, `Rule::dateTime()`, `Rule::numeric()`, `Rule::string()`,
   `Rule::dimensions()`, `Rule::file()`, `Rule::imageFile()`, `File::types()`,
   `File::image()`, `Rule::exists()`, and `Rule::unique()` expressions receive
-  dedicated extraction of their statically visible semantics;
+  dedicated extraction of their statically visible semantics, as does exact
+  construction of the supported concrete builder classes;
 - predicate objects implementing Laravel's rule contracts are treated like
   custom predicates and contribute `mixed` unless they have an explicit custom
   contract;
@@ -234,18 +235,19 @@ Current static extraction treats them in four ways:
 
 | Current extraction | Representative Laravel objects | Consequence |
 | --- | --- | --- |
-| Dedicated built-in extraction | `Enum`, `Rule::in()`, `Rule::notIn()`, `Rule::array()`, `Rule::arrayKeys()`, `Rule::contains()`, `Rule::doesntContain()`, `Rule::date()`, `Rule::dateTime()`, `Rule::numeric()`, `Rule::string()`, `Rule::dimensions()`, `Rule::file()`, `Rule::imageFile()`, exact `Contains` / `DoesntContain` / `Date` / `Numeric` / `StringRule` / `Dimensions` / `File` / `ImageFile` construction, `Rule::exists()`, `Rule::unique()` | Fresh inline expressions recover statically visible enum, accepted-set, allowed-key, array-predicate, date, numeric, string, dimensions, file, image, exclusion, and database-predicate semantics without executing application code; dynamic or unsupported object state stays `mixed` |
+| Dedicated built-in extraction | `Enum`, `Rule::in()`, `Rule::notIn()`, `Rule::array()`, `Rule::arrayKeys()`, `Rule::contains()`, `Rule::doesntContain()`, `Rule::date()`, `Rule::dateTime()`, `Rule::numeric()`, `Rule::string()`, `Rule::dimensions()`, `Rule::file()`, `Rule::imageFile()`, exact `ArrayRule` / `ArrayKeys` / `Contains` / `DoesntContain` / `Date` / `Numeric` / `StringRule` / `Dimensions` / `File` / `ImageFile` construction, `Rule::exists()`, `Rule::unique()` | Fresh inline expressions recover statically visible enum, accepted-set, allowed-key, array-predicate, date, numeric, string, dimensions, file, image, exclusion, and database-predicate semantics without executing application code; dynamic or unsupported object state stays `mixed` |
 | Custom predicate with `mixed` accepted type | `AnyOf`, `Can`, `Email`, `Password`, assigned or unsupported `File` / `ImageFile` builders | Adjacent built-in string rules survive, but object state and built-in semantics are not recovered |
-| Opaque `Stringable` builder | direct `ArrayKeys` and `ArrayRule` construction, `ExcludeIf`, `ExcludeUnless`, `ProhibitedIf`, `ProhibitedUnless`, `RequiredIf`, `RequiredUnless`, assigned array-predicate / `Date` / `Numeric` / `StringRule` / `Dimensions` builders, and assigned or unsupported `Exists` / `Unique` chains | The path widens to optional `mixed`, even when the builder serializes to a supported string rule |
+| Opaque `Stringable` builder | `ExcludeIf`, `ExcludeUnless`, `ProhibitedIf`, `ProhibitedUnless`, `RequiredIf`, `RequiredUnless`, assigned or unsupported `ArrayRule` / `ArrayKeys` / array-predicate / `Date` / `Numeric` / `StringRule` / `Dimensions` builders, and assigned or unsupported `Exists` / `Unique` chains | The path widens to optional `mixed`, even when the builder serializes to a supported string rule |
 | Opaque runtime program | `Rule::when`, `Rule::unless`, `Rule::forEach`, `NestedRules`, macros | Runtime callbacks or macro state provide no generally available static contract |
 
 Built-in builder support remains a separate implementation track. Treating
 these objects as arbitrary third-party validators is safe, but needlessly
 imprecise for constant builder expressions whose constructor and fluent-call
-state are statically available. Fresh inline `Rule::arrayKeys()` calls now
-recover the same string contract confirmed by focused runtime coverage;
-assigned objects and direct construction still lose their key state and remain
-opaque. Fresh exact `Rule::contains()` / `Rule::doesntContain()` calls and
+state are statically available. Fresh inline `Rule::array()` / `Rule::arrayKeys()`
+calls and exact `ArrayRule` / `ArrayKeys` construction recover the same string
+contracts confirmed by focused runtime coverage; assigned objects, subclasses,
+and dynamic construction still lose their key state and remain opaque. Fresh
+exact `Rule::contains()` / `Rule::doesntContain()` calls and
 direct `Contains` / `DoesntContain` construction recover the built-in array
 predicate at their respective Laravel 12.16 and 12.22 boundaries. Assigned
 instances remain opaque. Fresh exact `Exists` and `Unique` objects contribute

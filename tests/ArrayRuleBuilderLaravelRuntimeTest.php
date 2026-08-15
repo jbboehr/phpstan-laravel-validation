@@ -33,6 +33,8 @@ use PHPUnit\Framework\Attributes\Group;
 #[Group('laravel')]
 final class ArrayRuleBuilderLaravelRuntimeTest extends \PHPStan\Testing\PHPStanTestCase
 {
+    private const ARRAY_RULE_CLASS = 'Illuminate\\Validation\\Rules\\ArrayRule';
+
     public function testEmptyArrayParameterPermitsOnlyTheEmptyStringKey(): void
     {
         $emptyKey = self::factory()->make(
@@ -55,6 +57,7 @@ final class ArrayRuleBuilderLaravelRuntimeTest extends \PHPStan\Testing\PHPStanT
             $supportsBuilder,
             (new \ReflectionClass(Rule::class))->hasMethod('array')
         );
+        self::assertSame($supportsBuilder, class_exists(self::ARRAY_RULE_CLASS));
 
         if (!$supportsBuilder) {
             return;
@@ -70,6 +73,11 @@ final class ArrayRuleBuilderLaravelRuntimeTest extends \PHPStan\Testing\PHPStanT
         $enum = $this->arrayRule([PureValidationStatus::Draft]);
         $backedEnum = $this->arrayRule([StringValidationStatus::Draft]);
         $comma = $this->arrayRule(['a,b']);
+        $directBare = $this->directArrayRule();
+        $directEmpty = $this->directArrayRule([]);
+        $directNull = $this->directArrayRule(null);
+        $directKeyed = $this->directArrayRule(['name', 'email']);
+        $directVariadic = $this->directArrayRule('name', 'email');
 
         self::assertSame('array', (string) $bare);
         self::assertSame('array', (string) $empty);
@@ -81,6 +89,14 @@ final class ArrayRuleBuilderLaravelRuntimeTest extends \PHPStan\Testing\PHPStanT
         self::assertSame('array:Draft', (string) $enum);
         self::assertSame('array:draft', (string) $backedEnum);
         self::assertSame('array:a,b', (string) $comma);
+        self::assertSame('array', (string) $directBare);
+        self::assertSame('array', (string) $directEmpty);
+        self::assertSame(
+            'array:',
+            $this->withoutDeprecations(static fn (): string => (string) $directNull)
+        );
+        self::assertSame('array:name,email', (string) $directKeyed);
+        self::assertSame('array:name,email', (string) $directVariadic);
 
         $backedEnumKey = self::factory()->make(
             ['payload' => ['draft' => 'value']],
@@ -100,6 +116,13 @@ final class ArrayRuleBuilderLaravelRuntimeTest extends \PHPStan\Testing\PHPStanT
             ['payload' => ['a,b' => 1]],
             ['payload' => ['required', $comma]]
         )->passes());
+
+        $directValidator = self::factory()->make(
+            ['payload' => ['name' => 'Ada']],
+            ['payload' => ['required', $directKeyed]]
+        );
+        self::assertTrue($directValidator->passes());
+        self::assertSame(['payload' => ['name' => 'Ada']], $directValidator->validated());
 
         $input = ['payload' => ['name' => 'Ada', 'extra' => true]];
         $bareNested = self::factory()->make($input, [
@@ -144,9 +167,51 @@ final class ArrayRuleBuilderLaravelRuntimeTest extends \PHPStan\Testing\PHPStanT
         self::assertFalse($keyedExtra->passes());
     }
 
+    public function testFloatKeysRemainRuntimePrecisionDependent(): void
+    {
+        if (version_compare(self::frameworkVersion(), '11.7.0', '<')) {
+            self::assertFalse(class_exists(self::ARRAY_RULE_CLASS));
+            return;
+        }
+
+        $previousPrecision = ini_get('precision');
+
+        try {
+            self::assertNotFalse(ini_set('precision', '1'));
+
+            foreach ([
+                'factory' => $this->arrayRule([2.5]),
+                'direct' => $this->directArrayRule([2.5]),
+            ] as $caseId => $rule) {
+                self::assertSame('array:2', (string) $rule, $caseId);
+                $validator = self::factory()->make(
+                    ['payload' => [2 => 'value']],
+                    ['payload' => ['required', $rule]]
+                );
+                self::assertTrue($validator->passes(), $caseId);
+                self::assertSame(['payload' => [2 => 'value']], $validator->validated(), $caseId);
+            }
+        } finally {
+            ini_set('precision', $previousPrecision);
+        }
+    }
+
     private function arrayRule(mixed ...$arguments): \Stringable
     {
         $rule = (new \ReflectionMethod(Rule::class, 'array'))->invoke(null, ...$arguments);
+        self::assertInstanceOf(\Stringable::class, $rule);
+
+        return $rule;
+    }
+
+    private function directArrayRule(mixed ...$arguments): \Stringable
+    {
+        $className = self::ARRAY_RULE_CLASS;
+        if (!class_exists($className)) {
+            throw new \LogicException('ArrayRule is unavailable.');
+        }
+
+        $rule = new $className(...$arguments);
         self::assertInstanceOf(\Stringable::class, $rule);
 
         return $rule;

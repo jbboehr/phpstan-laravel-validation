@@ -448,8 +448,11 @@ unquoted commas, and Laravel then parses the resulting rule parameters as CSV.
 For example, `Rule::array(['a,b'])` becomes `array:a,b` and permits `a` and `b`,
 not a literal `a,b` key. The expression resolver reproduces that round trip
 rather than assigning the builder's pre-serialization key list a prettier but
-false meaning. Fresh constant calls are recovered from 11.7 onward; assigned
-objects, dynamic arguments, and earlier versions stay broad.
+false meaning. Fresh constant factory calls and exact `ArrayRule` construction
+are recovered from 11.7 onward; assigned objects, subclasses, dynamic
+construction, dynamic arguments, and earlier versions stay broad. Float keys
+also stay broad because PHP's configurable runtime `precision` can change the
+serialized key after analysis.
 
 ### `array_keys` begins in Laravel 13.24
 
@@ -498,11 +501,13 @@ only the empty-string array key. The extension models both contracts from
 
 The rule was introduced by
 [`91eee4b8a7c4`](https://github.com/laravel/framework/commit/91eee4b8a7c4f4301700fa359de92898528bb917).
-`Rule::arrayKeys()` serializes to the same string contract at runtime, including
-the empty-builder case. Fresh inline calls with statically visible scalar or
-enum keys now recover that contract directly. Assigned objects, dynamic or
-`Arrayable` arguments, and direct `ArrayKeys` construction still lose the
-builder's key state and remain opaque.
+`Rule::arrayKeys()` and direct `ArrayKeys` construction serialize to the same
+string contract at runtime, including the empty-key-list case. Fresh exact
+expressions with statically visible scalar or enum keys recover that contract
+directly. Assigned objects, subclasses, dynamic construction, and dynamic or
+`Arrayable` arguments still lose the builder's key state and remain opaque.
+Float keys likewise stay opaque because runtime `precision` can change their
+serialized spelling.
 
 ### Three array predicates have mid-major introductions
 

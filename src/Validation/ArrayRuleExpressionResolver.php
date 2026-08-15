@@ -28,12 +28,14 @@ use PHPStan\Analyser\Scope;
 
 /**
  * Recovers bare versus allowed-key semantics from a statically visible
- * Rule::array() call. Dynamic key expressions remain opaque because they can
- * change both the accepted array shape and nested-output projection.
+ * Rule::array() call or exact ArrayRule construction. Dynamic key expressions
+ * remain opaque because they can change both the accepted array shape and
+ * nested-output projection.
  */
 final class ArrayRuleExpressionResolver
 {
     private const INTRODUCED = '11.7.0';
+    private const RULE_CLASS = 'Illuminate\\Validation\\Rules\\ArrayRule';
     private const RULE_FACTORY_CLASS = \Illuminate\Validation\Rule::class;
 
     public function __construct(
@@ -46,23 +48,23 @@ final class ArrayRuleExpressionResolver
     {
         if (
             !$this->laravelVersionContext->isAtLeast(self::INTRODUCED)
-            || !$expression instanceof Expr\StaticCall
-            || !$expression->class instanceof Name
-            || !$expression->name instanceof Identifier
-            || $this->resolveName($expression->class, $scope) !== self::RULE_FACTORY_CLASS
-            || $expression->name->toLowerString() !== 'array'
+            || !$expression instanceof Expr\CallLike
+            || $expression->isFirstClassCallable()
+            || (!$this->isFactoryCall($expression, $scope)
+                && !$this->isExactConstruction($expression, $scope))
         ) {
             return null;
         }
 
-        $parameters = $this->parameterExpressionResolver->resolve(
+        $resolution = $this->parameterExpressionResolver->resolveWithMetadata(
             array_values($expression->getArgs()),
             $scope,
             self::INTRODUCED
         );
-        if ($parameters === null) {
+        if ($resolution === null || $resolution['hasRuntimeFormattedFloatParameter']) {
             return null;
         }
+        $parameters = $resolution['parameters'];
 
         // ArrayRule joins keys without quoting, after which Laravel parses the
         // Stringable rule as CSV. Reproduce that lossy round trip: for example,
@@ -71,6 +73,23 @@ final class ArrayRuleExpressionResolver
         return $parameters === []
             ? Rule::create(Rule::RULE_ARRAY)
             : RuleParser::parseStringRule('array:' . implode(',', $parameters));
+    }
+
+    private function isFactoryCall(Expr $expression, Scope $scope): bool
+    {
+        return $expression instanceof Expr\StaticCall
+            && $expression->class instanceof Name
+            && $expression->name instanceof Identifier
+            && $this->resolveName($expression->class, $scope) === self::RULE_FACTORY_CLASS
+            && $expression->name->toLowerString() === 'array';
+    }
+
+    private function isExactConstruction(Expr $expression, Scope $scope): bool
+    {
+        return $expression instanceof Expr\New_
+            && $expression->class instanceof Name
+            && !$expression->class->isSpecialClassName()
+            && $this->resolveName($expression->class, $scope) === self::RULE_CLASS;
     }
 
     private function resolveName(Name $name, Scope $scope): string

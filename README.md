@@ -424,9 +424,13 @@ unquoted comma joining. Consequently, `Rule::array(['a,b'])` becomes
 `array:a,b` and permits the two keys `a` and `b`; it does not permit one key
 literally named `a,b`.
 
+Float keys remain conservative because PHP's configurable runtime `precision`
+can change the string that Laravel places in the serialized rule.
+
 Before Laravel 11.7, or when arguments are dynamic, unpacked, `Arrayable`, or
-runtime `Stringable` values, inference remains conservative. Assigned builder
-objects and direct `ArrayRule` construction also remain opaque.
+runtime `Stringable` values, inference remains conservative. Exact fresh
+`new ArrayRule(...)` expressions receive the same treatment as the factory;
+assigned builders, subclasses, and dynamic construction remain opaque.
 
 ### `Rule::arrayKeys()` builders
 
@@ -447,11 +451,14 @@ Unlike bare `array`, this rule preserves the complete permitted parent around
 nested child rules rather than rebuilding it from validated descendants. Its
 stringification is also lossy: commas split parameters, and an empty key list
 becomes `array_keys:`, which permits the empty-string key. Inference follows
-those runtime contracts.
+those runtime contracts. Float keys remain conservative because PHP's runtime
+`precision` can change their serialized spelling.
 
 Before Laravel 13.24, or when arguments are dynamic, unpacked, `Arrayable`, or
-otherwise unavailable to analysis, inference remains conservative. Assigned
-builder objects and direct `ArrayKeys` construction also remain opaque.
+otherwise unavailable to analysis, inference remains conservative. Exact
+fresh `new ArrayKeys(...)` expressions receive the same treatment as the
+factory; assigned builders, subclasses, and dynamic construction remain
+opaque.
 
 ### Array predicate rule builders
 

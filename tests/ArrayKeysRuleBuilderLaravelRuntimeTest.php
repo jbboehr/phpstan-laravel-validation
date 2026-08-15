@@ -33,6 +33,8 @@ use PHPUnit\Framework\Attributes\Group;
 #[Group('laravel')]
 final class ArrayKeysRuleBuilderLaravelRuntimeTest extends \PHPStan\Testing\PHPStanTestCase
 {
+    private const ARRAY_KEYS_CLASS = 'Illuminate\\Validation\\Rules\\ArrayKeys';
+
     public function testRuntimeContractFollowsItsLaravelIntroductionBoundary(): void
     {
         $supportsBuilder = version_compare(self::frameworkVersion(), '13.24.0', '>=');
@@ -40,6 +42,7 @@ final class ArrayKeysRuleBuilderLaravelRuntimeTest extends \PHPStan\Testing\PHPS
             $supportsBuilder,
             (new \ReflectionClass(Rule::class))->hasMethod('arrayKeys')
         );
+        self::assertSame($supportsBuilder, class_exists(self::ARRAY_KEYS_CLASS));
 
         if (!$supportsBuilder) {
             return;
@@ -55,6 +58,9 @@ final class ArrayKeysRuleBuilderLaravelRuntimeTest extends \PHPStan\Testing\PHPS
         $backedEnum = $this->arrayKeysRule([StringValidationStatus::Draft]);
         $comma = $this->arrayKeysRule(['a,b']);
         $numeric = $this->arrayKeysRule([0, '01']);
+        $directEmpty = $this->directArrayKeysRule([]);
+        $directKeyed = $this->directArrayKeysRule(['name', 'email']);
+        $directVariadic = $this->directArrayKeysRule('name', 'email');
 
         self::assertSame('array_keys:', (string) $empty);
         self::assertSame('array_keys:', (string) $blank);
@@ -66,6 +72,9 @@ final class ArrayKeysRuleBuilderLaravelRuntimeTest extends \PHPStan\Testing\PHPS
         self::assertSame('array_keys:draft', (string) $backedEnum);
         self::assertSame('array_keys:a,b', (string) $comma);
         self::assertSame('array_keys:0,01', (string) $numeric);
+        self::assertSame('array_keys:', (string) $directEmpty);
+        self::assertSame('array_keys:name,email', (string) $directKeyed);
+        self::assertSame('array_keys:name,email', (string) $directVariadic);
 
         $keyedValidator = self::factory()->make(
             ['payload' => ['name' => 'Ada']],
@@ -73,6 +82,13 @@ final class ArrayKeysRuleBuilderLaravelRuntimeTest extends \PHPStan\Testing\PHPS
         );
         self::assertTrue($keyedValidator->passes());
         self::assertSame(['payload' => ['name' => 'Ada']], $keyedValidator->validated());
+
+        $directValidator = self::factory()->make(
+            ['payload' => ['name' => 'Ada']],
+            ['payload' => ['required', $directKeyed]]
+        );
+        self::assertTrue($directValidator->passes());
+        self::assertSame(['payload' => ['name' => 'Ada']], $directValidator->validated());
 
         $backedEnumValidator = self::factory()->make(
             ['payload' => ['draft' => 'value']],
@@ -139,9 +155,51 @@ final class ArrayKeysRuleBuilderLaravelRuntimeTest extends \PHPStan\Testing\PHPS
         );
     }
 
+    public function testFloatKeysRemainRuntimePrecisionDependent(): void
+    {
+        if (version_compare(self::frameworkVersion(), '13.24.0', '<')) {
+            self::assertFalse(class_exists(self::ARRAY_KEYS_CLASS));
+            return;
+        }
+
+        $previousPrecision = ini_get('precision');
+
+        try {
+            self::assertNotFalse(ini_set('precision', '1'));
+
+            foreach ([
+                'factory' => $this->arrayKeysRule([2.5]),
+                'direct' => $this->directArrayKeysRule([2.5]),
+            ] as $caseId => $rule) {
+                self::assertSame('array_keys:2', (string) $rule, $caseId);
+                $validator = self::factory()->make(
+                    ['payload' => [2 => 'value']],
+                    ['payload' => ['required', $rule]]
+                );
+                self::assertTrue($validator->passes(), $caseId);
+                self::assertSame(['payload' => [2 => 'value']], $validator->validated(), $caseId);
+            }
+        } finally {
+            ini_set('precision', $previousPrecision);
+        }
+    }
+
     private function arrayKeysRule(mixed ...$arguments): \Stringable
     {
         $rule = (new \ReflectionMethod(Rule::class, 'arrayKeys'))->invoke(null, ...$arguments);
+        self::assertInstanceOf(\Stringable::class, $rule);
+
+        return $rule;
+    }
+
+    private function directArrayKeysRule(mixed ...$arguments): \Stringable
+    {
+        $className = self::ARRAY_KEYS_CLASS;
+        if (!class_exists($className)) {
+            throw new \LogicException('ArrayKeys is unavailable.');
+        }
+
+        $rule = new $className(...$arguments);
         self::assertInstanceOf(\Stringable::class, $rule);
 
         return $rule;

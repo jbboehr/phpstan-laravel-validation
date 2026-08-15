@@ -27,13 +27,14 @@ use PhpParser\Node\Name;
 use PHPStan\Analyser\Scope;
 
 /**
- * Recovers allowed-key semantics from a statically visible
- * Rule::arrayKeys() call. Dynamic Arrayable inputs and assigned builder
- * objects remain opaque rather than being executed during analysis.
+ * Recovers allowed-key semantics from a statically visible Rule::arrayKeys()
+ * call or exact ArrayKeys construction. Dynamic Arrayable inputs and assigned
+ * builder objects remain opaque rather than being executed during analysis.
  */
 final class ArrayKeysRuleExpressionResolver
 {
     private const INTRODUCED = '13.24.0';
+    private const RULE_CLASS = 'Illuminate\\Validation\\Rules\\ArrayKeys';
     private const RULE_FACTORY_CLASS = \Illuminate\Validation\Rule::class;
 
     public function __construct(
@@ -46,29 +47,46 @@ final class ArrayKeysRuleExpressionResolver
     {
         if (
             !$this->laravelVersionContext->isAtLeast(self::INTRODUCED)
-            || !$expression instanceof Expr\StaticCall
-            || !$expression->class instanceof Name
-            || !$expression->name instanceof Identifier
-            || $this->resolveName($expression->class, $scope) !== self::RULE_FACTORY_CLASS
-            || $expression->name->toLowerString() !== 'arraykeys'
+            || !$expression instanceof Expr\CallLike
+            || $expression->isFirstClassCallable()
+            || (!$this->isFactoryCall($expression, $scope)
+                && !$this->isExactConstruction($expression, $scope))
             || $expression->getArgs() === []
         ) {
             return null;
         }
 
-        $parameters = $this->parameterExpressionResolver->resolve(
+        $resolution = $this->parameterExpressionResolver->resolveWithMetadata(
             array_values($expression->getArgs()),
             $scope,
             self::INTRODUCED
         );
-        if ($parameters === null) {
+        if ($resolution === null || $resolution['hasRuntimeFormattedFloatParameter']) {
             return null;
         }
+        $parameters = $resolution['parameters'];
 
         // ArrayKeys joins keys without quoting, after which Laravel parses the
         // Stringable rule as CSV. Preserve that lossy round trip, including an
         // empty key list becoming the one-empty-parameter rule `array_keys:`.
         return RuleParser::parseStringRule('array_keys:' . implode(',', $parameters));
+    }
+
+    private function isFactoryCall(Expr $expression, Scope $scope): bool
+    {
+        return $expression instanceof Expr\StaticCall
+            && $expression->class instanceof Name
+            && $expression->name instanceof Identifier
+            && $this->resolveName($expression->class, $scope) === self::RULE_FACTORY_CLASS
+            && $expression->name->toLowerString() === 'arraykeys';
+    }
+
+    private function isExactConstruction(Expr $expression, Scope $scope): bool
+    {
+        return $expression instanceof Expr\New_
+            && $expression->class instanceof Name
+            && !$expression->class->isSpecialClassName()
+            && $this->resolveName($expression->class, $scope) === self::RULE_CLASS;
     }
 
     private function resolveName(Name $name, Scope $scope): string
