@@ -21,22 +21,10 @@ declare(strict_types=1);
 
 namespace jbboehr\PhpstanLaravelValidation\Test;
 
-use jbboehr\PhpstanLaravelValidation\Test\Support\AssertsFixtureUnderCoverage;
+use jbboehr\PhpstanLaravelValidation\Test\Support\FixtureInferenceTestCase;
 
-final class NormalizedFormRequestInferenceTest extends \PHPStan\Testing\TypeInferenceTestCase
+final class NormalizedFormRequestInferenceTest extends FixtureInferenceTestCase
 {
-    use AssertsFixtureUnderCoverage;
-
-    public function testFileAsserts(): void
-    {
-        $this->assertFixtureUnderCoverage(__DIR__ . '/form-request/normalized.php');
-    }
-
-    public static function getAdditionalConfigFiles(): array
-    {
-        return [
-            __DIR__ . '/../extension.neon',
-            __DIR__ . '/normalized/phpstan.neon',
-        ];
-    }
+    protected const FIXTURE_FILE = 'form-request/normalized.php';
+    protected const CONFIG_FILES = ['normalized/phpstan.neon'];
 }

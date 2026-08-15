@@ -21,23 +21,10 @@ declare(strict_types=1);
 
 namespace jbboehr\PhpstanLaravelValidation\Test;
 
-use jbboehr\PhpstanLaravelValidation\Test\Support\AssertsFixtureUnderCoverage;
+use jbboehr\PhpstanLaravelValidation\Test\Support\FixtureInferenceTestCase;
 
-final class FileRuleBuilderBeforeExtensionsInferenceTest extends \PHPStan\Testing\TypeInferenceTestCase
+final class FileRuleBuilderBeforeExtensionsInferenceTest extends FixtureInferenceTestCase
 {
-    use AssertsFixtureUnderCoverage;
-
-    public function testFileAsserts(): void
-    {
-        $this->assertFixtureUnderCoverage(__DIR__ . '/version-aware/file-builder-before-extensions.php');
-    }
-
-    /** @return list<string> */
-    public static function getAdditionalConfigFiles(): array
-    {
-        return [
-            __DIR__ . '/../extension.neon',
-            __DIR__ . '/version-aware/file-builder-before-extensions.neon',
-        ];
-    }
+    protected const FIXTURE_FILE = 'version-aware/file-builder-before-extensions.php';
+    protected const CONFIG_FILES = ['version-aware/file-builder-before-extensions.neon'];
 }

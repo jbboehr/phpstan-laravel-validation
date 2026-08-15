@@ -21,21 +21,9 @@ declare(strict_types=1);
 
 namespace jbboehr\PhpstanLaravelValidation\Test;
 
-use jbboehr\PhpstanLaravelValidation\Test\Support\AssertsFixtureUnderCoverage;
+use jbboehr\PhpstanLaravelValidation\Test\Support\FixtureInferenceTestCase;
 
-final class DisabledFormRequestInferenceTest extends \PHPStan\Testing\TypeInferenceTestCase
+final class DisabledFormRequestInferenceTest extends FixtureInferenceTestCase
 {
-    use AssertsFixtureUnderCoverage;
-
-    public function testFileAsserts(): void
-    {
-        $this->assertFixtureUnderCoverage(__DIR__ . '/form-request/disabled.php');
-    }
-
-    public static function getAdditionalConfigFiles(): array
-    {
-        return [
-            __DIR__ . '/../extension.neon',
-        ];
-    }
+    protected const FIXTURE_FILE = 'form-request/disabled.php';
 }

@@ -21,24 +21,13 @@ declare(strict_types=1);
 
 namespace jbboehr\PhpstanLaravelValidation\Test;
 
-use jbboehr\PhpstanLaravelValidation\Test\Support\AssertsFixtureUnderCoverage;
+use jbboehr\PhpstanLaravelValidation\Test\Support\FixtureInferenceTestCase;
 
-final class EnumFormRequestInferenceTest extends \PHPStan\Testing\TypeInferenceTestCase
+final class EnumFormRequestInferenceTest extends FixtureInferenceTestCase
 {
-    use AssertsFixtureUnderCoverage;
-
-    public function testFileAsserts(): void
-    {
-        $this->assertFixtureUnderCoverage(__DIR__ . '/form-request/enum-inference.php');
-    }
-
-    /** @return list<string> */
-    public static function getAdditionalConfigFiles(): array
-    {
-        return [
-            __DIR__ . '/../extension.neon',
-            __DIR__ . '/form-request/phpstan.neon',
-            __DIR__ . '/form-request/enum-phpstan.neon',
-        ];
-    }
+    protected const FIXTURE_FILE = 'form-request/enum-inference.php';
+    protected const CONFIG_FILES = [
+        'form-request/phpstan.neon',
+        'form-request/enum-phpstan.neon',
+    ];
 }

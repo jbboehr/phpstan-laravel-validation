@@ -33,8 +33,46 @@ use PHPStan\Type\UnionType;
 
 final class RuleSetResolver
 {
-    private const CONTAINS_RULE_CLASS = 'Illuminate\\Validation\\Rules\\Contains';
-    private const DOESNT_CONTAIN_RULE_CLASS = 'Illuminate\\Validation\\Rules\\DoesntContain';
+    /**
+     * Exact static factories whose arguments do not affect the inferred value
+     * type. Stateful builders remain in their dedicated resolvers.
+     *
+     * @var array<string, array<string, array{rule: string, since?: string, allowSpecialClassName?: true}>>
+     */
+    private const SIMPLE_STATIC_RULE_EXPRESSIONS = [
+        \Illuminate\Validation\Rule::class => [
+            'contains' => ['rule' => 'Contains', 'since' => '12.16.0'],
+            'doesntcontain' => ['rule' => 'DoesntContain', 'since' => '12.22.0'],
+            'exists' => ['rule' => 'Exists', 'allowSpecialClassName' => true],
+            'file' => ['rule' => 'File'],
+            'imagefile' => ['rule' => 'Image'],
+            'unique' => ['rule' => 'Unique', 'allowSpecialClassName' => true],
+        ],
+        \Illuminate\Validation\Rules\File::class => [
+            'image' => ['rule' => 'Image'],
+            'types' => ['rule' => 'File'],
+        ],
+        \Illuminate\Validation\Rules\ImageFile::class => [
+            'image' => ['rule' => 'Image'],
+            'types' => ['rule' => 'Image'],
+        ],
+    ];
+
+    /**
+     * Exact built-in rule objects whose constructor arguments do not affect
+     * the inferred value type.
+     *
+     * @var array<string, array{rule: string, since?: string, allowSpecialClassName?: true}>
+     */
+    private const SIMPLE_NEW_RULE_EXPRESSIONS = [
+        'Illuminate\\Validation\\Rules\\Contains' => ['rule' => 'Contains', 'since' => '12.16.0'],
+        'Illuminate\\Validation\\Rules\\DoesntContain' => ['rule' => 'DoesntContain', 'since' => '12.22.0'],
+        \Illuminate\Validation\Rules\Exists::class => ['rule' => 'Exists', 'allowSpecialClassName' => true],
+        \Illuminate\Validation\Rules\File::class => ['rule' => 'File', 'allowSpecialClassName' => true],
+        \Illuminate\Validation\Rules\ImageFile::class => ['rule' => 'Image', 'allowSpecialClassName' => true],
+        \Illuminate\Validation\Rules\Unique::class => ['rule' => 'Unique', 'allowSpecialClassName' => true],
+    ];
+
     private const MAX_ALTERNATIVES = 128;
     private const RULE_LIST_EXPRESSION_DEPTH = 2;
 
@@ -181,113 +219,72 @@ final class RuleSetResolver
             ?? $this->dateRuleExpressionResolver->resolve($expression, $scope, $insideRuleList)
             ?? $this->numericRuleExpressionResolver->resolve($expression, $scope)
             ?? $this->stringRuleExpressionResolver->resolve($expression, $scope)
-            ?? $this->resolveArrayPredicateRuleExpression($expression, $scope)
+            ?? $this->resolveSimpleRuleExpression($expression, $scope)
             ?? $this->resolveFileRuleExpression($expression, $scope)
             ?? $this->resolveDatabaseRuleExpression($expression, $scope);
     }
 
-    private function resolveArrayPredicateRuleExpression(
-        Expr $expression,
-        Scope $scope
-    ): ?Rule {
-        if (!$this->laravelVersionContext->isSupported()) {
+    private function resolveSimpleRuleExpression(Expr $expression, Scope $scope): ?Rule
+    {
+        if (!$this->laravelVersionContext->isSupported()
+            || ($expression instanceof Expr\CallLike && $expression->isFirstClassCallable())
+        ) {
             return null;
         }
 
         if ($expression instanceof Expr\StaticCall
             && $expression->class instanceof Name
-            && !$expression->class->isSpecialClassName()
             && $expression->name instanceof Identifier
-            && $this->resolveName($expression->class, $scope) === \Illuminate\Validation\Rule::class
         ) {
-            return match ($expression->name->toLowerString()) {
-                'contains' => $this->laravelVersionContext->isAtLeast('12.16.0')
-                    ? Rule::create('Contains')
-                    : null,
-                'doesntcontain' => $this->laravelVersionContext->isAtLeast('12.22.0')
-                    ? Rule::create('DoesntContain')
-                    : null,
-                default => null,
-            };
+            $specification = self::SIMPLE_STATIC_RULE_EXPRESSIONS[
+                $this->resolveName($expression->class, $scope)
+            ][$expression->name->toLowerString()] ?? null;
+
+            return $this->materializeSimpleRule(
+                $specification,
+                $expression->class->isSpecialClassName()
+            );
         }
 
         if (!$expression instanceof Expr\New_
             || !$expression->class instanceof Name
-            || $expression->class->isSpecialClassName()
         ) {
             return null;
         }
 
-        return match ($this->resolveName($expression->class, $scope)) {
-            self::CONTAINS_RULE_CLASS =>
-                $this->laravelVersionContext->isAtLeast('12.16.0')
-                    ? Rule::create('Contains')
-                    : null,
-            self::DOESNT_CONTAIN_RULE_CLASS =>
-                $this->laravelVersionContext->isAtLeast('12.22.0')
-                    ? Rule::create('DoesntContain')
-                    : null,
-            default => null,
-        };
+        return $this->materializeSimpleRule(
+            self::SIMPLE_NEW_RULE_EXPRESSIONS[$this->resolveName($expression->class, $scope)] ?? null,
+            $expression->class->isSpecialClassName()
+        );
+    }
+
+    /**
+     * @param array{rule: string, since?: string, allowSpecialClassName?: true}|null $specification
+     */
+    private function materializeSimpleRule(?array $specification, bool $specialClassName): ?Rule
+    {
+        if ($specification === null
+            || ($specialClassName && !($specification['allowSpecialClassName'] ?? false))
+            || (isset($specification['since'])
+                && !$this->laravelVersionContext->isAtLeast($specification['since']))
+        ) {
+            return null;
+        }
+
+        return Rule::create($specification['rule']);
     }
 
     private function resolveFileRuleExpression(Expr $expression, Scope $scope): ?Rule
     {
-        if (!$this->laravelVersionContext->isSupported()) {
-            return null;
-        }
-
-        if ($expression instanceof Expr\StaticCall
-            && $expression->class instanceof Name
-            && $expression->name instanceof Identifier
-        ) {
-            if ($expression->class->isSpecialClassName()) {
-                return null;
-            }
-
-            $className = $this->resolveName($expression->class, $scope);
-            $methodName = $expression->name->toLowerString();
-
-            if ($className === \Illuminate\Validation\Rule::class) {
-                return match ($methodName) {
-                    'file' => Rule::create('File'),
-                    'imagefile' => Rule::create('Image'),
-                    default => null,
-                };
-            }
-
-            if (in_array($className, [
-                \Illuminate\Validation\Rules\File::class,
-                \Illuminate\Validation\Rules\ImageFile::class,
-            ], true)) {
-                return match ($methodName) {
-                    'image' => Rule::create('Image'),
-                    'types' => Rule::create(
-                        $className === \Illuminate\Validation\Rules\ImageFile::class ? 'Image' : 'File'
-                    ),
-                    default => null,
-                };
-            }
-        }
-
-        if ($expression instanceof Expr\New_
-            && $expression->class instanceof Name
-        ) {
-            return match ($this->resolveName($expression->class, $scope)) {
-                \Illuminate\Validation\Rules\File::class => Rule::create('File'),
-                \Illuminate\Validation\Rules\ImageFile::class => Rule::create('Image'),
-                default => null,
-            };
-        }
-
         if (!$expression instanceof Expr\MethodCall
             || !$expression->name instanceof Identifier
         ) {
             return null;
         }
 
-        $rule = $this->resolveFileRuleExpression($expression->var, $scope);
-        if ($rule === null) {
+        $rule = $this->resolveSimpleRuleExpression($expression->var, $scope)
+            ?? $this->resolveFileRuleExpression($expression->var, $scope);
+        if ($rule === null || !in_array($rule->getRuleName(), ['File', 'Image'], true)) {
             return null;
         }
 
@@ -305,40 +302,15 @@ final class RuleSetResolver
 
     private function resolveDatabaseRuleExpression(Expr $expression, Scope $scope): ?Rule
     {
-        if (!$this->laravelVersionContext->isSupported()) {
-            return null;
-        }
-
-        if ($expression instanceof Expr\StaticCall
-            && $expression->class instanceof Name
-            && $expression->name instanceof Identifier
-            && $this->resolveName($expression->class, $scope) === \Illuminate\Validation\Rule::class
-        ) {
-            return match ($expression->name->toLowerString()) {
-                'exists' => Rule::create('Exists'),
-                'unique' => Rule::create('Unique'),
-                default => null,
-            };
-        }
-
-        if ($expression instanceof Expr\New_
-            && $expression->class instanceof Name
-        ) {
-            return match ($this->resolveName($expression->class, $scope)) {
-                \Illuminate\Validation\Rules\Exists::class => Rule::create('Exists'),
-                \Illuminate\Validation\Rules\Unique::class => Rule::create('Unique'),
-                default => null,
-            };
-        }
-
         if (!$expression instanceof Expr\MethodCall
             || !$expression->name instanceof Identifier
         ) {
             return null;
         }
 
-        $rule = $this->resolveDatabaseRuleExpression($expression->var, $scope);
-        if ($rule === null) {
+        $rule = $this->resolveSimpleRuleExpression($expression->var, $scope)
+            ?? $this->resolveDatabaseRuleExpression($expression->var, $scope);
+        if ($rule === null || !in_array($rule->getRuleName(), ['Exists', 'Unique'], true)) {
             return null;
         }
 
