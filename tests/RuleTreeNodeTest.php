@@ -174,6 +174,20 @@ final class RuleTreeNodeTest extends TestCase
         self::assertTrue($excluded->isExcluded());
     }
 
+    public function testInternalNoopRulesRemainConstraintFreeProjectionMarkers(): void
+    {
+        $node = new RuleTreeNode('value');
+        $node->push(Rule::noop());
+
+        self::assertSame([Rule::RULE_NOOP], array_map(
+            static fn (Rule $rule): string => $rule->getRuleName(),
+            $node->getRules()
+        ));
+        self::assertTrue($node->isOptional());
+        self::assertFalse($node->isExcluded());
+        self::assertFalse($node->isOpaque());
+    }
+
     public function testDistinguishesBareAndParameterizedArrayRules(): void
     {
         $bare = RuleParser::parse(['value' => 'required|array'])->resolvePath('value');

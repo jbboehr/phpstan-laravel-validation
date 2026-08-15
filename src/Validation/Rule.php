@@ -46,6 +46,7 @@ final class Rule
     public const RULE_LIST = "List";
     public const RULE_NUMERIC = "Numeric";
     public const RULE_CUSTOM = "__Custom";
+    public const RULE_NOOP = "__Noop";
     public const RULE_OPAQUE = "__Opaque";
 
     public const RULES = [
@@ -90,6 +91,11 @@ final class Rule
     public static function opaque(): self
     {
         return new self(self::RULE_OPAQUE);
+    }
+
+    public static function noop(): self
+    {
+        return new self(self::RULE_NOOP);
     }
 
     /**

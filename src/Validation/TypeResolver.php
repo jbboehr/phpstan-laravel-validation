@@ -779,6 +779,10 @@ final class TypeResolver
             return new MixedType();
         }
 
+        if ($rule->getRuleName() === Rule::RULE_NOOP) {
+            return null;
+        }
+
         return match ($rule->getRuleName()) {
             "Accepted" => Type\TypeCombinator::union(
                 new ConstantStringType("yes"),

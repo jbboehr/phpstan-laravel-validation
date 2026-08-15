@@ -149,7 +149,7 @@ assertType(
         . 'direct_float_parameter?: mixed, dynamic_array_item?: mixed, '
         . 'unpacked_argument?: mixed, unpacked_array_item?: mixed, dynamic_class?: mixed, '
         . 'dynamic_direct_class?: mixed, subclass?: mixed, dynamic_method?: mixed, '
-        . 'different_class?: mixed, different_method?: mixed}',
+        . 'different_class?: mixed, different_method: mixed}',
     $opaque->validated()
 );
 

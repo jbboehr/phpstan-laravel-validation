@@ -33,6 +33,20 @@ use PHPStan\Type\UnionType;
 
 final class RuleSetResolver
 {
+    /** @var array<string, string> */
+    private const LITERAL_CONDITIONAL_FACTORIES = [
+        'excludeif' => Rule::RULE_EXCLUDE,
+        'prohibitedif' => 'Prohibited',
+        'requiredif' => Rule::RULE_REQUIRED,
+    ];
+
+    /** @var array<class-string, string> */
+    private const LITERAL_CONDITIONAL_CLASSES = [
+        \Illuminate\Validation\Rules\ExcludeIf::class => Rule::RULE_EXCLUDE,
+        \Illuminate\Validation\Rules\ProhibitedIf::class => 'Prohibited',
+        \Illuminate\Validation\Rules\RequiredIf::class => Rule::RULE_REQUIRED,
+    ];
+
     /**
      * Exact static factories whose arguments do not affect the inferred value
      * type. Stateful builders remain in their dedicated resolvers.
@@ -237,6 +251,7 @@ final class RuleSetResolver
         return $this->enumRuleExpressionResolver->resolve($expression, $scope)
             ?? $this->inRuleExpressionResolver->resolve($expression, $scope)
             ?? $this->notInRuleExpressionResolver->resolve($expression, $scope)
+            ?? $this->resolveLiteralConditionalRuleExpression($expression, $scope)
             ?? $this->arrayRuleExpressionResolver->resolve($expression, $scope)
             ?? $this->arrayKeysRuleExpressionResolver->resolve($expression, $scope)
             ?? $this->dateRuleExpressionResolver->resolve($expression, $scope, $insideRuleList)
@@ -245,6 +260,45 @@ final class RuleSetResolver
             ?? $this->resolveSimpleRuleExpression($expression, $scope)
             ?? $this->resolveFileRuleExpression($expression, $scope)
             ?? $this->resolveDatabaseRuleExpression($expression, $scope);
+    }
+
+    private function resolveLiteralConditionalRuleExpression(Expr $expression, Scope $scope): ?Rule
+    {
+        if (!$this->laravelVersionContext->isSupported()
+            || !$expression instanceof Expr\CallLike
+            || $expression->isFirstClassCallable()
+        ) {
+            return null;
+        }
+
+        $ruleName = null;
+        if ($expression instanceof Expr\StaticCall
+            && $expression->class instanceof Name
+            && !$expression->class->isSpecialClassName()
+            && $expression->name instanceof Identifier
+            && $this->resolveName($expression->class, $scope) === \Illuminate\Validation\Rule::class
+        ) {
+            $ruleName = self::LITERAL_CONDITIONAL_FACTORIES[$expression->name->toLowerString()] ?? null;
+        } elseif ($expression instanceof Expr\New_
+            && $expression->class instanceof Name
+            && !$expression->class->isSpecialClassName()
+        ) {
+            $ruleName = self::LITERAL_CONDITIONAL_CLASSES[
+                $this->resolveName($expression->class, $scope)
+            ] ?? null;
+        }
+
+        $arguments = array_values($expression->getArgs());
+        if ($ruleName === null || $arguments === [] || $arguments[0]->unpack) {
+            return null;
+        }
+
+        $conditions = $scope->getType($arguments[0]->value)->getConstantScalarValues();
+        if (count($conditions) !== 1 || !is_bool($conditions[0])) {
+            return null;
+        }
+
+        return $conditions[0] ? Rule::create($ruleName) : Rule::noop();
     }
 
     private function resolveSimpleRuleExpression(Expr $expression, Scope $scope): ?Rule

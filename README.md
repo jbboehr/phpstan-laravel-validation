@@ -403,6 +403,34 @@ supported Laravel range; scalar, variadic, and `Arrayable` constructor inputs
 begin in Laravel 10.36. Assigned builders, subclasses, dynamic construction,
 and dynamic factory or method calls remain opaque.
 
+### Literal conditional rule builders
+
+Fresh `Rule::requiredIf()`, `Rule::excludeIf()`, and `Rule::prohibitedIf()`
+calls with a statically known boolean condition are recovered as their actual
+serialized rule. Exact direct construction of `RequiredIf`, `ExcludeIf`, and
+`ProhibitedIf` is supported as well:
+
+```php
+$validated = Validator::make($input, [
+    'name' => ['string', Rule::requiredIf(true)],
+    'legacy_name' => ['string', Rule::excludeIf(true)],
+])->validated();
+
+\PHPStan\dumpType($validated);
+// array{name: string}
+```
+
+A true condition becomes the corresponding unconditional `required`,
+`exclude`, or `prohibited` rule. A false condition serializes to an empty rule
+that contributes no validation constraint: inference retains adjacent rules
+and preserves present input when the empty rule stands alone. The explicit
+rule path still participates in Laravel's output projection, so an empty rule
+on a nested parent can preserve unvalidated sibling keys.
+
+Callback conditions, non-constant booleans, assigned builders, subclasses,
+and dynamic construction remain opaque. Those forms are runtime programs, so
+analysis does not execute them or guess which rule they will produce.
+
 ### `Rule::array()` builders
 
 Laravel 11.7 introduced `Rule::array()`. Fresh inline calls with statically

@@ -222,7 +222,8 @@ fluent builders through `Illuminate\Validation\Rule` and classes under
 Current static extraction treats them in four ways:
 
 - fresh inline `Enum`, `Rule::in()`, `Rule::notIn()`, `Rule::array()`,
-  `Rule::arrayKeys()`, `Rule::contains()`, `Rule::doesntContain()`,
+  literal-boolean `Rule::requiredIf()`, `Rule::excludeIf()`, and
+  `Rule::prohibitedIf()`, `Rule::arrayKeys()`, `Rule::contains()`, `Rule::doesntContain()`,
   `Rule::date()`, `Rule::dateTime()`, `Rule::numeric()`, `Rule::string()`,
   `Rule::dimensions()`, `Rule::file()`, `Rule::imageFile()`, `File::types()`,
   `File::image()`, `Rule::exists()`, and `Rule::unique()` expressions receive
@@ -237,9 +238,9 @@ Current static extraction treats them in four ways:
 
 | Current extraction | Representative Laravel objects | Consequence |
 | --- | --- | --- |
-| Dedicated built-in extraction | `Enum`, `Rule::in()`, `Rule::notIn()`, `Rule::array()`, `Rule::arrayKeys()`, `Rule::contains()`, `Rule::doesntContain()`, `Rule::date()`, `Rule::dateTime()`, `Rule::numeric()`, `Rule::string()`, `Rule::dimensions()`, `Rule::file()`, `Rule::imageFile()`, exact `In` / `NotIn` / `ArrayRule` / `ArrayKeys` / `Contains` / `DoesntContain` / `Date` / `Numeric` / `StringRule` / `Dimensions` / `File` / `ImageFile` construction, `Rule::exists()`, `Rule::unique()` | Fresh inline expressions recover statically visible enum, accepted-set, allowed-key, array-predicate, date, numeric, string, dimensions, file, image, exclusion, and database-predicate semantics without executing application code; dynamic or unsupported object state stays `mixed` |
+| Dedicated built-in extraction | `Enum`, `Rule::in()`, `Rule::notIn()`, literal-boolean `Rule::requiredIf()`, `Rule::excludeIf()`, `Rule::prohibitedIf()`, `Rule::array()`, `Rule::arrayKeys()`, `Rule::contains()`, `Rule::doesntContain()`, `Rule::date()`, `Rule::dateTime()`, `Rule::numeric()`, `Rule::string()`, `Rule::dimensions()`, `Rule::file()`, `Rule::imageFile()`, exact `In` / `NotIn` / `RequiredIf` / `ExcludeIf` / `ProhibitedIf` / `ArrayRule` / `ArrayKeys` / `Contains` / `DoesntContain` / `Date` / `Numeric` / `StringRule` / `Dimensions` / `File` / `ImageFile` construction, `Rule::exists()`, `Rule::unique()` | Fresh inline expressions recover statically visible enum, accepted-set, literal presence or projection, allowed-key, array-predicate, date, numeric, string, dimensions, file, image, exclusion, and database-predicate semantics without executing application code; dynamic or unsupported object state stays `mixed` |
 | Custom predicate with `mixed` accepted type | `AnyOf`, `Can`, `Email`, `Password`, assigned or unsupported `File` / `ImageFile` builders | Adjacent built-in string rules survive, but object state and built-in semantics are not recovered |
-| Opaque `Stringable` builder | `ExcludeIf`, `ExcludeUnless`, `ProhibitedIf`, `ProhibitedUnless`, `RequiredIf`, `RequiredUnless`, assigned or unsupported `In` / `NotIn` / `ArrayRule` / `ArrayKeys` / array-predicate / `Date` / `Numeric` / `StringRule` / `Dimensions` builders, and assigned or unsupported `Exists` / `Unique` chains | The path widens to optional `mixed`, even when the builder serializes to a supported string rule |
+| Opaque `Stringable` builder | Callback-driven, dynamic, or assigned `ExcludeIf` / `ProhibitedIf` / `RequiredIf`; `ExcludeUnless`, `ProhibitedUnless`, `RequiredUnless`; assigned or unsupported `In` / `NotIn` / `ArrayRule` / `ArrayKeys` / array-predicate / `Date` / `Numeric` / `StringRule` / `Dimensions` builders; and assigned or unsupported `Exists` / `Unique` chains | The path widens to optional `mixed`, even when the builder serializes to a supported string rule |
 | Opaque runtime program | `Rule::when`, `Rule::unless`, `Rule::forEach`, `NestedRules`, macros | Runtime callbacks or macro state provide no generally available static contract |
 
 Built-in builder support remains a separate implementation track. Treating
@@ -272,6 +273,10 @@ from their statically visible fluent predicates. Their comparisons still
 validate and preserve input rather than parsing it into a date object. The
 resolver retains Laravel 11's distinct parser boundaries: bare builders begin
 at 11.40, chains in rule lists at 11.41, and standalone chains at 11.43.2.
+Literal-boolean `RequiredIf`, `ExcludeIf`, and `ProhibitedIf` factories and
+exact constructions collapse to their unconditional rule or to Laravel's
+constraint-free empty-rule projection marker. Callback and dynamic conditions
+remain opaque.
 
 ## Prioritized work
 
