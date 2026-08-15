@@ -240,6 +240,12 @@ function store(StorePersonRequest $request): void
 {
     \PHPStan\dumpType($request->validated());
     // array{name: string, age?: float|int|string|Stringable|true}
+
+    \PHPStan\dumpType($request->safe(['name']));
+    // array{name: string}
+
+    \PHPStan\dumpType($request->safe()->all());
+    // array{name: string, age?: float|int|string|Stringable|true}
 }
 ```
 
@@ -292,10 +298,24 @@ unions, and explicit defaults participate in `validated($key, $default)`
 inference. Optional paths include the default type; an omitted default is
 `null`. Dynamic keys, wildcard or first/last traversal, segment arrays,
 object-property traversal, and `Closure` defaults remain `mixed` when their
-runtime result cannot be described soundly. `safe()` calls are still left to
-Laravel's declared type. The inferred contract also assumes callers do not
-replace the resolved validator through the inherited public `setValidator()`
-method before calling `validated()`.
+runtime result cannot be described soundly.
+
+Constant string and integer paths passed to `safe([...])` are projected from
+the same validated shape. Direct `safe()->all()`, `safe()->toArray()`, and
+`safe()->only([...])` chains retain that shape for registry-verified
+FormRequests. Validator instances retain Laravel's declared
+`safe()` types because `Factory::resolver()` may return a custom Validator
+whose virtual `validated()` implementation changes the payload. The
+`ValidatedInput` wrapper itself is mutable: Laravel exposes array-offset and
+property writes and unsets. Once a wrapper is stored in a variable, its later
+accessors therefore retain Laravel's broad declared array type rather than
+carrying stale payload metadata through possible mutations. Dynamic selectors
+and selector expressions that may execute user code also remain broad.
+
+The inferred contract assumes callers do not replace a FormRequest's resolved
+validator through the inherited public `setValidator()` method before calling
+`validated()` or `safe()`. A custom `safe()` override retains its declared
+return type.
 
 ### Enum rule objects
 

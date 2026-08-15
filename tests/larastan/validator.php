@@ -15,6 +15,7 @@ $factory = new Factory(new \Illuminate\Translation\Translator(new \Illuminate\Tr
 $larastan = $factory->make([], ['before' => 'required|string']);
 assertType('Illuminate\Support\ValidatedInput', $larastan->safe());
 assertType('array<string, mixed>', $larastan->safe(['before']));
+assertType('array', $larastan->safe()->all());
 
 $direct = $factory->make([], ['before' => 'required|string']);
 $direct->setRules(['after' => 'required|integer']);
@@ -89,4 +90,5 @@ function inspectFormRequest(BasicRequest $request): void
     );
     assertType('string', $request->validated('name'));
     assertType('float|int|string|Stringable|true|null', $request->validated('age'));
+    assertType('array{name: string}', $request->safe()->only(['name']));
 }

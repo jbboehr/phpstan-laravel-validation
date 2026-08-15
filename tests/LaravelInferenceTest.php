@@ -26,6 +26,7 @@ use jbboehr\PhpstanLaravelValidation\Validation\LaravelVersionContext;
 use jbboehr\PhpstanLaravelValidation\Validation\RuleParser;
 use jbboehr\PhpstanLaravelValidation\Validation\RuleTreeNode;
 use jbboehr\PhpstanLaravelValidation\Validation\TypeResolver;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\CustomValidatedValidator;
 use jbboehr\PhpstanLaravelValidation\Test\Support\LaravelValueType;
 use PHPStan\Type;
 
@@ -213,6 +214,142 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         $rulesType = (new TypeResolver())->evaluate(RuleParser::parse($rules));
         self::assertTrue(
             $rulesType->accepts($this->convertToType($validated), true)->yes()
+        );
+    }
+
+    public function testSafeWrapsAndProjectsTheValidatedOutput(): void
+    {
+        self::getContainer();
+
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $data = [
+            'name' => 'Ada',
+            'profile' => [
+                'email' => 'ada@example.com',
+                'note' => 'mathematician',
+            ],
+            'extra' => 'not validated',
+        ];
+        $rules = [
+            'name' => 'required|string',
+            'nickname' => 'nullable|string',
+            'profile' => 'required|array',
+            'profile.email' => 'required|string|email',
+            'profile.note' => 'string',
+        ];
+        $validator = $factory->make($data, $rules);
+
+        self::assertTrue($validator->passes());
+        $safe = $validator->safe();
+        self::assertInstanceOf(\Illuminate\Support\ValidatedInput::class, $safe);
+        self::assertSame(
+            [
+                'name' => 'Ada',
+                'profile' => [
+                    'email' => 'ada@example.com',
+                    'note' => 'mathematician',
+                ],
+            ],
+            $safe->all()
+        );
+        self::assertSame(
+            [
+                'name' => 'Ada',
+                'profile' => ['email' => 'ada@example.com'],
+            ],
+            $validator->safe(['name', 'nickname', 'profile.email', 'absent'])
+        );
+        $selected = $validator->safe();
+        self::assertInstanceOf(\Illuminate\Support\ValidatedInput::class, $selected);
+        self::assertSame(
+            ['profile' => ['note' => 'mathematician']],
+            $selected->only(['profile.note'])
+        );
+
+        $mutable = $validator->safe();
+        self::assertInstanceOf(\Illuminate\Support\ValidatedInput::class, $mutable);
+        $mutable['name'] = 42;
+        unset($mutable['profile']);
+        self::assertSame(['name' => 42], $mutable->all());
+    }
+
+    public function testSafeUsesTheConcreteValidatorsVirtualValidatedMethod(): void
+    {
+        self::getContainer();
+
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        /**
+         * @param array<array-key, mixed> $data
+         * @param array<array-key, mixed> $rules
+         * @param array<array-key, string> $messages
+         * @param array<array-key, string> $attributes
+         */
+        $resolver = static function (
+            \Illuminate\Contracts\Translation\Translator $translator,
+            array $data,
+            array $rules,
+            array $messages,
+            array $attributes
+        ): CustomValidatedValidator {
+            return new CustomValidatedValidator(
+                $translator,
+                $data,
+                $rules,
+                $messages,
+                $attributes
+            );
+        };
+        $factory->resolver($resolver);
+
+        $validator = $factory->make(
+            ['name' => 'Ada'],
+            ['name' => 'required|string']
+        );
+        self::assertInstanceOf(CustomValidatedValidator::class, $validator);
+        self::assertSame([], $validator->safe(['name']));
+        $safe = $validator->safe();
+        self::assertInstanceOf(\Illuminate\Support\ValidatedInput::class, $safe);
+        self::assertSame([], $safe->all());
+    }
+
+    public function testSafeOnlyProjectsNumericPathSegments(): void
+    {
+        self::getContainer();
+
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $validator = $factory->make(
+            ['items' => [['id' => 'first', 'extra' => 'ignored']]],
+            [
+                'items' => 'required|array',
+                'items.0.id' => 'required|string',
+            ]
+        );
+
+        self::assertTrue($validator->passes());
+        self::assertSame(
+            ['items' => [['id' => 'first']]],
+            $validator->safe(['items.0.id'])
+        );
+        $safe = $validator->safe();
+        self::assertInstanceOf(\Illuminate\Support\ValidatedInput::class, $safe);
+        self::assertSame(
+            ['items' => [['id' => 'first']]],
+            $safe->only(['items.0.id'])
         );
     }
 

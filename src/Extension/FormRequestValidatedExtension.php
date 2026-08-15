@@ -23,6 +23,7 @@ namespace jbboehr\PhpstanLaravelValidation\Extension;
 
 use Illuminate\Foundation\Http\FormRequest;
 use jbboehr\PhpstanLaravelValidation\ShouldNotHappenException;
+use jbboehr\PhpstanLaravelValidation\Type\ValidatedInputTypeResolver;
 use jbboehr\PhpstanLaravelValidation\Validation\FormRequestTypeRegistry;
 use jbboehr\PhpstanLaravelValidation\Validation\InvalidCustomRuleContractException;
 use PhpParser\Node\Arg;
@@ -40,7 +41,8 @@ use PHPStan\Type\TypeCombinator;
 final class FormRequestValidatedExtension implements DynamicMethodReturnTypeExtension
 {
     public function __construct(
-        private FormRequestTypeRegistry $typeRegistry
+        private FormRequestTypeRegistry $typeRegistry,
+        private ValidatedInputTypeResolver $validatedInputTypeResolver
     ) {
     }
 
@@ -51,7 +53,7 @@ final class FormRequestValidatedExtension implements DynamicMethodReturnTypeExte
 
     public function isMethodSupported(MethodReflection $methodReflection): bool
     {
-        return $methodReflection->getName() === 'validated';
+        return in_array($methodReflection->getName(), ['safe', 'validated'], true);
     }
 
     public function getTypeFromMethodCall(
@@ -60,6 +62,18 @@ final class FormRequestValidatedExtension implements DynamicMethodReturnTypeExte
         Scope $scope
     ): ?Type {
         try {
+            if ($methodReflection->getName() === 'safe') {
+                if ($methodReflection->getDeclaringClass()->getName() !== FormRequest::class) {
+                    return null;
+                }
+
+                return $this->validatedInputTypeResolver->resolveSafeReturnType(
+                    $scope->getType($methodCall->var),
+                    $methodCall,
+                    $scope
+                );
+            }
+
             $arguments = $this->resolveArguments($methodCall);
             if ($arguments === null) {
                 return null;

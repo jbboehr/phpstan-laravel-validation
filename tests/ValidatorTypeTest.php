@@ -22,12 +22,16 @@ declare(strict_types=1);
 namespace jbboehr\PhpstanLaravelValidation\Test;
 
 use Illuminate\Validation\Validator;
+use jbboehr\PhpstanLaravelValidation\Extension\ValidatorValidatedExtension;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\PureValidationStatus;
 use jbboehr\PhpstanLaravelValidation\Type\ValidatorType;
+use jbboehr\PhpstanLaravelValidation\Type\ValidatorTypeHelper;
 use jbboehr\PhpstanLaravelValidation\Validation\Rule;
 use jbboehr\PhpstanLaravelValidation\Validation\RuleParser;
 use jbboehr\PhpstanLaravelValidation\Validation\RuleTreeNode;
+use jbboehr\PhpstanLaravelValidation\Validation\TypeResolver;
 use PHPStan\Testing\PHPStanTestCase;
+use PHPStan\Reflection\ReflectionProvider;
 use PHPStan\Type\Enum\EnumCaseObjectType;
 use PHPStan\Type\ObjectType;
 use PHPStan\Type\IntegerType;
@@ -38,6 +42,19 @@ use PHPStan\Type\VerbosityLevel;
 
 final class ValidatorTypeTest extends PHPStanTestCase
 {
+    public function testSafeKeepsLaravelsDeclaredTypeBecauseFactoriesMayUseCustomResolvers(): void
+    {
+        $container = self::getContainer();
+        $extension = new ValidatorValidatedExtension(
+            new ValidatorTypeHelper(new TypeResolver())
+        );
+        $reflectionProvider = $container->getByType(ReflectionProvider::class);
+        $validator = $reflectionProvider->getClass(Validator::class);
+
+        self::assertFalse($extension->isMethodSupported($validator->getNativeMethod('safe')));
+        self::assertTrue($extension->isMethodSupported($validator->getNativeMethod('validated')));
+    }
+
     public function testDifferentRulePayloadsRemainAUnion(): void
     {
         self::getContainer();

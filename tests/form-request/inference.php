@@ -23,7 +23,9 @@ use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\IntermediateWithV
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\InheritedEmptyWithValidatorRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\KeyedValidatedRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\NumericKeyValidatedRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\NumericSafeRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\OverriddenValidatedRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\OverriddenSafeRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\OverriddenEmptyWithValidatorRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\PassedValidationRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\ReturnOnlyWithValidatorRequest;
@@ -65,6 +67,19 @@ function inspectBasic(BasicRequest $request): void
         'array{name: string, age?: float|int|string|Stringable|true}',
         $request->validated($null)
     );
+    assertType('Illuminate\Support\ValidatedInput', $request->safe());
+    assertType(
+        'array{name: string, age?: float|int|string|Stringable|true}',
+        $request->safe(['name', 'age'])
+    );
+    assertType(
+        'array{name: string, age?: float|int|string|Stringable|true}',
+        $request->safe()->all()
+    );
+    assertType('array{name: string}', $request->safe()->only(['name']));
+
+    $stored = $request->safe();
+    assertType('array', $stored->toArray());
 }
 
 function inspectInherited(ConcreteInheritedRequest $request): void
@@ -162,6 +177,12 @@ function inspectOverride(OverriddenValidatedRequest $request): void
     assertType('string', $request->validated());
 }
 
+function inspectSafeOverride(OverriddenSafeRequest $request): void
+{
+    assertType('array{custom: string}', $request->safe());
+    assertType('array{custom: string}', $request->safe(['ignored']));
+}
+
 function inspectKeyedValidated(KeyedValidatedRequest $request, string $dynamicKey): void
 {
     assertType('string', $request->validated('name'));
@@ -187,6 +208,14 @@ function inspectKeyedValidated(KeyedValidatedRequest $request, string $dynamicKe
     assertType('mixed', $request->validated('profile.\\{first}'));
     assertType('mixed', $request->validated('profile.\\*'));
     assertType('mixed', $request->validated($dynamicKey));
+    assertType(
+        'array{profile: array{email: non-empty-string, note?: string}}',
+        $request->safe(['profile.email', 'profile.note', 'absent'])
+    );
+    assertType(
+        'array{profile?: array{note?: string}}',
+        $request->safe()->only(['profile.note'])
+    );
 
     $key = random_int(0, 1) === 1 ? 'name' : 'age';
     assertType('float|int|string|Stringable|true|null', $request->validated($key));
@@ -197,6 +226,18 @@ function inspectKeyedValidated(KeyedValidatedRequest $request, string $dynamicKe
         . 'profile: array{email: non-empty-string, note?: string}, '
         . 'items?: array<int|string, array{id: float|int|numeric-string|Stringable|true}>|string}|string',
         $request->validated($nullableKey)
+    );
+}
+
+function inspectNumericSafe(NumericSafeRequest $request): void
+{
+    assertType(
+        'array{items: array{array{id: string}}}',
+        $request->safe(['items.0.id'])
+    );
+    assertType(
+        'array{items: array{array{id: string}}}',
+        $request->safe()->only(['items.0.id'])
     );
 }
 

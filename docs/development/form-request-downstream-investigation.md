@@ -368,5 +368,7 @@ metadata.
 1. Profile cold discovery separately now that warm cache hashing is cheap.
 1. Extend selected rule-object support only where Laravel runtime evidence
    establishes a useful static contract.
-1. Investigate `safe()` and additional FormRequest access patterns separately;
-   neither follows automatically from keyed `validated()` support.
+1. Consider additional `ValidatedInput` access patterns beyond the implemented
+   direct `safe()->all()`, `safe()->toArray()`, and `safe()->only([...])`
+   chains. Stored wrappers deliberately remain broad because their array
+   offsets and properties are mutable.

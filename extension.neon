@@ -71,6 +71,7 @@ services:
     arguments:
       includeUnvalidatedArrayKeys: %phpstanLaravelValidation.includeUnvalidatedArrayKeys%
   - class: jbboehr\PhpstanLaravelValidation\Type\ValidatorTypeHelper
+  - class: jbboehr\PhpstanLaravelValidation\Type\ValidatedInputTypeResolver
   - class: jbboehr\PhpstanLaravelValidation\Extension\CallArgumentResolver
   - class: jbboehr\PhpstanLaravelValidation\Rule\UnvalidatedArrayKeysConfigurationRule
     arguments:
@@ -111,5 +112,8 @@ services:
     tags:
       - phpstan.broker.dynamicMethodReturnTypeExtension
   - class: jbboehr\PhpstanLaravelValidation\Extension\ValidatorValidatedExtension
+    tags:
+      - phpstan.broker.dynamicMethodReturnTypeExtension
+  - class: jbboehr\PhpstanLaravelValidation\Extension\ValidatedInputExtension
     tags:
       - phpstan.broker.dynamicMethodReturnTypeExtension
