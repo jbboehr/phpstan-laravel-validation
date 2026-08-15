@@ -185,6 +185,12 @@ final class CustomRulesInferenceTest extends \PHPStan\Testing\TypeInferenceTestC
         $this->createResolver([], ['custom' => '   ']);
     }
 
+    public function testRejectsBlankConfiguredClassType(): void
+    {
+        $this->expectException(InvalidCustomRuleContractException::class);
+        $this->createResolver([UnknownRule::class => '   ']);
+    }
+
     public function testRejectsNormalizedClassCollision(): void
     {
         $this->expectException(InvalidCustomRuleContractException::class);

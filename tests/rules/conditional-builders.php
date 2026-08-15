@@ -27,6 +27,9 @@ function dynamicConditionalRuleCondition(): bool
     return random_int(0, 1) === 1;
 }
 
+const LITERAL_CONDITIONAL_TRUE = true;
+const LITERAL_CONDITIONAL_FALSE = false;
+
 $literal = Validator::make([], [
     'factory_required_true' => ['string', Rule::requiredIf(true)],
     'factory_required_false' => ['string', Rule::requiredIf(false)],
@@ -75,6 +78,43 @@ assertType(
     $nested
 );
 
+$nestedInteractions = Validator::make([], [
+    'wildcard' => Rule::requiredIf(false),
+    'wildcard.*.name' => 'required|string',
+    'excluded_descendant' => Rule::requiredIf(false),
+    'excluded_descendant.secret' => 'exclude',
+    'missing_descendant' => Rule::requiredIf(false),
+    'missing_descendant.forbidden' => 'missing',
+    'bare_array' => [Rule::requiredIf(false), 'array'],
+    'bare_array.name' => 'required|string',
+    'excluded_parent' => Rule::excludeIf(true),
+    'excluded_parent.name' => 'required|string',
+])->validated();
+assertType(
+    'array{wildcard?: mixed, excluded_descendant?: mixed, missing_descendant?: mixed, '
+        . 'bare_array: array{name: string}}',
+    $nestedInteractions
+);
+
+$literalTrue = true;
+$literalFalse = false;
+$constantForms = Validator::make([], [
+    'local_true' => ['string', Rule::requiredIf($literalTrue)],
+    'local_false' => ['string', Rule::requiredIf($literalFalse)],
+    'constant_true' => ['string', Rule::requiredIf(LITERAL_CONDITIONAL_TRUE)],
+    'constant_false' => ['string', Rule::requiredIf(LITERAL_CONDITIONAL_FALSE)],
+    'named_factory_true' => ['string', Rule::requiredIf(callback: true)],
+    'named_factory_false' => ['string', Rule::requiredIf(callback: false)],
+    'named_direct_true' => ['string', new RequiredIf(condition: true)],
+    'named_direct_false' => ['string', new RequiredIf(condition: false)],
+])->validated();
+assertType(
+    'array{local_true: string, local_false?: string, constant_true: string, '
+        . 'constant_false?: string, named_factory_true: string, named_factory_false?: string, '
+        . 'named_direct_true: string, named_direct_false?: string}',
+    $constantForms
+);
+
 $assigned = Rule::requiredIf(true);
 $assignedDirect = new RequiredIf(true);
 $factoryClass = Rule::class;
@@ -93,11 +133,14 @@ $opaque = Validator::make([], [
     'dynamic_direct_class' => ['required', 'string', new $directClass(true)],
     'dynamic_method' => ['required', 'string', Rule::$method(true)],
     'first_class_callable' => ['required', 'string', Rule::requiredIf(...)],
+    'unpacked_factory' => ['required', 'string', Rule::requiredIf(...[true])],
+    'unpacked_direct' => ['required', 'string', new RequiredIf(...[true])],
 ]);
 assertType(
     'array{dynamic_factory?: mixed, dynamic_direct?: mixed, callback_factory?: mixed, '
         . 'callback_direct?: mixed, assigned_factory?: mixed, assigned_direct?: mixed, '
         . 'lookalike_factory?: mixed, subclass?: mixed, dynamic_factory_class?: mixed, '
-        . 'dynamic_direct_class?: mixed, dynamic_method?: mixed, first_class_callable: string}',
+        . 'dynamic_direct_class?: mixed, dynamic_method?: mixed, first_class_callable: string, '
+        . 'unpacked_factory?: mixed, unpacked_direct?: mixed}',
     $opaque->validated()
 );

@@ -115,6 +115,39 @@ final class CallArgumentResolverTest extends \PHPUnit\Framework\TestCase
         $resolver = new CallArgumentResolver();
         $arguments = [
             'unpacked iterable' => new Arg(new Variable('arguments'), false, true),
+            'assignment operation' => new Arg(new \PhpParser\Node\Expr\AssignOp\Plus(
+                new Variable('state'),
+                new \PhpParser\Node\Scalar\Int_(1)
+            )),
+            'reference assignment' => new Arg(new \PhpParser\Node\Expr\AssignRef(
+                new Variable('alias'),
+                new Variable('state')
+            )),
+            'function call' => new Arg(new \PhpParser\Node\Expr\FuncCall(new Name('mutate'))),
+            'closure' => new Arg(new \PhpParser\Node\Expr\Closure()),
+            'arrow function' => new Arg(new \PhpParser\Node\Expr\ArrowFunction([
+                'expr' => new Variable('state'),
+            ])),
+            'pre-increment' => new Arg(new \PhpParser\Node\Expr\PreInc(new Variable('state'))),
+            'pre-decrement' => new Arg(new \PhpParser\Node\Expr\PreDec(new Variable('state'))),
+            'post-increment' => new Arg(new \PhpParser\Node\Expr\PostInc(new Variable('state'))),
+            'post-decrement' => new Arg(new \PhpParser\Node\Expr\PostDec(new Variable('state'))),
+            'array offset fetch' => new Arg(new \PhpParser\Node\Expr\ArrayDimFetch(
+                new Variable('state'),
+                new \PhpParser\Node\Scalar\String_('key')
+            )),
+            'property fetch' => new Arg(new \PhpParser\Node\Expr\PropertyFetch(
+                new Variable('state'),
+                'value'
+            )),
+            'nullsafe property fetch' => new Arg(new \PhpParser\Node\Expr\NullsafePropertyFetch(
+                new Variable('state'),
+                'value'
+            )),
+            'static property fetch' => new Arg(new \PhpParser\Node\Expr\StaticPropertyFetch(
+                new Name('State'),
+                'value'
+            )),
             'string cast' => new Arg(new \PhpParser\Node\Expr\Cast\String_(
                 new Variable('mutator')
             )),
@@ -138,6 +171,14 @@ final class CallArgumentResolverTest extends \PHPUnit\Framework\TestCase
             'yield from' => new Arg(new \PhpParser\Node\Expr\YieldFrom(
                 new Variable('iterator')
             )),
+            'include' => new Arg(new \PhpParser\Node\Expr\Include_(
+                new \PhpParser\Node\Scalar\String_('rules.php'),
+                \PhpParser\Node\Expr\Include_::TYPE_INCLUDE
+            )),
+            'eval' => new Arg(new \PhpParser\Node\Expr\Eval_(
+                new \PhpParser\Node\Scalar\String_('')
+            )),
+            'dynamic variable' => new Arg(new Variable(new Variable('name'))),
             'class constant fetch' => new Arg(new \PhpParser\Node\Expr\ClassConstFetch(
                 new Name('Rules'),
                 new Identifier('VALUE')

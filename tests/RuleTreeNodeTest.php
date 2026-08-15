@@ -188,6 +188,27 @@ final class RuleTreeNodeTest extends TestCase
         self::assertFalse($node->isOpaque());
     }
 
+    public function testCacheKeyIncludesTheCompleteTreeIdentity(): void
+    {
+        $empty = new RuleTreeNode('root');
+
+        $differentPath = new RuleTreeNode('other');
+
+        $withChild = new RuleTreeNode('root');
+        $withChild->resolvePath('child')->push(Rule::create('String'));
+
+        $withDifferentChildRule = new RuleTreeNode('root');
+        $withDifferentChildRule->resolvePath('child')->push(Rule::create('Integer'));
+
+        $withParentRule = new RuleTreeNode('root');
+        $withParentRule->push(Rule::create('Required'));
+
+        self::assertNotSame($empty->getCacheKey(), $differentPath->getCacheKey());
+        self::assertNotSame($empty->getCacheKey(), $withChild->getCacheKey());
+        self::assertNotSame($withChild->getCacheKey(), $withDifferentChildRule->getCacheKey());
+        self::assertNotSame($empty->getCacheKey(), $withParentRule->getCacheKey());
+    }
+
     public function testDistinguishesBareAndParameterizedArrayRules(): void
     {
         $bare = RuleParser::parse(['value' => 'required|array'])->resolvePath('value');

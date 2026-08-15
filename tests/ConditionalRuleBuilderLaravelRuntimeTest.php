@@ -86,6 +86,83 @@ final class ConditionalRuleBuilderLaravelRuntimeTest extends \PHPStan\Testing\PH
         }
     }
 
+    public function testFalseParentMarkerInteractionsFollowLaravelProjection(): void
+    {
+        $marker = Rule::requiredIf(false);
+        $cases = [
+            'wildcard descendants preserve complete elements' => [
+                ['payload' => [
+                    ['name' => 'Ada', 'extra' => 'kept'],
+                    ['name' => 'Lin', 'extra' => 'also kept'],
+                ]],
+                [
+                    'payload' => $marker,
+                    'payload.*.name' => 'required|string',
+                ],
+                ['payload' => [
+                    ['name' => 'Ada', 'extra' => 'kept'],
+                    ['name' => 'Lin', 'extra' => 'also kept'],
+                ]],
+            ],
+            'excluded descendants mutate the preserved parent' => [
+                ['payload' => ['name' => 'Ada', 'secret' => 'gone', 'extra' => 'kept']],
+                [
+                    'payload' => $marker,
+                    'payload.secret' => 'exclude',
+                ],
+                ['payload' => ['name' => 'Ada', 'extra' => 'kept']],
+            ],
+            'missing descendants leave unrelated siblings intact' => [
+                ['payload' => ['name' => 'Ada', 'extra' => 'kept']],
+                [
+                    'payload' => $marker,
+                    'payload.forbidden' => 'missing',
+                ],
+                ['payload' => ['name' => 'Ada', 'extra' => 'kept']],
+            ],
+            'bare array still reconstructs from child rules' => [
+                ['payload' => ['name' => 'Ada', 'extra' => 'dropped']],
+                [
+                    'payload' => [$marker, 'array'],
+                    'payload.name' => 'required|string',
+                ],
+                ['payload' => ['name' => 'Ada']],
+            ],
+            'true exclusion still removes a parent with child rules' => [
+                ['payload' => ['name' => 'Ada', 'extra' => 'gone']],
+                [
+                    'payload' => Rule::excludeIf(true),
+                    'payload.name' => 'required|string',
+                ],
+                [],
+            ],
+        ];
+
+        foreach ($cases as $name => [$data, $rules, $expected]) {
+            $validator = self::factory()->make($data, $rules);
+
+            self::assertTrue($validator->passes(), $name);
+            self::assertSame($expected, $validator->validated(), $name);
+        }
+    }
+
+    public function testNamedLiteralConditionsUseStableLaravelParameterNames(): void
+    {
+        $rules = [
+            Rule::requiredIf(callback: true),
+            Rule::excludeIf(callback: false),
+            Rule::prohibitedIf(callback: false),
+            new RequiredIf(condition: false),
+            new ExcludeIf(condition: false),
+            new ProhibitedIf(condition: false),
+        ];
+
+        self::assertSame(
+            ['required', '', '', '', '', ''],
+            array_map(static fn (\Stringable $rule): string => (string) $rule, $rules)
+        );
+    }
+
     public function testTrueRequiredConditionsRequireAndPreserveInput(): void
     {
         foreach ([Rule::requiredIf(true), new RequiredIf(true)] as $rule) {

@@ -52,12 +52,15 @@ final class TypeResolverTest extends PHPStanTestCase
                 'must_be_missing' => 'missing|string',
                 'nested.value' => 'required|string',
                 'items.*' => 'required|string',
+                'optional' => 'string',
+                'after_skips' => 'required|string',
             ]),
             $input->getArray()
         );
 
         self::assertSame(
-            'array{flag: 0|1|bool|string, extra: int, excluded: mixed, conditionally_excluded: mixed, name: string}',
+            'array{flag: 0|1|bool|string, extra: int, excluded: mixed, conditionally_excluded: mixed, '
+                . 'name: string, after_skips: string}',
             $type->describe(VerbosityLevel::precise())
         );
     }

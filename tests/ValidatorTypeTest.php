@@ -55,6 +55,27 @@ final class ValidatorTypeTest extends PHPStanTestCase
         self::assertTrue($extension->isMethodSupported($validator->getNativeMethod('validated')));
     }
 
+    public function testValidatedTypeHelperRequiresEveryUnionMemberToCarryRules(): void
+    {
+        self::getContainer();
+
+        $helper = new ValidatorTypeHelper(new TypeResolver());
+        $nameType = self::createValidatorType(['name' => 'required|string']);
+        $ageType = self::createValidatorType(['age' => 'required|integer']);
+
+        self::assertSame(
+            'array{name: string}',
+            $helper->resolveValidatedType($nameType)?->describe(VerbosityLevel::precise())
+        );
+        self::assertSame(
+            'array{age: float|int|numeric-string|Stringable|true}|array{name: string}',
+            $helper->resolveValidatedType(new UnionType([$nameType, $ageType]))
+                ?->describe(VerbosityLevel::precise())
+        );
+        self::assertNull($helper->resolveValidatedType(new StringType()));
+        self::assertNull($helper->resolveValidatedType(new UnionType([$nameType, new StringType()])));
+    }
+
     public function testDifferentRulePayloadsRemainAUnion(): void
     {
         self::getContainer();
