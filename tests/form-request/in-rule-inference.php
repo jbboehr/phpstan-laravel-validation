@@ -11,7 +11,9 @@ use function PHPStan\Testing\assertType;
 function inspectInRule(InRuleRequest $request): void
 {
     assertType(
-        "array{status: 'draft'|'published'|Stringable, enum_name: 'Draft'|Stringable}",
+        "array{status: 'draft'|'published'|Stringable, enum_name: 'Draft'|Stringable, "
+            . "direct_status: 'draft'|'published'|Stringable, "
+            . "direct_enum_name: 'Draft'|Stringable}",
         $request->validated()
     );
 }

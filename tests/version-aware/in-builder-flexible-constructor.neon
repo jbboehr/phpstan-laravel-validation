@@ -1,0 +1,4 @@
+parameters:
+  phpstanLaravelValidation:
+    # In and NotIn gained scalar and Arrayable constructor inputs in Laravel 10.36.
+    laravelVersion: '10.36.0'

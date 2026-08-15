@@ -53,6 +53,9 @@ Laravel's `Enum` rule adds literal `only`/`except` filters in 10.46 via
 Laravel 10.21.1 also teaches the `In` and `NotIn` builders to serialize enum
 cases via
 [`4989e6de0766`](https://github.com/laravel/framework/commit/4989e6de076688ade265e2f1970ab6f0c1b60fcb).
+Laravel 10.36 expands their concrete constructors from array-only inputs to
+the factory's scalar, variadic, and `Arrayable` forms via
+[`aeb284959f15`](https://github.com/laravel/framework/commit/aeb284959f15f8a5eb79eef5b29734bfd7c1ccbc).
 
 The extension now obtains one analyzed-project Laravel version from the
 matching Composer installed-package dataset, falling back to `composer.lock`
@@ -166,7 +169,7 @@ observed evidence; it does not prove universal soundness.
 | Hex colors | valid strings, compatible `Stringable`, optional blank input, and unsupported-rule behavior | Rule introduction at 10.33; native-string boundary at 13.4, covered by the cross-profile PHPUnit suite |
 | File extensions | valid and failed uploads, a compatible Symfony file subclass, invalid native values, optional blank input, and unsupported-rule behavior | `extensions` begins at Laravel 10.34, covered by the cross-profile PHPUnit suite rather than the portable audit corpus |
 | Character encoding | strings, arrays, scalars, `Stringable`, `null`, valid and invalid file contents, invalid uploads and parameters, and unsupported-rule behavior | `encoding` begins at Laravel 12.40, covered by the cross-profile PHPUnit suite rather than the portable audit corpus |
-| JSON, dates, and membership | `json.*`, `date*`, comparisons, fresh fluent date builders, scalar `in`, and fresh `Rule::in()` / `Rule::notIn()` builders | Scalar behavior is stable; the date builder begins in 11.40, chains become usable in rule lists at 11.41 and standalone at 11.43.2, and `dateTime` plus now-relative predicates arrive in 12.44; enum-valued membership builders begin in 10.21.1. Builder boundaries are pinned by upstream commits, exact-version runtime checks, focused static fixtures, and cross-profile PHPUnit |
+| JSON, dates, and membership | `json.*`, `date*`, comparisons, fresh fluent date builders, scalar `in`, and fresh `Rule::in()` / `Rule::notIn()` builders and exact constructors | Scalar behavior is stable; the date builder begins in 11.40, chains become usable in rule lists at 11.41 and standalone at 11.43.2, and `dateTime` plus now-relative predicates arrive in 12.44; enum-valued membership builders begin in 10.21.1, while scalar and variadic direct constructors begin in 10.36. Builder boundaries are pinned by upstream commits, tag history, focused static fixtures, manual cross-profile runtime probes, and cross-profile PHPUnit |
 | Network and identifiers | `email`, `ip`, `ipv4`, `ipv6`, `mac_address`, `timezone`, `url`, `uuid`, `ulid` | No observed release difference |
 | Arrays and projection | bare and keyed arrays, parameterized-parent preservation, required array offsets, numeric rule keys, nested child projection, wildcards, parent-plus-child rules, and fresh `Rule::array()` builders | Numeric rule-key boundary at Laravel 12; `Rule::array()` begins at Laravel 11.7 and `list` reconstruction changes at Laravel 11.23, covered by the cross-profile PHPUnit suite |
 | Array-only predicates | required and optional values, non-array rejection, preserved associative and nested arrays | `contains`, `in_array_keys`, and `doesnt_contain` begin at Laravel 11.8, 12.16, and 12.22, covered by the cross-profile PHPUnit suite rather than the portable audit corpus |

@@ -17,6 +17,16 @@ final class LookalikeInRuleFactory
     }
 }
 
+final class CustomInRule extends In
+{
+}
+
+/** @return list<string> */
+function dynamicAllowedValues(): array
+{
+    return ['one'];
+}
+
 $allowed = ['one', 'two'];
 $floatAllowed = [2.5];
 $validator = Validator::make([], [
@@ -28,6 +38,11 @@ $validator = Validator::make([], [
     'scalar' => ['required', Rule::in('one')],
     'constant_array' => ['required', Rule::in($allowed)],
     'empty' => ['required', Rule::in([])],
+    'direct_strings' => ['required', new In(['one', 'two'])],
+    'direct_scalar' => ['required', new In('one')],
+    'direct_variadic' => ['required', new In('one', 'two')],
+    'direct_empty' => ['required', new In([])],
+    'direct_float' => ['required', new In([2.5])],
 ]);
 
 assertType(
@@ -36,27 +51,39 @@ assertType(
         . 'numeric_multiple: float|int|numeric-string|Stringable|true, '
         . 'float_constant_array: float|int|numeric-string|Stringable, '
         . "optional?: string|Stringable, scalar: 'one'|Stringable, "
-        . "constant_array: 'one'|'two'|Stringable, empty: ''|Stringable|false|null}",
+        . "constant_array: 'one'|'two'|Stringable, empty: ''|Stringable|false|null, "
+        . "direct_strings: 'one'|'two'|Stringable, direct_scalar?: mixed, "
+        . 'direct_variadic?: mixed, '
+        . "direct_empty: ''|Stringable|false|null, "
+        . 'direct_float: float|int|numeric-string|Stringable}',
     $validator->validated()
 );
 
 $assigned = Rule::in(['one']);
+$assignedDirect = new In(['one']);
 $dynamic = Validator::make([], [
     'value' => ['required', $assigned],
+    'direct' => ['required', $assignedDirect],
 ]);
-assertType('array{value?: mixed}', $dynamic->validated());
+assertType('array{value?: mixed, direct?: mixed}', $dynamic->validated());
 
 $factory = Rule::class;
+$inClass = In::class;
 $method = 'in';
 $declined = Validator::make([], [
     'different_method' => ['required', Rule::notIn(['one'])],
     'different_class' => ['required', LookalikeInRuleFactory::in(['one'])],
     'dynamic_class' => ['required', $factory::in(['one'])],
+    'dynamic_direct_class' => ['required', new $inClass(['one'])],
+    'dynamic_direct_value' => ['required', new In(dynamicAllowedValues())],
+    'subclass' => ['required', new CustomInRule(['one'])],
     'dynamic_method' => ['required', Rule::$method(['one'])],
     'unpacked' => ['required', Rule::in(...['one'])],
+    'direct_unpacked' => ['required', new In(...['one'])],
 ]);
 assertType(
     'array{different_method: mixed, different_class?: mixed, dynamic_class?: mixed, '
-        . 'dynamic_method?: mixed, unpacked?: mixed}',
+        . 'dynamic_direct_class?: mixed, dynamic_direct_value?: mixed, subclass?: mixed, '
+        . 'dynamic_method?: mixed, unpacked?: mixed, direct_unpacked?: mixed}',
     $declined->validated()
 );

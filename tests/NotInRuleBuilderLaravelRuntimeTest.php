@@ -26,6 +26,7 @@ use Illuminate\Translation\ArrayLoader;
 use Illuminate\Translation\Translator;
 use Illuminate\Validation\Factory;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\NotIn;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\PureValidationStatus;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\ValidationStringable;
 use PHPUnit\Framework\Attributes\Group;
@@ -33,6 +34,33 @@ use PHPUnit\Framework\Attributes\Group;
 #[Group('laravel')]
 final class NotInRuleBuilderLaravelRuntimeTest extends \PHPStan\Testing\PHPStanTestCase
 {
+    public function testDirectArrayConstructorMatchesFactoryAcrossSupportedVersions(): void
+    {
+        $factoryRule = Rule::notIn(['admin', 'owner']);
+        $directRule = new NotIn(['admin', 'owner']);
+
+        self::assertSame((string) $factoryRule, (string) $directRule);
+        $this->assertAcceptedAndPreserved($directRule, 'member');
+        $this->assertRejected($directRule, 'owner');
+    }
+
+    public function testDirectScalarConstructorFollowsItsLaravelBoundary(): void
+    {
+        if (version_compare(self::frameworkVersion(), '10.36.0', '<')) {
+            $this->expectException(\TypeError::class);
+            new NotIn('admin');
+
+            return;
+        }
+
+        $factoryRule = Rule::notIn('admin', 'owner');
+        $directRule = new NotIn('admin', 'owner');
+
+        self::assertSame((string) $factoryRule, (string) $directRule);
+        $this->assertAcceptedAndPreserved($directRule, 'member');
+        $this->assertRejected($directRule, 'owner');
+    }
+
     public function testStringBuilderRejectsForbiddenValuesAndPreservesAllowedValues(): void
     {
         $rule = Rule::notIn(['admin']);
@@ -83,6 +111,10 @@ final class NotInRuleBuilderLaravelRuntimeTest extends \PHPStan\Testing\PHPStanT
         $rule = Rule::notIn([PureValidationStatus::Draft]);
         $this->assertRejected($rule, 'Draft');
         $this->assertAcceptedAndPreserved($rule, 'Published');
+
+        $directRule = new NotIn([PureValidationStatus::Draft]);
+        $this->assertRejected($directRule, 'Draft');
+        $this->assertAcceptedAndPreserved($directRule, 'Published');
     }
 
     private function assertAcceptedAndPreserved(\Stringable $rule, mixed $value): void

@@ -27,13 +27,15 @@ use PhpParser\Node\Name;
 use PHPStan\Analyser\Scope;
 
 /**
- * Recognizes a fresh Rule::notIn() call as Laravel's type-neutral NotIn
- * predicate. The forbidden set need not be evaluated because this resolver
- * deliberately does not attempt to subtract Laravel's loose comparisons from
- * the accepted value type.
+ * Recognizes a fresh Rule::notIn() call or exact NotIn construction as
+ * Laravel's type-neutral predicate. The forbidden set need not be evaluated
+ * because this resolver deliberately does not attempt to subtract Laravel's
+ * loose comparisons from the accepted value type.
  */
 final class NotInRuleExpressionResolver
 {
+    private const FLEXIBLE_CONSTRUCTOR_BOUNDARY = '10.36.0';
+    private const RULE_CLASS = 'Illuminate\\Validation\\Rules\\NotIn';
     private const RULE_FACTORY_CLASS = \Illuminate\Validation\Rule::class;
 
     public function __construct(
@@ -45,17 +47,47 @@ final class NotInRuleExpressionResolver
     {
         if (
             !$this->laravelVersionContext->isSupported()
-            || !$expression instanceof Expr\StaticCall
-            || !$expression->class instanceof Name
-            || !$expression->name instanceof Identifier
-            || $this->resolveName($expression->class, $scope) !== self::RULE_FACTORY_CLASS
-            || $expression->name->toLowerString() !== 'notin'
+            || !$expression instanceof Expr\CallLike
+            || $expression->isFirstClassCallable()
+            || (!$this->isFactoryCall($expression, $scope)
+                && !$this->isExactConstruction($expression, $scope))
             || $expression->getArgs() === []
         ) {
             return null;
         }
 
         return Rule::create('NotIn');
+    }
+
+    private function isFactoryCall(Expr $expression, Scope $scope): bool
+    {
+        return $expression instanceof Expr\StaticCall
+            && $expression->class instanceof Name
+            && $expression->name instanceof Identifier
+            && $this->resolveName($expression->class, $scope) === self::RULE_FACTORY_CLASS
+            && $expression->name->toLowerString() === 'notin';
+    }
+
+    private function isExactConstruction(Expr $expression, Scope $scope): bool
+    {
+        if (
+            !$expression instanceof Expr\New_
+            || !$expression->class instanceof Name
+            || $expression->class->isSpecialClassName()
+            || $this->resolveName($expression->class, $scope) !== self::RULE_CLASS
+        ) {
+            return false;
+        }
+
+        if ($this->laravelVersionContext->isAtLeast(self::FLEXIBLE_CONSTRUCTOR_BOUNDARY)) {
+            return true;
+        }
+
+        $arguments = array_values($expression->getArgs());
+
+        return $arguments !== []
+            && !$arguments[0]->unpack
+            && $scope->getType($arguments[0]->value)->isArray()->yes();
     }
 
     private function resolveName(Name $name, Scope $scope): string

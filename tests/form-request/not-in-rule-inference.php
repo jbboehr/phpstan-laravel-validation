@@ -10,5 +10,5 @@ use function PHPStan\Testing\assertType;
 
 function inspectNotInRule(NotInRuleRequest $request): void
 {
-    assertType('array{role: string, value: mixed}', $request->validated());
+    assertType('array{role: string, value: mixed, direct_role: string}', $request->validated());
 }

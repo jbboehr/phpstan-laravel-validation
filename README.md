@@ -371,9 +371,12 @@ This does not make
 scalar parameter and preserves the original accepted input.
 
 Constant scalar arrays are supported while the factory call remains visible.
-Assigned builder objects, unpacked or dynamic arguments, `Arrayable` and
-runtime `Stringable` arguments, and direct `In` construction remain
-conservative rather than executing application code during analysis.
+Exact fresh `new In([...])` expressions recover the same contract. Laravel
+10.36 expands the constructor to accept scalar and variadic inputs, which the
+extension models from that boundary. Assigned builders, subclasses, dynamic
+construction, unpacked or dynamic arguments, `Arrayable`, and runtime
+`Stringable` inputs remain conservative rather than being executed during
+analysis.
 
 ### `Rule::notIn()` builders
 
@@ -394,9 +397,11 @@ The extension deliberately does not attempt to express “every string except
 `admin`.” Laravel applies loose comparisons across preserved native values,
 and PHPStan has no useful general complement type for that runtime contract.
 Because the forbidden set does not affect this neutral contribution, its
-expression may be dynamic while the fresh factory call remains visible.
-Assigned builders, dynamic factory or method calls, and direct `NotIn`
-construction remain opaque.
+expression may be dynamic while a fresh factory call or exact `new NotIn(...)`
+expression remains visible. Direct array construction works throughout the
+supported Laravel range; scalar, variadic, and `Arrayable` constructor inputs
+begin in Laravel 10.36. Assigned builders, subclasses, dynamic construction,
+and dynamic factory or method calls remain opaque.
 
 ### `Rule::array()` builders
 

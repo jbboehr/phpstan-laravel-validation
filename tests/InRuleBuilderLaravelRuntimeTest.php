@@ -26,6 +26,7 @@ use Illuminate\Translation\ArrayLoader;
 use Illuminate\Translation\Translator;
 use Illuminate\Validation\Factory;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\In;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\PureValidationStatus;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\StringValidationStatus;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\ValidationStringable;
@@ -34,6 +35,32 @@ use PHPUnit\Framework\Attributes\Group;
 #[Group('laravel')]
 final class InRuleBuilderLaravelRuntimeTest extends \PHPStan\Testing\PHPStanTestCase
 {
+    public function testDirectArrayConstructorMatchesFactoryAcrossSupportedVersions(): void
+    {
+        $factoryRule = Rule::in(['one', 'two']);
+        $directRule = new In(['one', 'two']);
+
+        self::assertSame((string) $factoryRule, (string) $directRule);
+        $this->assertAcceptedAndPreserved($directRule, 'two');
+        $this->assertRejected($directRule, 'other');
+    }
+
+    public function testDirectScalarConstructorFollowsItsLaravelBoundary(): void
+    {
+        if (version_compare(self::frameworkVersion(), '10.36.0', '<')) {
+            $this->expectException(\TypeError::class);
+            new In('one');
+
+            return;
+        }
+
+        $factoryRule = Rule::in('one', 'two');
+        $directRule = new In('one', 'two');
+
+        self::assertSame((string) $factoryRule, (string) $directRule);
+        $this->assertAcceptedAndPreserved($directRule, 'two');
+    }
+
     public function testLiteralStringBuilderPreservesAcceptedNativeValues(): void
     {
         $rule = Rule::in(['one', 'a,b', 'a"b']);
@@ -74,10 +101,10 @@ final class InRuleBuilderLaravelRuntimeTest extends \PHPStan\Testing\PHPStanTest
 
         try {
             self::assertNotFalse(ini_set('precision', '1'));
-            $rule = Rule::in([2.5]);
-
-            self::assertSame('in:"2"', (string) $rule);
-            $this->assertAcceptedAndPreserved($rule, 2);
+            foreach ([Rule::in([2.5]), new In([2.5])] as $rule) {
+                self::assertSame('in:"2"', (string) $rule);
+                $this->assertAcceptedAndPreserved($rule, 2);
+            }
         } finally {
             ini_set('precision', $originalPrecision);
         }
@@ -117,8 +144,11 @@ final class InRuleBuilderLaravelRuntimeTest extends \PHPStan\Testing\PHPStanTest
         }
 
         $this->assertAcceptedAndPreserved(Rule::in([PureValidationStatus::Draft]), 'Draft');
+        $this->assertAcceptedAndPreserved(new In([PureValidationStatus::Draft]), 'Draft');
         $this->assertRejected(Rule::in([PureValidationStatus::Draft]), 'Published');
+        $this->assertRejected(new In([PureValidationStatus::Draft]), 'Published');
         $this->assertAcceptedAndPreserved(Rule::in([StringValidationStatus::One]), 1.0);
+        $this->assertAcceptedAndPreserved(new In([StringValidationStatus::One]), 1.0);
     }
 
     private function assertAcceptedAndPreserved(\Stringable $rule, mixed $value): void

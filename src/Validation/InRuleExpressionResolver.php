@@ -27,12 +27,14 @@ use PhpParser\Node\Name;
 use PHPStan\Analyser\Scope;
 
 /**
- * Recovers the parameter list from a statically visible Rule::in() call.
- * Runtime Arrayable and Stringable inputs remain opaque rather than being
- * executed during analysis.
+ * Recovers the parameter list from a statically visible Rule::in() call or
+ * exact In construction. Runtime Arrayable and Stringable inputs remain
+ * opaque rather than being executed during analysis.
  */
 final class InRuleExpressionResolver
 {
+    private const FLEXIBLE_CONSTRUCTOR_BOUNDARY = '10.36.0';
+    private const RULE_CLASS = 'Illuminate\\Validation\\Rules\\In';
     private const RULE_FACTORY_CLASS = \Illuminate\Validation\Rule::class;
     private const ENUM_VALUE_BOUNDARY = '10.21.1';
 
@@ -46,11 +48,10 @@ final class InRuleExpressionResolver
     {
         if (
             !$this->laravelVersionContext->isSupported()
-            || !$expression instanceof Expr\StaticCall
-            || !$expression->class instanceof Name
-            || !$expression->name instanceof Identifier
-            || $this->resolveName($expression->class, $scope) !== self::RULE_FACTORY_CLASS
-            || $expression->name->toLowerString() !== 'in'
+            || !$expression instanceof Expr\CallLike
+            || $expression->isFirstClassCallable()
+            || (!$this->isFactoryCall($expression, $scope)
+                && !$this->isExactConstruction($expression, $scope))
         ) {
             return null;
         }
@@ -77,6 +78,37 @@ final class InRuleExpressionResolver
             $parameters === [] ? [null] : $parameters,
             $resolution['hasRuntimeFormattedFloatParameter']
         );
+    }
+
+    private function isFactoryCall(Expr $expression, Scope $scope): bool
+    {
+        return $expression instanceof Expr\StaticCall
+            && $expression->class instanceof Name
+            && $expression->name instanceof Identifier
+            && $this->resolveName($expression->class, $scope) === self::RULE_FACTORY_CLASS
+            && $expression->name->toLowerString() === 'in';
+    }
+
+    private function isExactConstruction(Expr $expression, Scope $scope): bool
+    {
+        if (
+            !$expression instanceof Expr\New_
+            || !$expression->class instanceof Name
+            || $expression->class->isSpecialClassName()
+            || $this->resolveName($expression->class, $scope) !== self::RULE_CLASS
+        ) {
+            return false;
+        }
+
+        if ($this->laravelVersionContext->isAtLeast(self::FLEXIBLE_CONSTRUCTOR_BOUNDARY)) {
+            return true;
+        }
+
+        $arguments = array_values($expression->getArgs());
+
+        return $arguments !== []
+            && !$arguments[0]->unpack
+            && $scope->getType($arguments[0]->value)->isArray()->yes();
     }
 
     private function resolveName(Name $name, Scope $scope): string
