@@ -1399,6 +1399,106 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         ];
     }
 
+    public function testArrayPredicateBuildersFollowRuntimeVersionBoundaries(): void
+    {
+        self::getContainer();
+
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $laravelVersion = self::frameworkVersion();
+        $hasContainsBuilder = version_compare($laravelVersion, '12.16.0', '>=');
+        $hasDoesntContainBuilder = version_compare($laravelVersion, '12.22.0', '>=');
+        $containsClass = 'Illuminate\\Validation\\Rules\\Contains';
+        $doesntContainClass = 'Illuminate\\Validation\\Rules\\DoesntContain';
+
+        self::assertSame(
+            $hasContainsBuilder,
+            method_exists(\Illuminate\Validation\Rule::class, 'contains')
+        );
+        self::assertSame(
+            $hasContainsBuilder,
+            class_exists($containsClass)
+        );
+        self::assertSame(
+            $hasDoesntContainBuilder,
+            method_exists(\Illuminate\Validation\Rule::class, 'doesntContain')
+        );
+        self::assertSame(
+            $hasDoesntContainBuilder,
+            class_exists($doesntContainClass)
+        );
+
+        if ($hasContainsBuilder) {
+            if (!class_exists($containsClass)) {
+                self::fail('Laravel reports Rule::contains() without its Contains rule class.');
+            }
+
+            $containsFactory = new \ReflectionMethod(\Illuminate\Validation\Rule::class, 'contains');
+            $contains = $containsFactory->invoke(null, 'needle');
+            $directContains = (new \Illuminate\Container\Container())->make(
+                $containsClass,
+                ['values' => 'needle']
+            );
+            self::assertInstanceOf(\Stringable::class, $contains);
+            self::assertInstanceOf(\Stringable::class, $directContains);
+
+            $input = [
+                'factory' => ['needle', 'nested' => ['value' => 1]],
+                'direct' => ['needle', 'nested' => ['value' => 1]],
+            ];
+            $rules = [
+                'factory' => ['required', $contains],
+                'direct' => ['required', $directContains],
+            ];
+            $validator = $factory->make($input, $rules);
+
+            self::assertSame('contains:"needle"', (string) $contains);
+            self::assertTrue($validator->passes());
+            self::assertSame($input, $validator->validated());
+        }
+
+        if ($hasDoesntContainBuilder) {
+            if (!class_exists($doesntContainClass)) {
+                self::fail(
+                    'Laravel reports Rule::doesntContain() without its DoesntContain rule class.'
+                );
+            }
+
+            $doesntContainFactory = new \ReflectionMethod(
+                \Illuminate\Validation\Rule::class,
+                'doesntContain'
+            );
+            $doesntContain = $doesntContainFactory->invoke(null, 'blocked');
+            $directDoesntContain = (new \Illuminate\Container\Container())->make(
+                $doesntContainClass,
+                ['values' => 'blocked']
+            );
+            self::assertInstanceOf(\Stringable::class, $doesntContain);
+            self::assertInstanceOf(\Stringable::class, $directDoesntContain);
+
+            $input = [
+                'factory' => ['allowed', 'nested' => ['value' => 1]],
+                'direct' => ['allowed', 'nested' => ['value' => 1]],
+            ];
+            $rules = [
+                'factory' => ['required', $doesntContain],
+                'direct' => ['required', $directDoesntContain],
+            ];
+            $validator = $factory->make($input, $rules);
+
+            self::assertSame(
+                'doesnt_contain:"blocked"',
+                (string) $doesntContain
+            );
+            self::assertTrue($validator->passes());
+            self::assertSame($input, $validator->validated());
+        }
+    }
+
     /**
      * @param array<mixed, mixed> $validValue
      * @dataProvider introducedArrayPredicateProvider

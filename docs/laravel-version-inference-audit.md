@@ -42,6 +42,11 @@ and Laravel 12.55 adds its strict integer option via
 [`73b393274b25`](https://github.com/laravel/framework/commit/73b393274b2531995116ef30a83d8091e6934af8).
 Laravel 12.55 also adds the fluent `StringRule` builder via
 [`36c2a3a7d317`](https://github.com/laravel/framework/commit/36c2a3a7d31715cf2490489b3e05e7906b6541eb).
+Laravel 12.16 adds `Rule::contains()` and `Contains` via
+[`3a9fa0214fc3`](https://github.com/laravel/framework/commit/3a9fa0214fc3d8f63149e8d9a1bec7e4647101ba),
+while Laravel 12.22 adds `Rule::doesntContain()` and `DoesntContain` with the
+underlying rule via
+[`ad138584ef0b`](https://github.com/laravel/framework/commit/ad138584ef0bceaf6ccd8e3e27d66bb339438562).
 Laravel's `Enum` rule adds literal `only`/`except` filters in 10.46 via
 [`8d47be393e43`](https://github.com/laravel/framework/commit/8d47be393e43ffeacd49556471110454f868da5f).
 Laravel 10.21.1 also teaches the `In` and `NotIn` builders to serialize enum
@@ -517,6 +522,13 @@ therefore narrow to `array<mixed>` after the appropriate boundary. Optional
 raw input still includes Laravel's blank-string bypass. Focused runtime tests
 also reject scalars, `Stringable` objects, and `ArrayObject`, and confirm that
 associative arrays and nested values are preserved unchanged.
+
+Laravel 12.16 also adds the fresh `Rule::contains()` factory and `Contains`
+object. Laravel 12.22 adds the corresponding `Rule::doesntContain()` factory
+and `DoesntContain` object with the rule itself. Exact inline factories and
+direct construction recover the same array-only output contract. Assigned
+objects and dynamic expressions remain opaque because their serialized state
+is no longer available at the rule expression.
 
 ### HTTP normalization also has a known major boundary
 

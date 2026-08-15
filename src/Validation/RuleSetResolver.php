@@ -33,6 +33,8 @@ use PHPStan\Type\UnionType;
 
 final class RuleSetResolver
 {
+    private const CONTAINS_RULE_CLASS = 'Illuminate\\Validation\\Rules\\Contains';
+    private const DOESNT_CONTAIN_RULE_CLASS = 'Illuminate\\Validation\\Rules\\DoesntContain';
     private const MAX_ALTERNATIVES = 128;
     private const RULE_LIST_EXPRESSION_DEPTH = 2;
 
@@ -179,8 +181,54 @@ final class RuleSetResolver
             ?? $this->dateRuleExpressionResolver->resolve($expression, $scope, $insideRuleList)
             ?? $this->numericRuleExpressionResolver->resolve($expression, $scope)
             ?? $this->stringRuleExpressionResolver->resolve($expression, $scope)
+            ?? $this->resolveArrayPredicateRuleExpression($expression, $scope)
             ?? $this->resolveFileRuleExpression($expression, $scope)
             ?? $this->resolveDatabaseRuleExpression($expression, $scope);
+    }
+
+    private function resolveArrayPredicateRuleExpression(
+        Expr $expression,
+        Scope $scope
+    ): ?Rule {
+        if (!$this->laravelVersionContext->isSupported()) {
+            return null;
+        }
+
+        if ($expression instanceof Expr\StaticCall
+            && $expression->class instanceof Name
+            && !$expression->class->isSpecialClassName()
+            && $expression->name instanceof Identifier
+            && $this->resolveName($expression->class, $scope) === \Illuminate\Validation\Rule::class
+        ) {
+            return match ($expression->name->toLowerString()) {
+                'contains' => $this->laravelVersionContext->isAtLeast('12.16.0')
+                    ? Rule::create('Contains')
+                    : null,
+                'doesntcontain' => $this->laravelVersionContext->isAtLeast('12.22.0')
+                    ? Rule::create('DoesntContain')
+                    : null,
+                default => null,
+            };
+        }
+
+        if (!$expression instanceof Expr\New_
+            || !$expression->class instanceof Name
+            || $expression->class->isSpecialClassName()
+        ) {
+            return null;
+        }
+
+        return match ($this->resolveName($expression->class, $scope)) {
+            self::CONTAINS_RULE_CLASS =>
+                $this->laravelVersionContext->isAtLeast('12.16.0')
+                    ? Rule::create('Contains')
+                    : null,
+            self::DOESNT_CONTAIN_RULE_CLASS =>
+                $this->laravelVersionContext->isAtLeast('12.22.0')
+                    ? Rule::create('DoesntContain')
+                    : null,
+            default => null,
+        };
     }
 
     private function resolveFileRuleExpression(Expr $expression, Scope $scope): ?Rule

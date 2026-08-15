@@ -1,0 +1,4 @@
+parameters:
+  phpstanLaravelValidation:
+    # Rule::contains() and Contains were introduced in Laravel 12.16.
+    laravelVersion: '12.15.0'

@@ -453,6 +453,28 @@ Before Laravel 13.24, or when arguments are dynamic, unpacked, `Arrayable`, or
 otherwise unavailable to analysis, inference remains conservative. Assigned
 builder objects and direct `ArrayKeys` construction also remain opaque.
 
+### Array predicate rule builders
+
+Laravel 12.16 introduced `Rule::contains()` and `Contains`; Laravel 12.22
+introduced `Rule::doesntContain()` and `DoesntContain`. Fresh inline factory
+calls and exact direct construction recover the equivalent built-in array
+predicate:
+
+```php
+$validated = Validator::make($input, [
+    'features' => ['required', Rule::contains('search')],
+    'roles' => ['required', Rule::doesntContain('blocked')],
+])->validated();
+
+\PHPStan\dumpType($validated);
+// array{features: array, roles: array}
+```
+
+Laravel checks and preserves the original array; these builders do not
+describe its keys or values. Before the respective introduction boundary,
+and for assigned builders, subclasses, dynamic calls, or first-class
+callables, inference remains conservative.
+
 ### Numeric rule builders
 
 Laravel 11.42 introduced `Rule::numeric()` and the corresponding `Numeric`

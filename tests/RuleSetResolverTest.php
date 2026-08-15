@@ -197,6 +197,96 @@ final class RuleSetResolverTest extends PHPStanTestCase
     }
 
     /**
+     * @dataProvider arrayPredicateBuilderProvider
+     */
+    public function testArrayPredicateBuildersFollowTheirLaravelVersionBoundaries(
+        string $factory,
+        string $className,
+        string $ruleName,
+        string $version,
+        bool $recognized
+    ): void {
+        foreach (
+            [
+                new Expr\StaticCall(
+                    new FullyQualified(\Illuminate\Validation\Rule::class),
+                    new Identifier($factory)
+                ),
+                new Expr\New_(new FullyQualified($className)),
+            ] as $builder
+        ) {
+            $expression = new Expr\Array_([
+                new Expr\ArrayItem(
+                    new Expr\Array_([
+                        new Expr\ArrayItem(new String_('required')),
+                        new Expr\ArrayItem($builder),
+                    ]),
+                    new String_('value')
+                ),
+            ]);
+            $scope = $this->createMock(Scope::class);
+            $scope->method('getType')->willReturnCallback(
+                static fn (Expr $node): Type => $node instanceof String_
+                    ? new ConstantStringType($node->value)
+                    : new MixedType()
+            );
+            $scope->method('resolveName')->willReturnCallback(
+                static fn (\PhpParser\Node\Name $name): string => $name->toString()
+            );
+
+            $trees = $this->resolverForVersion($version)->resolve($expression, $scope);
+
+            if (!$recognized) {
+                self::assertSame([], $trees);
+                continue;
+            }
+
+            self::assertCount(1, $trees);
+            self::assertSame(
+                ['Required', $ruleName],
+                array_map(
+                    static fn (\jbboehr\PhpstanLaravelValidation\Validation\Rule $rule): string =>
+                        $rule->getRuleName(),
+                    $trees[0]->resolvePath('value')->getRules()
+                )
+            );
+        }
+    }
+
+    /** @return iterable<string, array{string, string, string, string, bool}> */
+    public static function arrayPredicateBuilderProvider(): iterable
+    {
+        yield 'contains before introduction' => [
+            'contains',
+            'Illuminate\\Validation\\Rules\\Contains',
+            'Contains',
+            '12.15.0',
+            false,
+        ];
+        yield 'contains at introduction' => [
+            'contains',
+            'Illuminate\\Validation\\Rules\\Contains',
+            'Contains',
+            '12.16.0',
+            true,
+        ];
+        yield 'doesnt contain before introduction' => [
+            'doesntContain',
+            'Illuminate\\Validation\\Rules\\DoesntContain',
+            'DoesntContain',
+            '12.21.0',
+            false,
+        ];
+        yield 'doesnt contain at introduction' => [
+            'doesntContain',
+            'Illuminate\\Validation\\Rules\\DoesntContain',
+            'DoesntContain',
+            '12.22.0',
+            true,
+        ];
+    }
+
+    /**
      * @dataProvider fileBuilderMethodVersionProvider
      */
     public function testFileBuilderMethodsFollowTheirLaravelVersionBoundaries(
