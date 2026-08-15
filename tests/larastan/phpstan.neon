@@ -4,3 +4,8 @@ parameters:
     phpstanLaravelValidation:
         formRequests:
             enabled: true
+        customRules:
+            classes:
+                jbboehr\PhpstanLaravelValidation\Test\CustomRules\IntegerRule: int|\Stringable
+            names:
+                custom_stringable: non-empty-string|\Stringable

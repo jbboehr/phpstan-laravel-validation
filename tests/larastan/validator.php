@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Validation\Factory;
 use jbboehr\PhpstanLaravelValidation\Test\CustomRules\AttributeRule;
+use jbboehr\PhpstanLaravelValidation\Test\CustomRules\IntegerRule;
 use jbboehr\PhpstanLaravelValidation\Test\CustomRules\UnknownRule;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\BasicRequest;
 
@@ -41,6 +42,16 @@ $unknownCustom = $factory->make([], [
     'value' => ['required', 'string', new UnknownRule()],
 ])->validated();
 assertType('array{value: string}', $unknownCustom);
+
+$configuredObjectUnion = $factory->make([], [
+    'value' => 'required|custom_stringable',
+])->validated();
+assertType('array{value: non-empty-string|Stringable}', $configuredObjectUnion);
+
+$configuredClassObjectUnion = $factory->make([], [
+    'value' => ['required', new IntegerRule()],
+])->validated();
+assertType('array{value: int|Stringable}', $configuredClassObjectUnion);
 
 $factoryDirect = $factory->validate([], [
     'payload' => 'required|array',

@@ -43,14 +43,23 @@ final class CustomRuleTypeResolver
         \Illuminate\Contracts\Validation\ValidationRule::class,
     ];
 
-    /** @var array<string, Type> */
+    /**
+     * Type resolution may invoke third-party reflection extensions. Keep
+     * configured strings unresolved until analysis, after bootstrap files
+     * have run, rather than resolving them while PHPStan builds its container.
+     *
+     * @var array<string, string>
+     */
     private array $configuredClasses = [];
 
-    /** @var array<string, Type> */
+    /** @var array<string, array{type: string, source: string}> */
     private array $configuredNames = [];
 
     /** @var array<string, Type|null> */
     private array $classCache = [];
+
+    /** @var array<string, Type> */
+    private array $nameCache = [];
 
     /**
      * @param array<string, string> $configuredClasses
@@ -75,7 +84,8 @@ final class CustomRuleTypeResolver
                     $className
                 ));
             }
-            $this->configuredClasses[$className] = $this->parseTypeString($typeString, $className);
+            $this->assertNonBlankTypeString($typeString, $className);
+            $this->configuredClasses[$className] = $typeString;
         }
 
         foreach ($configuredNames as $ruleName => $typeString) {
@@ -95,7 +105,11 @@ final class CustomRuleTypeResolver
                     $ruleName
                 ));
             }
-            $this->configuredNames[$normalizedName] = $this->parseTypeString($typeString, $ruleName);
+            $this->assertNonBlankTypeString($typeString, $ruleName);
+            $this->configuredNames[$normalizedName] = [
+                'type' => $typeString,
+                'source' => $ruleName,
+            ];
         }
     }
 
@@ -133,7 +147,18 @@ final class CustomRuleTypeResolver
 
     public function resolveName(string $normalizedRuleName): ?Type
     {
-        return $this->configuredNames[$normalizedRuleName] ?? null;
+        if (array_key_exists($normalizedRuleName, $this->nameCache)) {
+            return $this->nameCache[$normalizedRuleName];
+        }
+
+        if (!array_key_exists($normalizedRuleName, $this->configuredNames)) {
+            return null;
+        }
+
+        return $this->nameCache[$normalizedRuleName] = $this->parseTypeString(
+            $this->configuredNames[$normalizedRuleName]['type'],
+            $this->configuredNames[$normalizedRuleName]['source']
+        );
     }
 
     public function isPredicateType(Type $type): bool
@@ -153,12 +178,18 @@ final class CustomRuleTypeResolver
             return $this->classCache[$className];
         }
 
+        if (array_key_exists($className, $this->configuredClasses)) {
+            return $this->classCache[$className] = $this->parseTypeString(
+                $this->configuredClasses[$className],
+                $className
+            );
+        }
+
         $reflection = $this->reflectionProvider->getClass($className);
         $attributeType = $this->resolveAttributeType($reflection);
         $phpDocType = $this->resolvePhpDocType($reflection);
 
-        return $this->classCache[$className]
-            = $this->configuredClasses[$className] ?? $attributeType ?? $phpDocType;
+        return $this->classCache[$className] = $attributeType ?? $phpDocType;
     }
 
     private function resolveAttributeType(ClassReflection $reflection): ?Type
@@ -223,12 +254,7 @@ final class CustomRuleTypeResolver
 
     private function parseTypeString(string $typeString, string $source): Type
     {
-        if (trim($typeString) === '') {
-            throw new InvalidCustomRuleContractException(sprintf(
-                'Custom validation rule type for %s cannot be empty',
-                $source
-            ));
-        }
+        $this->assertNonBlankTypeString($typeString, $source);
 
         try {
             $type = $this->typeStringResolver->resolve($typeString, null);
@@ -249,5 +275,15 @@ final class CustomRuleTypeResolver
         }
 
         return $type;
+    }
+
+    private function assertNonBlankTypeString(string $typeString, string $source): void
+    {
+        if (trim($typeString) === '') {
+            throw new InvalidCustomRuleContractException(sprintf(
+                'Custom validation rule type for %s cannot be empty',
+                $source
+            ));
+        }
     }
 }

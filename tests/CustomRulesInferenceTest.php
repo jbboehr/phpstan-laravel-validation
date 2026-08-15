@@ -90,6 +90,18 @@ final class CustomRulesInferenceTest extends \PHPStan\Testing\TypeInferenceTestC
         self::assertSame('int', $rule->getAcceptedType()?->describe(VerbosityLevel::precise()));
     }
 
+    public function testConfiguredObjectUnionContractIsResolvedWhenUsed(): void
+    {
+        $type = $this->createResolver([], [
+            'custom_stringable' => 'non-empty-string|\\Stringable',
+        ])->resolveName('CustomStringable');
+
+        self::assertSame(
+            'non-empty-string|Stringable',
+            $type?->describe(VerbosityLevel::precise())
+        );
+    }
+
     /**
      * @dataProvider declaredContractProvider
      */
@@ -141,10 +153,12 @@ final class CustomRulesInferenceTest extends \PHPStan\Testing\TypeInferenceTestC
         $this->createResolver()->resolveRule(new ObjectType(DuplicatePhpDocRule::class));
     }
 
-    public function testRejectsInvalidConfiguredType(): void
+    public function testRejectsInvalidConfiguredTypeWhenTheRuleIsUsed(): void
     {
+        $resolver = $this->createResolver([], ['custom' => 'array{']);
+
         $this->expectException(InvalidCustomRuleContractException::class);
-        $this->createResolver([], ['custom' => 'array{']);
+        $resolver->resolveName('Custom');
     }
 
     public function testRejectsNormalizedNameCollision(): void

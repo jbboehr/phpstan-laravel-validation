@@ -610,8 +610,8 @@ parameters:
 Precedence is configuration, then the attribute, then PHPDoc. Registered names
 are normalized like Laravel rule names, so `valid_reference`,
 `valid-reference`, and `ValidReference` use the same configured contract.
-Malformed configuration, attribute, or PHPDoc contracts fail analysis rather
-than silently widening the affected rule to `mixed`.
+Malformed configuration, attribute, or PHPDoc contracts fail analysis when the
+corresponding rule is encountered rather than silently widening it to `mixed`.
 
 These are value-only contracts. They do not make a field required, declare a
 rule implicit, transform a value, or control output projection. For example,
