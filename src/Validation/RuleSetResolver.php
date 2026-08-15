@@ -43,6 +43,7 @@ final class RuleSetResolver
         \Illuminate\Validation\Rule::class => [
             'contains' => ['rule' => 'Contains', 'since' => '12.16.0'],
             'doesntcontain' => ['rule' => 'DoesntContain', 'since' => '12.22.0'],
+            'dimensions' => ['rule' => 'Dimensions'],
             'exists' => ['rule' => 'Exists', 'allowSpecialClassName' => true],
             'file' => ['rule' => 'File'],
             'imagefile' => ['rule' => 'Image'],
@@ -67,10 +68,32 @@ final class RuleSetResolver
     private const SIMPLE_NEW_RULE_EXPRESSIONS = [
         'Illuminate\\Validation\\Rules\\Contains' => ['rule' => 'Contains', 'since' => '12.16.0'],
         'Illuminate\\Validation\\Rules\\DoesntContain' => ['rule' => 'DoesntContain', 'since' => '12.22.0'],
+        \Illuminate\Validation\Rules\Dimensions::class => ['rule' => 'Dimensions'],
         \Illuminate\Validation\Rules\Exists::class => ['rule' => 'Exists', 'allowSpecialClassName' => true],
         \Illuminate\Validation\Rules\File::class => ['rule' => 'File', 'allowSpecialClassName' => true],
         \Illuminate\Validation\Rules\ImageFile::class => ['rule' => 'Image', 'allowSpecialClassName' => true],
         \Illuminate\Validation\Rules\Unique::class => ['rule' => 'Unique', 'allowSpecialClassName' => true],
+    ];
+
+    /**
+     * Fluent predicates that retain a simple builder's accepted native type.
+     * An empty version means that the method exists on every supported major.
+     *
+     * @var array<string, array<string, string>>
+     */
+    private const SIMPLE_FLUENT_RULE_METHODS = [
+        'Dimensions' => [
+            'height' => '',
+            'maxheight' => '',
+            'maxratio' => '11.23.0',
+            'maxwidth' => '',
+            'minheight' => '',
+            'minratio' => '11.23.0',
+            'minwidth' => '',
+            'ratio' => '',
+            'ratiobetween' => '11.23.0',
+            'width' => '',
+        ],
     ];
 
     private const MAX_ALTERNATIVES = 128;
@@ -249,13 +272,38 @@ final class RuleSetResolver
         if (!$expression instanceof Expr\New_
             || !$expression->class instanceof Name
         ) {
-            return null;
+            return $this->resolveSimpleFluentRuleExpression($expression, $scope);
         }
 
         return $this->materializeSimpleRule(
             self::SIMPLE_NEW_RULE_EXPRESSIONS[$this->resolveName($expression->class, $scope)] ?? null,
             $expression->class->isSpecialClassName()
         );
+    }
+
+    private function resolveSimpleFluentRuleExpression(Expr $expression, Scope $scope): ?Rule
+    {
+        if (!$expression instanceof Expr\MethodCall
+            || !$expression->name instanceof Identifier
+        ) {
+            return null;
+        }
+
+        $rule = $this->resolveSimpleRuleExpression($expression->var, $scope);
+        if ($rule === null) {
+            return null;
+        }
+
+        $introduced = self::SIMPLE_FLUENT_RULE_METHODS[$rule->getRuleName()][
+            $expression->name->toLowerString()
+        ] ?? null;
+        if ($introduced === null
+            || ($introduced !== '' && !$this->laravelVersionContext->isAtLeast($introduced))
+        ) {
+            return null;
+        }
+
+        return $rule;
     }
 
     /**

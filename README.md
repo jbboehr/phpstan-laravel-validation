@@ -566,6 +566,30 @@ non-implicit-rule bypass. Assigned builders, subclasses, conditional
 `when()` or `unless()` chains, macros, dynamic calls, and unknown methods
 remain conservative because their runtime state is not statically visible.
 
+### Dimensions rule builders
+
+Fresh inline dimensions builders recover the same Symfony file type as
+Laravel's `dimensions` string rule:
+
+```php
+$validated = Validator::make($input, [
+    'avatar' => ['required', Rule::dimensions()->minWidth(256)->maxWidth(2048)],
+])->validated();
+
+\PHPStan\dumpType($validated);
+// array{avatar: Symfony\Component\HttpFoundation\File\File}
+```
+
+Exact `Rule::dimensions()` and `new Dimensions()` expressions are recognized,
+including their width, height, and ratio constraints. Laravel 11.23 adds
+`minRatio()`, `maxRatio()`, and `ratioBetween()`; inference follows that exact
+boundary. Laravel validates and preserves the original file rather than
+constructing a separate dimensions value.
+
+Assigned builders, subclasses, conditional `when()` or `unless()` chains,
+dynamic calls, macros, and unknown methods remain conservative because their
+runtime state is not statically visible.
+
 ### File rule builders
 
 Fresh inline file builders are recovered as Symfony file predicates:

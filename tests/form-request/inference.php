@@ -13,6 +13,7 @@ use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\ConcreteInherited
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\ConditionalRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\CreateDefaultValidatorRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\DatabaseRuleRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\DimensionsRuleRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\EmptyTraitWithValidatorRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\CustomValidatorRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\CustomRuleRequest;
@@ -245,6 +246,14 @@ function inspectDatabaseRuleRequest(DatabaseRuleRequest $request): void
 {
     assertType(
         'array{parent_id?: float|int|string|Stringable|true|null}',
+        $request->validated()
+    );
+}
+
+function inspectDimensionsRuleRequest(DimensionsRuleRequest $request): void
+{
+    assertType(
+        'array{avatar: Symfony\Component\HttpFoundation\File\File}',
         $request->validated()
     );
 }

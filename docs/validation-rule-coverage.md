@@ -37,8 +37,9 @@ range:
 - Laravel 11: `prohibited_if_accepted`, `prohibited_if_declined`, and
   `required_if_declined`, followed by `list` in Laravel 11.0.3, the
   `Rule::array()` builder in 11.7, and `contains` in 11.8; Laravel 11.23 later
-  makes a literal `list` participate in nested-output reconstruction; Laravel
-  11.40 adds the fluent `Date` builder, 11.41 makes its chains usable inside
+  makes a literal `list` participate in nested-output reconstruction and adds
+  the extended `Dimensions` ratio methods; Laravel 11.40 adds the fluent
+  `Date` builder, 11.41 makes its chains usable inside
   rule lists, 11.42 adds the fluent `Numeric` builder, and 11.43.2 makes Date
   chains usable as standalone field rules;
 - Laravel 12: `in_array_keys` and `Rule::contains()` in 12.16, followed by
@@ -221,9 +222,9 @@ Current static extraction treats them in four ways:
 - fresh inline `Enum`, `Rule::in()`, `Rule::notIn()`, `Rule::array()`,
   `Rule::arrayKeys()`, `Rule::contains()`, `Rule::doesntContain()`,
   `Rule::date()`, `Rule::dateTime()`, `Rule::numeric()`, `Rule::string()`,
-  `Rule::file()`, `Rule::imageFile()`, `File::types()`, `File::image()`,
-  `Rule::exists()`, and `Rule::unique()` expressions receive dedicated
-  extraction of their statically visible semantics;
+  `Rule::dimensions()`, `Rule::file()`, `Rule::imageFile()`, `File::types()`,
+  `File::image()`, `Rule::exists()`, and `Rule::unique()` expressions receive
+  dedicated extraction of their statically visible semantics;
 - predicate objects implementing Laravel's rule contracts are treated like
   custom predicates and contribute `mixed` unless they have an explicit custom
   contract;
@@ -233,9 +234,9 @@ Current static extraction treats them in four ways:
 
 | Current extraction | Representative Laravel objects | Consequence |
 | --- | --- | --- |
-| Dedicated built-in extraction | `Enum`, `Rule::in()`, `Rule::notIn()`, `Rule::array()`, `Rule::arrayKeys()`, `Rule::contains()`, `Rule::doesntContain()`, `Rule::date()`, `Rule::dateTime()`, `Rule::numeric()`, `Rule::string()`, `Rule::file()`, `Rule::imageFile()`, exact `Contains` / `DoesntContain` / `Date` / `Numeric` / `StringRule` / `File` / `ImageFile` construction, `Rule::exists()`, `Rule::unique()` | Fresh inline expressions recover statically visible enum, accepted-set, allowed-key, array-predicate, date, numeric, string, file, image, exclusion, and database-predicate semantics without executing application code; dynamic or unsupported object state stays `mixed` |
+| Dedicated built-in extraction | `Enum`, `Rule::in()`, `Rule::notIn()`, `Rule::array()`, `Rule::arrayKeys()`, `Rule::contains()`, `Rule::doesntContain()`, `Rule::date()`, `Rule::dateTime()`, `Rule::numeric()`, `Rule::string()`, `Rule::dimensions()`, `Rule::file()`, `Rule::imageFile()`, exact `Contains` / `DoesntContain` / `Date` / `Numeric` / `StringRule` / `Dimensions` / `File` / `ImageFile` construction, `Rule::exists()`, `Rule::unique()` | Fresh inline expressions recover statically visible enum, accepted-set, allowed-key, array-predicate, date, numeric, string, dimensions, file, image, exclusion, and database-predicate semantics without executing application code; dynamic or unsupported object state stays `mixed` |
 | Custom predicate with `mixed` accepted type | `AnyOf`, `Can`, `Email`, `Password`, assigned or unsupported `File` / `ImageFile` builders | Adjacent built-in string rules survive, but object state and built-in semantics are not recovered |
-| Opaque `Stringable` builder | direct `ArrayKeys` and `ArrayRule` construction, `Dimensions`, `ExcludeIf`, `ExcludeUnless`, `ProhibitedIf`, `ProhibitedUnless`, `RequiredIf`, `RequiredUnless`, assigned array-predicate / `Date` / `Numeric` / `StringRule` builders, and assigned or unsupported `Exists` / `Unique` chains | The path widens to optional `mixed`, even when the builder serializes to a supported string rule |
+| Opaque `Stringable` builder | direct `ArrayKeys` and `ArrayRule` construction, `ExcludeIf`, `ExcludeUnless`, `ProhibitedIf`, `ProhibitedUnless`, `RequiredIf`, `RequiredUnless`, assigned array-predicate / `Date` / `Numeric` / `StringRule` / `Dimensions` builders, and assigned or unsupported `Exists` / `Unique` chains | The path widens to optional `mixed`, even when the builder serializes to a supported string rule |
 | Opaque runtime program | `Rule::when`, `Rule::unless`, `Rule::forEach`, `NestedRules`, macros | Runtime callbacks or macro state provide no generally available static contract |
 
 Built-in builder support remains a separate implementation track. Treating
@@ -254,6 +255,11 @@ state affects acceptance, not the native type Laravel preserves. Fresh exact
 fluent size, MIME, extension, encoding, dimension, and additional-rule
 constraints. Defaults, callbacks, macros, subclasses, and assigned builders
 remain opaque, as do late-bound `self`, `parent`, and `static` forwarding calls.
+Fresh exact `Dimensions` builders contribute the same Symfony file type through
+their declared width, height, and ratio constraints. The extended
+`minRatio()`, `maxRatio()`, and `ratioBetween()` methods begin at Laravel
+11.23; assigned builders, subclasses, callbacks, macros, and dynamic chains
+remain opaque.
 Fresh exact `Date` builders recover the preserved date or formatted-date family
 from their statically visible fluent predicates. Their comparisons still
 validate and preserve input rather than parsing it into a date object. The

@@ -21,6 +21,12 @@ declare(strict_types=1);
 
 namespace jbboehr\PhpstanLaravelValidation\Test;
 
+use Composer\InstalledVersions;
+use Illuminate\Translation\ArrayLoader;
+use Illuminate\Translation\Translator;
+use Illuminate\Validation\Factory;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Dimensions;
 use jbboehr\PhpstanLaravelValidation\Test\Support\AssertsLaravelValidation;
 use PHPUnit\Framework\Attributes\Group;
 use Symfony\Component\HttpFoundation\File\File;
@@ -69,6 +75,50 @@ final class DimensionsLaravelRuntimeTest extends \PHPStan\Testing\PHPStanTestCas
         );
     }
 
+    public function testFreshBuilderObjectsAcceptAndPreserveImageFiles(): void
+    {
+        $file = new File($this->imagePath);
+        $factoryRule = Rule::dimensions(['width' => 1, 'height' => 1]);
+
+        foreach ([
+            'factory' => $factoryRule,
+            'direct fluent builder' => (new Dimensions())->width(1)->height(1)->ratio(1),
+        ] as $caseId => $rule) {
+            $this->assertBuilderPreservesFile('dimensions builder: ' . $caseId, $file, $rule);
+        }
+    }
+
+    /**
+     * @param list<float|int> $arguments
+     * @dataProvider extendedRatioMethodProvider
+     */
+    public function testExtendedRatioMethodsFollowTheirRuntimeBoundary(
+        string $method,
+        array $arguments
+    ): void {
+        $available = version_compare(self::frameworkVersion(), '11.23.0', '>=');
+        self::assertSame($available, method_exists(Dimensions::class, $method));
+        if (!$available) {
+            return;
+        }
+
+        $rule = (new \ReflectionMethod(Dimensions::class, $method))->invoke(
+            new Dimensions(),
+            ...$arguments
+        );
+        self::assertInstanceOf(Dimensions::class, $rule);
+        $file = new File($this->imagePath);
+        $this->assertBuilderPreservesFile('dimensions builder: ' . $method, $file, $rule);
+    }
+
+    /** @return iterable<string, array{string, list<float|int>}> */
+    public static function extendedRatioMethodProvider(): iterable
+    {
+        yield 'minimum ratio' => ['minRatio', [1]];
+        yield 'maximum ratio' => ['maxRatio', [1]];
+        yield 'ratio range' => ['ratioBetween', [1, 1]];
+    }
+
     public function testDimensionPredicateRejectsTheWrongSize(): void
     {
         $this->assertLaravelValidationCase(
@@ -114,5 +164,22 @@ final class DimensionsLaravelRuntimeTest extends \PHPStan\Testing\PHPStanTestCas
             true,
             ['image' => null]
         );
+    }
+
+    private static function frameworkVersion(): string
+    {
+        return ltrim((string) InstalledVersions::getPrettyVersion('laravel/framework'), 'v');
+    }
+
+    private function assertBuilderPreservesFile(string $caseId, File $file, Dimensions $rule): void
+    {
+        $factory = new Factory(new Translator(new ArrayLoader(), 'en'));
+        $validator = $factory->make(
+            ['image' => $file],
+            ['image' => ['required', $rule]]
+        );
+
+        self::assertTrue($validator->passes(), $caseId);
+        self::assertSame(['image' => $file], $validator->validated(), $caseId);
     }
 }

@@ -196,6 +196,64 @@ final class RuleSetResolverTest extends PHPStanTestCase
         );
     }
 
+    public function testResolvesFreshDimensionsBuildersAsFilePredicates(): void
+    {
+        $factory = new Expr\StaticCall(
+            new FullyQualified(\Illuminate\Validation\Rule::class),
+            new Identifier('dimensions')
+        );
+        $direct = new Expr\New_(new FullyQualified(\Illuminate\Validation\Rules\Dimensions::class));
+
+        foreach ([$factory, $direct, new Expr\MethodCall($factory, new Identifier('width'))] as $builder) {
+            $trees = $this->resolveBuilderExpression($builder, '10.0.0');
+
+            self::assertCount(1, $trees);
+            self::assertSame(
+                'array{value: Symfony\\Component\\HttpFoundation\\File\\File}',
+                self::describe($trees[0])
+            );
+            self::assertSame(
+                ['Required', 'Dimensions'],
+                array_map(
+                    static fn (\jbboehr\PhpstanLaravelValidation\Validation\Rule $rule): string =>
+                        $rule->getRuleName(),
+                    $trees[0]->resolvePath('value')->getRules()
+                )
+            );
+        }
+    }
+
+    /**
+     * @dataProvider extendedDimensionsMethodProvider
+     */
+    public function testExtendedDimensionsMethodsFollowTheirLaravelVersionBoundary(string $method): void
+    {
+        $builder = new Expr\MethodCall(
+            new Expr\StaticCall(
+                new FullyQualified(\Illuminate\Validation\Rule::class),
+                new Identifier('dimensions')
+            ),
+            new Identifier($method)
+        );
+
+        self::assertSame([], $this->resolveBuilderExpression($builder, '11.22.0'));
+
+        $trees = $this->resolveBuilderExpression($builder, '11.23.0');
+        self::assertCount(1, $trees);
+        self::assertSame(
+            'array{value: Symfony\\Component\\HttpFoundation\\File\\File}',
+            self::describe($trees[0])
+        );
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function extendedDimensionsMethodProvider(): iterable
+    {
+        yield 'minimum ratio' => ['minRatio'];
+        yield 'maximum ratio' => ['maxRatio'];
+        yield 'ratio range' => ['ratioBetween'];
+    }
+
     /**
      * @dataProvider arrayPredicateBuilderProvider
      */
@@ -392,6 +450,33 @@ final class RuleSetResolverTest extends PHPStanTestCase
             $container->getByType(StringRuleExpressionResolver::class),
             new LaravelVersionContext('', $version)
         );
+    }
+
+    /**
+     * @return list<\jbboehr\PhpstanLaravelValidation\Validation\RuleTreeNode>
+     */
+    private function resolveBuilderExpression(Expr $builder, string $version): array
+    {
+        $expression = new Expr\Array_([
+            new Expr\ArrayItem(
+                new Expr\Array_([
+                    new Expr\ArrayItem(new String_('required')),
+                    new Expr\ArrayItem($builder),
+                ]),
+                new String_('value')
+            ),
+        ]);
+        $scope = $this->createMock(Scope::class);
+        $scope->method('getType')->willReturnCallback(
+            static fn (Expr $node): Type => $node instanceof String_
+                ? new ConstantStringType($node->value)
+                : new MixedType()
+        );
+        $scope->method('resolveName')->willReturnCallback(
+            static fn (\PhpParser\Node\Name $name): string => $name->toString()
+        );
+
+        return $this->resolverForVersion($version)->resolve($expression, $scope);
     }
 
     private static function describe(

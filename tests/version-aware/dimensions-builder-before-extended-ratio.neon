@@ -1,0 +1,4 @@
+parameters:
+  phpstanLaravelValidation:
+    # Extended ratio methods were introduced in Laravel 11.23.
+    laravelVersion: '11.22.0'
