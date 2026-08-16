@@ -9,6 +9,10 @@ composer-project.nix linguist-generated
 .envrc export-ignore
 .gitattributes export-ignore
 docs/pages/images/*.png export-ignore
+docs/pages/assets/document-looks-back export-ignore
+docs/pages/assets/document-looks-back/** export-ignore
+docs/pages/assets/heliogenesis export-ignore
+docs/pages/assets/heliogenesis/** export-ignore
 
 # we can't export-ignore these or nix build will fail...
 #/tests export-ignore

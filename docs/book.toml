@@ -1,0 +1,30 @@
+[book]
+title = "phpstan-laravel-validation"
+authors = ["John Boehr and contributors"]
+description = "PHPStan inference for Laravel validated() output."
+language = "en"
+src = "pages"
+
+[build]
+build-dir = "../build/docs"
+create-missing = false
+
+[output.html]
+additional-css = ["theme/phpstan-laravel-validation.css"]
+additional-js = ["theme/phpstan-laravel-validation.js"]
+default-theme = "ayu"
+preferred-dark-theme = "ayu"
+no-section-label = true
+git-repository-url = "https://github.com/jbboehr/phpstan-laravel-validation"
+git-repository-icon = "fab-github"
+edit-url-template = "https://github.com/jbboehr/phpstan-laravel-validation/edit/master/docs/{path}"
+site-url = "/phpstan-laravel-validation/"
+sidebar-header-nav = true
+
+[output.html.fold]
+enable = false
+
+[output.html.search]
+enable = true
+heading-split-level = 3
+use-boolean-and = true

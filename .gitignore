@@ -9,6 +9,7 @@ infection.json5
 clover.xml
 result*
 /.pre-commit-config.yaml
+/build/
 /coverage/
 /vendor/
 /tools/infection/vendor/

@@ -1,0 +1,10 @@
+:root {
+  --document-looks-back-layer: 30;
+}
+
+.document-looks-back-witness {
+  position: fixed;
+  z-index: var(--document-looks-back-layer);
+  display: block;
+  pointer-events: none;
+}

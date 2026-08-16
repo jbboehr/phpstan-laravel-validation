@@ -56,6 +56,9 @@
             "php-cs-fixer fix --config=.php-cs-fixer.dist.php",
             "@docs:format:fix"
         ],
+        "docs": "make docs",
+        "docs:check": "make docs-check",
+        "docs:serve": "make docs-serve",
         "docs:format": "find README.md CHANGELOG.md docs -type f -name '*.md' -exec vendor/bin/akashi format --check --project-root=. --config=.php-cs-fixer.dist.php {} +",
         "docs:format:fix": "find README.md CHANGELOG.md docs -type f -name '*.md' -exec vendor/bin/akashi format --write --project-root=. --config=.php-cs-fixer.dist.php {} +",
         "infection": "@php tools/infection/vendor/bin/infection --with-uncovered --only-covering-test-cases --log-verbosity=all",
@@ -68,6 +71,12 @@
             "stephank/composer-plugin-nixify": true,
             "drupol/composer-plugin-nixify": true
         }
+    },
+    "archive": {
+        "exclude": [
+            "/docs/pages/assets/document-looks-back",
+            "/docs/pages/assets/heliogenesis"
+        ]
     },
     "extra": {
         "nix-expr-path": "nix/composer-project.nix",

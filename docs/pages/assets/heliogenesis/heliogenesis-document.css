@@ -1,0 +1,184 @@
+:root {
+  --heliogenesis-rise: 15000ms;
+  --heliogenesis-document-in: 3800ms;
+  --heliogenesis-document-out: 7000ms;
+  --heliogenesis-paper-event: rgb(246 238 227 / 90%);
+  --heliogenesis-ink-event: #211e2c;
+  --heliogenesis-link-event: #86184b;
+  --heliogenesis-chrome-event: rgb(10 7 25 / 86%);
+  --heliogenesis-sun-x: 78.5%;
+  --heliogenesis-sun-y: 35.5%;
+}
+
+@keyframes heliogenesis-document-ignition {
+  0%,
+  61%,
+  100% {
+    filter: none;
+  }
+
+  67% {
+    filter:
+      drop-shadow(-16px 12px 24px rgb(0 213 221 / 22%))
+      drop-shadow(20px -8px 30px rgb(255 24 107 / 30%))
+      brightness(1.025);
+  }
+
+  72% {
+    filter:
+      drop-shadow(-32px 20px 42px rgb(0 213 221 / 14%))
+      drop-shadow(38px -14px 54px rgb(255 24 107 / 18%))
+      brightness(1.01);
+  }
+}
+
+@keyframes heliogenesis-heading-ignition {
+  0%,
+  61%,
+  100% {
+    text-shadow:
+      -9px 8px 20px rgb(0 211 217 / 12%),
+      9px -5px 23px rgb(238 21 102 / 14%);
+  }
+
+  68% {
+    text-shadow:
+      -18px 11px 28px rgb(0 220 228 / 34%),
+      21px -9px 34px rgb(255 18 103 / 38%),
+      0 0 16px rgb(255 224 154 / 26%);
+  }
+}
+
+[data-heliogenesis-world],
+[data-heliogenesis-chrome],
+[data-heliogenesis-surface],
+[data-heliogenesis-callout],
+[data-heliogenesis-code],
+[data-heliogenesis-rule] {
+  transition-duration: var(--heliogenesis-document-out);
+  transition-timing-function: ease;
+}
+
+[data-heliogenesis-world] {
+  transition-property: background, color;
+}
+
+[data-heliogenesis-chrome] {
+  transition-property: background, border-color, box-shadow;
+}
+
+[data-heliogenesis-surface] {
+  transition-property: background, border-color, box-shadow, color;
+}
+
+[data-heliogenesis-callout] {
+  transition-property: background, border-color, box-shadow;
+}
+
+[data-heliogenesis-code] {
+  transition-property: background, border-color, box-shadow, color;
+}
+
+[data-heliogenesis-rule] {
+  transition-property: border-color, box-shadow;
+}
+
+:where([data-heliogenesis-state="dawning"], [data-heliogenesis-state="radiant"])
+  [data-heliogenesis-world] {
+  color: #d9d9e4;
+  background:
+    radial-gradient(
+      circle at var(--heliogenesis-sun-x) var(--heliogenesis-sun-y),
+      rgb(255 27 100 / 31%),
+      transparent 34%
+    ),
+    radial-gradient(circle at 7% 71%, rgb(0 214 221 / 19%), transparent 36%),
+    linear-gradient(118deg, #061820 0%, #130b22 46%, #35071e 100%);
+  transition-duration: var(--heliogenesis-document-in);
+}
+
+:where([data-heliogenesis-state="dawning"], [data-heliogenesis-state="radiant"])
+  [data-heliogenesis-chrome] {
+  border-color: rgb(255 51 123 / 86%);
+  background: var(--heliogenesis-chrome-event);
+  box-shadow: 0 6px 34px rgb(224 0 96 / 22%);
+  transition-duration: var(--heliogenesis-document-in);
+}
+
+:where([data-heliogenesis-state="dawning"], [data-heliogenesis-state="radiant"])
+  [data-heliogenesis-surface] {
+  color: var(--heliogenesis-ink-event);
+  border-color: rgb(225 40 111 / 59%);
+  background:
+    linear-gradient(112deg, rgb(0 216 221 / 8%), transparent 38%),
+    radial-gradient(circle at 82% 18%, rgb(255 54 118 / 14%), transparent 45%),
+    var(--heliogenesis-paper-event);
+  box-shadow:
+    -38px 28px 90px rgb(0 220 227 / 19%),
+    50px 16px 120px rgb(255 13 103 / 31%),
+    0 28px 80px rgb(0 0 0 / 38%);
+  transition-duration: var(--heliogenesis-document-in);
+}
+
+[data-heliogenesis-ignition] [data-heliogenesis-surface] {
+  animation: heliogenesis-document-ignition var(--heliogenesis-rise) linear both;
+}
+
+:where([data-heliogenesis-state="dawning"], [data-heliogenesis-state="radiant"])
+  [data-heliogenesis-surface] :is(h1, h2, h3, h4, h5, h6) {
+  color: var(--heliogenesis-ink-event);
+  text-shadow:
+    -9px 8px 20px rgb(0 211 217 / 12%),
+    9px -5px 23px rgb(238 21 102 / 14%);
+}
+
+[data-heliogenesis-ignition] [data-heliogenesis-surface] :is(h1, h2, h3, h4, h5, h6) {
+  animation: heliogenesis-heading-ignition var(--heliogenesis-rise) linear both;
+}
+
+:where([data-heliogenesis-state="dawning"], [data-heliogenesis-state="radiant"])
+  [data-heliogenesis-surface] :is(a:link, a:visited) {
+  color: var(--heliogenesis-link-event);
+}
+
+:where([data-heliogenesis-state="dawning"], [data-heliogenesis-state="radiant"])
+  [data-heliogenesis-callout] {
+  border-color: rgb(225 30 105 / 53%);
+  background:
+    linear-gradient(95deg, rgb(0 213 220 / 9%), transparent 42%),
+    rgb(255 240 244 / 70%);
+  box-shadow: 12px 9px 30px rgb(241 24 103 / 10%);
+  transition-duration: var(--heliogenesis-document-in);
+}
+
+:where([data-heliogenesis-state="dawning"], [data-heliogenesis-state="radiant"])
+  [data-heliogenesis-code] {
+  color: #e9e5ef;
+  border-color: rgb(0 215 221 / 38%);
+  background:
+    linear-gradient(110deg, rgb(0 204 211 / 7%), transparent 44%),
+    rgb(8 9 23 / 94%);
+  box-shadow:
+    -16px 11px 42px rgb(0 209 216 / 12%),
+    18px 8px 48px rgb(235 18 99 / 14%);
+  transition-duration: var(--heliogenesis-document-in);
+}
+
+:where([data-heliogenesis-state="dawning"], [data-heliogenesis-state="radiant"])
+  [data-heliogenesis-rule] {
+  border-color: rgb(255 43 119 / 56%);
+  box-shadow: 0 1px 12px rgb(0 216 221 / 18%);
+  transition-duration: var(--heliogenesis-document-in);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --heliogenesis-document-in: 1400ms;
+    --heliogenesis-document-out: 1900ms;
+  }
+
+  [data-heliogenesis-ignition] [data-heliogenesis-surface],
+  [data-heliogenesis-ignition] [data-heliogenesis-surface] :is(h1, h2, h3, h4, h5, h6) {
+    animation: none;
+  }
+}

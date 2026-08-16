@@ -1113,12 +1113,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/jbboehr/doctrine-of-the-second-sun.git",
-                "reference": "5c2c843c4d0f898eb5792e94187a74b2ce585ad5"
+                "reference": "469ccf2e051a1f3bf240807c10286fee01f52f2f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/jbboehr/doctrine-of-the-second-sun/zipball/5c2c843c4d0f898eb5792e94187a74b2ce585ad5",
-                "reference": "5c2c843c4d0f898eb5792e94187a74b2ce585ad5",
+                "url": "https://api.github.com/repos/jbboehr/doctrine-of-the-second-sun/zipball/469ccf2e051a1f3bf240807c10286fee01f52f2f",
+                "reference": "469ccf2e051a1f3bf240807c10286fee01f52f2f",
                 "shasum": ""
             },
             "require-dev": {
@@ -1133,46 +1133,7 @@
                     "DoctrineOfTheSecondSun\\PHPStan\\": "integrations/phpstan/src/"
                 }
             },
-            "autoload-dev": {
-                "psr-4": {
-                    "DoctrineOfTheSecondSun\\PHPStan\\Tests\\": "integrations/phpstan/tests/"
-                },
-                "exclude-from-classmap": [
-                    "/integrations/phpstan/tests/data/"
-                ]
-            },
-            "archive": {
-                "exclude": [
-                    "/.git*",
-                    "/flake.lock",
-                    "/flake.nix",
-                    "/result*"
-                ]
-            },
-            "scripts": {
-                "analyse": [
-                    "phpstan analyse --configuration=integrations/phpstan/phpstan.neon.dist"
-                ],
-                "cs": [
-                    "php-cs-fixer fix --config=integrations/phpstan/.php-cs-fixer.dist.php --dry-run --diff"
-                ],
-                "cs:fix": [
-                    "php-cs-fixer fix --config=integrations/phpstan/.php-cs-fixer.dist.php"
-                ],
-                "test": [
-                    "@test:unit",
-                    "@test:integration"
-                ],
-                "test:unit": [
-                    "phpunit --configuration=integrations/phpstan/phpunit.xml.dist"
-                ],
-                "test:integration": [
-                    "phpstan analyse --configuration=integrations/phpstan/tests/extension-integration.neon --no-progress",
-                    "phpstan analyse --configuration=integrations/phpstan/tests/disabled-integration.neon --no-progress",
-                    "phpstan analyse --configuration=integrations/phpstan/tests/extension-trait-integration.neon --no-progress",
-                    "phpstan analyse --configuration=integrations/phpstan/tests/overlap-integration.neon --no-progress"
-                ]
-            },
+            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "(CC-BY-SA-4.0 AND AGPL-3.0-only WITH romic-exception)"
             ],
@@ -1193,7 +1154,7 @@
                 "issues": "https://github.com/jbboehr/doctrine-of-the-second-sun/issues",
                 "source": "https://github.com/jbboehr/doctrine-of-the-second-sun"
             },
-            "time": "2026-08-11T00:58:36+00:00"
+            "time": "2026-08-16T15:32:42+00:00"
         },
         {
             "name": "laravel/framework",

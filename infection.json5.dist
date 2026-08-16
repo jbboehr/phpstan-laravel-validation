@@ -19,7 +19,7 @@
     // Property tests also remain in the normal suite, while focused regressions
     // promoted from their findings provide mutation evidence without replaying
     // hundreds of generated cases for each mutant.
-    "testFrameworkExtraArgs": "--exclude-group=subprocess,property",
+    "testFrameworkExtraArgs": "--exclude-group=subprocess,property,documentation",
     "logs": {
         "text": "infection.log",
         "summary": "infection-summary.log"

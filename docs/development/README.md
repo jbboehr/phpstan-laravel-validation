@@ -5,11 +5,12 @@ measurements. These reports preserve the evidence, revisions, environment, and
 commands for a specific experiment. They are not user-facing support promises
 and should not be silently rewritten to describe a newer dependency release.
 
-Current configuration and feature documentation belongs in the project
+Current configuration and feature documentation belongs in the
+[documentation book](../pages/SUMMARY.md) and the project
 [`README`](../../README.md). Laravel-behavior evidence and contributor testing
 guidance belong in the
-[version inference audit](../laravel-version-inference-audit.md) and
-[testing guide](../testing.md).
+[version inference audit](../pages/contributing/laravel-version-inference-audit.md)
+and [testing guide](../pages/contributing/testing.md).
 
 ## Reports
 

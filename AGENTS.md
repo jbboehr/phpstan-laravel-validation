@@ -5,11 +5,12 @@
   across the supported major versions and inspect the corresponding upstream
   implementation or generated fixtures; do not rely on assumptions from rule
   names or documentation alone.
-- Treat `docs/laravel-validation-and-type-safety.md` as evidence-backed
-  documentation. Before changing concrete Laravel behavior, inferred types,
-  supported-version claims, fixture metadata, or test mappings, verify the
-  claim against every supported Laravel major and update the corresponding
-  runtime tests, static inference tests, and fixtures where applicable.
+- Treat `docs/pages/guides/laravel-validation-and-type-safety.md` as
+  evidence-backed documentation. Before changing concrete Laravel behavior,
+  inferred types, supported-version claims, fixture metadata, or test
+  mappings, verify the claim against every supported Laravel major and update
+  the corresponding runtime tests, static inference tests, and fixtures where
+  applicable.
 - Preserve that document's primary purpose: a technically rigorous criticism
   of Laravel validation's runtime semantics. Keep
   `phpstan-laravel-validation` framed as a compatibility and mitigation layer,
@@ -29,7 +30,8 @@ and policy update. Review the upstream diff before updating `composer.lock`,
 then adjust this repository's policy when the adopted guidance changes.
 
 - Adopt `MEASURE-OF-WORDS.md` for concise, clear, and exact technical writing.
-- Adopt the engineering-preservation guidance in `RUINENWERT.md`, including
+- Adopt the engineering guidance in `RUINENWERT.md` for resilience,
+  recoverability, and continuation under ecosystem change, including
   durable specifications, explicit invariants, conformance evidence,
   reproducible local workflows, inspectable data, replacement boundaries, and
   preservation of significant design reasoning. Do not treat its governance,

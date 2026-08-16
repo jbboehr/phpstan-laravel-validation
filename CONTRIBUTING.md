@@ -16,9 +16,10 @@ nix flake check --keep-going -L
 ```
 
 This runs the supported-PHP PHPUnit matrix, PHPStan, php-cs-fixer, Composer and
-PHP linting, documentation formatting, Larastan and minimum-PHPStan consumer
-checks, and the pinned Laravel runtime audits. It does not run mutation
-testing. Run that expensive target explicitly with:
+PHP linting, documentation formatting, the mdBook build and link check,
+Larastan and minimum-PHPStan consumer checks, and the pinned Laravel runtime
+audits. It does not run mutation testing. Run that expensive target explicitly
+with:
 
 ```sh
 nix build -L .#mutation
@@ -50,3 +51,16 @@ the job summary. Update `nix/vendor-hashes.nix` with that value and push again.
 
 Do not copy a hash from an unrelated derivation. The `got:` value reported by
 the failed Composer-repository derivation is authoritative.
+
+## Documentation
+
+Build, check, and preview the mdBook with:
+
+```sh
+composer docs
+composer docs:check
+composer docs:serve
+```
+
+Contributor testing, the version-inference audit, and development commands are
+in the [documentation book](docs/pages/contributing/testing.md).

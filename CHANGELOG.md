@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Documentation
+
+- Split the project manual into a concise README and an mdBook site covering
+  guides, reference material, and contributor documentation.
+- Update Doctrine of the Second Sun to the latest `dev-master` revision and
+  mount The Document Looks Back as a separate optional documentation
+  integration.
+
 ## 0.1.0 (2026-08-15)
 
 This is the first experimental release of `phpstan-laravel-validation`.
@@ -43,6 +53,6 @@ runtime extensions.
 - Laravel validation commonly preserves input values rather than normalizing
   them. Sound inferred types may therefore be broader than rule names suggest.
 
-See the [README](README.md) for configuration and
-[Laravel validation and type safety](docs/laravel-validation-and-type-safety.md)
+See the [README](README.md) for installation and
+[Laravel validation and type safety](docs/pages/guides/laravel-validation-and-type-safety.md)
 for the technical rationale and runtime evidence.

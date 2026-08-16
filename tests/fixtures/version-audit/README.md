@@ -21,6 +21,7 @@ before accepting a snapshot update. A changed snapshot is evidence to
 investigate, not an instruction to change inference automatically. Partial
 updates using `--case` are deliberately rejected.
 
-See [`docs/testing.md`](../../../docs/testing.md) and
-[`docs/laravel-version-inference-audit.md`](../../../docs/laravel-version-inference-audit.md)
+See [`docs/pages/contributing/testing.md`](../../../docs/pages/contributing/testing.md)
+and
+[`docs/pages/contributing/laravel-version-inference-audit.md`](../../../docs/pages/contributing/laravel-version-inference-audit.md)
 for the test workflow and audit methodology.

@@ -1,0 +1,286 @@
+:root {
+  --heliogenesis-layer: 30;
+  --heliogenesis-rise: 15000ms;
+  --heliogenesis-reveal: 2400ms;
+  --heliogenesis-return: 7000ms;
+  --heliogenesis-midnight: #070817;
+  --heliogenesis-rose: #e00060;
+  --heliogenesis-rose-hot: #ff267e;
+  --heliogenesis-cyan: #00d8dd;
+  --heliogenesis-gold: #ffc966;
+  --heliogenesis-sun-x: 78.5%;
+  --heliogenesis-sun-y: 35.5%;
+}
+
+.heliogenesis-environment {
+  position: fixed;
+  z-index: var(--heliogenesis-layer);
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  opacity: 0;
+  isolation: isolate;
+  pointer-events: none;
+  transition: opacity var(--heliogenesis-return) cubic-bezier(.2, .7, .2, 1);
+}
+
+.heliogenesis-world-light,
+.heliogenesis-horizon,
+.heliogenesis-stage,
+.heliogenesis-ignition-front,
+.heliogenesis-vigil {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.heliogenesis-world-light {
+  z-index: 0;
+  opacity: 0;
+  background:
+    linear-gradient(104deg, transparent 13%, rgb(0 230 235 / 10%) 34%, transparent 47%),
+    radial-gradient(
+      ellipse at var(--heliogenesis-sun-x) var(--heliogenesis-sun-y),
+      rgb(255 221 133 / 26%),
+      rgb(255 25 112 / 18%) 16%,
+      transparent 48%
+    );
+  mix-blend-mode: screen;
+  transition: opacity var(--heliogenesis-return) ease;
+}
+
+.heliogenesis-horizon {
+  z-index: 1;
+  top: auto;
+  bottom: 0;
+  height: 46vh;
+  opacity: 0;
+  background:
+    linear-gradient(180deg, transparent, rgb(230 0 91 / 10%) 53%, rgb(255 23 103 / 21%) 100%),
+    repeating-linear-gradient(90deg, transparent 0 72px, rgb(0 222 228 / 5%) 73px 74px);
+  mask-image: linear-gradient(transparent, black);
+  transition: opacity var(--heliogenesis-return) ease;
+}
+
+.heliogenesis-stage {
+  z-index: 2;
+  display: block;
+}
+
+.heliogenesis-ignition-front {
+  z-index: 3;
+  top: var(--heliogenesis-sun-y);
+  left: var(--heliogenesis-sun-x);
+  width: 190vmax;
+  height: 190vmax;
+  opacity: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle,
+      rgb(255 211 121 / 7%) 0 47.8%,
+      transparent 48.5% 49.05%,
+      rgb(0 226 232 / 78%) 49.2%,
+      rgb(255 250 214 / 96%) 49.55%,
+      rgb(255 37 114 / 84%) 49.9%,
+      rgb(255 183 92 / 18%) 50.35%,
+      transparent 51.1%);
+  filter:
+    drop-shadow(0 0 12px rgb(255 240 202 / 64%))
+    drop-shadow(0 0 34px rgb(255 18 103 / 52%))
+    drop-shadow(0 0 54px rgb(0 220 229 / 31%));
+  mix-blend-mode: screen;
+  transform: translate(-50%, -50%) scale(0.012);
+  transform-origin: center;
+}
+
+.heliogenesis-ignition-front::before,
+.heliogenesis-ignition-front::after {
+  content: "";
+  position: absolute;
+  border-radius: inherit;
+}
+
+.heliogenesis-ignition-front::before {
+  inset: 1.25%;
+  border: 1px solid rgb(255 235 188 / 42%);
+  box-shadow:
+    inset 0 0 42px rgb(255 27 111 / 16%),
+    0 0 23px rgb(0 222 230 / 23%);
+}
+
+.heliogenesis-ignition-front::after {
+  inset: 47.9%;
+  background: #fff9d8;
+  box-shadow:
+    0 0 34px 12px rgb(255 209 103 / 72%),
+    0 0 78px 28px rgb(255 18 101 / 47%),
+    0 0 110px 48px rgb(0 216 225 / 22%);
+}
+
+@keyframes heliogenesis-ignition-front {
+  0%,
+  61% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.012);
+  }
+
+  65% {
+    opacity: 0.32;
+    transform: translate(-50%, -50%) scale(0.02);
+  }
+
+  69% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(0.065);
+  }
+
+  82% {
+    opacity: 0.86;
+    transform: translate(-50%, -50%) scale(0.78);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.28);
+  }
+}
+
+.heliogenesis-vigil {
+  z-index: 4;
+  opacity: 0;
+  background:
+    linear-gradient(105deg, transparent 0 54%, rgb(255 255 255 / 3%) 63%, transparent 77%),
+    radial-gradient(
+      circle at var(--heliogenesis-sun-x) var(--heliogenesis-sun-y),
+      transparent 0 18%,
+      rgb(255 13 99 / 8%) 31%,
+      transparent 56%
+    );
+  box-shadow: inset 0 0 120px rgb(2 4 18 / 65%);
+  transition: opacity var(--heliogenesis-return) ease;
+}
+
+.heliogenesis-environment:is(
+  [data-heliogenesis-state="dawning"],
+  [data-heliogenesis-state="radiant"]
+) {
+  opacity: 1;
+  transition-duration: var(--heliogenesis-reveal);
+}
+
+.heliogenesis-environment:is(
+  [data-heliogenesis-state="dawning"],
+  [data-heliogenesis-state="radiant"]
+) .heliogenesis-world-light {
+  opacity: 1;
+  transition-duration: 3800ms;
+}
+
+.heliogenesis-environment:is(
+  [data-heliogenesis-state="dawning"],
+  [data-heliogenesis-state="radiant"]
+) .heliogenesis-horizon {
+  opacity: 0.56;
+  transition-duration: 3800ms;
+}
+
+.heliogenesis-environment:is(
+  [data-heliogenesis-state="dawning"],
+  [data-heliogenesis-state="radiant"]
+) .heliogenesis-vigil {
+  opacity: 1;
+  transition-duration: 3800ms;
+}
+
+.heliogenesis-environment[data-heliogenesis-ignition] .heliogenesis-ignition-front {
+  animation: heliogenesis-ignition-front var(--heliogenesis-rise) linear both;
+  will-change: opacity, transform, filter;
+}
+
+[data-heliogenesis-trigger] {
+  position: relative;
+  display: grid;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  place-items: center;
+  color: #b96b80;
+  border: 1px solid rgb(213 32 103 / 36%);
+  border-radius: 50%;
+  background: rgb(17 15 34 / 82%);
+  cursor: pointer;
+  transition: color 220ms ease, border-color 220ms ease, box-shadow 220ms ease, transform 220ms ease;
+}
+
+[data-heliogenesis-trigger]::before,
+[data-heliogenesis-trigger]::after {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  opacity: 0.46;
+  transform: rotateX(67deg);
+}
+
+[data-heliogenesis-trigger]::after {
+  inset: 12px;
+  opacity: 0.82;
+  background: currentColor;
+  box-shadow: 0 0 12px currentColor;
+  transform: none;
+}
+
+[data-heliogenesis-trigger]:hover:not(:disabled) {
+  color: #f294ae;
+  border-color: rgb(255 74 133 / 68%);
+  box-shadow: 0 0 18px rgb(238 17 99 / 22%);
+  transform: translateY(-1px);
+}
+
+[data-heliogenesis-trigger]:focus-visible {
+  outline: 2px solid var(--heliogenesis-cyan);
+  outline-offset: 3px;
+}
+
+[data-heliogenesis-trigger]:disabled {
+  cursor: default;
+  opacity: 0.82;
+}
+
+[data-heliogenesis-trigger][data-heliogenesis-unavailable] {
+  opacity: 0.42;
+}
+
+.heliogenesis-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --heliogenesis-reveal: 1400ms;
+    --heliogenesis-return: 1900ms;
+  }
+
+  [data-heliogenesis-trigger] {
+    transition-duration: 0.01ms;
+  }
+
+  .heliogenesis-environment[data-heliogenesis-ignition] .heliogenesis-ignition-front {
+    opacity: 0.18;
+    animation: none;
+    transform: translate(-50%, -50%) scale(0.085);
+  }
+}

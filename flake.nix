@@ -486,6 +486,8 @@
             actionlint
             agent-badge.packages.${system}.default
             alejandra
+            gnumake
+            mdbook
             mdl
             php'
             php'.packages.composer
@@ -534,19 +536,19 @@
             name = "phpunit-laravel11";
             php = phpVersions.php82;
             closure = laravel11Closure;
-            command = "LARAVEL_AUDIT_BASELINE=11-latest php vendor/bin/phpunit --no-coverage";
+            command = "LARAVEL_AUDIT_BASELINE=11-latest php vendor/bin/phpunit --exclude-group documentation --no-coverage";
           };
           phpunit-laravel12 = mkProjectCheck {
             name = "phpunit-laravel12";
             php = phpVersions.php82;
             closure = laravel12Closure;
-            command = "LARAVEL_AUDIT_BASELINE=12-latest php vendor/bin/phpunit --no-coverage";
+            command = "LARAVEL_AUDIT_BASELINE=12-latest php vendor/bin/phpunit --exclude-group documentation --no-coverage";
           };
           phpunit-laravel13 = mkProjectCheck {
             name = "phpunit-laravel13";
             php = phpVersions.php83;
             closure = laravel13Closure;
-            command = "LARAVEL_AUDIT_BASELINE=13-latest php vendor/bin/phpunit --no-coverage";
+            command = "LARAVEL_AUDIT_BASELINE=13-latest php vendor/bin/phpunit --exclude-group documentation --no-coverage";
           };
 
           phpstan = mkProjectCheck {
@@ -560,6 +562,11 @@
           docs-format = mkProjectCheck {
             name = "docs-format";
             command = "composer docs:format";
+          };
+          documentation = mkSourceCheck {
+            name = "documentation";
+            nativeBuildInputs = [pkgs.gnumake pkgs.mdbook];
+            command = "make docs-check";
           };
           composer-validate = mkSourceCheck {
             name = "composer-validate";
@@ -587,7 +594,7 @@
             closure = minimumPhpstanClosure;
             command = ''
               php vendor/bin/phpstan analyse --no-progress
-              php vendor/bin/phpunit --no-coverage
+              php vendor/bin/phpunit --exclude-group documentation --no-coverage
             '';
           };
           consumer-larastan = mkProjectCheck {
