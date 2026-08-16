@@ -1,6 +1,6 @@
 {
   "nodes": {
-    "akashi": {
+    "agent-badge": {
       "inputs": {
         "flake-utils": [
           "flake-utils"
@@ -8,34 +8,22 @@
         "gitignore": [
           "gitignore"
         ],
-        "nix-github-actions": [
-          "nix-github-actions"
-        ],
         "nixpkgs": [
           "nixpkgs"
-        ],
-        "php-perfidious": "php-perfidious",
-        "phps": [
-          "phps"
-        ],
-        "pre-commit-hooks": [
-          "git-hooks"
-        ],
-        "treefmt-nix": "treefmt-nix"
+        ]
       },
       "locked": {
-        "lastModified": 1786843629,
-        "narHash": "sha256-PxMfXfhxVLLOi3b3LFrclHvqeD9LM5Z/BQajA4b8OmE=",
-        "ref": "master",
-        "rev": "96ea8ebcccf5a8ba7f7f64c12fc6049b1d581f18",
-        "revCount": 103,
-        "type": "git",
-        "url": "https://github.com/jbboehr/akashi.php"
+        "lastModified": 1786503253,
+        "narHash": "sha256-z2RfLBtLSNw5VzV+cA+/YXtgg2Hoxvd+P89aAO5Ts+c=",
+        "owner": "jbboehr",
+        "repo": "agent-badge.ts",
+        "rev": "4e8f892f443245cf9a32583034d3a155e9fdcb48",
+        "type": "github"
       },
       "original": {
-        "ref": "master",
-        "type": "git",
-        "url": "https://github.com/jbboehr/akashi.php"
+        "owner": "jbboehr",
+        "repo": "agent-badge.ts",
+        "type": "github"
       }
     },
     "flake-compat": {
@@ -183,22 +171,6 @@
         "type": "github"
       }
     },
-    "php-perfidious": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1785654964,
-        "narHash": "sha256-w7oogFyTI2pzUUIib7SCKaJ5/2bDi3Qi6/qG8dGifUY=",
-        "owner": "jbboehr",
-        "repo": "php-perfidious",
-        "rev": "c646bd1313214dc86c9101fe459784ce0e887b6f",
-        "type": "github"
-      },
-      "original": {
-        "owner": "jbboehr",
-        "repo": "php-perfidious",
-        "type": "github"
-      }
-    },
     "phps": {
       "inputs": {
         "flake-compat": "flake-compat_2",
@@ -223,7 +195,7 @@
     },
     "root": {
       "inputs": {
-        "akashi": "akashi",
+        "agent-badge": "agent-badge",
         "flake-utils": "flake-utils",
         "git-hooks": "git-hooks",
         "gitignore": "gitignore",
@@ -245,27 +217,6 @@
       "original": {
         "owner": "nix-systems",
         "repo": "default",
-        "type": "github"
-      }
-    },
-    "treefmt-nix": {
-      "inputs": {
-        "nixpkgs": [
-          "akashi",
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1785360170,
-        "narHash": "sha256-XE1lKgQ3eIO3E7zWryqcRsax+mYXod/5RHBn4YaR9YE=",
-        "owner": "numtide",
-        "repo": "treefmt-nix",
-        "rev": "d1187f8bc71fb8aab02395869ec3f5c1920f75c0",
-        "type": "github"
-      },
-      "original": {
-        "owner": "numtide",
-        "repo": "treefmt-nix",
         "type": "github"
       }
     }

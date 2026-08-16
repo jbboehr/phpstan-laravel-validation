@@ -19,15 +19,11 @@
       url = "github:hercules-ci/gitignore.nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    akashi = {
-      # Akashi's GitHub source archive omits its flake; Git transport preserves it.
-      url = "git+https://github.com/jbboehr/akashi.php?ref=master";
+    agent-badge = {
+      url = "github:jbboehr/agent-badge.ts";
       inputs.flake-utils.follows = "flake-utils";
       inputs.gitignore.follows = "gitignore";
-      inputs.nix-github-actions.follows = "nix-github-actions";
       inputs.nixpkgs.follows = "nixpkgs";
-      inputs.phps.follows = "phps";
-      inputs.pre-commit-hooks.follows = "git-hooks";
     };
     nix-github-actions = {
       url = "github:nix-community/nix-github-actions";
@@ -43,7 +39,7 @@
     phps,
     git-hooks,
     gitignore,
-    akashi,
+    agent-badge,
     nix-github-actions,
   }:
     flake-utils.lib.eachDefaultSystem (system: let
@@ -488,7 +484,7 @@
         pkgs.mkShell {
           buildInputs = with pkgs; [
             actionlint
-            akashi.packages.${system}.agent-badge
+            agent-badge.packages.${system}.default
             alejandra
             mdl
             php'
