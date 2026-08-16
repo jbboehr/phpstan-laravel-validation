@@ -267,6 +267,190 @@ final class TypeResolverTest extends PHPStanTestCase
         ]));
     }
 
+    public function testConditionalPresenceInferenceIsDisabledByDefault(): void
+    {
+        self::assertSame(
+            "array{mode: 'create', value?: string}",
+            self::resolve([
+                'mode' => 'required|string|in:create',
+                'value' => 'present_if:mode,create|string',
+            ])
+        );
+    }
+
+    public function testExperimentalConditionalPresenceInferenceResolvesDefiniteConditions(): void
+    {
+        $cases = [
+            'present if active' => [
+                'create',
+                'present_if:mode,create|string',
+                "array{mode: 'create', value: string}",
+            ],
+            'present if inactive' => [
+                'update',
+                'present_if:mode,create|string',
+                "array{mode: 'update', value?: string}",
+            ],
+            'present unless inactive' => [
+                'create',
+                'present_unless:mode,create|string',
+                "array{mode: 'create', value?: string}",
+            ],
+            'present unless active' => [
+                'update',
+                'present_unless:mode,create|string',
+                "array{mode: 'update', value: string}",
+            ],
+            'missing if active' => [
+                'create',
+                'missing_if:mode,create|string',
+                "array{mode: 'create'}",
+            ],
+            'missing if inactive' => [
+                'update',
+                'missing_if:mode,create|string',
+                "array{mode: 'update', value?: string}",
+            ],
+            'missing unless inactive' => [
+                'create',
+                'missing_unless:mode,create|string',
+                "array{mode: 'create', value?: string}",
+            ],
+            'missing unless active' => [
+                'update',
+                'missing_unless:mode,create|string',
+                "array{mode: 'update'}",
+            ],
+        ];
+
+        foreach ($cases as $name => [$mode, $dependentRule, $expectedType]) {
+            self::assertSame(
+                $expectedType,
+                self::resolveWithConditionalPresenceInference([
+                    'mode' => 'required|string|in:' . $mode,
+                    'value' => $dependentRule,
+                ]),
+                $name
+            );
+        }
+    }
+
+    public function testExperimentalConditionalPresenceInferencePreservesPresentBlankBypass(): void
+    {
+        self::assertSame(
+            "array{mode: 'create', value: float|int|string|Stringable|true}",
+            self::resolveWithConditionalPresenceInference([
+                'mode' => 'required|string|in:create',
+                'value' => 'present_if:mode,create|integer',
+            ])
+        );
+    }
+
+    public function testExperimentalConditionalPresenceInferenceFollowsPresentRuleVersionBoundary(): void
+    {
+        $presentIfRules = [
+            'mode' => 'required|string|in:create',
+            'value' => 'present_if:mode,create|string',
+        ];
+        $presentUnlessRules = [
+            'mode' => 'required|string|in:update',
+            'value' => 'present_unless:mode,create|string',
+        ];
+
+        self::assertSame(
+            "array{mode: 'create', value?: string}",
+            self::resolveWithConditionalPresenceInference($presentIfRules, '10.0.0')
+        );
+        self::assertSame(
+            "array{mode: 'update', value?: string}",
+            self::resolveWithConditionalPresenceInference($presentUnlessRules, '10.0.0')
+        );
+        self::assertSame(
+            "array{mode: 'create', value: string}",
+            self::resolveWithConditionalPresenceInference($presentIfRules, '10.32.1')
+        );
+        self::assertSame(
+            "array{mode: 'update', value: string}",
+            self::resolveWithConditionalPresenceInference($presentUnlessRules, '10.32.1')
+        );
+        self::assertSame(
+            "array{mode: 'create', value?: string}",
+            self::resolveWithConditionalPresenceInference($presentIfRules, null)
+        );
+
+        // The conditional missing rules exist throughout the supported
+        // Laravel range and remain eligible at the 10.0 boundary.
+        self::assertSame(
+            "array{mode: 'create'}",
+            self::resolveWithConditionalPresenceInference([
+                'mode' => 'required|string|in:create',
+                'value' => 'missing_if:mode,create|string',
+            ], '10.0.0')
+        );
+    }
+
+    public function testExperimentalConditionalPresenceInferenceDeclinesUnsafeOrUnsupportedShapes(): void
+    {
+        self::assertSame("array{mode?: string, value?: string}", self::resolveWithConditionalPresenceInference([
+            'mode' => 'string|in:create,update',
+            'value' => 'present_if:mode,create|string',
+        ]));
+        self::assertSame('array{mode: string, value?: string}', self::resolveWithConditionalPresenceInference([
+            'mode' => 'required|string',
+            'value' => 'present_if:mode,create|string',
+        ]));
+        self::assertSame(
+            "array{mode: 'create'|'update', value?: string}",
+            self::resolveWithConditionalPresenceInference([
+                'mode' => 'required|string|in:create,update',
+                'value' => 'present_if:mode,create|string',
+            ])
+        );
+        self::assertSame(
+            "array{mode: 'create'|'update', value?: string, other?: string}",
+            self::resolveWithConditionalPresenceInference([
+                'mode' => 'required|string|in:create,update',
+                'value' => 'present_if:mode,create|string',
+                'other' => 'missing_if:mode,update|string',
+            ])
+        );
+        self::assertSame(
+            "array{mode: 'create'|'update', value?: string}",
+            self::resolveWithConditionalPresenceInference([
+                'mode' => 'required|string|in:create,update',
+                'value' => 'present_if:mode,create|string',
+                'discarded' => 'exclude',
+            ])
+        );
+        self::assertSame(
+            "array{payload: array{mode: 'create'|'update', value?: string}}",
+            self::resolveWithConditionalPresenceInference([
+                'payload.mode' => 'required|string|in:create,update',
+                'payload.value' => 'present_if:payload.mode,create|string',
+            ])
+        );
+        self::assertSame(
+            "array{mode: 'create', value?: string, other?: mixed}",
+            self::resolveWithConditionalPresenceInference([
+                'mode' => 'required|string|in:create',
+                'value' => 'present_if:mode,create|string',
+                'other' => 'application_rule',
+            ])
+        );
+
+        $context = new LaravelVersionContext('', '12.22.0');
+        self::assertSame(
+            'array{mode: 1, value?: string}',
+            (new TypeResolver(
+                laravelVersionContext: $context,
+                experimentalConditionalPresenceInference: true
+            ))->evaluateMap(RuleParser::parse([
+                'mode' => 'required|boolean|integer:strict|in:1',
+                'value' => 'present_if:mode,true|string',
+            ], $context))->describe(VerbosityLevel::precise())
+        );
+    }
+
     public function testNormalizedHttpInputSuppressesBlankStringBypass(): void
     {
         self::assertSame('array{value?: array}', self::resolve([
@@ -1440,6 +1624,25 @@ final class TypeResolverTest extends PHPStanTestCase
         bool $assumeHttpInputNormalization = false
     ): string {
         return self::resolveTypeForVersion($rules, $laravelVersion, $assumeHttpInputNormalization)
+            ->describe(VerbosityLevel::precise());
+    }
+
+    /**
+     * @param array<string, string> $rules
+     */
+    private static function resolveWithConditionalPresenceInference(
+        array $rules,
+        ?string $version = '10.32.1'
+    ): string {
+        self::getContainer();
+
+        $context = $version === null ? null : new LaravelVersionContext('', $version);
+
+        return (new TypeResolver(
+            laravelVersionContext: $context,
+            experimentalConditionalPresenceInference: true
+        ))
+            ->evaluateMap(RuleParser::parse($rules, $context))
             ->describe(VerbosityLevel::precise());
     }
 

@@ -259,6 +259,15 @@ multiply branches quickly; callback conditions may provide no static contract
 at all. The apparently local declaration is a runtime program over the rest of
 the input.
 
+When another field's inferred literal domain makes one condition inevitable,
+no correlated union is needed. This extension has a default-off experimental
+mode for those direct `present_if`, `present_unless`, `missing_if`, and
+`missing_unless` cases. If both outcomes remain possible, inference retains
+the conservative optional shape rather than inventing a correlation PHPStan
+will not preserve. The conditional present rules are refined only when the
+detected Laravel version is 10.32 or later; older and unknown versions retain
+the conservative result.
+
 ### Wildcards are quantified traversal
 
 A required wildcard descendant does not require any match to exist:
@@ -452,8 +461,10 @@ boundary profiles, runtime snapshots, and audit limitations.
 
 Runtime methods in the table below are defined in
 [`tests/LaravelInferenceTest.php`](../tests/LaravelInferenceTest.php) and
-[`tests/CustomRulesLaravelRuntimeTest.php`](../tests/CustomRulesLaravelRuntimeTest.php),
-with FormRequest lifecycle behavior covered by
+[`tests/CustomRulesLaravelRuntimeTest.php`](../tests/CustomRulesLaravelRuntimeTest.php).
+Conditional presence behavior is covered by
+[`tests/ConditionalPresenceLaravelRuntimeTest.php`](../tests/ConditionalPresenceLaravelRuntimeTest.php).
+FormRequest lifecycle behavior is covered by
 [`tests/FormRequestLaravelRuntimeTest.php`](../tests/FormRequestLaravelRuntimeTest.php).
 
 | Claim | Laravel runtime coverage | PHPStan inference coverage |
@@ -466,6 +477,7 @@ with FormRequest lifecycle behavior covered by
 | HTTP normalization changes blank behavior | `LaravelInferenceTest::testDefaultHttpInputNormalizationChangesOptionalBlankBehavior`, `testTrimStringsAloneDoesNotEliminateBlankStringBypass`, and `testDefaultPasswordTrimExceptionVariesByLaravelMajor` | [`tests/normalized/request.php`](../tests/normalized/request.php), [`tests/structure/request.php`](../tests/structure/request.php), and [`tests/version-aware/inference.php`](../tests/version-aware/inference.php) |
 | Conditional acceptance broadens values | `LaravelInferenceTest::testConditionalValueRulesRemainConservative` | [`tests/rules/accepted-if.php`](../tests/rules/accepted-if.php) |
 | Conditional exclusion changes shape | `LaravelInferenceTest::testConditionalExclusionChangesTheValidatedShape` | [`tests/rules/exclude-if.php`](../tests/rules/exclude-if.php) |
+| Definite conditional presence and absence can refine shape experimentally | `ConditionalPresenceLaravelRuntimeTest::testConditionalPresenceMatchesExperimentalInference`, `testActiveConditionalPresenceRulesRejectTheOppositeShape`, `testConditionalPresentRulesFollowRuntimeAndInferenceBoundary`, and the exact-profile [`conditional-presence-rule-audit.php`](../scripts/conditional-presence-rule-audit.php) probe | [`tests/conditional-presence/inference.php`](../tests/conditional-presence/inference.php), [`tests/conditional-presence/before-introduction.php`](../tests/conditional-presence/before-introduction.php), and `TypeResolverTest::testExperimentalConditionalPresenceInferenceResolvesDefiniteConditions` |
 | Required wildcard descendants may match nothing | `LaravelInferenceTest::testRequiredWildcardDescendantDoesNotRequireMissingParent` | [`tests/structure/wildcard.php`](../tests/structure/wildcard.php) |
 | Bare arrays preserve nested keys | `LaravelInferenceTest::testArrayRuleWithoutKeyParametersPreservesNestedKeys` | [`tests/rules/array.php`](../tests/rules/array.php) |
 | Array key lists reject undeclared keys | `LaravelInferenceTest::testArrayRuleKeyParametersRejectUndeclaredNestedKeys` | [`tests/rules/array.php`](../tests/rules/array.php) |
@@ -487,7 +499,7 @@ actual successful output. Expected types are changed only after checking
 Laravel behavior, and runtime-only evidence is not presented as completed
 static support.
 
-Last reviewed: 2026-08-14.
+Last reviewed: 2026-08-15.
 
 ## Conclusion
 

@@ -1,0 +1,5 @@
+parameters:
+  phpstanLaravelValidation:
+    experimentalConditionalPresenceInference: true
+    # present_if / present_unless were introduced in Laravel 10.32.
+    laravelVersion: '10.0.0'

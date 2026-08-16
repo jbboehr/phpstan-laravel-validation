@@ -3,6 +3,7 @@ parameters:
     - stubs/Validator.stub
   phpstanLaravelValidation:
     assumeHttpInputNormalization: false
+    experimentalConditionalPresenceInference: false
     includeUnvalidatedArrayKeys: false
     laravelVersion: auto
     formRequests:
@@ -15,6 +16,7 @@ parameters:
 parametersSchema:
   phpstanLaravelValidation: structure([
     assumeHttpInputNormalization: bool(),
+    experimentalConditionalPresenceInference: bool(),
     includeUnvalidatedArrayKeys: bool(),
     laravelVersion: string(),
     formRequests: structure([
@@ -69,6 +71,7 @@ services:
       - phpstan.resultCacheMetaExtension
   - class: jbboehr\PhpstanLaravelValidation\Validation\TypeResolver
     arguments:
+      experimentalConditionalPresenceInference: %phpstanLaravelValidation.experimentalConditionalPresenceInference%
       includeUnvalidatedArrayKeys: %phpstanLaravelValidation.includeUnvalidatedArrayKeys%
   - class: jbboehr\PhpstanLaravelValidation\Type\ValidatorTypeHelper
   - class: jbboehr\PhpstanLaravelValidation\Type\ValidatedInputTypeResolver

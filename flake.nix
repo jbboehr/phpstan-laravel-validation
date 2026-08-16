@@ -338,6 +338,8 @@
           name = "laravel-audit-${profile}";
           inherit php;
           command = ''
+            ${php}/bin/php scripts/conditional-presence-rule-audit.php \
+              --laravel-autoload=${closure.vendor}/share/php/${closure.vendorPname}/vendor/autoload.php
             ${php}/bin/php scripts/inference-audit.php \
               --laravel-autoload=${closure.vendor}/share/php/${closure.vendorPname}/vendor/autoload.php \
               --baseline=${profile}

@@ -208,6 +208,49 @@ claim to determine the final mode after later calls. It makes visible
 configuration contradictions that analysis can actually see; the option
 remains the source of truth for inferred output.
 
+### Experimental conditional presence inference
+
+Laravel's dependent presence rules normally leave the affected output key
+optional because their result depends on another runtime value. An
+experimental, default-off option can recover definite cases where a required
+top-level controlling field has a finite scalar-literal type:
+
+```neon
+parameters:
+    phpstanLaravelValidation:
+        experimentalConditionalPresenceInference: true
+```
+
+For example, the controlling rule below proves that every successful `mode`
+is `create`, so `present_if` is definitely active:
+
+```php
+$validated = Validator::make($input, [
+    'mode' => 'required|string|in:create',
+    'name' => 'present_if:mode,create|string',
+])->validated();
+
+\PHPStan\dumpType($validated);
+// array{mode: 'create', name: string}
+```
+
+The option handles definite outcomes for `present_if`, `present_unless`,
+`missing_if`, and `missing_unless`. Active presence requires the key but still
+permits blank strings to bypass adjacent non-implicit rules; it is not treated
+as `required`. Active missing rules omit the key from successful output.
+`present_if` and `present_unless` refinement requires a detected Laravel
+version of 10.32 or later, matching their introduction; earlier or unknown
+versions remain conservative.
+
+The first experimental slice deliberately supports only one conditional field
+whose controller is a required direct top-level sibling. The controller's
+entire inferred domain must either match or not match the dependent values.
+Mixed matching and non-matching domains, boolean controllers, nested or
+wildcard paths, multiple conditional fields, exclusions, and custom or opaque
+rules retain the ordinary conservative optional shape. These restrictions
+avoid pretending that an unrepresentable or runtime-sensitive correlation is
+known.
+
 ### Form requests
 
 FormRequest inference is experimental and disabled by default. Enable it

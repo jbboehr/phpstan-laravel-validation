@@ -37,6 +37,8 @@ use PHPStan\Type\StringType;
 
 final class TypeResolver
 {
+    private const CONDITIONAL_PRESENT_RULES_INTRODUCED = '10.32.0';
+
     private const EXCLUSION_RULE_NAMES = [
         Rule::RULE_EXCLUDE,
         Rule::RULE_EXCLUDE_IF,
@@ -76,7 +78,8 @@ final class TypeResolver
     public function __construct(
         private ?LaravelVersionContext $laravelVersionContext = null,
         private ?CustomRuleTypeResolver $customRuleTypeResolver = null,
-        private bool $includeUnvalidatedArrayKeys = false
+        private bool $includeUnvalidatedArrayKeys = false,
+        private bool $experimentalConditionalPresenceInference = false
     ) {
     }
 
@@ -272,24 +275,338 @@ final class TypeResolver
 
     public function evaluateMap(RuleTreeNode $node, bool $assumeHttpInputNormalization = false): Type\Type
     {
+        $conditionalPresence = $this->resolveConditionalPresenceInference(
+            $node,
+            $assumeHttpInputNormalization
+        );
+        return $this->evaluateMapBranch(
+            $node,
+            $assumeHttpInputNormalization,
+            $conditionalPresence['targetKey'] ?? null,
+            $conditionalPresence['effect'] ?? null
+        );
+    }
+
+    private function evaluateMapBranch(
+        RuleTreeNode $node,
+        bool $assumeHttpInputNormalization,
+        int|string|null $targetKey = null,
+        ?string $targetEffect = null
+    ): Type\Type {
         $builder = ConstantArrayTypeBuilder::createEmpty();
 
         foreach ($node as $key => $value) {
+            if ($key === $targetKey && $targetEffect === Rule::RULE_MISSING) {
+                continue;
+            }
+
             if ($value->isExcluded() || $this->isUnconditionallyMissingProjection($value)) {
                 continue;
             }
 
-            $type = $this->evaluate($value, $assumeHttpInputNormalization);
+            $branchNode = $value;
+            if ($key === $targetKey && $targetEffect === Rule::RULE_PRESENT) {
+                $branchNode = clone $value;
+                $branchNode->push(Rule::create(Rule::RULE_PRESENT));
+            }
+
+            $type = $this->evaluate($branchNode, $assumeHttpInputNormalization);
 
             $builder->setOffsetValueType(
                 is_int($key) ? new ConstantIntegerType($key) : new ConstantStringType($key),
                 $type,
-                $this->isOutputOptional($value)
-                    && !$this->requiredArrayKeyGuaranteesProjectedChild($node, $key, $value)
+                $this->isOutputOptional($branchNode)
+                    && !$this->requiredArrayKeyGuaranteesProjectedChild($node, $key, $branchNode)
             );
         }
 
         return $builder->getArray();
+    }
+
+    /**
+     * @return array{
+     *   targetKey: int|string,
+     *   effect: string|null
+     * }|null
+     */
+    private function resolveConditionalPresenceInference(
+        RuleTreeNode $node,
+        bool $assumeHttpInputNormalization
+    ): ?array {
+        if (
+            !$this->experimentalConditionalPresenceInference
+            || $node->getPath() !== ''
+            || $this->hasExecutableRule($node)
+            || $this->hasUnknownRuleName($node)
+            || $this->hasAnyExclusionRule($node)
+        ) {
+            return null;
+        }
+
+        /**
+         * @var array{
+         *   targetKey: int|string,
+         *   rule: Rule,
+         *   controllerPath: string,
+         *   comparisonValues: list<int|float|string>
+         * }|null $candidate
+         */
+        $candidate = null;
+        foreach ($node as $targetKey => $target) {
+            if ($targetKey === '*' || $target->hasChildren()) {
+                continue;
+            }
+
+            foreach ($target->getRules() as $rule) {
+                $ruleName = $rule->getRuleName();
+                if (!in_array($ruleName, [
+                    Rule::RULE_MISSING_IF,
+                    Rule::RULE_MISSING_UNLESS,
+                    Rule::RULE_PRESENT_IF,
+                    Rule::RULE_PRESENT_UNLESS,
+                ], true)) {
+                    continue;
+                }
+
+                if (
+                    in_array($ruleName, [
+                        Rule::RULE_PRESENT_IF,
+                        Rule::RULE_PRESENT_UNLESS,
+                    ], true)
+                    && (
+                        $this->laravelVersionContext === null
+                        || !$this->laravelVersionContext->isAtLeast(
+                            self::CONDITIONAL_PRESENT_RULES_INTRODUCED
+                        )
+                    )
+                ) {
+                    // Before Laravel 10.32 these names can refer to an
+                    // application-defined extension with an arbitrary
+                    // contract. An unknown version cannot prove that the
+                    // built-in presence behavior is available either.
+                    return null;
+                }
+
+                if ($candidate !== null || $this->hasCompetingPresenceRule($target, $rule)) {
+                    return null;
+                }
+
+                $parameters = $rule->getParameters();
+                if (count($parameters) < 2 || !is_string($parameters[0])) {
+                    return null;
+                }
+
+                $comparisonValues = [];
+                foreach (array_slice($parameters, 1) as $parameter) {
+                    if (!is_int($parameter) && !is_float($parameter) && !is_string($parameter)) {
+                        return null;
+                    }
+
+                    $comparisonValues[] = $parameter;
+                }
+
+                $candidate = [
+                    'targetKey' => $targetKey,
+                    'rule' => $rule,
+                    'controllerPath' => $parameters[0],
+                    'comparisonValues' => $comparisonValues,
+                ];
+            }
+        }
+
+        if ($candidate === null) {
+            return null;
+        }
+
+        $targetKey = $candidate['targetKey'];
+        $rule = $candidate['rule'];
+        $controllerPath = $candidate['controllerPath'];
+        $controllerKey = null;
+        $controller = null;
+        foreach ($node as $key => $child) {
+            if ($child->getPath() === $controllerPath) {
+                $controllerKey = $key;
+                $controller = $child;
+                break;
+            }
+        }
+
+        if (
+            $controller === null
+            || $controllerKey === null
+            || $controllerKey === $targetKey
+            || $controller->hasChildren()
+            || $controller->isOpaque()
+            || $controller->isExcluded()
+            || $controller->isMissing()
+            || $this->isOutputOptional($controller)
+            || !$controller->requiresNonBlankValue()
+            || $this->hasRuleNamed($controller, 'Boolean')
+        ) {
+            return null;
+        }
+
+        $controllerType = $this->evaluate($controller, $assumeHttpInputNormalization);
+        $constantTypes = $controllerType->getConstantScalarTypes();
+        if ($constantTypes === []) {
+            return null;
+        }
+
+        $constantUnion = Type\TypeCombinator::union(...$constantTypes);
+        if (!$controllerType->equals($constantUnion)) {
+            return null;
+        }
+
+        $comparisonValues = $candidate['comparisonValues'];
+        $matches = null;
+        foreach ($constantTypes as $constantType) {
+            $value = $constantType->getValue();
+            if (is_bool($value) || $value === null) {
+                // Laravel converts dependent parameters to booleans according
+                // to the controller's original rule spelling. RuleParser has
+                // already normalized aliases, so it cannot reproduce that
+                // decision without guessing.
+                return null;
+            }
+
+            $constantMatches = $this->dependentScalarValueMatches($value, $comparisonValues);
+            if ($matches !== null && $matches !== $constantMatches) {
+                // PHPStan normalizes the correlated array union into an
+                // optional aggregate at extension call sites. Preserve that
+                // conservative result when the controller permits both
+                // matching and non-matching values.
+                return null;
+            }
+
+            $matches = $constantMatches;
+        }
+
+        $ruleName = $rule->getRuleName();
+        $activeWhenMatching = in_array($ruleName, [
+            Rule::RULE_MISSING_IF,
+            Rule::RULE_PRESENT_IF,
+        ], true);
+        $active = $matches === $activeWhenMatching;
+
+        return [
+            'targetKey' => $targetKey,
+            'effect' => $active
+                ? (in_array($ruleName, [
+                    Rule::RULE_MISSING_IF,
+                    Rule::RULE_MISSING_UNLESS,
+                ], true) ? Rule::RULE_MISSING : Rule::RULE_PRESENT)
+                : null,
+        ];
+    }
+
+    /**
+     * @param int|float|string $value
+     * @param array<int, int|float|string> $comparisonValues
+     */
+    private function dependentScalarValueMatches(
+        int|float|string $value,
+        array $comparisonValues
+    ): bool {
+        foreach ($comparisonValues as $comparisonValue) {
+            // Laravel uses non-strict in_array() for non-boolean, non-null
+            // controlling values. PHP's spaceship operator applies the same
+            // scalar comparison semantics without hiding the intentional
+            // coercion behind a non-strict membership check.
+            if (($value <=> $comparisonValue) === 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function hasAnyExclusionRule(RuleTreeNode $node): bool
+    {
+        if ($this->hasExclusionRule($node)) {
+            return true;
+        }
+
+        foreach ($node as $child) {
+            if ($this->hasAnyExclusionRule($child)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function hasUnknownRuleName(RuleTreeNode $node): bool
+    {
+        foreach ($node->getRules() as $rule) {
+            if (
+                $rule->getRuleName() !== Rule::RULE_NOOP
+                && !self::isBuiltInRuleName($rule->getRuleName())
+            ) {
+                return true;
+            }
+        }
+
+        foreach ($node as $child) {
+            if ($this->hasUnknownRuleName($child)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function hasRuleNamed(RuleTreeNode $node, string $ruleName): bool
+    {
+        foreach ($node->getRules() as $rule) {
+            if ($rule->getRuleName() === $ruleName) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function hasCompetingPresenceRule(RuleTreeNode $node, Rule $candidate): bool
+    {
+        foreach ($node->getRules() as $rule) {
+            if ($rule === $candidate) {
+                continue;
+            }
+
+            if (in_array($rule->getRuleName(), [
+                Rule::RULE_ACCEPTED,
+                Rule::RULE_ACCEPTED_IF,
+                Rule::RULE_DECLINED,
+                Rule::RULE_DECLINED_IF,
+                Rule::RULE_MISSING,
+                Rule::RULE_MISSING_IF,
+                Rule::RULE_MISSING_UNLESS,
+                Rule::RULE_PRESENT,
+                Rule::RULE_PRESENT_IF,
+                Rule::RULE_PRESENT_UNLESS,
+                Rule::RULE_REQUIRED,
+                Rule::RULE_SOMETIMES,
+                'MissingWith',
+                'MissingWithAll',
+                'PresentWith',
+                'PresentWithAll',
+                'Prohibited',
+                'ProhibitedIf',
+                'ProhibitedUnless',
+                'RequiredIf',
+                'RequiredIfAccepted',
+                'RequiredIfDeclined',
+                'RequiredUnless',
+                'RequiredWith',
+                'RequiredWithAll',
+                'RequiredWithout',
+                'RequiredWithoutAll',
+            ], true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function evaluateWildcard(RuleTreeNode $node, bool $assumeHttpInputNormalization = false): Type\Type
@@ -889,9 +1206,9 @@ final class TypeResolver
 
             "Bail", "Confirmed", "Between", "Different", "Distinct", "DoesntStartWith", "DoesntEndWith",
             "AcceptedIf", "DeclinedIf", "EndsWith", "Exists", "Filled", "Gt", "Gte", "InArray", "Lt", "Lte",
-            "Max", "Min", "Missing", "NotIn", "Exclude",
+            "Max", "Min", "Missing", "MissingIf", "MissingUnless", "NotIn", "Exclude",
             "ExcludeIf", "ExcludeUnless", "ExcludeWith", "ExcludeWithout", "Nullable", "Required", "Password",
-            "Present", "Prohibited", "ProhibitedIf", "ProhibitedUnless", "Prohibits", "RequiredIf", "RequiredUnless",
+            "Present", "PresentIf", "PresentUnless", "Prohibited", "ProhibitedIf", "ProhibitedUnless", "Prohibits", "RequiredIf", "RequiredUnless",
             "RequiredWith", "RequiredWithAll", "RequiredWithout", "RequiredWithoutAll", "Same", "Size", "Sometimes",
             "StartsWith", "Unique" => null,
 

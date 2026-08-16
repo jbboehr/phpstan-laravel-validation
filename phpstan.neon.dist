@@ -30,6 +30,7 @@ parameters:
         - tests/larastan
         - tests/normalized
         - tests/custom-rules
+        - tests/conditional-presence
         - tests/form-request
         - tests/include-unvalidated-array-keys
         - tests/rules

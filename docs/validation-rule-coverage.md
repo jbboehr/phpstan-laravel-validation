@@ -81,9 +81,9 @@ separate dimensions.
 | Accepted-value handling | Rule names | Focused static coverage | Meaning |
 | --- | ---: | ---: | --- |
 | Direct type contribution | 57 | 57 | A native value type is emitted and has dedicated focused static coverage |
-| Explicitly neutral | 45 | 14 | The rule does not independently narrow the local value type, whether intentionally or because a correlated model is unavailable |
-| Conservative `mixed` fallback | 12 | 0 | No built-in accepted-value model is applied |
-| **Total reserved names** | **114** | **87 files** | Covers the current Laravel 13.25 name inventory, including `Enum` and `Password` |
+| Explicitly neutral | 49 | 18 | The rule does not independently narrow the local value type, whether intentionally or because a correlated model is unavailable |
+| Conservative `mixed` fallback | 8 | 0 | No built-in accepted-value model is applied |
+| **Total reserved names** | **114** | **89 files** | Covers the current Laravel 13.25 name inventory, including `Enum` and `Password` |
 
 The repository's generated Laravel fixtures provide broader conformance
 coverage than the focused-file count suggests. Focused files are still
@@ -125,22 +125,28 @@ Every direct rule has a dedicated static fixture under
 
 ## Explicitly neutral rules
 
-These 45 names are recognized and deliberately contribute no local value type:
+These 49 names are recognized and deliberately contribute no local value type:
 
 | Family | Rules | Why a neutral contribution is currently conservative |
 | --- | --- | --- |
 | Size and comparison | `Between`, `Gt`, `Gte`, `Lt`, `Lte`, `Max`, `Min`, `Size` | The accepted native family depends on adjacent numeric, array, string, or file rules and on runtime values |
 | Cross-field and domain predicates | `AcceptedIf`, `Confirmed`, `DeclinedIf`, `Different`, `Distinct`, `DoesntEndWith`, `DoesntStartWith`, `EndsWith`, `Exists`, `Filled`, `InArray`, `NotIn`, `Password`, `Same`, `StartsWith`, `Unique` | These are predicates or environment-dependent checks; several need correlated types to improve safely |
-| Flow and output rules | `Bail`, `Exclude`, `ExcludeIf`, `ExcludeUnless`, `ExcludeWith`, `ExcludeWithout`, `Missing`, `Nullable`, `Present`, `Prohibited`, `ProhibitedIf`, `ProhibitedUnless`, `Prohibits`, `Required`, `RequiredIf`, `RequiredUnless`, `RequiredWith`, `RequiredWithAll`, `RequiredWithout`, `RequiredWithoutAll`, `Sometimes` | Their primary effect is validation flow, nullability, presence, or projection rather than a standalone native value type |
+| Flow and output rules | `Bail`, `Exclude`, `ExcludeIf`, `ExcludeUnless`, `ExcludeWith`, `ExcludeWithout`, `Missing`, `MissingIf`, `MissingUnless`, `Nullable`, `Present`, `PresentIf`, `PresentUnless`, `Prohibited`, `ProhibitedIf`, `ProhibitedUnless`, `Prohibits`, `Required`, `RequiredIf`, `RequiredUnless`, `RequiredWith`, `RequiredWithAll`, `RequiredWithout`, `RequiredWithoutAll`, `Sometimes` | Their primary effect is validation flow, nullability, presence, or projection rather than a standalone native value type |
 
 Neutral does not mean ignored. `Required`, `Present`, `Missing`, `Nullable`,
 `Sometimes`, and the `Exclude*` family have separate tree-level handling.
 `Min` also refines a known adjacent string or collection type to its non-empty
 form when its parameter is definitely positive; it remains neutral without a
 native-family rule because Laravel may instead measure a number or file.
-Conditional required, presence, missing, and exclusion rules remain
-conservative because the output is not represented as a correlated union over
-the controlling field.
+Conditional required and exclusion rules remain conservative because the
+output is not represented as a correlated union over the controlling field.
+With the default-off experimental option, direct `PresentIf`, `PresentUnless`,
+`MissingIf`, and `MissingUnless` rules can refine output when a required
+top-level controller has a finite scalar-literal domain that makes the
+condition definitely active or definitely inactive. A domain containing both
+outcomes remains conservative. `PresentIf` and `PresentUnless` require a
+detected Laravel 10.32-or-later version; earlier or unknown versions retain the
+conservative shape because those names may have application-defined behavior.
 
 Wildcard expansion adds another projection branch. When an array parent's
 only descendants are below a wildcard, Laravel may expand no nested rules and
@@ -164,14 +170,14 @@ broad when Laravel can produce sparse or reordered integer keys.
 
 ## Rules currently falling back to `mixed`
 
-These 12 reserved names have no built-in accepted-value contribution. The
+These 8 reserved names have no built-in accepted-value contribution. The
 fallback is generally sound because it is broad, but it loses useful
 information and can hide structural guarantees.
 
 | Rules | Introduced | Laravel consequence | Existing runtime evidence | Candidate treatment |
 | --- | --- | --- | --- | --- |
-| `MissingIf`, `MissingUnless`, `MissingWith`, `MissingWithAll` | 10 | Conditionally constrain whether a path may exist | Fixtures for all supported majors | Correlated optionality for the conditional family |
-| `PresentIf`, `PresentUnless`, `PresentWith`, `PresentWithAll` | 10 | Conditionally constrain path presence without requiring a non-blank value | Fixtures for all supported majors | Correlated conditional presence |
+| `MissingWith`, `MissingWithAll` | 10 | Conditionally constrain whether a path may exist | Fixtures for all supported majors | Correlated optionality for the remaining conditional family |
+| `PresentWith`, `PresentWithAll` | 10 | Conditionally constrain path presence without requiring a non-blank value | Fixtures for all supported majors | Correlated conditional presence |
 | `RequiredIfAccepted`, `RequiredIfDeclined` | 10 / 11 | Conditionally require a field based on another field's accepted or declined value | Fixtures from introduction onward | Correlated presence unions |
 | `ProhibitedIfAccepted`, `ProhibitedIfDeclined` | 11 | Conditionally restrict a field based on another field | Laravel 11 through 13 fixtures | Correlated optional value domains; prohibition is not equivalent to exclusion |
 
@@ -194,7 +200,7 @@ reveals precision gaps that an accepted-value-only inventory would miss.
 | `Missing` | A matched path must not exist | Omitted named path and bare-array missing-only projection; parameterized array parents remain | Modeled |
 | `Exclude` | Removes the path from validated output | Omitted key | Modeled |
 | Conditional `Exclude*` | May remove the path according to other runtime data | Optional key | Conservative aggregate model; correlation is lost |
-| Conditional required, accepted, declined, present, missing, and prohibited rules | Presence or permitted emptiness depends on other fields | Usually an optional broad key | Conservative but often imprecise; a precise model may require correlated shape unions |
+| Conditional required, accepted, declined, present, missing, and prohibited rules | Presence or permitted emptiness depends on other fields | Usually an optional broad key; an experimental option resolves definite direct `PresentIf`, `PresentUnless`, `MissingIf`, and `MissingUnless` outcomes | Conservative but often imprecise; a precise model may require correlated shape unions |
 | `RequiredArrayKeys` | Requires named offsets inside a present array, but does not itself project those keys into output | General arrays intersected with required-offset constraints; matching direct child rules become required only when projection guarantees them | Modeled |
 
 `Prohibited` deserves particular care. It is not an alias for exclusion or
@@ -288,12 +294,15 @@ executable calls, assigned wrappers, and unpacked arguments remain opaque.
 
 ## Prioritized work
 
-### 1. Extend presence modeling to conditional rules
+### 1. Extend the experimental conditional presence model
 
-The tree can now say "the key must exist" without saying "blank values fail,"
-and unconditional `missing` paths are omitted from output. Extend that model to
-the conditional present and missing families only when controlling-field
-correlations can be represented without making every branch required.
+The tree can say "the key must exist" without saying "blank values fail," and
+unconditional `missing` paths are omitted from output. The first experimental
+slice now resolves definite `PresentIf`, `PresentUnless`, `MissingIf`, and
+`MissingUnless` outcomes for a finite literal controller. Future work may
+extend this to nested paths, multiple conditions, or genuine correlated unions
+only where PHPStan can preserve the relationship and runtime evidence keeps it
+sound.
 
 ### 2. Complete statically resolvable built-in builders
 
