@@ -3,6 +3,7 @@
     "description": "Laravel Validation extension for PHPStan",
     "type": "phpstan-extension",
     "keywords": ["laravel", "phpstan", "php", "static analysis", "code analysis", "code analyse", "validator", "validation"],
+    "homepage": "https://github.com/jbboehr/phpstan-laravel-validation",
     "license": "AGPL-3.0-or-later",
     "authors": [
         {
@@ -10,6 +11,10 @@
             "email": "jbboehr@gmail.com"
         }
     ],
+    "support": {
+        "issues": "https://github.com/jbboehr/phpstan-laravel-validation/issues",
+        "source": "https://github.com/jbboehr/phpstan-laravel-validation"
+    },
     "require": {
         "php": "^8.1",
         "composer-runtime-api": "^2.1",
