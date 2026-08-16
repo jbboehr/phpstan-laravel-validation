@@ -20,10 +20,13 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     akashi = {
-      url = "github:jbboehr/akashi.php/master";
+      # Akashi's GitHub source archive omits its flake; Git transport preserves it.
+      url = "git+https://github.com/jbboehr/akashi.php?ref=master";
       inputs.flake-utils.follows = "flake-utils";
       inputs.gitignore.follows = "gitignore";
+      inputs.nix-github-actions.follows = "nix-github-actions";
       inputs.nixpkgs.follows = "nixpkgs";
+      inputs.phps.follows = "phps";
       inputs.pre-commit-hooks.follows = "git-hooks";
     };
     nix-github-actions = {

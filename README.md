@@ -861,8 +861,9 @@ test layer to use, how to write named Laravel runtime cases, how to replay Eris
 seeds, and how to run the portable cross-version Composer audit. The
 [contributing guide](CONTRIBUTING.md) documents Nix dependency-hash updates.
 Apply PHP source formatting changes with `composer cs:fix`. Akashi's
-documentation-fence formatter is currently check-only; correct those fences by
-applying the diff reported by `composer docs:format`.
+documentation-fence formatter participates in that command and atomically
+updates stale inline PHP examples. Run only the documentation check or writer
+with `composer docs:format` or `composer docs:format:fix`, respectively.
 
 Mutation testing uses an isolated toolchain because Infection requires PHP 8.3
 or newer while this package supports PHP 8.1. It is deliberately excluded from

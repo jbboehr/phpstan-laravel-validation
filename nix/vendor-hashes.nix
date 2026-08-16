@@ -1,5 +1,5 @@
 {
-  root = "sha256-tNrj650nxsf42cSOout4S24ZSj7TvQaRmSo4W0rtuxk=";
+  root = "sha256-iVW+BfKwGJIDRlMUSAeeKKaizJqdnxcvMiSRHRFxqOU=";
   laravel11 = "sha256-WRJjXADnutwsupGqzlwK2Ic0VXLdpHYwVhSeBJtPryI=";
   laravel12 = "sha256-h0AAkANSd8NJcH9IiXsSEfuzaZsljBQVRV6G+V2QwiQ=";
   laravel13 = "sha256-MrKQIvZwKYFpg1ikzoky111KSlI+CtPYOzwE5Nyh+dA=";

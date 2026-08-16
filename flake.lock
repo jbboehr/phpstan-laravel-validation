@@ -8,8 +8,15 @@
         "gitignore": [
           "gitignore"
         ],
+        "nix-github-actions": [
+          "nix-github-actions"
+        ],
         "nixpkgs": [
           "nixpkgs"
+        ],
+        "php-perfidious": "php-perfidious",
+        "phps": [
+          "phps"
         ],
         "pre-commit-hooks": [
           "git-hooks"
@@ -17,18 +24,18 @@
         "treefmt-nix": "treefmt-nix"
       },
       "locked": {
-        "lastModified": 1786091581,
-        "narHash": "sha256-OzSaaSBs48iIDu12D8q/OCVg2weQHy4QLnd1gf964nQ=",
-        "owner": "jbboehr",
-        "repo": "akashi.php",
-        "rev": "225cc33f61d5779791112fb6c3b0f473e9c8e5ae",
-        "type": "github"
+        "lastModified": 1786843629,
+        "narHash": "sha256-PxMfXfhxVLLOi3b3LFrclHvqeD9LM5Z/BQajA4b8OmE=",
+        "ref": "master",
+        "rev": "96ea8ebcccf5a8ba7f7f64c12fc6049b1d581f18",
+        "revCount": 103,
+        "type": "git",
+        "url": "https://github.com/jbboehr/akashi.php"
       },
       "original": {
-        "owner": "jbboehr",
         "ref": "master",
-        "repo": "akashi.php",
-        "type": "github"
+        "type": "git",
+        "url": "https://github.com/jbboehr/akashi.php"
       }
     },
     "flake-compat": {
@@ -173,6 +180,22 @@
         "owner": "NixOS",
         "ref": "nixpkgs-unstable",
         "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "php-perfidious": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1785654964,
+        "narHash": "sha256-w7oogFyTI2pzUUIib7SCKaJ5/2bDi3Qi6/qG8dGifUY=",
+        "owner": "jbboehr",
+        "repo": "php-perfidious",
+        "rev": "c646bd1313214dc86c9101fe459784ce0e887b6f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "jbboehr",
+        "repo": "php-perfidious",
         "type": "github"
       }
     },

@@ -1034,12 +1034,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/jbboehr/akashi.php.git",
-                "reference": "fda959d9b3bd3f2f7beb200a5f4ebd0c5cfb3d5e"
+                "reference": "96ea8ebcccf5a8ba7f7f64c12fc6049b1d581f18"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/jbboehr/akashi.php/zipball/fda959d9b3bd3f2f7beb200a5f4ebd0c5cfb3d5e",
-                "reference": "fda959d9b3bd3f2f7beb200a5f4ebd0c5cfb3d5e",
+                "url": "https://api.github.com/repos/jbboehr/akashi.php/zipball/96ea8ebcccf5a8ba7f7f64c12fc6049b1d581f18",
+                "reference": "96ea8ebcccf5a8ba7f7f64c12fc6049b1d581f18",
                 "shasum": ""
             },
             "require": {
@@ -1049,6 +1049,7 @@
                 "nikic/php-parser": "^4.19.5 || ^5.8",
                 "php": "^8.1",
                 "sebastian/diff": "^5.1.1 || ^6.0.2",
+                "symfony/console": "^6.4 || ^7.4",
                 "symfony/process": "^6.4 || ^7.4"
             },
             "require-dev": {
@@ -1057,6 +1058,8 @@
                 "friendsofphp/php-cs-fixer": "^3",
                 "infection/infection": "^0.28.1 || ^0.32.6",
                 "jbboehr/doctrine-of-the-second-sun": "dev-master",
+                "jbboehr/phpbench-perfidious": "dev-master",
+                "phpbench/phpbench": "^1.4.3",
                 "phpstan/phpstan": "^2.2.5",
                 "phpstan/phpstan-deprecation-rules": "^2.0",
                 "phpstan/phpstan-phpunit": "^2.0.13",
@@ -1102,7 +1105,7 @@
                 "issues": "https://github.com/jbboehr/akashi.php/issues",
                 "source": "https://github.com/jbboehr/akashi.php"
             },
-            "time": "2026-08-13T05:59:09+00:00"
+            "time": "2026-08-16T01:27:09+00:00"
         },
         {
             "name": "jbboehr/doctrine-of-the-second-sun",

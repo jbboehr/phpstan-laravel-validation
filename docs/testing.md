@@ -16,12 +16,12 @@ keeps individual regressions easy to reproduce without making contributors
 translate ordinary PHPUnit options into Nix expressions.
 
 `composer cs` also uses Akashi to format-check every inline PHP fence in the
-README and `docs/`. Run that check alone with `composer docs:format`. This
-initial dogfooding integration checks maintained examples for PHP formatting;
-it does not execute illustrative fragments or PHPStan-only examples as though
-they were standalone runtime programs. Akashi's formatter is currently
-check-only, so apply a reported documentation diff by hand; `composer cs:fix`
-formats PHP source files only.
+README, changelog, and `docs/`. Run that check alone with
+`composer docs:format`. Apply safe atomic corrections with
+`composer docs:format:fix`; `composer cs:fix` formats both PHP source files and
+the documentation fences. This dogfooding integration checks maintained
+examples for PHP formatting; it does not execute illustrative fragments or
+PHPStan-only examples as though they were standalone runtime programs.
 
 ## Choose the smallest useful test
 
