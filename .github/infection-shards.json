@@ -49,6 +49,7 @@
     "parsing-runtime": {
         "threads": 4,
         "paths": [
+            "runtime/Internal/IntegerGrammar.php",
             "runtime/Internal/ParseState.php",
             "runtime/Internal/ValidatorCapabilities.php",
             "runtime/ParseFailure.php",
