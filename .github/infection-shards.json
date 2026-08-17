@@ -45,5 +45,15 @@
             "src/Validation/RuleParser.php",
             "src/Rule/UnvalidatedArrayKeysConfigurationRule.php"
         ]
+    },
+    "parsing-runtime": {
+        "threads": 4,
+        "paths": [
+            "runtime/Internal/ParseState.php",
+            "runtime/Internal/ValidatorCapabilities.php",
+            "runtime/ParseFailure.php",
+            "runtime/ParsingRule.php",
+            "runtime/UnsupportedLaravelVersion.php"
+        ]
     }
 }

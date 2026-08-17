@@ -20,6 +20,7 @@ parameters:
         - tests/stubs/LaravelRuleArray.stub
     level: max
     paths:
+        - runtime
         - src
         - scripts/benchmark-bookstack.php
         - scripts/benchmark-form-requests.php

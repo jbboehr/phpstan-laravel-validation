@@ -40,7 +40,7 @@ try {
         }
 
         foreach ($paths as $path) {
-            if (!is_string($path) || preg_match('/^src\/[A-Za-z0-9_.\/-]+$/', $path) !== 1) {
+            if (!is_string($path) || preg_match('/^(?:runtime|src)\/[A-Za-z0-9_.\/-]+$/', $path) !== 1) {
                 throw new RuntimeException(sprintf('Invalid path in Infection shard %s.', $shard));
             }
 
@@ -68,7 +68,14 @@ try {
         ];
     }
 
-    $sourceFiles = phpFilesBelow($projectRoot, $projectRoot . '/src');
+    // Mutation covers every mutable source root. `runtime/` carries the
+    // application-facing parsing API; `src/` carries the analyzer.
+    $sourceFiles = array_merge(
+        phpFilesBelow($projectRoot, $projectRoot . '/runtime'),
+        phpFilesBelow($projectRoot, $projectRoot . '/src'),
+    );
+    sort($sourceFiles);
+
     $coveredFiles = array_keys($ownersByFile);
     sort($coveredFiles);
 
