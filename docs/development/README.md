@@ -47,6 +47,15 @@ distinguishes confirmed precision and entrypoint gaps from a
 configuration-dependent soundness risk, and preserves the verification behind
 each change.
 
+### [Validation parsing investigation](validation-parsing-investigation.md)
+
+This records whether an opt-in `Parse::*` rule could turn selected validated
+values into a declared runtime type without disturbing ordinary Laravel
+validation semantics. It traces the validator lifecycle across every supported
+major, measures a delayed write-back prototype, and documents the presence,
+null, wildcard, exclusion, version-floor, and `after()`-ordering hazards it
+found. It recommends prototyping for production; no implementation exists.
+
 ## Maintenance rules
 
 - Keep exact application, framework, PHPStan, Larastan, PHP, and extension
