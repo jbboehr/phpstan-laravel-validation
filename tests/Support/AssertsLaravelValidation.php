@@ -31,6 +31,8 @@ use PHPStan\Type\VerbosityLevel;
 
 trait AssertsLaravelValidation
 {
+    use SubstitutesParsingRules;
+
     /**
      * @param array<mixed, mixed> $data
      * @param array<array-key, mixed> $rules
@@ -62,7 +64,7 @@ trait AssertsLaravelValidation
         $validated = $validator->validated();
         self::assertSame($expectedValidated, $validated, $context);
 
-        $inferred = (new TypeResolver())->evaluate(RuleParser::parse($rules));
+        $inferred = (new TypeResolver())->evaluate(RuleParser::parse(self::analyzerRules($rules)));
         $actual = LaravelValueType::fromValue($validated);
         self::assertTrue($inferred->isSuperTypeOf($actual)->yes(), sprintf(
             "%s\nValidated: %s\nInferred: %s\nActual: %s",
