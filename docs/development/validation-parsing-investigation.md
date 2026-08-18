@@ -2390,6 +2390,29 @@ Notes for the implementer, revised against what building it established:
   `Parse::integer()->min(18)` -- which sidesteps Laravel's sizing entirely and
   lets the analyzer narrow to `int<18, max>`. Until then, pair the parser with
   `integer` or `numeric`.
+- **Failure messages are literal strings, so only the default is unlocalized.**
+  `$fail()` takes a message rather than resolving a translation key, so a
+  parser's own message never reaches the `validation.php` lang files.
+  Overriding it is ordinary, though: `getFromLocalArray()` tries
+  `"{attribute}.{rule}"`, then the rule, then the attribute, so all three of
+  these work, the last setting one message for every use of that parser.
+
+  ```php
+  Validator::make($data, $rules, ['age' => 'Age must be a number.']);
+  Validator::make($data, $rules, ['age.' . IntegerRule::class => '...']);
+  Validator::make($data, $rules, [IntegerRule::class => '...']);
+  ```
+
+  What is missing is a localizable default. Publishing a lang namespace and
+  calling `$fail(...)->translate()` would supply one, and needs a service
+  provider, so it is deferred with the rest of the packaging work.
+
+  Keep the message short regardless. A parser's grammar is deliberately
+  narrower than the predicate it resembles, and the temptation is to explain
+  the difference in the message -- "must be a whole number written in digits,
+  without a leading plus sign, leading zeroes, a decimal point, or surrounding
+  spaces" was a real attempt. That is a specification, not a form error. The
+  message says what is wanted; documentation says what the grammar accepts.
 
 ### Parsers
 
