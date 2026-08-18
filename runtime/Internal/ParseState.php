@@ -45,6 +45,17 @@ final class ParseState
     public array $pending = [];
 
     /**
+     * Results the last write-back applied, keyed by concrete attribute.
+     *
+     * The write-back mutates the validator's data, and that mutation outlives
+     * the run. A later run would otherwise evaluate cross-field rules against
+     * parsed values, so the next run undoes it before parsing again.
+     *
+     * @var array<string, array{mixed, mixed}>
+     */
+    public array $applied = [];
+
+    /**
      * Whether the write-back callback has been registered on the validator.
      *
      * The callback survives across repeated `passes()` calls, so it is

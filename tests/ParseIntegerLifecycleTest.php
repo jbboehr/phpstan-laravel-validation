@@ -74,26 +74,36 @@ final class ParseIntegerLifecycleTest extends TestCase
         self::assertSame(['a' => 42, 'b' => '42'], $validator->validated());
     }
 
-    /**
-     * A known limitation, pinned so it cannot change unnoticed.
-     *
-     * The write-back mutates the validator's data, and nothing restores it, so
-     * a second full run evaluates cross-field rules against parsed values. The
-     * guarantee that ordinary rules observe the original representation holds
-     * for one run, which is what every ordinary path performs: `validate()`,
-     * `fails()` followed by `validated()`, and FormRequest resolution each run
-     * the rules exactly once.
-     *
-     * There is no hook that runs before the rule loop, so a parsing rule
-     * cannot restore the raw data at the start of a later run. Anything that
-     * validates the same validator twice must treat the second result as
-     * describing already-parsed data.
-     */
-    public function testASecondRunComparesCrossFieldRulesAgainstParsedValues(): void
+    public function testRepeatedRunsKeepCrossFieldRulesOnTheOriginalValues(): void
     {
+        // The write-back outlives the run, so a later run undoes it before
+        // parsing again. Without that, `same` would compare 42 to '42'.
         $validator = self::factory()->make(
             ['a' => '42', 'b' => '42'],
             ['a' => [Parse::integer()], 'b' => ['same:a']]
+        );
+
+        self::assertTrue($validator->passes());
+        self::assertTrue($validator->passes());
+        self::assertTrue($validator->passes());
+        self::assertSame(['a' => 42, 'b' => '42'], $validator->validated());
+    }
+
+    /**
+     * The residual limitation, pinned so it cannot change unnoticed.
+     *
+     * Undoing happens at the parsing rule's own first invocation, because
+     * Laravel offers no hook before the rule loop. A rule declared before the
+     * parsed attribute therefore still reads the previous run's parsed value.
+     * The failure is loud rather than a wrong type, and every ordinary path
+     * runs the rules once: `validate()`, `fails()` then `validated()`, and
+     * FormRequest resolution.
+     */
+    public function testASecondRunStillSeesParsedValuesInEarlierDeclaredRules(): void
+    {
+        $validator = self::factory()->make(
+            ['a' => '42', 'b' => '42'],
+            ['b' => ['same:a'], 'a' => [Parse::integer()]]
         );
 
         self::assertTrue($validator->passes());
@@ -321,20 +331,31 @@ final class ParseIntegerLifecycleTest extends TestCase
         self::assertArrayNotHasKey('age', $validator->getData());
     }
 
-    public function testRejectsAnEscapedDotAttribute(): void
+    public function testTransformsAnEscapedDotAttribute(): void
     {
-        // Laravel hands rules the decoded name while keying data by an
-        // internal placeholder, so the parsed value cannot be written back.
+        // Laravel hands rules the decoded name while keying the data by a
+        // placeholder, so the write-back has to recover the placeholder to
+        // reach the value at all.
         $validator = self::factory()->make(
             ['a.b' => '42'],
             ['a\.b' => ['required', Parse::integer()]]
         );
 
-        self::assertFalse($validator->passes());
-        self::assertStringContainsString('escaped dots', $validator->errors()->first('a.b'));
+        self::assertTrue($validator->passes());
+        self::assertSame(['a.b' => 42], $validator->validated());
 
-        // The data must not gain a spurious nested branch either.
+        // And must not build a nested branch under the decoded name.
         self::assertArrayNotHasKey('a', $validator->getData());
+    }
+
+    public function testRejectsAnUnparsableEscapedDotAttribute(): void
+    {
+        $validator = self::factory()->make(
+            ['a.b' => 'nope'],
+            ['a\.b' => ['required', Parse::integer()]]
+        );
+
+        self::assertFalse($validator->passes());
     }
 
     public function testAnAfterCallbackRegisteredBeforeValidationObservesRawValues(): void

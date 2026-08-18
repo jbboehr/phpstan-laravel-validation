@@ -32,6 +32,10 @@ use jbboehr\Rensei\ParsingRule;
 use WeakMap;
 
 use function array_key_exists;
+use function in_array;
+use function is_string;
+use function preg_match;
+use function str_replace;
 
 /**
  * Shared lifecycle for a parsing rule.
@@ -66,6 +70,11 @@ abstract class BaseParsingRule implements ParsingRule, ValidatorAwareRule
      * the rule in an `ImplicitRule` decorator when it is true.
      */
     public bool $implicit = true;
+
+    /**
+     * Laravel's escaped-dot placeholder: the marker plus one Str::random().
+     */
+    private const PLACEHOLDER_PATTERN = '/__dot__[A-Za-z0-9]{16}/';
 
     protected ?Validator $validator = null;
 
@@ -123,20 +132,30 @@ abstract class BaseParsingRule implements ParsingRule, ValidatorAwareRule
         // instance an application may cache.
         $this->validator = null;
 
-        if (!$this->attributeIsAddressable($validator, $attribute)) {
-            $fail('Parsing rules do not support escaped dots in attribute names.');
+        $key = $this->resolveDataKey($validator, $attribute);
+        if ($key === null) {
+            $fail('Parsing rules cannot address this attribute name on this Laravel release.');
 
             return;
         }
 
-        if (!Arr::has($validator->getData(), $attribute)) {
+        $state = $this->stateFor($validator);
+        $this->undoPreviousWriteBack($validator, $state);
+
+        if (!Arr::has($validator->getData(), $key)) {
             // Absent. Presence is `required`, `present`, and `sometimes` to
             // decide; a parser only describes the values that are there.
             return;
         }
 
+        // Laravel fetched $value before this rule ran, so on a repeated run it
+        // holds the previous run's parsed value rather than what the undo just
+        // restored. Read the data instead, so the recorded original is the one
+        // the write-back will check against.
+        $value = Arr::get($validator->getData(), $key);
+
         if ($value === null) {
-            if ($this->attributeIsNullable($validator, $attribute)) {
+            if ($validator->hasRule($key, ['Nullable'])) {
                 return;
             }
 
@@ -153,8 +172,7 @@ abstract class BaseParsingRule implements ParsingRule, ValidatorAwareRule
             return;
         }
 
-        $state = $this->stateFor($validator);
-        $state->pending[$attribute] = [$value, $parsed];
+        $state->pending[$key] = [$value, $parsed];
 
         $this->registerWriteBack($validator, $state);
     }
@@ -170,41 +188,72 @@ abstract class BaseParsingRule implements ParsingRule, ValidatorAwareRule
     }
 
     /**
-     * Honour an explicit `nullable` rule on the same attribute.
+     * Undo the write-back left by an earlier run on this validator.
      *
-     * Laravel normally applies `nullable` on a rule's behalf, but
-     * `isNotNullIfMarkedAsNullable()` short-circuits for implicit rules, so
-     * this rule has to ask itself. It asks through `hasRule()` rather than
-     * scanning the rule strings, so that the framework's own normalization --
-     * trimming, studly-casing, and stripping parameters -- decides what counts
-     * as `nullable`. A hand-rolled comparison misses spellings Laravel accepts,
-     * and rejecting a null the framework would have allowed is both a false
-     * failure and a divergence from the inferred type.
+     * Laravel offers no hook before the rule loop, so the earliest a parsing
+     * rule can act on a new run is its own first invocation. Restoring here
+     * keeps cross-field rules reading the original representation on a second
+     * `passes()`, provided the parsed attribute is reached before the rule
+     * that depends on it -- rules run in the order the rule set declares them.
+     * A value something else has changed since is left alone.
      */
-    private function attributeIsNullable(Validator $validator, string $attribute): bool
+    private function undoPreviousWriteBack(Validator $validator, ParseState $state): void
     {
-        return $validator->hasRule($attribute, ['Nullable']);
+        if ($state->applied === []) {
+            return;
+        }
+
+        $applied = $state->applied;
+        $state->applied = [];
+
+        foreach ($applied as $key => [$raw, $parsed]) {
+            $data = $validator->getData();
+            if (!Arr::has($data, $key) || Arr::get($data, $key) !== $parsed) {
+                continue;
+            }
+
+            $validator->setValue($key, $raw);
+        }
     }
 
     /**
-     * Whether the rule can address the attribute it was handed.
+     * The rule-set key under which this attribute's value is stored.
      *
-     * Laravel rewrites an escaped dot in `'a\.b'` to an internal placeholder
-     * key, then hands rules the decoded name. A parser given `a.b` cannot
-     * address the stored value: writing to `a.b` would build an unrelated
-     * nested branch and leave the real value unparsed, so the declared type
-     * would be wrong.
+     * Ordinarily that is the attribute itself. An escaped dot is different:
+     * Laravel keys the rule and the data by a placeholder and hands rules the
+     * decoded name, so writing to the decoded name would build an unrelated
+     * nested branch and leave the real value unparsed.
      *
-     * The decoded name is recognizable because it is not itself a key of the
-     * rule set, whereas an ordinary attribute -- including one expanded from
-     * a wildcard, and including one that is simply absent from the data --
-     * always is. Testing that rather than decoding the placeholder keeps this
-     * independent of a format that has already changed once across the
-     * supported releases.
+     * The placeholder is recoverable because it is one fixed random string per
+     * validator, marked with `__dot__`. Releases before that marker existed --
+     * Laravel 10 up to 10.48 -- substituted a bare random string with nothing
+     * to anchor on, so there the attribute is reported as unaddressable rather
+     * than silently mishandled.
      */
-    private function attributeIsAddressable(Validator $validator, string $attribute): bool
+    private function resolveDataKey(Validator $validator, string $attribute): ?string
     {
-        return array_key_exists($attribute, $validator->getRules());
+        $keys = array_keys($validator->getRules());
+
+        if (in_array($attribute, $keys, true)) {
+            return $attribute;
+        }
+
+        foreach ($keys as $key) {
+            if (!is_string($key) || preg_match(self::PLACEHOLDER_PATTERN, $key, $matches) !== 1) {
+                continue;
+            }
+
+            // One placeholder per validator, so the first is the only one.
+            foreach ($keys as $candidate) {
+                if (is_string($candidate) && str_replace($matches[0], '.', $candidate) === $attribute) {
+                    return $candidate;
+                }
+            }
+
+            break;
+        }
+
+        return null;
     }
 
     /**
@@ -229,17 +278,18 @@ abstract class BaseParsingRule implements ParsingRule, ValidatorAwareRule
             // to be replayed against different data on the next run.
             $pending = $state->pending;
             $state->pending = [];
+            $state->applied = [];
 
-            foreach ($pending as $attribute => [$raw, $parsed]) {
+            foreach ($pending as $key => [$raw, $parsed]) {
                 // An exclude_* rule removes the attribute from both the rules
                 // and the data. Writing it back would resurrect it in
                 // getData(), valid(), and attributes().
-                if (!array_key_exists($attribute, $rules)) {
+                if (!array_key_exists($key, $rules)) {
                     continue;
                 }
 
                 $data = $validator->getData();
-                if (!Arr::has($data, $attribute)) {
+                if (!Arr::has($data, $key)) {
                     continue;
                 }
 
@@ -248,11 +298,12 @@ abstract class BaseParsingRule implements ParsingRule, ValidatorAwareRule
                 // threw -- leaves its results pending, and the next run may be
                 // reading different data. Without this the stale result would
                 // be written over a value nobody parsed.
-                if (Arr::get($data, $attribute) !== $raw) {
+                if (Arr::get($data, $key) !== $raw) {
                     continue;
                 }
 
-                $validator->setValue($attribute, $parsed);
+                $validator->setValue($key, $parsed);
+                $state->applied[$key] = [$raw, $parsed];
             }
         });
     }

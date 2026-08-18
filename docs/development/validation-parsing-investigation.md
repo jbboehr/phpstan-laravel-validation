@@ -38,17 +38,20 @@ a reader following the report to implement the remaining parsers needs them.
 
 Building it also surfaced two limitations the report did not anticipate.
 
-**The "ordinary rules see the original representation" guarantee holds for one
-validation run, not for a validator.** The write-back mutates the validator's
-data and nothing restores it, so a second `passes()` evaluates cross-field
-rules against parsed values: `['a' => [Parse::integer()], 'b' => ['same:a']]`
-passes on the first run and fails on the second, because `same` then compares
-`'42'` to `42`. Every ordinary path runs the rules exactly once — `validate()`,
-`fails()` followed by `validated()`, and FormRequest resolution — so this is
-reachable only by validating the same validator twice. It cannot be repaired
-from a rule: there is no hook before the rule loop, so nothing can restore the
-raw data at the start of a later run. Any design built on `setValue()` inherits
-this.
+**The write-back outlives the run, so a repeated run has to undo it.** Nothing
+in Laravel restores the data, and a second `passes()` would otherwise evaluate
+cross-field rules against parsed values — `['a' => [Parse::integer()], 'b' =>
+['same:a']]` would pass on the first run and fail on the second, with `same`
+comparing `'42'` to `42`. A parsing rule now restores what it wrote at its own
+first invocation of the next run, which is the earliest point available: there
+is no hook before the rule loop.
+
+That leaves a residual case. A rule declared *before* the parsed attribute
+still reads the previous run's parsed value, because the undo has not happened
+yet when it runs. `['b' => ['same:a'], 'a' => [Parse::integer()]]` therefore
+still fails on a second run. The result is a loud failure rather than a wrong
+type, and every ordinary path runs the rules exactly once — `validate()`,
+`fails()` followed by `validated()`, and FormRequest resolution.
 
 **Implicitness has to be verified, not assumed.** The produced type is only
 sound because Laravel treats the rule as implicit; an implementation of
@@ -2367,6 +2370,26 @@ Notes for the implementer, revised against what building it established:
   must accept its own output — Laravel calls `passes()` more than once.
 - Anchor a string grammar with `\z`, not `$`: PCRE's `$` also matches before a
   final newline, so `"42\n"` would otherwise parse.
+- **Escaped-dot attributes are addressable after all, on most releases.** The
+  placeholder is one fixed random string per validator, marked with `__dot__`,
+  so the encoded key can be recovered by decoding the rule-set keys and
+  matching the decoded name. The marker arrived during Laravel 10.48;
+  before that the dot was replaced by a bare random string with nothing to
+  anchor on, and there the attribute has to be reported as unaddressable.
+  Anchor the placeholder to `Str::random()`'s 16 characters and accept a
+  candidate only when it decodes to exactly the attribute, so an unrecognized
+  format fails loudly instead of writing somewhere wrong.
+- **Size rules still measure the original representation.** Laravel's
+  `getSize()` picks numeric comparison from `hasRule($attribute, ['Numeric',
+  'Integer', 'Decimal'])`, and a rule object cannot match that: `prepareRule()`
+  wraps a `ValidationRule` in `InvokableValidationRule` before `hasRule()` sees
+  it. So `[Parse::integer(), 'min:10']` compares string length. The legacy
+  `Rule` contract with `__toString(): 'Numeric'` does satisfy `hasRule()`, but
+  it means implementing a deprecated interface and misreporting the rule to
+  every other consumer. The better answer is to put the bound on the parser --
+  `Parse::integer()->min(18)` -- which sidesteps Laravel's sizing entirely and
+  lets the analyzer narrow to `int<18, max>`. Until then, pair the parser with
+  `integer` or `numeric`.
 
 ### Parsers
 
