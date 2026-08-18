@@ -58,6 +58,15 @@ found. It recommends prototyping for production, and a prototype of
 `Parse::integer()` has since been built on that design; the report's Status
 section records the four places building it corrected the design.
 
+### [BookStack parsing smoke test](bookstack-parsing-smoke-test.md)
+
+This records a one-off downstream exercise of the opt-in `Parse::*` rules
+against BookStack, confirming that a parsed attribute's inferred type and its
+runtime value agree at a real endpoint and that the parsing work regressed
+nothing in a whole-application scan. It also records the size-rule hazard
+failing in a confusing direction, and measures how often a rule set stored in
+a mutable property costs all inference.
+
 ## Maintenance rules
 
 - Keep exact application, framework, PHPStan, Larastan, PHP, and extension
