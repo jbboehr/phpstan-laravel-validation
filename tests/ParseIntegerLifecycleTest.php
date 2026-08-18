@@ -30,6 +30,7 @@ use Illuminate\Translation\Translator;
 use Illuminate\Validation\Factory;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Validator;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\GenericParsingRule;
 use jbboehr\Rensei\Parse;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -421,6 +422,28 @@ final class ParseIntegerLifecycleTest extends TestCase
         $this->expectException(ValidationException::class);
 
         self::resolveRequest(['age' => 'nope']);
+    }
+
+    /**
+     * A parser that takes constructor arguments needs no base constructor.
+     *
+     * Every parser beyond integer takes something -- an enum class string, a
+     * format, a scale. If the shared state were established in a constructor,
+     * such a parser would work only when its author remembered
+     * `parent::__construct()`, and the omission would surface as an
+     * uninitialized property in the middle of a validation run.
+     */
+    public function testAParserWithItsOwnConstructorNeedsNoBaseConstructor(): void
+    {
+        $parser = new GenericParsingRule(static function (mixed $value): int {
+            self::assertIsNumeric($value);
+
+            return (int) $value;
+        });
+
+        $validator = self::factory()->make(['age' => '42'], ['age' => ['required', $parser]]);
+
+        self::assertSame(['age' => 42], $validator->validate());
     }
 
     private static function factory(): Factory

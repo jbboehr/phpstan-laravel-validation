@@ -76,7 +76,7 @@ abstract class BaseParsingRule implements ParsingRule, ValidatorAwareRule
      */
     private const PLACEHOLDER_PATTERN = '/__dot__[A-Za-z0-9]{16}/';
 
-    protected ?Validator $validator = null;
+    private ?Validator $validator = null;
 
     /**
      * Pending results, keyed by the validator that produced them.
@@ -87,16 +87,14 @@ abstract class BaseParsingRule implements ParsingRule, ValidatorAwareRule
      * releases them when the validator is collected, which matters in
      * long-lived workers.
      *
-     * @var WeakMap<Validator, ParseState>
+     * Created on first use rather than in a constructor. A parser that takes
+     * arguments -- an enum class string, a format, a scale -- would otherwise
+     * have to remember `parent::__construct()`, and forgetting it leaves this
+     * property uninitialized until validation runs and fails on it.
+     *
+     * @var WeakMap<Validator, ParseState>|null
      */
-    private WeakMap $states;
-
-    public function __construct()
-    {
-        /** @var WeakMap<Validator, ParseState> $states */
-        $states = new WeakMap();
-        $this->states = $states;
-    }
+    private ?WeakMap $states = null;
 
     /**
      * @param Validator $validator
@@ -184,7 +182,10 @@ abstract class BaseParsingRule implements ParsingRule, ValidatorAwareRule
 
     private function stateFor(Validator $validator): ParseState
     {
-        return $this->states[$validator] ??= new ParseState();
+        /** @var WeakMap<Validator, ParseState> $states */
+        $states = $this->states ??= new WeakMap();
+
+        return $states[$validator] ??= new ParseState();
     }
 
     /**
