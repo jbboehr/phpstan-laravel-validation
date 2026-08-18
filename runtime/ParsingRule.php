@@ -45,10 +45,14 @@ use Illuminate\Contracts\Validation\ValidationRule;
  * `public bool $implicit = true`, which {@see Rules\BaseParsingRule} provides.
  * Laravel skips a non-implicit rule for a blank or whitespace-only string, so
  * without it the raw string survives into the validated output while this
- * interface's type argument promises otherwise. Static analysis enforces this
- * on concrete implementations and declines to infer a produced type without
- * it; on an abstract type there is nothing to inspect, so the requirement
- * stands on this contract alone.
+ * interface's type argument promises otherwise.
+ *
+ * Static analysis reads that property off a concrete class and declines to
+ * infer a produced type without it. It cannot read it off this interface --
+ * PHP has no way to require a property of an implementation -- so an
+ * expression declared as `ParsingRule<T>` is declined as well. Declare the
+ * concrete parser where the produced type is wanted; erasing it to this
+ * interface costs inference, not correctness.
  *
  * @template-covariant T
  */

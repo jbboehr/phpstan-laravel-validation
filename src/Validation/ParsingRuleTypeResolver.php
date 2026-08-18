@@ -137,15 +137,22 @@ final class ParsingRuleTypeResolver
     /**
      * Whether Laravel will treat this rule as implicit.
      *
-     * An abstract type names no runtime class, so there is nothing to inspect
-     * and the interface's documented requirement is all there is to go on.
      * A concrete class must carry the property, exactly as the framework
-     * requires of it.
+     * requires of it. An abstract type names no runtime class, and PHP cannot
+     * make an interface require a property, so there the requirement is not
+     * merely unverified but unverifiable. Trusting it would make this check
+     * decorative: an expression declared as `ParsingRule<int>` would be
+     * believed whatever it returns, and a non-implicit rule behind that
+     * declaration is skipped for a blank string, leaving the raw string in
+     * the validated output.
+     *
+     * Declining costs precision for a parser whose concrete class is erased
+     * behind the interface. It never costs soundness.
      */
     private function isImplicit(ClassReflection $classReflection): bool
     {
         if ($classReflection->isInterface() || $classReflection->isAbstract()) {
-            return true;
+            return false;
         }
 
         $defaults = $classReflection->getNativeReflection()->getDefaultProperties();

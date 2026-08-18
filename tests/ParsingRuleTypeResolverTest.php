@@ -28,6 +28,7 @@ use jbboehr\PhpstanLaravelValidation\Test\Fixtures\NonImplicitParsingRule;
 use jbboehr\PhpstanLaravelValidation\Validation\ParsingRuleTypeResolver;
 use jbboehr\PhpstanLaravelValidation\Validation\Rule;
 use jbboehr\Rensei\ParsingRule;
+use jbboehr\Rensei\Rules\BaseParsingRule;
 use jbboehr\Rensei\Rules\IntegerRule;
 use PHPStan\Testing\PHPStanTestCase;
 use PHPStan\Type\Generic\GenericObjectType;
@@ -55,13 +56,29 @@ final class ParsingRuleTypeResolverTest extends PHPStanTestCase
         self::assertSame('int', self::resolve(new ObjectType(IntegerRule::class)));
     }
 
-    public function testReadsTheProducedTypeFromTheDeclaredInterface(): void
+    /**
+     * A bound abstract type is declined along with the unbound one.
+     *
+     * The binding is present, so the produced type is known. Implicitness is
+     * not: PHP cannot make an interface require the property, and the
+     * expression names no concrete class to read it from. Believing the
+     * binding anyway would trust a declaration a non-implicit rule can
+     * satisfy, and Laravel skips such a rule for a blank string.
+     *
+     * This is why `Parse::integer()` returns `IntegerRule` rather than
+     * `ParsingRule<int>`.
+     */
+    public function testDeclinesAnAbstractlyTypedParser(): void
     {
-        // The shape produced by `Parse::integer()`, whose return type is
-        // documented as ParsingRule<int>.
-        self::assertSame('int', self::resolve(
+        self::assertNull(self::resolveRule(
             new GenericObjectType(ParsingRule::class, [new IntegerType()])
         ));
+
+        self::assertNull(self::resolveRule(
+            new GenericObjectType(BaseParsingRule::class, [new IntegerType()])
+        ));
+
+        self::assertNull(self::resolveRule(new ObjectType(BaseParsingRule::class)));
     }
 
     public function testReadsTheProducedTypeOfAThirdPartyParser(): void

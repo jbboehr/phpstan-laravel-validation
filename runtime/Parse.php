@@ -50,9 +50,12 @@ final class Parse
      * Rejects `'042'`, `'+42'`, `' 42'`, `'42.0'`, the float `42.0`, `true`,
      * blank strings, and values beyond the platform integer width.
      *
-     * @return ParsingRule<int>
+     * The concrete class is the declared return type, not `ParsingRule<int>`.
+     * Static analysis reads implicitness from a real class and declines an
+     * abstract one, so naming the interface here would cost the factory its
+     * own inference.
      */
-    public static function integer(): ParsingRule
+    public static function integer(): IntegerRule
     {
         return new IntegerRule();
     }
