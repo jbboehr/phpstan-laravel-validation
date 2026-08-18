@@ -51,6 +51,11 @@ final class IntegerRule extends BaseParsingRule
 
     protected function message(): string
     {
-        return 'The :attribute field must be an integer.';
+        // Not "must be an integer": Laravel's own integer rule accepts '042',
+        // ' 42', '+42', and the float 42.0, all of which this grammar refuses.
+        // Telling a user their integer is not an integer explains nothing.
+        return 'The :attribute field must be a whole number written in digits, '
+            . 'without a leading plus sign, leading zeroes, a decimal point, '
+            . 'or surrounding spaces.';
     }
 }

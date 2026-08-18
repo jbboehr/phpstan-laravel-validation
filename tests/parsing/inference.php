@@ -43,7 +43,12 @@ assertType('array{age: int}', Validator::make([], [
 ])->validated());
 
 // A parsing rule is implicit at runtime, so a blank string cannot bypass it
-// into the validated output and the inferred type carries no string.
+// into the validated output. The predicate below carries that bypass; the
+// parser does not, and the contrast is the whole point of suppressing it.
+assertType('array{age?: float|int|string|Stringable|true}', Validator::make([], [
+    'age' => ['sometimes', 'integer'],
+])->validated());
+
 assertType('array{age?: int}', Validator::make([], [
     'age' => ['sometimes', Parse::integer()],
 ])->validated());

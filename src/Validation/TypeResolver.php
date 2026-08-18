@@ -660,11 +660,8 @@ final class TypeResolver
         // with children is left to the ordinary path: a parsing rule on a
         // structure has no coherent meaning, and this method also runs for
         // parents on the projection-preserving paths.
-        if ($node->hasParsingRule() && !$node->hasChildren()) {
-            $producedType = $node->getProducedType();
-            if ($producedType !== null) {
-                return $producedType;
-            }
+        if (!$node->hasChildren() && ($producedType = $node->getProducedType()) !== null) {
+            return $producedType;
         }
 
         $allowedKeysListType = $this->resolveAllowedKeysListIntersection($node);

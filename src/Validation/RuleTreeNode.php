@@ -276,9 +276,10 @@ final class RuleTreeNode implements IteratorAggregate, \Countable
     /**
      * The type a parsing rule on this node produces, if any.
      *
-     * Two parsing rules on one attribute is incoherent: the runtime rejects
-     * any value they disagree about, so validated() is unreachable, and the
-     * union collapses when they agree.
+     * Two parsing rules on one attribute is a union rather than a choice: a
+     * value has to satisfy both to validate at all, and both write back, so
+     * the attribute holds whichever wrote last. The union covers either
+     * outcome, and collapses when the two agree.
      */
     public function getProducedType(): ?Type
     {

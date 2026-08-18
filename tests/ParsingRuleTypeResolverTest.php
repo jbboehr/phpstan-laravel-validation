@@ -23,6 +23,7 @@ namespace jbboehr\PhpstanLaravelValidation\Test;
 
 use jbboehr\PhpstanLaravelValidation\Test\CustomRules\UnknownRule;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\MoneyParsingRule;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\NonImplicitParsingRule;
 use jbboehr\PhpstanLaravelValidation\Validation\ParsingRuleTypeResolver;
 use jbboehr\PhpstanLaravelValidation\Validation\Rule;
 use jbboehr\Rensei\ParsingRule;
@@ -87,6 +88,13 @@ final class ParsingRuleTypeResolverTest extends PHPStanTestCase
         // -- and with them the loss of the blank-string union -- for a rule
         // whose produced type is unknown.
         self::assertNull(self::resolveRule(new ObjectType(ParsingRule::class)));
+    }
+
+    public function testDeclinesAParserThatIsNotImplicit(): void
+    {
+        // Laravel skips a non-implicit rule for a blank or whitespace-only
+        // string, so its produced type would be a promise the runtime breaks.
+        self::assertNull(self::resolveRule(new ObjectType(NonImplicitParsingRule::class)));
     }
 
     public function testDeclinesAnOrdinaryRule(): void

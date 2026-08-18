@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### Added
+
+- Experimental opt-in parsing rules under the `jbboehr\Rensei` namespace.
+  `Parse::integer()` produces an `int` in `validated()`, `safe()`, and
+  `valid()` output, or fails validation; ordinary rules continue to observe
+  the original representation and the request itself is never rewritten.
+  PHPStan infers the produced type, reading it from the `ParsingRule<T>`
+  binding, so a parser defined outside this package needs no support here.
+- Requires `laravel/framework` 10.7.0 or later, which introduced
+  `Validator::setValue()`. Static analysis still supports Laravel 10.0; the
+  narrower floor applies only to code that uses a parsing rule, and is
+  reported at runtime rather than through a Composer constraint.
+
+  The grammar is deliberately narrower than Laravel's `integer` rule: it
+  rejects `'042'`, `'+42'`, `' 42'`, `'42.0'`, the float `42.0`, and values
+  beyond the platform integer width. Size rules still compare the original
+  representation, so pair the parser with `integer` or `numeric` when
+  `min`, `max`, `between`, or `size` matter. Validating the same validator
+  twice compares cross-field rules against parsed values.
+
 ### Documentation
 
 - Split the project manual into a concise README and an mdBook site covering

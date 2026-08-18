@@ -41,6 +41,15 @@ use Illuminate\Contracts\Validation\ValidationRule;
  * Laravel invokes `passes()` more than once on ordinary paths, so a parser
  * that rejects its own output breaks on the second run.
  *
+ * An implementation must also be implicit -- it must carry
+ * `public bool $implicit = true`, which {@see Rules\BaseParsingRule} provides.
+ * Laravel skips a non-implicit rule for a blank or whitespace-only string, so
+ * without it the raw string survives into the validated output while this
+ * interface's type argument promises otherwise. Static analysis enforces this
+ * on concrete implementations and declines to infer a produced type without
+ * it; on an abstract type there is nothing to inspect, so the requirement
+ * stands on this contract alone.
+ *
  * @template-covariant T
  */
 interface ParsingRule extends ValidationRule

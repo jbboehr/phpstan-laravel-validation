@@ -32,8 +32,6 @@ use jbboehr\Rensei\ParsingRule;
 use WeakMap;
 
 use function array_key_exists;
-use function is_string;
-use function strtolower;
 
 /**
  * Shared lifecycle for a parsing rule.
@@ -108,9 +106,22 @@ abstract class BaseParsingRule implements ParsingRule, ValidatorAwareRule
     final public function validate(string $attribute, mixed $value, Closure $fail): void
     {
         $validator = $this->validator;
+
+        // Every other unsupported condition below fails closed. This one must
+        // too: without a validator the value cannot be parsed or written back,
+        // so passing would leave the raw value behind while the declared type
+        // promises otherwise.
         if ($validator === null) {
+            $fail('Parsing rules require a validator-aware validation run.');
+
             return;
         }
+
+        // Release the reference once the attribute is handled. Laravel injects
+        // it again before every invocation, and holding it would pin the
+        // validator -- and the whole request's data with it -- on a rule
+        // instance an application may cache.
+        $this->validator = null;
 
         if (!$this->attributeIsAddressable($validator, $attribute)) {
             $fail('Parsing rules do not support escaped dots in attribute names.');
@@ -143,7 +154,7 @@ abstract class BaseParsingRule implements ParsingRule, ValidatorAwareRule
         }
 
         $state = $this->stateFor($validator);
-        $state->pending[$attribute] = $parsed;
+        $state->pending[$attribute] = [$value, $parsed];
 
         $this->registerWriteBack($validator, $state);
     }
@@ -163,26 +174,16 @@ abstract class BaseParsingRule implements ParsingRule, ValidatorAwareRule
      *
      * Laravel normally applies `nullable` on a rule's behalf, but
      * `isNotNullIfMarkedAsNullable()` short-circuits for implicit rules, so
-     * this rule reads the rule set itself. `getRules()` is keyed by concrete
-     * attribute after wildcard expansion, so this works for `users.*.age`.
+     * this rule has to ask itself. It asks through `hasRule()` rather than
+     * scanning the rule strings, so that the framework's own normalization --
+     * trimming, studly-casing, and stripping parameters -- decides what counts
+     * as `nullable`. A hand-rolled comparison misses spellings Laravel accepts,
+     * and rejecting a null the framework would have allowed is both a false
+     * failure and a divergence from the inferred type.
      */
     private function attributeIsNullable(Validator $validator, string $attribute): bool
     {
-        /** @var array<string, mixed> $rules */
-        $rules = $validator->getRules();
-        $attributeRules = $rules[$attribute] ?? [];
-
-        if (!is_iterable($attributeRules)) {
-            return false;
-        }
-
-        foreach ($attributeRules as $rule) {
-            if (is_string($rule) && strtolower($rule) === 'nullable') {
-                return true;
-            }
-        }
-
-        return false;
+        return $validator->hasRule($attribute, ['Nullable']);
     }
 
     /**
@@ -229,7 +230,7 @@ abstract class BaseParsingRule implements ParsingRule, ValidatorAwareRule
             $pending = $state->pending;
             $state->pending = [];
 
-            foreach ($pending as $attribute => $value) {
+            foreach ($pending as $attribute => [$raw, $parsed]) {
                 // An exclude_* rule removes the attribute from both the rules
                 // and the data. Writing it back would resurrect it in
                 // getData(), valid(), and attributes().
@@ -237,11 +238,21 @@ abstract class BaseParsingRule implements ParsingRule, ValidatorAwareRule
                     continue;
                 }
 
-                if (!Arr::has($validator->getData(), $attribute)) {
+                $data = $validator->getData();
+                if (!Arr::has($data, $attribute)) {
                     continue;
                 }
 
-                $validator->setValue($attribute, $value);
+                // Apply only to the value that was actually parsed. A run that
+                // unwinds before its after callbacks -- because another rule
+                // threw -- leaves its results pending, and the next run may be
+                // reading different data. Without this the stale result would
+                // be written over a value nobody parsed.
+                if (Arr::get($data, $attribute) !== $raw) {
+                    continue;
+                }
+
+                $validator->setValue($attribute, $parsed);
             }
         });
     }

@@ -54,7 +54,9 @@ values into a declared runtime type without disturbing ordinary Laravel
 validation semantics. It traces the validator lifecycle across every supported
 major, measures a delayed write-back prototype, and documents the presence,
 null, wildcard, exclusion, version-floor, and `after()`-ordering hazards it
-found. It recommends prototyping for production; no implementation exists.
+found. It recommends prototyping for production, and a prototype of
+`Parse::integer()` has since been built on that design; the report's Status
+section records the four places building it corrected the design.
 
 ## Maintenance rules
 

@@ -74,6 +74,70 @@ final class ParseIntegerLifecycleTest extends TestCase
         self::assertSame(['a' => 42, 'b' => '42'], $validator->validated());
     }
 
+    /**
+     * A known limitation, pinned so it cannot change unnoticed.
+     *
+     * The write-back mutates the validator's data, and nothing restores it, so
+     * a second full run evaluates cross-field rules against parsed values. The
+     * guarantee that ordinary rules observe the original representation holds
+     * for one run, which is what every ordinary path performs: `validate()`,
+     * `fails()` followed by `validated()`, and FormRequest resolution each run
+     * the rules exactly once.
+     *
+     * There is no hook that runs before the rule loop, so a parsing rule
+     * cannot restore the raw data at the start of a later run. Anything that
+     * validates the same validator twice must treat the second result as
+     * describing already-parsed data.
+     */
+    public function testASecondRunComparesCrossFieldRulesAgainstParsedValues(): void
+    {
+        $validator = self::factory()->make(
+            ['a' => '42', 'b' => '42'],
+            ['a' => [Parse::integer()], 'b' => ['same:a']]
+        );
+
+        self::assertTrue($validator->passes());
+        self::assertFalse($validator->passes());
+    }
+
+    public function testASingleRunIsWhatEveryOrdinaryPathPerforms(): void
+    {
+        // validate() runs the rules once, so the cross-field comparison above
+        // sees the original representation on the path applications use.
+        $validator = self::factory()->make(
+            ['a' => '42', 'b' => '42'],
+            ['a' => [Parse::integer()], 'b' => ['same:a']]
+        );
+
+        self::assertSame(['a' => 42, 'b' => '42'], $validator->validate());
+    }
+
+    /**
+     * A run that unwinds before its after callbacks leaves results pending.
+     * They must not be written over data nobody parsed.
+     */
+    public function testPendingResultsAreNotReplayedOverChangedData(): void
+    {
+        $parser = Parse::integer();
+        $validator = self::factory()->make(
+            ['a' => '42'],
+            ['a' => ['nullable', $parser], 'b' => [new ThrowingRule()]]
+        );
+
+        try {
+            $validator->passes();
+            self::fail('The throwing rule should have unwound the run.');
+        } catch (\RuntimeException) {
+            // The after callbacks never fired, so 42 is still pending.
+        }
+
+        $validator->setRules(['a' => ['nullable', $parser]]);
+        $validator->setData(['a' => null]);
+
+        self::assertTrue($validator->passes());
+        self::assertSame(['a' => null], $validator->validated());
+    }
+
     public function testASharedInstanceKeepsAttributesApart(): void
     {
         $shared = Parse::integer();
@@ -379,5 +443,13 @@ final class ParseIntegerRequest extends FormRequest
     protected function failedValidation($validator): never
     {
         throw new ValidationException($validator);
+    }
+}
+
+final class ThrowingRule implements \Illuminate\Contracts\Validation\ValidationRule
+{
+    public function validate(string $attribute, mixed $value, \Closure $fail): void
+    {
+        throw new \RuntimeException('rule failure');
     }
 }

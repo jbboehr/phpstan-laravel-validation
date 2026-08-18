@@ -35,9 +35,12 @@ namespace jbboehr\Rensei\Internal;
 final class ParseState
 {
     /**
-     * Parsed values awaiting write-back, keyed by concrete attribute.
+     * Results awaiting write-back, keyed by concrete attribute.
      *
-     * @var array<string, mixed>
+     * Each entry keeps the value that was parsed alongside the result, so the
+     * write-back can confirm the data still holds what it was derived from.
+     *
+     * @var array<string, array{mixed, mixed}>
      */
     public array $pending = [];
 

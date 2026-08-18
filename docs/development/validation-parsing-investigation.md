@@ -36,6 +36,29 @@ a reader following the report to implement the remaining parsers needs them.
    set, not by decoding the placeholder (§23). The placeholder format differs
    across the releases in scope.
 
+Building it also surfaced two limitations the report did not anticipate.
+
+**The "ordinary rules see the original representation" guarantee holds for one
+validation run, not for a validator.** The write-back mutates the validator's
+data and nothing restores it, so a second `passes()` evaluates cross-field
+rules against parsed values: `['a' => [Parse::integer()], 'b' => ['same:a']]`
+passes on the first run and fails on the second, because `same` then compares
+`'42'` to `42`. Every ordinary path runs the rules exactly once — `validate()`,
+`fails()` followed by `validated()`, and FormRequest resolution — so this is
+reachable only by validating the same validator twice. It cannot be repaired
+from a rule: there is no hook before the rule loop, so nothing can restore the
+raw data at the start of a later run. Any design built on `setValue()` inherits
+this.
+
+**Implicitness has to be verified, not assumed.** The produced type is only
+sound because Laravel treats the rule as implicit; an implementation of
+`ParsingRule` that omits `public bool $implicit = true` is skipped for a blank
+string and leaves that string in the output while the type promises otherwise.
+Static analysis therefore reads implicitness the same way
+`InvokableValidationRule::make()` does and declines to infer a produced type
+without it. An abstract type names no runtime class, so there the requirement
+rests on the interface contract alone.
+
 Everything else the report concluded held up, including the delayed write-back
 model, the implicit-rule requirement, the presence and null contract, wildcard
 behavior, the exclusion guard, and the generic `ParsingRule<T>` discovery.

@@ -21,6 +21,7 @@ declare(strict_types=1);
 
 namespace jbboehr\PhpstanLaravelValidation\Validation;
 
+use PHPStan\Reflection\ClassReflection;
 use PHPStan\Reflection\ReflectionProvider;
 use PHPStan\Type\ErrorType;
 use PHPStan\Type\Generic\TemplateType;
@@ -47,6 +48,18 @@ final class ParsingRuleTypeResolver
     private const PARSING_RULE = \jbboehr\Rensei\ParsingRule::class;
 
     private const PRODUCED_TYPE_TEMPLATE = 'T';
+
+    private const IMPLICIT_PROPERTY = 'implicit';
+
+    /**
+     * Produced type per class name, or false where none is discoverable.
+     *
+     * Every unrecognized rule object reaches this resolver before the
+     * predicate path, so the negative answers are worth remembering too.
+     *
+     * @var array<string, Type|false>
+     */
+    private array $classCache = [];
 
     public function __construct(
         private ReflectionProvider $reflectionProvider
@@ -77,26 +90,8 @@ final class ParsingRuleTypeResolver
         $producedTypes = [];
 
         foreach ($classReflections as $classReflection) {
-            $ancestor = $classReflection->getAncestorWithClassName(self::PARSING_RULE);
-            if ($ancestor === null) {
-                return null;
-            }
-
-            $producedType = $ancestor->getActiveTemplateTypeMap()
-                ->getType(self::PRODUCED_TYPE_TEMPLATE);
-
-            // An unbound argument means the expression was typed as the bare
-            // interface, which resolves the template to its default rather
-            // than to a produced type. Declining leaves the attribute to
-            // ordinary predicate handling, which is the conservative reading:
-            // recognizing a parsing rule also suppresses the blank-string
-            // union, and that is only sound for a rule known to be implicit.
-            if (
-                $producedType === null
-                || $producedType instanceof ErrorType
-                || $producedType instanceof TemplateType
-                || $producedType instanceof MixedType
-            ) {
+            $producedType = $this->resolveClass($classReflection);
+            if ($producedType === null) {
                 return null;
             }
 
@@ -104,5 +99,74 @@ final class ParsingRuleTypeResolver
         }
 
         return Rule::parsing(TypeCombinator::union(...$producedTypes));
+    }
+
+    private function resolveClass(ClassReflection $classReflection): ?Type
+    {
+        $className = $classReflection->getName();
+        $cached = $this->classCache[$className] ?? null;
+        if ($cached !== null) {
+            return $cached === false ? null : $cached;
+        }
+
+        $resolved = $this->discover($classReflection);
+        $this->classCache[$className] = $resolved ?? false;
+
+        return $resolved;
+    }
+
+    private function discover(ClassReflection $classReflection): ?Type
+    {
+        $ancestor = $classReflection->getAncestorWithClassName(self::PARSING_RULE);
+        if ($ancestor === null) {
+            return null;
+        }
+
+        // Recognizing a parsing rule suppresses the blank-string union, and
+        // that is sound only for a rule Laravel actually treats as implicit.
+        // A non-implicit rule is skipped for a blank or whitespace-only
+        // string, so the raw string would survive into the validated output
+        // while the produced type promised otherwise. Read implicitness the
+        // same way InvokableValidationRule::make() does.
+        if (!$this->isImplicit($classReflection)) {
+            return null;
+        }
+
+        $producedType = $ancestor->getActiveTemplateTypeMap()
+            ->getType(self::PRODUCED_TYPE_TEMPLATE);
+
+        // An unbound argument means the expression was typed as the bare
+        // interface, which resolves the template to its default rather than to
+        // a produced type. Declining leaves the attribute to ordinary
+        // predicate handling, which is the conservative reading.
+        if (
+            $producedType === null
+            || $producedType instanceof ErrorType
+            || $producedType instanceof TemplateType
+            || $producedType instanceof MixedType
+        ) {
+            return null;
+        }
+
+        return $producedType;
+    }
+
+    /**
+     * Whether Laravel will treat this rule as implicit.
+     *
+     * An abstract type names no runtime class, so there is nothing to inspect
+     * and the interface's documented requirement is all there is to go on.
+     * A concrete class must carry the property, exactly as the framework
+     * requires of it.
+     */
+    private function isImplicit(ClassReflection $classReflection): bool
+    {
+        if ($classReflection->isInterface() || $classReflection->isAbstract()) {
+            return true;
+        }
+
+        $defaults = $classReflection->getNativeReflection()->getDefaultProperties();
+
+        return ($defaults[self::IMPLICIT_PROPERTY] ?? false) === true;
     }
 }
