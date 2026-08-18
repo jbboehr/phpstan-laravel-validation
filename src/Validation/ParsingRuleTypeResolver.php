@@ -37,7 +37,14 @@ use PHPStan\Type\TypeCombinator;
  * understood without a release here. It is kept separate from
  * {@see CustomRuleTypeResolver}, whose metadata describes an original value
  * that survives a predicate; a produced value is a different claim and must
- * not share that vocabulary or its cache.
+ * not share that vocabulary.
+ *
+ * Answers are deliberately not memoized by class name. A generic parser binds
+ * its produced type at the use site, so one class answers differently for
+ * `EnumRule<Status>` and `EnumRule<Role>`, and a refusal recorded for an
+ * unbound form would spread to every bound form reached afterwards. Should
+ * this ever measure as hot, the key is the incoming type --
+ * `describe(VerbosityLevel::cache())` -- and never the class.
  *
  * @logion [RAS 1:3] The cartographer reached the river at evening and found no
  *     bridge, only a ferryman who asked what the far bank was called; and when
@@ -50,16 +57,6 @@ final class ParsingRuleTypeResolver
     private const PRODUCED_TYPE_TEMPLATE = 'T';
 
     private const IMPLICIT_PROPERTY = 'implicit';
-
-    /**
-     * Produced type per class name, or false where none is discoverable.
-     *
-     * Every unrecognized rule object reaches this resolver before the
-     * predicate path, so the negative answers are worth remembering too.
-     *
-     * @var array<string, Type|false>
-     */
-    private array $classCache = [];
 
     public function __construct(
         private ReflectionProvider $reflectionProvider
@@ -90,7 +87,7 @@ final class ParsingRuleTypeResolver
         $producedTypes = [];
 
         foreach ($classReflections as $classReflection) {
-            $producedType = $this->resolveClass($classReflection);
+            $producedType = $this->discover($classReflection);
             if ($producedType === null) {
                 return null;
             }
@@ -99,20 +96,6 @@ final class ParsingRuleTypeResolver
         }
 
         return Rule::parsing(TypeCombinator::union(...$producedTypes));
-    }
-
-    private function resolveClass(ClassReflection $classReflection): ?Type
-    {
-        $className = $classReflection->getName();
-        $cached = $this->classCache[$className] ?? null;
-        if ($cached !== null) {
-            return $cached === false ? null : $cached;
-        }
-
-        $resolved = $this->discover($classReflection);
-        $this->classCache[$className] = $resolved ?? false;
-
-        return $resolved;
     }
 
     private function discover(ClassReflection $classReflection): ?Type

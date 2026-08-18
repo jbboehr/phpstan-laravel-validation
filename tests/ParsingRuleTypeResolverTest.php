@@ -22,6 +22,7 @@ declare(strict_types=1);
 namespace jbboehr\PhpstanLaravelValidation\Test;
 
 use jbboehr\PhpstanLaravelValidation\Test\CustomRules\UnknownRule;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\GenericParsingRule;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\MoneyParsingRule;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\NonImplicitParsingRule;
 use jbboehr\PhpstanLaravelValidation\Validation\ParsingRuleTypeResolver;
@@ -126,10 +127,68 @@ final class ParsingRuleTypeResolverTest extends PHPStanTestCase
         self::assertSame(['T'], array_keys($reflection->getTemplateTypeMap()->getTypes()));
     }
 
+    /**
+     * One class name, two answers.
+     *
+     * The resolver is a single autowired service for a whole analysis, so
+     * every parser in the analysed project passes through the same instance.
+     * A generic parser binds its produced type at the use site, which means
+     * the class name does not determine the answer and cannot stand in for it.
+     */
+    public function testDistinctBindingsOfOneClassResolveIndependently(): void
+    {
+        $resolver = new ParsingRuleTypeResolver(self::createReflectionProvider());
+
+        $int = $resolver->resolveRule(
+            new GenericObjectType(GenericParsingRule::class, [new IntegerType()])
+        );
+        $string = $resolver->resolveRule(
+            new GenericObjectType(GenericParsingRule::class, [new StringType()])
+        );
+
+        self::assertSame('int', self::describe($int));
+        self::assertSame('string', self::describe($string));
+    }
+
+    /**
+     * A declined answer is about the type, not about the class.
+     *
+     * The unbound form of a generic parser carries no produced type and is
+     * declined. Remembering that refusal against the class name would extend
+     * it to every bound form seen afterwards, so whether a parser is
+     * understood would depend on the order the analysis reached its use sites.
+     */
+    public function testDecliningAnUnboundFormDoesNotDeclineTheBoundOne(): void
+    {
+        $resolver = new ParsingRuleTypeResolver(self::createReflectionProvider());
+
+        self::assertNull($resolver->resolveRule(new ObjectType(GenericParsingRule::class)));
+
+        $bound = $resolver->resolveRule(
+            new GenericObjectType(GenericParsingRule::class, [new IntegerType()])
+        );
+
+        self::assertSame('int', self::describe($bound));
+    }
+
     private static function resolve(Type $type): string
     {
         $rule = self::resolveRule($type);
 
+        self::assertNotNull($rule);
+        self::assertSame(Rule::RULE_PARSE, $rule->getRuleName());
+
+        $produced = $rule->getProducedType();
+        self::assertNotNull($produced);
+
+        return $produced->describe(VerbosityLevel::precise());
+    }
+
+    /**
+     * The produced type of a rule the caller has already resolved.
+     */
+    private static function describe(?Rule $rule): string
+    {
         self::assertNotNull($rule);
         self::assertSame(Rule::RULE_PARSE, $rule->getRuleName());
 
