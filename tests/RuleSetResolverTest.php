@@ -33,6 +33,7 @@ use jbboehr\PhpstanLaravelValidation\Validation\InRuleExpressionResolver;
 use jbboehr\PhpstanLaravelValidation\Validation\LaravelVersionContext;
 use jbboehr\PhpstanLaravelValidation\Validation\NotInRuleExpressionResolver;
 use jbboehr\PhpstanLaravelValidation\Validation\NumericRuleExpressionResolver;
+use jbboehr\PhpstanLaravelValidation\Validation\ParsingRuleTypeResolver;
 use jbboehr\PhpstanLaravelValidation\Validation\RuleSetResolver;
 use jbboehr\PhpstanLaravelValidation\Validation\StringRuleExpressionResolver;
 use jbboehr\PhpstanLaravelValidation\Validation\TypeResolver;
@@ -440,6 +441,7 @@ final class RuleSetResolverTest extends PHPStanTestCase
         return new RuleSetResolver(
             $container->getByType(UnsafeConstExprEvaluator::class),
             $container->getByType(CustomRuleTypeResolver::class),
+            $container->getByType(ParsingRuleTypeResolver::class),
             $container->getByType(EnumRuleExpressionResolver::class),
             $container->getByType(InRuleExpressionResolver::class),
             $container->getByType(NotInRuleExpressionResolver::class),

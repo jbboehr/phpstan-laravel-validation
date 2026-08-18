@@ -13,7 +13,8 @@
             "src/Validation/CustomRuleTypeResolver.php",
             "src/Validation/FormRequestRuleTypeResolver.php",
             "src/Validation/FormRequestTypeRegistry.php",
-            "src/Validation/LaravelVersionContext.php"
+            "src/Validation/LaravelVersionContext.php",
+            "src/Validation/ParsingRuleTypeResolver.php"
         ]
     },
     "rule-expressions": {

@@ -35,6 +35,7 @@ services:
     arguments:
       configuredClasses: %phpstanLaravelValidation.customRules.classes%
       configuredNames: %phpstanLaravelValidation.customRules.names%
+  - class: jbboehr\PhpstanLaravelValidation\Validation\ParsingRuleTypeResolver
   - class: jbboehr\PhpstanLaravelValidation\Validation\RuleParameterExpressionResolver
   - class: jbboehr\PhpstanLaravelValidation\Validation\EnumRuleExpressionResolver
   - class: jbboehr\PhpstanLaravelValidation\Validation\InRuleExpressionResolver
