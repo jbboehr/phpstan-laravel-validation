@@ -38,8 +38,10 @@ use Illuminate\Contracts\Validation\ValidationRule;
  * infers. Implementations must keep those two in agreement.
  *
  * `parse()` must be a fixed point: `parse(parse($value)) === parse($value)`.
- * Laravel invokes `passes()` more than once on ordinary paths, so a parser
- * that rejects its own output breaks on the second run.
+ * Every ordinary path runs the rules once, but a caller may reuse a validator
+ * explicitly, and the write-back outlives the run -- so a second run hands the
+ * parser its own previous output. A parser that rejected it would fail on a
+ * value it had already accepted.
  *
  * An implementation must also be implicit -- it must carry
  * `public bool $implicit = true`, which {@see Rules\BaseParsingRule} provides.

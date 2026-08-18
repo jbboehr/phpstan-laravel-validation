@@ -93,8 +93,9 @@ final class IntegerGrammarTest extends TestCase
     }
 
     /**
-     * Laravel calls passes() more than once on ordinary paths, so a parser
-     * that rejected its own output would fail on the second run.
+     * A reused validator hands the parser its own previous output, because
+     * the write-back outlives the run. A parser that rejected it would fail
+     * on a value it had already accepted.
      */
     #[DataProvider('acceptedCases')]
     public function testParsingIsAFixedPoint(mixed $value, int $expected): void

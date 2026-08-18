@@ -277,9 +277,16 @@ final class RuleTreeNode implements IteratorAggregate, \Countable
      * The type a parsing rule on this node produces, if any.
      *
      * Two parsing rules on one attribute is a union rather than a choice: a
-     * value has to satisfy both to validate at all, and both write back, so
-     * the attribute holds whichever wrote last. The union covers either
-     * outcome, and collapses when the two agree.
+     * value has to satisfy both to validate at all, and the attribute then
+     * holds whichever wrote back first -- the second finds a value that is no
+     * longer what it parsed and skips. Which one that is cannot be read off
+     * this node: write-backs run in the order the rule instances registered
+     * them, across the whole validator, so with `['x' => [A, B],
+     * 'y' => [B, A]]` instance A wins both attributes. The union covers
+     * either outcome, and collapses when the two agree.
+     *
+     * Rejecting two parsers on one attribute outright is the better answer
+     * and is deferred with the other diagnostics.
      */
     public function getProducedType(): ?Type
     {

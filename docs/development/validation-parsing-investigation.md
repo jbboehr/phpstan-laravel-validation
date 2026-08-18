@@ -59,8 +59,32 @@ sound because Laravel treats the rule as implicit; an implementation of
 string and leaves that string in the output while the type promises otherwise.
 Static analysis therefore reads implicitness the same way
 `InvokableValidationRule::make()` does and declines to infer a produced type
-without it. An abstract type names no runtime class, so there the requirement
-rests on the interface contract alone.
+without it. An abstract type names no runtime class, and PHP cannot make an
+interface require a property, so implicitness is there not merely unverified
+but unverifiable, and an abstract type is declined too. `Parse::integer()`
+consequently returns `IntegerRule`, not `ParsingRule<int>`: naming the
+interface would cost the factory its own inference. A parser erased behind the
+interface loses inference and falls back to predicate handling.
+
+**A later review of the prototype corrected two further things.**
+
+Produced types must not be memoized by class name (§15). A generic parser
+binds its produced type at the use site, so one class answers differently for
+`EnumRule<Status>` and `EnumRule<Role>`, and a refusal recorded for an unbound
+form spreads to every bound form reached afterwards, making inference depend
+on traversal order. Both failures were reachable through the interface's own
+binding before the fix. Should such a cache ever be justified, the key is the
+incoming type, never the class.
+
+Two parsers on one attribute is **first** wins, not last (§15). The report's
+sketch shared one flush map keyed by attribute, where a later write would
+overwrite. The prototype gives each rule instance its own state and guards the
+write-back against a value that is no longer what it parsed, so the second
+callback skips. Which instance writes first cannot be read off the rule set:
+callbacks run in registration order across the whole validator, so with
+`['x' => [A, B], 'y' => [B, A]]` instance `A` wins both attributes. The
+static side unions the produced types, which is sound either way. The report's
+recommendation to reject the combination outright stands and is unimplemented.
 
 Everything else the report concluded held up, including the delayed write-back
 model, the implicit-rule requirement, the presence and null contract, wildcard
@@ -895,8 +919,9 @@ Every case below was executed (`run.php` §9a–9j, `run3.php` P8–P9,
 Two lifecycle hazards deserve emphasis:
 
 1. **Parser output must be a fixed point of the parser.** `passes()` is
-   re-entrant and Laravel calls it more than once on ordinary paths
-   (`validate()` → `fails()` → `passes()`). Every parser must satisfy
+   re-entrant, and because the write-back outlives the run, a caller that
+   reuses a validator hands the parser its own previous output. Every parser
+   must satisfy
    `parse(parse(x)) === parse(x)`. Verified for all three proposed v1 parsers
    over three consecutive `passes()` calls (`fixedpoint.php`), on Laravel
    10-latest and 13-latest.
@@ -1650,7 +1675,10 @@ else:
 
 Two or more parsing rules on one attribute: the last one wins at runtime (the
 flush map is keyed by attribute, later writes overwrite), but any combination
-where they disagree is a user error. Prototype P9 showed
+where they disagree is a user error. **Corrected by the prototype: the first
+one wins.** State is per rule instance, and the write-back skips a value that
+is no longer what it parsed, so the second callback finds the first one's
+result and declines. See the Status section. Prototype P9 showed
 `[Parse::integer(), Parse::boolean()]` on `"42"` fails validation while
 `getData()` still holds `int(42)`. Recommended static treatment: **report an
 error** ("multiple parsing rules on `age`") rather than silently picking one.
@@ -2367,7 +2395,7 @@ Notes for the implementer, revised against what building it established:
   while an ordinary attribute always is, including a wildcard expansion and
   including one absent from the data.
 - Parsers must be stateless apart from constructor arguments, and `parse()`
-  must accept its own output — Laravel calls `passes()` more than once.
+  must accept its own output — a reused validator re-parses it.
 - Anchor a string grammar with `\z`, not `$`: PCRE's `$` also matches before a
   final newline, so `"42\n"` would otherwise parse.
 - **Escaped-dot attributes are addressable after all, on most releases.** The

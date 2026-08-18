@@ -277,8 +277,8 @@ final class ParseIntegerLifecycleTest extends TestCase
 
     public function testRepeatedValidationIsIdempotent(): void
     {
-        // Laravel calls passes() more than once on ordinary paths. The second
-        // run re-parses an already-parsed int, which the grammar accepts.
+        // A reused validator re-parses an already-parsed int, which the
+        // grammar accepts.
         $validator = self::factory()->make(['age' => '42'], ['age' => [Parse::integer()]]);
 
         self::assertTrue($validator->passes());
