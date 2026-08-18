@@ -208,6 +208,20 @@ that is what PHPStan reports regardless of the initializer's shape.
 seven controllers. Those sites recover nothing from the extension today, with
 or without parsing.
 
+A FormRequest is not subject to this, because the extension reaches its rules
+by a different route. `FormRequestRuleTypeResolver` locates the `rules()`
+class method and resolves its return expressions, never its declared return
+type, so a `rules()` returning either an array literal or a class constant
+resolves fully. `tests/Fixtures/FormRequest/SelfConstantParentRequest.php`
+covers the constant form, and `tests/form-request/inference.php` asserts
+`array{parent: string}` for it. Its `static::RULES` and `$this::RULES`
+siblings are deliberately declined, because late static binding means the
+concrete subclass's constant applies.
+
+That rescue is specific to how the rules reach the resolver, not to
+FormRequests as such. A `rules()` returning `$this->rules['all']` loses its
+shape exactly as a controller does.
+
 ## Limitations
 
 - One application, one Laravel major, one PHP version. The repository's
@@ -226,9 +240,19 @@ or without parsing.
 - Decide between the numeric-companion diagnostic and parser-carried size
   constraints for finding 2. Finding 2 is the strongest argument yet for
   doing one of them before more parsers land.
-- Consider whether the extension should report finding 3 rather than
-  silently inferring `array`. A rule set that resolves to nothing is
-  indistinguishable, from the caller's side, from an unsupported rule.
+- **Decided: the extension does nothing about finding 3.** Inferring a shape
+  from a mutable property's initializer would be unsound, and BookStack is
+  its own counterexample: `ApiController` declares `protected array $rules =
+  []` and every subclass replaces it. A subclass override, a constructor
+  assignment, or an append at any call site makes the initializer a claim the
+  runtime does not honor, and PHPStan widens the property for exactly that
+  reason. Inheriting that caution is correct.
+
+  Reporting the loss, rather than inferring from it, would not be unsound --
+  a rule set that resolves to nothing is indistinguishable, from the caller's
+  side, from one containing an unsupported rule. It is declined on different
+  grounds: a diagnostic on a supported and idiomatic way to write Laravel
+  rules is noise, and the remedy is already available to anyone who wants it.
 - Finding 3 has no local regression coverage expressing the property form as
   an explicitly unresolvable input. It is upstream behavior rather than an
   extension defect, but it is worth pinning so a future PHPStan release that
