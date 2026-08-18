@@ -15,7 +15,30 @@ supported-behavior promise. No production implementation exists. The
 [development report index](README.md) explains how pinned investigation
 reports relate to current project documentation.
 
-Investigation date: 2026-08-17.
+Investigation date: 2026-08-17. Prototype built and corrections folded in:
+2026-08-17.
+
+## Status
+
+A prototype of `Parse::integer()` has since been built on this design, which
+proved the mechanism and corrected the report in four places. Each correction
+is recorded where the original claim appeared; they are collected here because
+a reader following the report to implement the remaining parsers needs them.
+
+1. `['required', 'nullable', Parse::integer()]` infers `array{age: int}`, not
+   `int|null` (§5.3). `required` rejects null outright.
+2. `TypeResolver::hasExecutableRule()` must recognize parsing rules (§15). The
+   omission narrowed a caller's own array to `never` after a successful
+   validation.
+3. Per-validator state belongs in a `WeakMap`, not a static `SplObjectStorage`
+   keyed by `spl_object_id` (§23). The original leaks, and ids are reused.
+4. An escaped-dot attribute is recognized by not being a key of its own rule
+   set, not by decoding the placeholder (§23). The placeholder format differs
+   across the releases in scope.
+
+Everything else the report concluded held up, including the delayed write-back
+model, the implicit-rule requirement, the presence and null contract, wildcard
+behavior, the exclusion guard, and the generic `ParsingRule<T>` discovery.
 
 ## Recorded revisions
 
@@ -646,11 +669,18 @@ Static consequences, all sound:
 ['age' => ['sometimes', Parse::integer()]]              // array{age?: int}
 ['age' => ['required',  Parse::integer()]]              // array{age: int}
 ['age' => ['nullable',  Parse::integer()]]              // array{age?: int|null}
-['age' => ['required', 'nullable', Parse::integer()]]   // array{age: int|null}
+['age' => ['required', 'nullable', Parse::integer()]]   // array{age: int}
 ```
 
 Note that `filled` and `bail|required` produce different *messages* for the
 blank case but the same presence outcome, so shape inference is unaffected.
+
+`required` combined with `nullable` produces `int`, not `int|null`:
+`ValidatesAttributes::validateRequired()` rejects `null` outright, so that
+combination never yields a null in the validated output. The analyzer's
+existing `RuleTreeNode::allowsNull()` is already `nullable && !required` and
+needs no change. An earlier revision of this report claimed `int|null` here;
+that was wrong, and the measured matrix above never covered the combination.
 
 ### 5.4 Interaction notes
 
@@ -1584,9 +1614,8 @@ in. **Introduce a separate abstraction.**
 **`TypeResolver::evaluateLeaf()`**
 
 ```text
-if node has a parsing rule:
+if node has a parsing rule and no children:
     type := produced type                     # replaces, does not intersect
-    if node has `nullable`: type := type|null
     skip blank-string union
     skip refinePositiveMinimum                # min/max constrained the raw value
 else:
@@ -1600,19 +1629,46 @@ where they disagree is a user error. Prototype P9 showed
 `getData()` still holds `int(42)`. Recommended static treatment: **report an
 error** ("multiple parsing rules on `age`") rather than silently picking one.
 
-**`CustomRuleTypeResolver`**
+**`TypeResolver::hasExecutableRule()`** — add the parsing rule name. This
+report's first revision omitted it, and the omission is a soundness bug on the
+feature's happy path. `hasExecutableRule()` gates
+`refineSuccessfulDirectInput()`, which `FacadeValidateExtension` and
+`FactoryMakeExtension` use to narrow the **caller's own array** after a
+successful validation:
 
-- New `resolveParsingRule(Type $type): ?Type` returning the `T` binding for
-  `ParsingRule<T>`, consulting attribute/PHPDoc/config fallbacks.
-- `PREDICATE_TYPES` unchanged. A `ParsingRule` also satisfies
-  `ValidationRule`, so it must be checked for the parsing path **first**, then
-  fall through to predicate handling if no produced type is discoverable.
+```php
+$data = ['age' => '42'];
+if (Validator::make($data, ['age' => [Parse::integer()]])->passes()) {
+    $data['age'];   // narrowed to string ∩ int = never, but still holds '42'
+}
+```
 
-**`RuleParser::parseRule()`**
+The parsed value lands in `Validator::$data`, a by-value copy. The caller's
+array keeps the original representation, so the produced type says nothing
+about it.
 
-- Recognise `ParsingRule` instances on the runtime-values path (used by
-  `AssertsLaravelValidation`) and map them to `Rule::parsing(...)`. Without
-  this, the existing runtime/static cross-check helper cannot cover parsers.
+**Type discovery** — put it in a new resolver rather than extending
+`CustomRuleTypeResolver`. That class's vocabulary is entirely *accepted* type:
+its configuration keys, its attribute, its PHPDoc tag, and a class-keyed cache
+holding accepted types. A produced type is a different claim and should not
+share them. Whichever holds it, the parsing path must be consulted **first**,
+because `ParsingRule` extends `ValidationRule` and would otherwise be read as
+an unremarkable predicate.
+
+Discovery must decline, not guess, whenever the binding is unavailable. Note
+that a bare `ObjectType(ParsingRule)` resolves `T` to the template's default —
+an explicit `mixed` — rather than to a `TemplateType`, so a `TemplateType`
+guard alone does not catch it. Declining is the conservative direction, since
+recognizing a parsing rule also suppresses the blank-string union, and that is
+sound only for a rule known to be implicit.
+
+**`RuleParser::parseRule()`** — leave it alone. The runtime cross-check needs
+live rule objects turned into rule descriptions, but `RuleParser` is a static
+utility with no reflection provider, so it would need either a threaded
+service or a class-to-type table — the per-class branching the generic design
+exists to avoid. Substitute in test support instead, routing through the
+production resolver so the cross-check still proves the produced type is
+discoverable.
 
 **New PHPStan rules** (two, both small)
 
@@ -2252,21 +2308,42 @@ public function registerFlushOnce(Validator $validator, int $ruleId): void
 }
 ```
 
-Notes for the implementer:
+Notes for the implementer, revised against what building it established:
 
-- `ParseState` is an `SplObjectStorage` keyed by validator. Do **not** key by
-  rule instance; one instance serves many attributes and many validators.
+- **Hold state in a per-instance `\WeakMap<Validator, ParseState>`, not a
+  static `SplObjectStorage`.** A static store holds strong references and
+  leaks one entry per validation for the life of the process, which is
+  invisible in a web request and a real leak under long-lived workers. A
+  `WeakMap` also makes `registered` mean "once per (rule instance, validator)"
+  structurally, with no separate bookkeeping.
+- **Do not key registration by `spl_object_id`.** Ids are reused after an
+  object is collected, so a new rule instance can inherit a dead one's id and
+  have its write-back silently suppressed.
+- **Do not use a string sentinel for absence.** `ParseState::MISSING` as a
+  string can collide with real input. `Arr::has()` answers the question
+  directly and cannot collide.
 - The closure must be `static` and must capture `$state`, never `$this`.
-- `$state->pending` is cleared inside the flush so a second `passes()` cannot
-  replay stale values. `registered` is *not* cleared — the callback stays in
-  `$validator->after` and re-fires correctly on the next run. Verified.
+- Take and clear `$state->pending` *before* the write loop, so a failure
+  part-way through cannot be replayed against different data on the next run.
+  `registered` is *not* cleared — the callback stays in `$validator->after`
+  and re-fires correctly, by which time the rules have refilled the map.
 - `attributeIsNullable()` scans `$validator->getRules()[$attribute]` for the
   case-insensitive string `nullable`. `hasRule()` is public but does its own
   `ValidationRuleParser::parse()` round-trip; the direct scan is cheaper and
   sufficient.
-- `looksLikeEscapedDotPath()`: scan `getRules()` keys for one matching
-  `/__dot__[A-Za-z0-9]+/` whose decoded form equals `$attribute`.
-- Parsers must be stateless apart from constructor arguments.
+- **Detect an escaped-dot attribute by asking whether it is a key of
+  `getRules()`, not by decoding the placeholder.** Decoding needs
+  `/__dot__[A-Za-z0-9]{16}/` — the unanchored form is greedy and yields `a.`
+  rather than `a.b` — and the `__dot__` literal does not exist at all in the
+  older releases in scope, which used a bare random string. The rules-key test
+  is exact and format-independent: Laravel hands rules the decoded name, so a
+  rewritten attribute is precisely one that is not a key of its own rule set,
+  while an ordinary attribute always is, including a wildcard expansion and
+  including one absent from the data.
+- Parsers must be stateless apart from constructor arguments, and `parse()`
+  must accept its own output — Laravel calls `passes()` more than once.
+- Anchor a string grammar with `\z`, not `$`: PCRE's `$` also matches before a
+  final newline, so `"42\n"` would otherwise parse.
 
 ### Parsers
 
