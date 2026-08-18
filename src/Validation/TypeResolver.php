@@ -208,6 +208,11 @@ final class TypeResolver
         // Custom and opaque rules execute application-defined behavior. A
         // rule on any path can mutate a caller variable captured by reference,
         // invalidating every otherwise safe direct-field constraint.
+        //
+        // A parsing rule is excluded for the opposite reason: it describes
+        // validated output, not the input. Its produced type says nothing
+        // about the caller's array, which keeps the original representation,
+        // so constraining that array by it would report an impossible type.
         if ($this->hasExecutableRule($node)) {
             return $inputType;
         }
@@ -259,6 +264,7 @@ final class TypeResolver
             if (in_array($rule->getRuleName(), [
                 Rule::RULE_CUSTOM,
                 Rule::RULE_OPAQUE,
+                Rule::RULE_PARSE,
             ], true)) {
                 return true;
             }
@@ -644,6 +650,23 @@ final class TypeResolver
 
     public function evaluateLeaf(RuleTreeNode $node, bool $assumeHttpInputNormalization = false): Type\Type
     {
+        // A parsing rule replaces the value rather than constraining it, so
+        // its produced type supersedes every predicate on the same attribute
+        // instead of intersecting with them. Sizing rules are skipped for the
+        // same reason: min and max constrain the original representation.
+        //
+        // The blank-string union is skipped because a parsing rule is
+        // implicit, so Laravel does not bypass it for a blank string. A node
+        // with children is left to the ordinary path: a parsing rule on a
+        // structure has no coherent meaning, and this method also runs for
+        // parents on the projection-preserving paths.
+        if ($node->hasParsingRule() && !$node->hasChildren()) {
+            $producedType = $node->getProducedType();
+            if ($producedType !== null) {
+                return $producedType;
+            }
+        }
+
         $allowedKeysListType = $this->resolveAllowedKeysListIntersection($node);
         $types = array_values(array_filter(array_map(function ($rule) use ($node, $allowedKeysListType) {
             // Laravel applies `in` to every element when the value also has an
@@ -1090,6 +1113,12 @@ final class TypeResolver
     {
         if ($rule->getRuleName() === Rule::RULE_CUSTOM) {
             return $rule->getAcceptedType() ?? new MixedType();
+        }
+
+        if ($rule->getRuleName() === Rule::RULE_PARSE) {
+            // The produced type replaces the leaf type in evaluateLeaf(). It
+            // must never reach the intersection this method feeds.
+            return null;
         }
 
         if ($rule->getRuleName() === Rule::RULE_OPAQUE) {

@@ -23,6 +23,8 @@ namespace jbboehr\PhpstanLaravelValidation\Validation;
 
 use ArrayIterator;
 use IteratorAggregate;
+use PHPStan\Type\Type;
+use PHPStan\Type\TypeCombinator;
 
 /**
  * @implements \IteratorAggregate<int|string, RuleTreeNode>
@@ -260,6 +262,38 @@ final class RuleTreeNode implements IteratorAggregate, \Countable
         return $this->required;
     }
 
+    public function hasParsingRule(): bool
+    {
+        foreach ($this->rules as $rule) {
+            if ($rule->getRuleName() === Rule::RULE_PARSE) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * The type a parsing rule on this node produces, if any.
+     *
+     * Two parsing rules on one attribute is incoherent: the runtime rejects
+     * any value they disagree about, so validated() is unreachable, and the
+     * union collapses when they agree.
+     */
+    public function getProducedType(): ?Type
+    {
+        $types = [];
+
+        foreach ($this->rules as $rule) {
+            $produced = $rule->getProducedType();
+            if ($rule->getRuleName() === Rule::RULE_PARSE && $produced !== null) {
+                $types[] = $produced;
+            }
+        }
+
+        return $types === [] ? null : TypeCombinator::union(...$types);
+    }
+
     /**
      * Laravel skips non-implicit rules for blank strings. Since PHPStan has no
      * whitespace-only string type, a node that permits this bypass must include
@@ -281,6 +315,7 @@ final class RuleTreeNode implements IteratorAggregate, \Countable
                 Rule::RULE_DECLINED,
                 Rule::RULE_FILLED,
                 Rule::RULE_MISSING,
+                Rule::RULE_PARSE,
                 Rule::RULE_REQUIRED,
                 ], true)
             ) {
