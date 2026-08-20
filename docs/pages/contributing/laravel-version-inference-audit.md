@@ -210,7 +210,7 @@ observed evidence; it does not prove universal soundness.
 | Image dimensions | a real one-pixel image file, incorrect dimensions, native path strings, optional blanks, nullable input, and fresh `Dimensions` builders | No difference observed for the native value family; the extended ratio builder methods begin at Laravel 11.23 and are covered by exact-version static fixtures and the cross-profile PHPUnit suite |
 | Presence and conditions | optional blanks, nullable, present, missing, zero-match wildcard parent preservation, confirmed, `required_if`, `exclude_if`, and literal-boolean `RequiredIf` / `ExcludeIf` / `ProhibitedIf` builders | No observed release difference; the builders' true rules and false empty-rule projection markers are covered by cross-profile PHPUnit |
 | Default HTTP middleware | password-path trimming before validation | Laravel 10 versus 11+ boundary covered by the cross-profile PHPUnit suite |
-| Static entry points | facade, factory, request, controller, helper, validator unions, constant `setRules()` | Covered by the existing PHPStan fixture suite |
+| Static entry points | facade, factory, request, controller, helper, and validator unions | Covered by the existing PHPStan fixture suite |
 | Environment-dependent behavior | other file and image metadata, database, DNS, password-rule service checks, custom rules | Catalogued but not executed by this portable audit |
 
 The inventory focuses on rules for which the extension currently narrows a

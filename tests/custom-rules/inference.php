@@ -133,9 +133,3 @@ $controllerValidated = (new TestController())->validate(new Request(), [
     'value' => ['required', 'string', new UnknownRule()],
 ]);
 assertType('array{value: string}', $controllerValidated);
-
-$setRulesValidated = $factory
-    ->make([], ['old' => 'required|string'])
-    ->setRules(['value' => ['required', 'string', new UnknownRule()]])
-    ->validated();
-assertType('array{value: string}', $setRulesValidated);

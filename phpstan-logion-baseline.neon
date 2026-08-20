@@ -61,12 +61,6 @@ parameters:
 			path: src/Extension/ValidatorFunctionExtension.php
 
 		-
-			message: '#^Named declaration jbboehr\\PhpstanLaravelValidation\\Extension\\ValidatorSetRulesExtension must contain exactly one @logion PHPDoc tag\.$#'
-			identifier: doctrine.logion.missing
-			count: 1
-			path: src/Extension/ValidatorSetRulesExtension.php
-
-		-
 			message: '#^Named declaration jbboehr\\PhpstanLaravelValidation\\Extension\\ValidatorValidatedExtension must contain exactly one @logion PHPDoc tag\.$#'
 			identifier: doctrine.logion.missing
 			count: 1

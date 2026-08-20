@@ -29,14 +29,6 @@ globally track an inherited `setValidator()` call that replaces the
 validator before `validated()`. See
 [FormRequest Inference](../guides/form-requests.md).
 
-## Larastan stubs
-
-Larastan provides its own stub for `Illuminate\Validation\Validator`.
-PHPStan does not merge multiple stubs for the same class. When both
-extensions are installed, Larastan's stub takes precedence. Use the
-`setRules()` return value. See
-[Supported Entry Points](entry-points.md#setrules).
-
 ## Application execution
 
 The extension does not boot the Laravel application. It does not discover

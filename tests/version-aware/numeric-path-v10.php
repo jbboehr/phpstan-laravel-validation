@@ -15,7 +15,6 @@ assertType('array{string}', Illuminate\Support\Facades\Validator::validate([], $
 
 $validator = Illuminate\Support\Facades\Validator::make([], $rules);
 assertType('array{string}', $validator->validated());
-assertType('array{string}', $validator->setRules([5 => 'required|string'])->validated());
 
 $factory = new Factory(new Translator(new ArrayLoader(), 'en'));
 assertType('array{string}', $factory->make([], $rules)->validated());

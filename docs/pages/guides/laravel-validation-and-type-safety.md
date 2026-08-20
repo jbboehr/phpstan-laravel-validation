@@ -392,9 +392,9 @@ $validated = Validator::make($input, [
 
 For combinations covered by the implementation and conformance tests, the
 extension can infer nested shapes, optional offsets, preserved-value unions,
-and verified Laravel-version boundaries. It tracks supported validator unions
-and constant `setRules()` replacements, applies declared custom-rule
-contracts, and its optional experimental FormRequest inference can recover the
+and verified Laravel-version boundaries. It tracks supported validator unions,
+applies declared custom-rule contracts, and its optional experimental
+FormRequest inference can recover the
 whole-payload `validated()` and `validated(null)` shapes of conventional
 `FormRequest` subclasses from statically resolvable `rules()` returns. It
 retains `mixed` where a field has no usable value contract. When the rule

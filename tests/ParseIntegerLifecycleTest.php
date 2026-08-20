@@ -143,8 +143,8 @@ final class ParseIntegerLifecycleTest extends TestCase
             // The after callbacks never fired, so 42 is still pending.
         }
 
-        $validator->setRules(['a' => ['nullable', $parser]]);
-        $validator->setData(['a' => null]);
+        $validator->setRules(['a' => ['nullable', $parser]]); // @phpstan-ignore laravelValidation.validatorMutation
+        $validator->setData(['a' => null]); // @phpstan-ignore laravelValidation.validatorMutation
 
         self::assertTrue($validator->passes());
         self::assertSame(['a' => null], $validator->validated());
@@ -288,7 +288,7 @@ final class ParseIntegerLifecycleTest extends TestCase
 
         // The new int happens to equal the preceding parser output. Restoring
         // the old string here would corrupt caller-supplied data.
-        $validator->setData(['a' => 42, 'b' => 42]);
+        $validator->setData(['a' => 42, 'b' => 42]); // @phpstan-ignore laravelValidation.validatorMutation
 
         self::assertFalse($validator->passes());
         self::assertSame(['a' => 42, 'b' => 42], $validator->getData());
@@ -395,7 +395,7 @@ final class ParseIntegerLifecycleTest extends TestCase
     {
         $validator = self::factory()->make(['age' => '42'], ['age' => [Parse::integer()]]);
         $validator->after(static function (Validator $validator): void {
-            $validator->setValue('age', 'changed');
+            $validator->setValue('age', 'changed'); // @phpstan-ignore laravelValidation.validatorMutation
         });
 
         self::assertFalse($validator->passes());
@@ -667,7 +667,7 @@ final class LateAfterMutationRule implements ValidationRule, ValidatorAwareRule
         $this->validator = null;
 
         $validator?->after(static function (Validator $validator): void {
-            $validator->setValue('age', 'changed');
+            $validator->setValue('age', 'changed'); // @phpstan-ignore laravelValidation.validatorMutation
         });
     }
 }

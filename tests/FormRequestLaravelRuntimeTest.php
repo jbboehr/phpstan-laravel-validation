@@ -213,7 +213,7 @@ final class RuntimeWithValidatorRequest extends FormRequest
 
     public function withValidator(Validator $validator): void
     {
-        $validator->setRules([
+        $validator->setRules([ // @phpstan-ignore laravelValidation.validatorMutation
             'id' => 'required|integer',
             'extra' => 'required|string',
         ]);
@@ -235,7 +235,7 @@ final class RuntimePassedValidationRequest extends FormRequest
             throw new \LogicException('Expected Laravel validator implementation.');
         }
 
-        $validator->setRules([
+        $validator->setRules([ // @phpstan-ignore laravelValidation.validatorMutation
             'extra' => 'required|string',
         ]);
     }

@@ -67,6 +67,12 @@ nothing in a whole-application scan. It also records the size-rule hazard
 failing in a confusing direction, and measures how often a rule set stored in
 a mutable property costs all inference.
 
+### [Validator mutation inference](validator-mutation-inference.md)
+
+This records why validator data and rule mutators currently produce PHPStan
+errors, and the alias-safe lifecycle model that would be required before some
+of those diagnostics could be replaced with conservative type invalidation.
+
 ## Maintenance rules
 
 - Keep exact application, framework, PHPStan, Larastan, PHP, and extension

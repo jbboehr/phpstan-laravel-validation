@@ -36,6 +36,15 @@
   parser's finalization point; PHPStan therefore returns `mixed` when they are
   combined with parsing rules.
 
+### Changed
+
+- Report statically identifiable calls to the validator mutation methods
+  `setData()`, `setValue()`, `setRules()`, `addRules()`, and `sometimes()` as
+  errors. Laravel does not invalidate its previous message state when data or
+  rules change, and mutation also invalidates the rule metadata used for
+  inference. This replaces the partial `setRules()` return-type inference;
+  construct a new validator with complete data and rules instead.
+
 ### Documentation
 
 - Split the project manual into a concise README and an mdBook site covering

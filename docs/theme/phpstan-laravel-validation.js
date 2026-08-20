@@ -75,7 +75,7 @@
             { id: "custom-rules", title: "Custom rules" },
         ],
         "reference/entry-points.html": [
-            { id: "setrules", title: "setRules()" },
+            { id: "validator-mutation-is-prohibited", title: "Validator mutation" },
             { id: "input-refinement", title: "Input refinement" },
         ],
         "reference/static-resolvability.html": [
@@ -125,7 +125,6 @@
             { id: "value-families", title: "Value families" },
             { id: "custom-rules", title: "Custom rules" },
             { id: "formrequest-lifecycle", title: "FormRequest lifecycle" },
-            { id: "larastan-stubs", title: "Larastan stubs" },
             { id: "application-execution", title: "Application execution" },
             { id: "mixed-factory-modes", title: "Mixed factory modes" },
             { id: "what-the-test-suite-does-not-prove", title: "What the test suite does not prove" },

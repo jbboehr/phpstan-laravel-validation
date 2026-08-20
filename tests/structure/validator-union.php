@@ -40,16 +40,6 @@ assertType(
     $controller->validateWith($validator, new \Illuminate\Http\Request())
 );
 
-$stringValidator = $factory->make([], ['before' => 'required|string']);
-$stringValidator = $stringValidator->setRules(['email' => 'required|email']);
-$integerValidator = $factory->make([], ['before' => 'required|string']);
-$integerValidator = $integerValidator->setRules(['count' => 'required|integer']);
-$replacementValidator = $condition ? $stringValidator : $integerValidator;
-assertType(
-    'array{count: float|int|numeric-string|Stringable|true}|array{email: non-empty-string}',
-    $replacementValidator->validated()
-);
-
 $validateWithDynamicRules = static function (Factory $factory, array $rules, bool $condition): void {
     $trackedValidator = $factory->make([], ['name' => 'required|string']);
     $untrackedValidator = $factory->make([], $rules);

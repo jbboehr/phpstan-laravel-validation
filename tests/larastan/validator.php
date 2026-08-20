@@ -17,20 +17,6 @@ assertType('Illuminate\Support\ValidatedInput', $larastan->safe());
 assertType('array<string, mixed>', $larastan->safe(['before']));
 assertType('array', $larastan->safe()->all());
 
-$direct = $factory->make([], ['before' => 'required|string']);
-$direct->setRules(['after' => 'required|integer']);
-assertType('array{before: string}', $direct->validated());
-
-$chained = $factory
-    ->make([], ['before' => 'required|string'])
-    ->setRules(['after' => 'required|integer'])
-    ->validated();
-assertType('array{after: float|int|numeric-string|Stringable|true}', $chained);
-
-$reassigned = $factory->make([], ['before' => 'required|string']);
-$reassigned = $reassigned->setRules(['after' => 'required|integer']);
-assertType('array{after: float|int|numeric-string|Stringable|true}', $reassigned->validated());
-
 $union = random_int(0, 1) === 1
     ? $factory->make([], ['name' => 'required|string'])
     : $factory->make([], ['age' => 'required|integer']);

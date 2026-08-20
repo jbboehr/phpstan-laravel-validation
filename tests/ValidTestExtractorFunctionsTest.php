@@ -71,7 +71,11 @@ class ValidTestExtractorFunctionsTest extends TestCase
     public function testRulesAddedWithSometimesAreReportedAsMutated(): void
     {
         $validator = $this->validator(['name' => 'valid'], []);
-        $validator->sometimes('name', 'required', static fn (): bool => true);
+        $validator->sometimes( // @phpstan-ignore laravelValidation.validatorMutation
+            'name',
+            'required',
+            static fn (): bool => true
+        );
 
         self::assertTrue(\validator_rules_were_mutated($validator));
     }
@@ -82,7 +86,7 @@ class ValidTestExtractorFunctionsTest extends TestCase
             ['name' => 'valid'],
             ['name' => 'string']
         );
-        $validator->addRules(['name' => 'required']);
+        $validator->addRules(['name' => 'required']); // @phpstan-ignore laravelValidation.validatorMutation
 
         self::assertTrue(\validator_rules_were_mutated($validator));
     }

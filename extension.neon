@@ -1,6 +1,4 @@
 parameters:
-  stubFiles:
-    - stubs/Validator.stub
   phpstanLaravelValidation:
     assumeHttpInputNormalization: false
     experimentalConditionalPresenceInference: false
@@ -82,6 +80,9 @@ services:
       includeUnvalidatedArrayKeys: %phpstanLaravelValidation.includeUnvalidatedArrayKeys%
     tags:
       - phpstan.rules.rule
+  - class: jbboehr\PhpstanLaravelValidation\Rule\ValidatorMutationRule
+    tags:
+      - phpstan.rules.rule
   - class: jbboehr\PhpstanLaravelValidation\Extension\ControllerValidateExtension
     arguments:
       assumeHttpInputNormalization: %phpstanLaravelValidation.assumeHttpInputNormalization%
@@ -112,9 +113,6 @@ services:
   - class: jbboehr\PhpstanLaravelValidation\Extension\ValidatorFunctionExtension
     tags:
       - phpstan.broker.dynamicFunctionReturnTypeExtension
-  - class: jbboehr\PhpstanLaravelValidation\Extension\ValidatorSetRulesExtension
-    tags:
-      - phpstan.broker.dynamicMethodReturnTypeExtension
   - class: jbboehr\PhpstanLaravelValidation\Extension\ValidatorValidatedExtension
     tags:
       - phpstan.broker.dynamicMethodReturnTypeExtension

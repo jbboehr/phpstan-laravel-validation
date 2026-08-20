@@ -17,6 +17,6 @@ abstract class IntermediateWithValidatorParentRequest extends FormRequest
 
     public function withValidator(Validator $validator): void
     {
-        $validator->setRules(['extra' => 'required|string']);
+        $validator->setRules(['extra' => 'required|string']); // @phpstan-ignore laravelValidation.validatorMutation
     }
 }

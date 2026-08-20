@@ -11,7 +11,6 @@ The same rule-set inference applies to these statically resolvable calls.
 | `Request::validate($rules)` | Validated shape |
 | Controller `$this->validate($request, $rules)` | Validated shape |
 | `validator($data, $rules)->validated()` helper | Validated shape |
-| `$validator->setRules($rules)->validated()` | Replacement shape when the return is used |
 | `FormRequest::validated()` / supported `safe()` | Validated shape when [FormRequest inference](../guides/form-requests.md) is enabled |
 
 Named `data` and `rules` arguments are supported. Dynamic rule sets retain
@@ -27,18 +26,38 @@ A directly constructed `Illuminate\Validation\Validator` retains Laravel's
 broad declared return type and is not narrowed from configuration
 assumptions such as `includeUnvalidatedArrayKeys`.
 
-## `setRules()`
+## Validator mutation is prohibited
 
-Larastan provides its own stub for `Illuminate\Validation\Validator`, and
-PHPStan does not merge multiple stubs for the same class. When both
-extensions are installed, Larastan's stub takes precedence, so an ignored
-`setRules()` return can leave the validator's previously inferred rules in
-place. Chain the call or assign its return value:
+The extension reports statically identifiable calls to these methods as
+errors:
 
-```php
-$validator->setRules($rules)->validated();
-$validator = $validator->setRules($rules);
-```
+- `setData()`;
+- `setValue()`;
+- `setRules()`;
+- `addRules()`;
+- imperative `$validator->sometimes()`.
+
+The diagnostic identifier is `laravelValidation.validatorMutation`.
+
+The `sometimes` validation rule remains supported. This restriction applies
+only to the method that mutates an existing validator.
+
+Laravel retains the validator's previous message state when its data or rules
+change. After validation has already run, `validated()` can therefore return
+data that was never checked against the current rules, or reject valid data
+because an earlier input failed. Rule mutation also invalidates the static
+metadata attached to an inferred validator. Construct a new validator with
+the complete data and rule set instead.
+
+The experimental Rensei runtime uses `setValue()` internally during its
+invariant-checked final write-back. Calls made from the package-owned
+`BaseParsingRule` implementation are exempt; subclasses and application code
+are not.
+
+A future implementation may replace some diagnostics with sound type
+invalidation or lifecycle-aware inference. Widening only the variable through
+which a mutation occurs is insufficient because another alias can retain the
+old inferred type.
 
 ## Input refinement
 

@@ -10,6 +10,6 @@ final class OverriddenEmptyWithValidatorRequest extends EmptyWithValidatorParent
 {
     public function withValidator(Validator $validator): void
     {
-        $validator->setRules(['replacement' => 'required|array']);
+        $validator->setRules(['replacement' => 'required|array']); // @phpstan-ignore laravelValidation.validatorMutation
     }
 }
