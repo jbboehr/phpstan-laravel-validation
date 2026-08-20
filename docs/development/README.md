@@ -54,7 +54,18 @@ values into a declared runtime type without disturbing ordinary Laravel
 validation semantics. It traces the validator lifecycle across every supported
 major, measures a delayed write-back prototype, and documents the presence,
 null, wildcard, exclusion, version-floor, and `after()`-ordering hazards it
-found. It recommends prototyping for production; no implementation exists.
+found. An experimental implementation of `Parse::integer()` has since been
+built on that design; the report's Status section records the corrections and
+remaining constraints exposed while building it.
+
+### [BookStack parsing smoke test](bookstack-parsing-smoke-test.md)
+
+This records a one-off downstream exercise of the opt-in `Parse::*` rules
+against BookStack, confirming that a parsed attribute's inferred type and its
+runtime value agree at a real endpoint and that the parsing work regressed
+nothing in a whole-application scan. It also records the size-rule hazard
+failing in a confusing direction, and measures how often a rule set stored in
+a mutable property costs all inference.
 
 ## Maintenance rules
 

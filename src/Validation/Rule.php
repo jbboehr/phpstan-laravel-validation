@@ -50,6 +50,7 @@ final class Rule
     public const RULE_LIST = "List";
     public const RULE_NUMERIC = "Numeric";
     public const RULE_CUSTOM = "__Custom";
+    public const RULE_PARSE = "__Parse";
     public const RULE_NOOP = "__Noop";
     public const RULE_OPAQUE = "__Opaque";
 
@@ -96,6 +97,18 @@ final class Rule
         return new self(self::RULE_CUSTOM, [], $acceptedType);
     }
 
+    /**
+     * A rule that replaces the value with one of the given type.
+     *
+     * Distinct from custom(), whose type describes an original value that
+     * survives a predicate. A parsing rule's type is what the attribute
+     * becomes, so it replaces the leaf type rather than constraining it.
+     */
+    public static function parsing(Type $producedType): self
+    {
+        return new self(self::RULE_PARSE, [], null, false, $producedType);
+    }
+
     public static function opaque(): self
     {
         return new self(self::RULE_OPAQUE);
@@ -129,7 +142,8 @@ final class Rule
         private string $ruleName,
         private array $parameters = [],
         private ?Type $acceptedType = null,
-        private bool $hasRuntimeFormattedFloatParameter = false
+        private bool $hasRuntimeFormattedFloatParameter = false,
+        private ?Type $producedType = null
     ) {
     }
 
@@ -151,6 +165,14 @@ final class Rule
         return $this->acceptedType;
     }
 
+    /**
+     * The type this rule produces, replacing whatever it was given.
+     */
+    public function getProducedType(): ?Type
+    {
+        return $this->producedType;
+    }
+
     public function hasRuntimeFormattedFloatParameter(): bool
     {
         return $this->hasRuntimeFormattedFloatParameter;
@@ -163,6 +185,7 @@ final class Rule
             $this->parameters,
             $this->acceptedType?->describe(VerbosityLevel::cache()),
             $this->hasRuntimeFormattedFloatParameter,
+            $this->producedType?->describe(VerbosityLevel::cache()),
         ]));
     }
 }

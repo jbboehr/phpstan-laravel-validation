@@ -13,7 +13,8 @@
             "src/Validation/CustomRuleTypeResolver.php",
             "src/Validation/FormRequestRuleTypeResolver.php",
             "src/Validation/FormRequestTypeRegistry.php",
-            "src/Validation/LaravelVersionContext.php"
+            "src/Validation/LaravelVersionContext.php",
+            "src/Validation/ParsingRuleTypeResolver.php"
         ]
     },
     "rule-expressions": {
@@ -44,6 +45,20 @@
             "src/Validation/Rule.php",
             "src/Validation/RuleParser.php",
             "src/Rule/UnvalidatedArrayKeysConfigurationRule.php"
+        ]
+    },
+    "parsing-runtime": {
+        "threads": 4,
+        "paths": [
+            "runtime/Internal/IntegerGrammar.php",
+            "runtime/Internal/ParseState.php",
+            "runtime/Internal/ValidatorCapabilities.php",
+            "runtime/Parse.php",
+            "runtime/ParseFailure.php",
+            "runtime/ParsingRule.php",
+            "runtime/Rules/BaseParsingRule.php",
+            "runtime/Rules/IntegerRule.php",
+            "runtime/UnsupportedLaravelVersion.php"
         ]
     }
 }

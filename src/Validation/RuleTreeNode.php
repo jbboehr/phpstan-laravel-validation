@@ -23,6 +23,8 @@ namespace jbboehr\PhpstanLaravelValidation\Validation;
 
 use ArrayIterator;
 use IteratorAggregate;
+use PHPStan\Type\Type;
+use PHPStan\Type\TypeCombinator;
 
 /**
  * @implements \IteratorAggregate<int|string, RuleTreeNode>
@@ -261,6 +263,35 @@ final class RuleTreeNode implements IteratorAggregate, \Countable
     }
 
     /**
+     * The type a parsing rule on this node produces, if any.
+     *
+     * Two parsing rules on one attribute is a union rather than a choice: a
+     * value has to satisfy both to validate at all, and the attribute then
+     * holds whichever wrote back first -- the second finds a value that is no
+     * longer what it parsed and skips. Which one that is cannot be read off
+     * this node: write-backs run in the order the rule instances registered
+     * them, across the whole validator, so with `['x' => [A, B],
+     * 'y' => [B, A]]` instance A wins both attributes. The union covers
+     * either outcome, and collapses when the two agree.
+     *
+     * Rejecting two parsers on one attribute outright is the better answer
+     * and is deferred with the other diagnostics.
+     */
+    public function getProducedType(): ?Type
+    {
+        $types = [];
+
+        foreach ($this->rules as $rule) {
+            $produced = $rule->getProducedType();
+            if ($rule->getRuleName() === Rule::RULE_PARSE && $produced !== null) {
+                $types[] = $produced;
+            }
+        }
+
+        return $types === [] ? null : TypeCombinator::union(...$types);
+    }
+
+    /**
      * Laravel skips non-implicit rules for blank strings. Since PHPStan has no
      * whitespace-only string type, a node that permits this bypass must include
      * the general string type in its result.
@@ -281,6 +312,7 @@ final class RuleTreeNode implements IteratorAggregate, \Countable
                 Rule::RULE_DECLINED,
                 Rule::RULE_FILLED,
                 Rule::RULE_MISSING,
+                Rule::RULE_PARSE,
                 Rule::RULE_REQUIRED,
                 ], true)
             ) {

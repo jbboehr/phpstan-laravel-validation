@@ -32,6 +32,7 @@ use PHPStan\Type\Constant\ConstantArrayType;
 use PHPStan\Type\Type;
 use PHPStan\Type\UnionType;
 
+/** @internal */
 final class RuleSetResolver
 {
     /** @var array<string, string> */
@@ -118,6 +119,7 @@ final class RuleSetResolver
     public function __construct(
         private UnsafeConstExprEvaluator $constExprEvaluator,
         private CustomRuleTypeResolver $customRuleTypeResolver,
+        private ParsingRuleTypeResolver $parsingRuleTypeResolver,
         private EnumRuleExpressionResolver $enumRuleExpressionResolver,
         private InRuleExpressionResolver $inRuleExpressionResolver,
         private NotInRuleExpressionResolver $notInRuleExpressionResolver,
@@ -761,7 +763,11 @@ final class RuleSetResolver
     private function materializeRuleValues(mixed $value): mixed
     {
         if ($value instanceof StaticRuleValue) {
-            return $this->customRuleTypeResolver->resolveRule($value->getType());
+            // A parsing rule also satisfies the ValidationRule contract that
+            // the custom resolver recognizes, so it must be offered the type
+            // first or its produced type is lost to a predicate reading.
+            return $this->parsingRuleTypeResolver->resolveRule($value->getType())
+                ?? $this->customRuleTypeResolver->resolveRule($value->getType());
         }
         if (!is_array($value)) {
             return $value;

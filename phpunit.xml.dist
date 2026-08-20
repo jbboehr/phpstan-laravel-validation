@@ -24,6 +24,7 @@
 
     <source>
         <include>
+            <directory suffix=".php">./runtime</directory>
             <directory suffix=".php">./src</directory>
         </include>
     </source>

@@ -23,7 +23,8 @@
     },
     "autoload": {
         "psr-4": {
-            "jbboehr\\PhpstanLaravelValidation\\": "src/"
+            "jbboehr\\PhpstanLaravelValidation\\": "src/",
+            "jbboehr\\Rensei\\": "runtime/"
         }
     },
     "autoload-dev": {

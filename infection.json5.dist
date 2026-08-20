@@ -2,6 +2,7 @@
     "$schema": "./tools/infection/vendor/infection/infection/resources/schema.json",
     "source": {
         "directories": [
+            "runtime",
             "src"
         ]
     },

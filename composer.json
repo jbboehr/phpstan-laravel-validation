@@ -34,9 +34,13 @@
         "phpstan/phpstan-strict-rules": "^2.0",
         "phpunit/phpunit": "^10.0"
     },
+    "suggest": {
+        "illuminate/validation": "^10.7 || ^11.0 || ^12.0 || ^13.0 — required to use the jbboehr\\Rensei parsing rules at runtime; the PHPStan extension itself needs no framework"
+    },
     "autoload": {
         "psr-4": {
-            "jbboehr\\PhpstanLaravelValidation\\": "src/"
+            "jbboehr\\PhpstanLaravelValidation\\": "src/",
+            "jbboehr\\Rensei\\": "runtime/"
         }
     },
     "autoload-dev": {

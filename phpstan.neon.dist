@@ -20,6 +20,7 @@ parameters:
         - tests/stubs/LaravelRuleArray.stub
     level: max
     paths:
+        - runtime
         - src
         - scripts/benchmark-bookstack.php
         - scripts/benchmark-form-requests.php
@@ -29,6 +30,7 @@ parameters:
         - tests/fixtures
         - tests/larastan
         - tests/normalized
+        - tests/parsing
         - tests/custom-rules
         - tests/conditional-presence
         - tests/form-request

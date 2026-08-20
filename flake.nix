@@ -579,7 +579,7 @@
             command = ''
               while IFS= read -r -d "" file; do
                 php -l "$file" >/dev/null
-              done < <(find src scripts tests -type f -name "*.php" -print0)
+              done < <(find runtime src scripts tests -type f -name "*.php" -print0)
             '';
           };
           infection-shards = mkSourceCheck {

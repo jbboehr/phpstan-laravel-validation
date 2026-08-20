@@ -10,12 +10,81 @@ accept:
 'age' => ['required', Parse::integer()], // parses; validated() holds 42
 ```
 
-It is a pinned development investigation, not a feature announcement or a
-supported-behavior promise. No production implementation exists. The
+It is a pinned development investigation, not a stable-support promise. An
+experimental implementation now exists, and its corrections are recorded
+below. The
 [development report index](README.md) explains how pinned investigation
 reports relate to current project documentation.
 
-Investigation date: 2026-08-17.
+Investigation date: 2026-08-17. Prototype built and corrections folded in:
+2026-08-17.
+
+## Status
+
+A prototype of `Parse::integer()` has since been built on this design, which
+proved the mechanism and corrected the report in several places. Each correction
+is recorded where the original claim appeared; they are collected here because
+a reader following the report to implement the remaining parsers needs them.
+
+1. `['required', 'nullable', Parse::integer()]` infers `array{age: int}`, not
+   `int|null` (§5.3). `required` rejects null outright.
+2. `TypeResolver::hasExecutableRule()` must recognize parsing rules (§15). The
+   omission narrowed a caller's own array to `never` after a successful
+   validation.
+3. Per-validator state belongs in a `WeakMap`, not a static `SplObjectStorage`
+   keyed by `spl_object_id` (§23). The original leaks, and ids are reused.
+4. An escaped-dot attribute requires recovering Laravel's marked placeholder
+   from the rule keys (§23). Releases before that marker existed cannot be
+   decoded safely and fail validation instead.
+5. A parser attached to a parent with nested child rules adds a separate
+   projection path. When Laravel preserves that parent, the inferred type must
+   include the parser-produced value as well as the reconstructed child shape.
+6. A pre-registered `after()` callback observes raw values because parser
+   write-back runs later. Ordinary injected callback parameters are not given
+   rule-aware inference, but a callback that captures the specialized
+   validator may retain its final parsed type. This is documented as a known
+   limitation; no callback-specific diagnostic or phase inference exists.
+
+Building it also surfaced two limitations the report did not anticipate.
+
+**A validator that completes parser write-back must be single-use.** Nothing
+in Laravel distinguishes `42` left by parsing `'42'` from a genuinely new
+integer `42` supplied through `setData()`. Restoring the former is necessary
+for repeated raw-rule semantics; restoring the latter corrupts caller data.
+There is no hook or data generation identifier that resolves the ambiguity.
+The implementation therefore fails a later validation run instead of guessing.
+Ordinary paths still run the rules exactly once — `validate()`, `fails()`
+followed by `validated()`, and FormRequest resolution.
+
+**Implicitness has to be immutable, not merely declared by default.** The
+produced type is sound only when Laravel always treats the rule as implicit. A
+public `bool $implicit = true` can be changed before Laravel wraps the rule,
+letting a blank string bypass parsing. `BaseParsingRule` now exposes a final
+magic marker that always reads true and rejects writes. Static analysis trusts
+concrete subclasses only when no declared property shadows that marker; direct
+implementations and abstract types are declined. `Parse::integer()`
+consequently returns `IntegerRule`, not `ParsingRule<int>`: erasing the
+concrete class costs inference, not correctness.
+
+**A later review of the prototype corrected two further things.**
+
+Produced types must not be memoized by class name (§15). A generic parser
+binds its produced type at the use site, so one class answers differently for
+`EnumRule<Status>` and `EnumRule<Role>`, and a refusal recorded for an unbound
+form spreads to every bound form reached afterwards, making inference depend
+on traversal order. Both failures were reachable through the interface's own
+binding before the fix. Should such a cache ever be justified, the key is the
+incoming type, never the class.
+
+Two parsers on one attribute do not silently choose a winner (§15). The first
+callback may write its result, but a later parser that produced a different
+value detects that its raw input changed and adds a validation error. Identical
+results remain harmless. The static side keeps the produced union, which is a
+conservative description for combinations capable of succeeding.
+
+Everything else the report concluded held up, including the delayed write-back
+model, the implicit-rule requirement, the presence and null contract, wildcard
+behavior, the exclusion guard, and the generic `ParsingRule<T>` discovery.
 
 ## Recorded revisions
 
@@ -77,7 +146,7 @@ parsed value during `validate()`, and writes it back from a
 
 ```php
 $input['age'];     // "42"   — request/input untouched
-$validated['age']; // 42     — validated()/safe()/valid() transformed
+$validated['age']; // 42     — successful validated()/safe() output transformed
 ```
 
 with `array{age: int}` / `array{age?: int}` / `array{age: int|null}` all
@@ -110,10 +179,11 @@ The caveats are real and must be designed around, not discovered later:
 6. **`validated()` inside an `after()` callback returns un-parsed values, and
    the ordering cannot be fixed.** Any callback registered before validation
    runs before the parser's write-back, so `validated()`, `safe()`, `valid()`,
-   and `getData()` all observe raw data there. This is a genuine
-   static-soundness hole — PHPStan would infer `int` where the runtime yields
-   `string('42')` — and it needs a dedicated PHPStan rule, not only
-   documentation (§8.1, §15).
+   and `getData()` all observe raw data there. PHPStan does not give an
+   ordinary injected `Validator` callback parameter this extension's
+   rule-aware type, but a callback that captures the specialized validator can
+   retain its final parsed type. That narrower case is a known static-analysis
+   limitation and is documented rather than diagnosed for now (§8.1).
 
 None of these is fatal. All are enumerable and testable, which matters more
 than their absence.
@@ -147,8 +217,10 @@ if ($invokable->implicit ?? false) {
 }
 ```
 
-A **public `$implicit` property** on the rule object is therefore the supported
-way to make a `ValidationRule` implicit. This is stable across `10.0.0`–`13.25.0`;
+A readable `$implicit` marker on the rule object is therefore how Laravel
+makes a `ValidationRule` implicit. A public property is the conventional form;
+the implementation uses final magic access so the marker cannot be changed at
+runtime. This read is stable across `10.0.0`–`13.25.0`;
 `InvokableValidationRule` is essentially unchanged over that range.
 
 **No cloning occurs.** `explodeWildcardRules()` merges the same rule object
@@ -501,7 +573,7 @@ raw input
   ├─ Parse rule checks parseability, records the parsed value
   ├─ all rules finish; exclusion cleanup runs
   ├─ after() callback writes parsed values via setValue()
-  └─ validated()/safe()/valid() return transformed values
+  └─ successful validated()/safe() calls return transformed values
 ```
 
 Every ordinary rule — including `string`, `same`, `gte`, `required_if` — sees
@@ -543,19 +615,18 @@ rules retain ordinary Laravel behaviour, which is a stated project value and
 also the only model whose static semantics are expressible without modelling
 rule order.
 
-Additionally: **transform unconditionally, not "only if valid."** Both were
-prototyped. Conditional flushing was rejected because:
+Additionally: **write back only while the successful-output invariant still
+holds.** The final implementation checks the current error bag and confirms
+that every queued attribute still contains either the raw value that was
+parsed or the same parsed value. An earlier callback that changes the value
+therefore turns validation into a failure instead of allowing an incorrectly
+typed successful result. Existing validation errors suppress that callback's
+write-back, keeping the common failure path raw.
 
-- `validated()` throws when there are errors, so transformed data is
-  unobservable on the failure path through the supported API anyway;
-- the callback cannot know whether a *later* `after()` callback will add an
-  error, so "only if valid" is not actually decidable at flush time (probe P8
-  confirms a later user callback can add errors after the flush ran);
-- `getData()` staying half-raw on failure is a *worse* leak than staying
-  fully transformed, because it varies with error timing.
-
-Unconditional flush + `validated()`'s own error gate is simpler and more
-predictable.
+No callback can predict what a *later* `after()` callback will do. A later
+error still makes `validated()` throw, so no successful output escapes. A
+later mutation registered by an executable custom rule is a different matter;
+that combination is unsupported and static inference widens it to `mixed`.
 
 ---
 
@@ -646,11 +717,18 @@ Static consequences, all sound:
 ['age' => ['sometimes', Parse::integer()]]              // array{age?: int}
 ['age' => ['required',  Parse::integer()]]              // array{age: int}
 ['age' => ['nullable',  Parse::integer()]]              // array{age?: int|null}
-['age' => ['required', 'nullable', Parse::integer()]]   // array{age: int|null}
+['age' => ['required', 'nullable', Parse::integer()]]   // array{age: int}
 ```
 
 Note that `filled` and `bail|required` produce different *messages* for the
 blank case but the same presence outcome, so shape inference is unaffected.
+
+`required` combined with `nullable` produces `int`, not `int|null`:
+`ValidatesAttributes::validateRequired()` rejects `null` outright, so that
+combination never yields a null in the validated output. The analyzer's
+existing `RuleTreeNode::allowsNull()` is already `nullable && !required` and
+needs no change. An earlier revision of this report claimed `int|null` here;
+that was wrong, and the measured matrix above never covered the combination.
 
 ### 5.4 Interaction notes
 
@@ -680,7 +758,7 @@ blank case but the same presence outcome, so shape inference is unaffected.
 | `'groups.*.users.*.age'`, depth 2 | fully transformed |
 | Wildcard with one absent element (`sometimes`) | only present elements transformed; absent stays absent |
 | Wildcard with one `null` element (`nullable`) | `null` preserved, sibling parsed |
-| Wildcard with one unparsable element | that element fails; siblings' data still flushed |
+| Wildcard with one unparsable element | that element fails; queued sibling results are not written on the failed run |
 | Nested under `'payload' => ['required','array']` | `['payload' => ['age' => int(42)]]` |
 | With `excludeUnvalidatedArrayKeys` | `['payload' => ['age' => int(42)]]`, junk keys dropped |
 
@@ -698,17 +776,17 @@ instance serves every expanded attribute, and `setValidator()` is re-invoked
 per attribute. Therefore:
 
 - **Parser state must be keyed by concrete attribute, and scoped per
-  validator.** The prototype uses an `SplObjectStorage` keyed by validator
-  holding `array<string, mixed> $pending`. Verified safe for: one instance
+  validator.** The implementation uses a per-rule-instance `WeakMap` keyed by
+  validator, whose state holds `array<array-key, mixed> $pending`. Verified safe for: one instance
   across two wildcard elements, one instance across two named attributes
   (`['a' => [$shared], 'b' => [$shared]]` → `['a' => 1, 'b' => 2]`), and one
   instance across two independent validators (`v1` → `1`, `v2` → `2`).
 - Storing `$attribute` or `$value` on `$this` between `validate()` and the
   flush is a correctness bug waiting to happen. The `after()` closure must
   capture the shared state object, never `$this`-scoped per-attribute fields.
-- The flush must be registered **once per (rule instance, validator)**, tracked
-  by `spl_object_id`, otherwise a rule appearing on ten wildcard elements
-  registers ten identical callbacks.
+- The flush must be registered **once per (rule instance, validator)**. The
+  `WeakMap` state owns that registration bit; `spl_object_id` is not safe
+  bookkeeping because ids can be reused.
 
 ### 6.4 Escaped dots — the one broken case
 
@@ -817,44 +895,40 @@ Every case below was executed (`run.php` §9a–9j, `run3.php` P8–P9,
 
 | Scenario | Observed | Assessment |
 | --- | --- | --- |
-| Parse succeeds, another field fails | flush still runs; `getData()` holds `int(42)`; `validated()` throws `ValidationException` | Safe. Transformed data is unreachable through the supported API. |
+| Parse succeeds, another field fails | the current error bag suppresses parser write-back; `getData()` remains raw; `validated()` throws `ValidationException` | Safe. Failed `getData()` is not promised to be parsed. |
 | Parse fails immediately | no pending entry, no flush for that attribute; data stays raw | Correct. |
-| One field parses, another field's parser fails | the succeeding field is still flushed; the failing one is not | Correct and desirable — partial state is unobservable via `validated()`. |
-| Several parser rules on different attributes | one shared `ParseState`, one flush callback per rule instance | Correct. |
-| Two parser rules on the *same* attribute | last write wins in `getData()`; the disagreeing rule fails validation | Ambiguous by construction — report statically (§15). |
-| `passes()` called twice | second run re-parses the already-parsed value (`sees int(42)`), flush #2 writes the same result | Idempotent **only if** parsers accept their own output. `Parse::integer()` accepts `int`, `Parse::boolean()` accepts `bool`, `Parse::enum()` accepts the case object — all designed for this. A parser that rejects its own output would break on the second run. **This is a hard design constraint on every parser.** |
+| One wildcard field parses, another element's parser fails | the shared parser state is not written back | Correct; failed `getData()` remains outside the parsing contract. |
+| Several parser rule instances on different attributes | one `ParseState` per (rule instance, validator), one callback per state | Correct. |
+| Two parser rules on the *same* attribute | both validate the raw value; conflicting produced values add an error during write-back | Fails closed rather than choosing a false contract. |
+| `passes()` called twice | the first completed run writes parsed data; the second adds a parser-reuse error | Deliberately single-use; no ambiguous restoration. |
 | `fails()` then `validated()` | `fails()` runs `passes()`; `validated()` sees `$this->messages` set and does not re-run | Correct. |
 | `validated()` without a prior `passes()` | `validated()` triggers `passes()` itself (`:649`) | Correct. |
 | `validated()` called twice | second call returns the same array, no re-validation | Correct. |
 | `Validator::validate()` | `fails()` → `passes()` → flush → `validated()` | Correct; one `passes()` run total. |
 | `FormRequest::validated()` twice | identical arrays; `safe(['age'])` matches | Correct. |
 | An `after()` callback throws | exception propagates out of `passes()`; callbacks after the throwing one never run | If the user callback was registered first, the flush never runs and data stays raw. Acceptable, but means transformation is not guaranteed when a user callback throws. Document. |
-| A user `after()` callback registered *before* validation | runs **before** the flush and observes raw values | **Soundness hole — see §8.1.** `FormRequest::withValidator()` and Precognition land here. |
-| A user `after()` callback registered *after* the first `passes()` | runs after the flush on subsequent `passes()` calls, observing parsed values | Ordering follows registration order. Document. |
-| A user `after()` callback adds an error after the flush ran | the flush already wrote; `validated()` then throws | The reason "flush only when valid" is undecidable (§4.4). |
-| `stopOnFirstFailure()` | parse failure short-circuits the remaining attributes as usual | Unchanged. |
-| `setRules()` after `passes()` | data retains the previously flushed value; re-validation uses the new rules against transformed data | Pre-existing Laravel sharp edge, not parser-specific, but worth a test. |
-| `setData()` after `passes()` | resets `$this->data` and re-runs `setRules($this->initialRules)`; parsing restarts from the new raw data | Correct. |
+| A user `after()` callback registered *before* validation | runs **before** the flush and observes raw values; mutation invalidates the queued parse and fails validation | **Phase-inference limitation — see §8.1.** `FormRequest::withValidator()` and Precognition land here. |
+| A user `after()` callback registered *after* the first `passes()` | another validation run fails parser reuse | No second parsed result is promised. |
+| A user `after()` callback adds an error after the flush ran | the flush may already have written; `validated()` then throws | Successful output remains protected; failed `getData()` is not a parsed-output API. |
+| `stopOnFirstFailure()` | a parser Laravel never reaches leaves its raw attribute available through `valid()` | `valid()` on failed validation is not parsed output. |
+| `setRules()` after `passes()` | another run fails parser reuse | Parsed validator instances are single-use. |
+| `setData()` after `passes()` | another run fails parser reuse without restoring old raw data over the new input | Avoids an otherwise undecidable equality collision. |
 
 Two lifecycle hazards deserve emphasis:
 
-1. **Parser output must be a fixed point of the parser.** `passes()` is
-   re-entrant and Laravel calls it more than once on ordinary paths
-   (`validate()` → `fails()` → `passes()`). Every parser must satisfy
-   `parse(parse(x)) === parse(x)`. Verified for all three proposed v1 parsers
-   over three consecutive `passes()` calls (`fixedpoint.php`), on Laravel
-   10-latest and 13-latest.
+1. **Parser write-back makes the validator single-use.** Laravel exposes no
+   hook or generation counter that distinguishes old parser output from equal
+   new input. A later run therefore fails instead of restoring guessed data.
 2. **Callback registration must be once per (rule instance, validator).** The
-   `after` array persists across `passes()` calls; re-registering on every run
-   would accumulate duplicate callbacks. Guard by `spl_object_id`, and clear
-   `pending` inside the flush so a stale callback from a previous run is a
-   no-op rather than a replay.
+   `after` array persists on the object. Re-registering would accumulate
+   duplicate callbacks even though reuse is rejected.
 
-### 8.1 `validated()` inside an `after()` callback — a real soundness hole
+### 8.1 `validated()` inside an `after()` callback — a known limitation
 
-This deserves more than the passing mention it got in the first draft. It is
-the one place where the delayed model produces an outright wrong static type,
-and it is **structurally unfixable** within the chosen architecture.
+This deserves more than the passing mention it got in the first draft. The
+runtime ordering is **structurally unfixable** within the chosen architecture:
+an `after()` callback registered before validation observes raw values even
+though callers after validation observe parsed values.
 
 Measured (`after-hole.php`, H1), Laravel 13.25.0, callback registered before
 `passes()`, rules `['age' => [Parse::integer()]]`, input `['age' => '42']`:
@@ -862,7 +936,7 @@ Measured (`after-hole.php`, H1), Laravel 13.25.0, callback registered before
 ```text
 inside the callback:
   getData()      = ['age' => string('42')]
-  validated()    = ['age' => string('42')]     ← PHPStan would say array{age?: int}
+  validated()    = ['age' => string('42')]
   safe()->all()  = ['age' => string('42')]
   valid()        = ['age' => string('42')]
   getValue('age')= string('42')
@@ -872,12 +946,16 @@ after passes():
   validated()    = ['age' => int(42)]
 ```
 
-So this type-checks and is wrong:
+The extension does not currently provide dedicated inference for the callback
+parameter Laravel passes to `after()`. An explicitly typed `Validator`
+parameter is therefore ordinarily broad. A callback that instead captures the
+rule-aware validator retains its final parsed type, however, so this narrower
+form can type-check incorrectly:
 
 ```php
 $validator = Validator::make(['age' => '42'], ['age' => [Parse::integer()]]);
 
-$validator->after(function (Validator $validator) {
+$validator->after(function () use ($validator) {
     $data = $validator->validated();
     \PHPStan\dumpType($data['age']);   // extension says int; runtime holds "42"
 });
@@ -935,71 +1013,25 @@ most people reach for anyway. `withValidator()` remains the correct hook for
 *adding validation*, which is what it is for — it just must not read
 `validated()`.
 
-#### Recommended handling
+#### Current handling
 
-1. **Declare `after()` callbacks an unsupported context for reading parsed
-   data.** Document that `validated()`, `safe()`, `valid()`, `getData()`, and
-   `getValue()` observe pre-parse values there.
-2. **Ship a PHPStan rule** that reports a call to `validated()`/`safe()`/
-   `valid()`/`getData()`/`getValue()` on a validator inside a closure passed to
-   that validator's `after()`, when the validator's rule set contains a parsing
-   rule.
+1. **Treat `after()` callbacks as a pre-write-back context.**
+   `validated()`, `safe()`, `valid()`, `getData()`, and `getValue()` observe
+   raw values there. Read parsed data only after validation completes; in a
+   FormRequest, use `passedValidation()`.
+2. **Document the captured-validator inference gap.** The extension does not
+   yet model validation phases inside callbacks. An injected callback
+   parameter is normally broad, while a captured rule-aware validator may
+   retain the final parsed type. A phase-aware callback type or focused
+   diagnostic remains possible follow-up work if this limitation proves
+   common in real applications.
+3. **Do not abandon the delayed model over this.** Immediate mutation removes
+   the ordering gap but reintroduces the `same:` regression and rule-order
+   sensitivity across attributes, which is strictly worse.
 
-   **Scope of the promise — state it plainly in the docs.** The rule
-   **detects the common statically tractable forms; it does not close the
-   hole.** The underlying Laravel lifecycle limitation remains, and `after()`
-   accepts callables the analyzer cannot cheaply follow. Measured: every form
-   below is accepted by `after()` and every one exhibits the hole, on Laravel
-   10-latest and 13-latest (`after-forms.php`):
-
-   | Form passed to `after()` | Statically tractable? |
-   | --- | --- |
-   | inline `function (Validator $v) { … }` | **Yes** — detect |
-   | inline `fn (Validator $v) => …` | **Yes** — detect |
-   | closure assigned to a local variable in the same scope | Usually — detect if cheap |
-   | invokable object, `new CheckSomething()` | No — crosses into `__invoke` |
-   | `[$object, 'method']` | No — crosses into another method |
-   | `'App\Foo::bar'` string callable | No |
-   | array-of-objects form, `after([new CheckSomething()])` | No — Laravel calls `->after()` or invokes each element |
-
-   Do **not** hold v1 hostage to arbitrary callable dataflow. Chasing
-   `__invoke` bodies would mean whole-program analysis of every callable
-   reaching `after()`, for a diagnostic whose purpose is catching the
-   ordinary mistake. Catch the inline forms, document the rest as pre-parse
-   contexts regardless of whether the diagnostic follows them, and be honest
-   in the rule's own error message and in the docs that this is detection,
-   not enforcement.
-
-   The tractable half is a straightforward top-down PHPStan rule:
-
-   ```text
-   register on Node\Expr\MethodCall
-   match ->after(...) where the caller type is the extension's ValidatorType
-   if that ValidatorType's rule shape contains no parsing rule: return []
-   arg 0 is a Closure or ArrowFunction:
-       walk its body for MethodCall nodes named
-         validated | safe | valid | getData | getValue
-       whose caller is the closure's first parameter, or a use-captured
-       variable identical to the validator expression
-   report: "Reading parsed validation data inside after() observes values
-            from before Parse::* write-back; use passedValidation() or read
-            after validation completes."
-   ```
-
-   A bottom-up alternative — having `ValidatorValidatedExtension` decline to
-   refine whenever the call sits inside an anonymous function — was considered
-   and rejected: it would silently degrade every legitimate use of
-   `validated()` inside any closure, which is far more common than this bug.
-3. **Do not abandon the delayed model over this.** The alternative (immediate
-   mutation) removes this hole but reintroduces the `same:` regression and
-   rule-order sensitivity across attributes, which is strictly worse and is not
-   detectable by any static rule.
-
-Net position: delayed transformation has one unsound context, that context is
-named and documented, the common forms of it are reported, and the remaining
-forms are a known limitation rather than an unknown one. That is a materially
-better place to be than immediate mutation, whose failure modes are silent,
-unbounded, and undetectable.
+Net position: delayed transformation has a named and tested pre-write-back
+context plus one narrower static inference gap. Both are documented as known
+limitations of the experimental feature rather than presented as solved.
 
 ---
 
@@ -1458,7 +1490,7 @@ interface ParsingRule extends \Illuminate\Contracts\Validation\ValidationRule
 }
 ```
 
-with a shared abstract base owning the implicit flag, presence check, null
+with a shared abstract base owning the immutable implicit marker, presence check, null
 policy, per-validator state, and delayed flush — so implementers write only
 `parse()`:
 
@@ -1506,8 +1538,8 @@ final class Parse
 
 ### Can PHPStan discover `T` generically?
 
-Yes. The analyzer already resolves the call-site expression to a `Type`. For an
-object type implementing `ParsingRule`, PHPStan's
+Yes. The analyzer already resolves the call-site expression to a `Type`. For a
+concrete object type implementing `ParsingRule` through `BaseParsingRule`, PHPStan's
 `ClassReflection::getActiveTemplateTypeMap()` / `getAncestorWithClassName()`
 machinery yields the `T` binding without the extension knowing the concrete
 class. The `Parse::enum()` return type is `ParsingRule<Status>` by ordinary
@@ -1521,11 +1553,13 @@ Parse::enum(Status::class) → ParsingRule<Status>  → Status
 new MyOwnMoneyRule()      → ParsingRule<Money>    → Money
 ```
 
-Third-party parsers work with zero extension changes. This is strictly better
+Third-party parsers extending the sound base class work with zero extension
+changes. Direct interface implementations are declined because their runtime
+implicitness cannot be guaranteed. This is still strictly better
 than `if IntegerRule => int; if EnumRule => ...`, and it is worth the small
 extra effort in `CustomRuleTypeResolver`.
 
-Fallbacks, in order:
+Possible future fallbacks, none implemented by the prototype:
 
 1. `ParsingRule<T>` generic binding (preferred, covers everything);
 2. a `#[ParsedType('int')]` attribute / `@laravel-validation-parsed-type` tag
@@ -1574,7 +1608,7 @@ in. **Introduce a separate abstraction.**
 
 **`RuleTreeNode`**
 
-- `hasParsingRule(): bool` and `getProducedType(): ?Type`.
+- `getProducedType(): ?Type`.
 - `allowsBlankStringBypass()` must return `false` when a parsing rule is
   present. This is the static counterpart of the rule being implicit, and it
   is the single most important soundness change. The existing early-return
@@ -1584,9 +1618,8 @@ in. **Introduce a separate abstraction.**
 **`TypeResolver::evaluateLeaf()`**
 
 ```text
-if node has a parsing rule:
+if node has a parsing rule and no children:
     type := produced type                     # replaces, does not intersect
-    if node has `nullable`: type := type|null
     skip blank-string union
     skip refinePositiveMinimum                # min/max constrained the raw value
 else:
@@ -1595,34 +1628,64 @@ else:
 
 Two or more parsing rules on one attribute: the last one wins at runtime (the
 flush map is keyed by attribute, later writes overwrite), but any combination
-where they disagree is a user error. Prototype P9 showed
+where they disagree is a user error. **Corrected by the prototype: the first
+one wins.** State is per rule instance, and the write-back skips a value that
+is no longer what it parsed, so the second callback finds the first one's
+result and declines. See the Status section. Prototype P9 showed
 `[Parse::integer(), Parse::boolean()]` on `"42"` fails validation while
 `getData()` still holds `int(42)`. Recommended static treatment: **report an
 error** ("multiple parsing rules on `age`") rather than silently picking one.
 
-**`CustomRuleTypeResolver`**
+**`TypeResolver::hasExecutableRule()`** — add the parsing rule name. This
+report's first revision omitted it, and the omission is a soundness bug on the
+feature's happy path. `hasExecutableRule()` gates
+`refineSuccessfulDirectInput()`, which `FacadeValidateExtension` and
+`FactoryMakeExtension` use to narrow the **caller's own array** after a
+successful validation:
 
-- New `resolveParsingRule(Type $type): ?Type` returning the `T` binding for
-  `ParsingRule<T>`, consulting attribute/PHPDoc/config fallbacks.
-- `PREDICATE_TYPES` unchanged. A `ParsingRule` also satisfies
-  `ValidationRule`, so it must be checked for the parsing path **first**, then
-  fall through to predicate handling if no produced type is discoverable.
+```php
+$data = ['age' => '42'];
+if (Validator::make($data, ['age' => [Parse::integer()]])->passes()) {
+    $data['age'];   // narrowed to string ∩ int = never, but still holds '42'
+}
+```
 
-**`RuleParser::parseRule()`**
+The parsed value lands in `Validator::$data`, a by-value copy. The caller's
+array keeps the original representation, so the produced type says nothing
+about it.
 
-- Recognise `ParsingRule` instances on the runtime-values path (used by
-  `AssertsLaravelValidation`) and map them to `Rule::parsing(...)`. Without
-  this, the existing runtime/static cross-check helper cannot cover parsers.
+**Type discovery** — put it in a new resolver rather than extending
+`CustomRuleTypeResolver`. That class's vocabulary is entirely *accepted* type:
+its configuration keys, its attribute, its PHPDoc tag, and a class-keyed cache
+holding accepted types. A produced type is a different claim and should not
+share them. Whichever holds it, the parsing path must be consulted **first**,
+because `ParsingRule` extends `ValidationRule` and would otherwise be read as
+an unremarkable predicate.
 
-**New PHPStan rules** (two, both small)
+Discovery must decline, not guess, whenever the binding is unavailable. Note
+that a bare `ObjectType(ParsingRule)` resolves `T` to the template's default —
+an explicit `mixed` — rather than to a `TemplateType`, so a `TemplateType`
+guard alone does not catch it. Declining is the conservative direction, since
+recognizing a parsing rule also suppresses the blank-string union, and that is
+sound only for a rule known to be implicit.
 
-1. `ParsedDataInAfterCallbackRule` — reports reads of parsed data inside an
-   `after()` closure. Sketch and scope in §8.1. Two points matter: it must be
-   written **top-down** from the `after()` call site rather than bottom-up
-   from `validated()`, and it **detects the statically tractable forms rather
-   than closing the hole** — invokable objects, `[$obj, 'method']`, string
-   callables, and the array-of-objects form are equally unsound and are not
-   followed. Word the error message and the docs accordingly.
+**`RuleParser::parseRule()`** — leave it alone. The runtime cross-check needs
+live rule objects turned into rule descriptions, but `RuleParser` is a static
+utility with no reflection provider, so it would need either a threaded
+service or a class-to-type table — the per-class branching the generic design
+exists to avoid. Substitute in test support instead, routing through the
+production resolver so the cross-check still proves the produced type is
+discoverable.
+
+**Possible PHPStan rules**
+
+1. `ParsedDataInAfterCallbackRule` was considered for reads inside an
+   `after()` closure, but is deferred. The extension does not currently give
+   an ordinary injected callback parameter its rule-aware validator type; the
+   narrower known gap is a callback that captures that specialized validator.
+   Documentation is the proportionate handling while parsing remains
+   experimental. A future implementation would need to be top-down from the
+   `after()` call site and must not claim to follow arbitrary callables.
 2. `ParsingRuleLaravelVersionRule` — reports use of a `ParsingRule` when
    `LaravelVersionContext::hasFrameworkVersion()` is true and
    `isAtLeast('10.7.0')` is false. This is the static half of the version
@@ -1920,13 +1983,13 @@ runtime/                                  ← Laravel only, never PHPStan
     ParsingRule.php                       interface ParsingRule<T> extends ValidationRule
     ParseFailure.php
     Rules/
-        BaseParsingRule.php               implicit flag, presence, null policy, flush
+        BaseParsingRule.php               implicit marker, presence, null policy, flush
         IntegerRule.php                   implements ParsingRule<int>
         FloatRule.php                     implements ParsingRule<float>
         BooleanRule.php                   implements ParsingRule<bool>
         EnumRule.php                      implements ParsingRule<T of BackedEnum>
     Internal/
-        ParseState.php                    per-validator SplObjectStorage state
+        ParseState.php                    per-validator WeakMap state
         Lexer.php                         shared narrow grammars
 
 src/                                      ← unchanged root
@@ -2095,9 +2158,9 @@ Required additional coverage:
 - `passedValidation()` observes parsed data, `withValidator()`+`after()` does
   not — the pair that documentation depends on;
 - a callback appended from inside another callback does not run;
-- the `ParsedDataInAfterCallbackRule` fires on the closure form, the arrow-fn
-  form, and a `use`-captured validator, and does **not** fire when the rule set
-  contains no parsing rule.
+- no static test should lock in the currently incorrect final parsed type for
+  a `use`-captured validator; that case remains a documented limitation rather
+  than a claimed diagnostic.
 
 **Version floor**
 
@@ -2132,12 +2195,16 @@ than being skipped silently.
 | --- | --- | --- |
 | `setValue()` is undocumented | Low | Introduced *for this use case* by a merged PR whose alternative was rejected; guard with `method_exists` |
 | `setValue()` absent < 10.7.0 | **High if unhandled** | Runtime guard + PHPStan rule via `LaravelVersionContext`. **Not** a Composer `conflict` — that would break analyzer-only users on 10.0–10.6 (§17). Reproduced as a hard fatal |
-| `validated()` inside an `after()` callback returns raw values | **High if unhandled** | Structurally unfixable (§8.1). PHPStan rule catches inline closures/arrow fns only — invokables, `[$obj,'method']`, string callables and the array form stay undetected. Partial mitigation; document `passedValidation()` as the supported hook |
+| `validated()` inside an `after()` callback returns raw values | **High if misunderstood** | Structurally fixed by Laravel's ordering (§8.1). Document callbacks as pre-write-back, `passedValidation()` as the FormRequest hook, and captured-validator inference as a known experimental limitation |
 | `after()` ordering changes upstream | Medium | Behaviour identical 10.0→13.25; covered by the version-matrix suite |
 | Escaped-dot attributes | **High** | Fail loudly at runtime; refuse the parsed type statically. Recovery via `__dot__` regex exists but depends on undocumented format + 16-char hash |
 | Shared rule instance across wildcards | Medium | State keyed by (validator, concrete attribute); never on `$this`. Verified across expansions and across validators |
 | Excluded attributes resurrected in `getData()` | Medium | Two-condition flush guard; `validated()` was already safe |
 | Blank-string bypass | **High if unhandled** | Rule must be implicit; `allowsBlankStringBypass()` must return `false` for parsing nodes. Both measured |
+| Mutable implicit marker | **High if unhandled** | Base class exposes an immutable magic marker; inference declines direct implementations and subclasses that shadow it |
+| Validator reuse after write-back | **High if guessed** | Fail the later run; do not restore values that may have arrived through `setData()` |
+| Executable custom rules mutate after write-back | **High if narrowed** | Parsing plus custom or opaque behavior resolves to `mixed`; runtime combination remains unsupported |
+| `valid()` after an early stop contains raw values | Medium (DX) | Do not describe failed `valid()` output as parsed data |
 | Implicit breaks `nullable` | Medium | Parser owns null policy, reads `getRules()` for `nullable`. Measured working incl. wildcards |
 | `min`/`max` stay string-semantic | Medium (DX) | Document; recommend `['integer', Parse::integer(), 'min:18']`. Do **not** fake `hasRule()` via `__toString` |
 | Users expect `input()` to change | Low (DX) | Document that only `validated()`/`safe()` transform. Arguably the correct behaviour |
@@ -2157,7 +2224,8 @@ installed simultaneously).
 
 ## 23. Implementation sketch
 
-Enough detail for a later agent to implement safely. **Not implemented now.**
+This was the implementation sketch. The Status section records the changes
+made while turning it into the current experimental implementation.
 
 ### Runtime
 
@@ -2167,8 +2235,16 @@ namespace jbboehr\LaravelValidationParsing\Rules;
 
 abstract class BaseParsingRule implements ParsingRule, ValidatorAwareRule
 {
-    /** Read by InvokableValidationRule::make() — must be public and true. */
-    public bool $implicit = true;
+    /** Read through `$rule->implicit ?? false`; final magic access returns true. */
+    final public function __isset(string $name): bool
+    { /* ... */
+    }
+    final public function __get(string $name): mixed
+    { /* ... */
+    }
+    final public function __set(string $name, mixed $value): void
+    { /* fail */
+    }
 
     protected Validator $validator;
 
@@ -2247,26 +2323,87 @@ public function registerFlushOnce(Validator $validator, int $ruleId): void
             $validator->setValue($attribute, $value);
         }
 
-        $state->pending = [];   // idempotent across repeated passes()
+        $state->pending = [];   // take once; a completed parser rejects reuse
     });
 }
 ```
 
-Notes for the implementer:
+Notes for the implementer, revised against what building it established:
 
-- `ParseState` is an `SplObjectStorage` keyed by validator. Do **not** key by
-  rule instance; one instance serves many attributes and many validators.
+- **Hold state in a per-instance `\WeakMap<Validator, ParseState>`, not a
+  static `SplObjectStorage`.** A static store holds strong references and
+  leaks one entry per validation for the life of the process, which is
+  invisible in a web request and a real leak under long-lived workers. A
+  `WeakMap` also makes `registered` mean "once per (rule instance, validator)"
+  structurally, with no separate bookkeeping.
+- **Do not key registration by `spl_object_id`.** Ids are reused after an
+  object is collected, so a new rule instance can inherit a dead one's id and
+  have its write-back silently suppressed.
+- **Do not use a string sentinel for absence.** `ParseState::MISSING` as a
+  string can collide with real input. `Arr::has()` answers the question
+  directly and cannot collide.
 - The closure must be `static` and must capture `$state`, never `$this`.
-- `$state->pending` is cleared inside the flush so a second `passes()` cannot
-  replay stale values. `registered` is *not* cleared — the callback stays in
-  `$validator->after` and re-fires correctly on the next run. Verified.
-- `attributeIsNullable()` scans `$validator->getRules()[$attribute]` for the
-  case-insensitive string `nullable`. `hasRule()` is public but does its own
-  `ValidationRuleParser::parse()` round-trip; the direct scan is cheaper and
-  sufficient.
-- `looksLikeEscapedDotPath()`: scan `getRules()` keys for one matching
-  `/__dot__[A-Za-z0-9]+/` whose decoded form equals `$attribute`.
-- Parsers must be stateless apart from constructor arguments.
+- Take and clear `$state->pending` *before* the write loop, so a failure
+  part-way through cannot be replayed against different data on the next run.
+  `registered` is *not* cleared — the callback stays in `$validator->after`.
+  If the parser runs after a completed validation, it adds a reuse error
+  instead of refilling the map.
+- Nullable handling uses Laravel's public `hasRule()` API after resolving the
+  concrete data key, preserving Laravel's own normalization of rule names.
+- **Resolve ordinary attributes by exact rule-key lookup first.** Use
+  `array_key_exists`, not a strict search through `array_keys`, because PHP
+  normalizes a numeric-string key such as `'0'` to integer `0`. An escaped-dot
+  attribute is the exceptional case: Laravel hands the rule the decoded name,
+  while `getRules()` retains an encoded key, so the implementation must decode
+  the marked placeholder and find the exact matching rule key.
+- Parsers should be stateless apart from constructor arguments. Accepting an
+  already-produced value remains useful for callers whose input is already
+  canonical, but completed validator instances are not reusable.
+- Anchor a string grammar with `\z`, not `$`: PCRE's `$` also matches before a
+  final newline, so `"42\n"` would otherwise parse.
+- **Escaped-dot attributes are addressable after all, on most releases.** The
+  placeholder is one fixed random string per process, marked with `__dot__`,
+  so the encoded key can be recovered by decoding the rule-set keys and
+  matching the decoded name. The marker arrived during Laravel 10.48;
+  before that the dot was replaced by a bare random string with nothing to
+  anchor on, and there the attribute has to be reported as unaddressable.
+  Anchor the placeholder to `Str::random()`'s 16 characters and accept a
+  candidate only when it decodes to exactly the attribute, so an unrecognized
+  format fails loudly instead of writing somewhere wrong.
+- **Size rules still measure the original representation.** Laravel's
+  `getSize()` picks numeric comparison from `hasRule($attribute, ['Numeric',
+  'Integer', 'Decimal'])`, and a rule object cannot match that: `prepareRule()`
+  wraps a `ValidationRule` in `InvokableValidationRule` before `hasRule()` sees
+  it. So `[Parse::integer(), 'min:10']` compares string length. The legacy
+  `Rule` contract with `__toString(): 'Numeric'` does satisfy `hasRule()`, but
+  it means implementing a deprecated interface and misreporting the rule to
+  every other consumer. The better answer is to put the bound on the parser --
+  `Parse::integer()->min(18)` -- which sidesteps Laravel's sizing entirely and
+  lets the analyzer narrow to `int<18, max>`. Until then, pair the parser with
+  `integer` or `numeric`.
+- **Failure messages are literal strings, so only the default is unlocalized.**
+  `$fail()` takes a message rather than resolving a translation key, so a
+  parser's own message never reaches the `validation.php` lang files.
+  Overriding it is ordinary, though: `getFromLocalArray()` tries
+  `"{attribute}.{rule}"`, then the rule, then the attribute, so all three of
+  these work, the last setting one message for every use of that parser.
+
+  ```php
+  Validator::make($data, $rules, ['age' => 'Age must be a number.']);
+  Validator::make($data, $rules, ['age.' . IntegerRule::class => '...']);
+  Validator::make($data, $rules, [IntegerRule::class => '...']);
+  ```
+
+  What is missing is a localizable default. Publishing a lang namespace and
+  calling `$fail(...)->translate()` would supply one, and needs a service
+  provider, so it is deferred with the rest of the packaging work.
+
+  Keep the message short regardless. A parser's grammar is deliberately
+  narrower than the predicate it resembles, and the temptation is to explain
+  the difference in the message -- "must be a whole number written in digits,
+  without a leading plus sign, leading zeroes, a decimal point, or surrounding
+  spaces" was a real attempt. That is a specification, not a form error. The
+  message says what is wanted; documentation says what the grammar accepts.
 
 ### Parsers
 
@@ -2286,7 +2423,7 @@ the tests reference one definition.
 3. `RuleSetResolver` — recognise `ParsingRule` object types at rule positions
    and emit `Rule::parsing(...)`.
 4. `RuleParser::parseRule()` — same, for the runtime-values path.
-5. `RuleTreeNode::hasParsingRule()` / `getProducedType()`;
+5. `RuleTreeNode::getProducedType()`;
    `allowsBlankStringBypass()` returns `false` when a parsing rule is present.
 6. `TypeResolver::evaluateLeaf()` — parsing branch replaces the intersection,
    applies `nullable`, skips the blank-string union and `refinePositiveMinimum`.
@@ -2302,10 +2439,10 @@ the tests reference one definition.
    driven by `AssertsLaravelValidation` so runtime and static agree from the
    first commit.
 3. Generic `ParsingRule<T>` discovery.
-4. The two new PHPStan rules: `ParsedDataInAfterCallbackRule` (§8.1) and
-   `ParsingRuleLaravelVersionRule` (§17). Neither is optional — they are the
-   enforcement for the two constraints the type system and Composer
-   respectively cannot express.
+4. Consider the two possible PHPStan rules described in §8.1 and §17 after
+   runtime and produced-type inference are stable. The callback diagnostic is
+   explicitly deferred while parsing remains experimental; documentation is
+   the current boundary.
 5. `composer.json` dependency inversion (§17) + the `--no-dev` runtime smoke
    test. **No `conflict` on `illuminate/validation`.**
 6. Documentation (§24).
@@ -2339,7 +2476,7 @@ introduced as such:
 > `Parse::*` provides an explicit, opt-in parsing boundary. A parsing rule
 > either produces a value of its declared type or fails validation. Ordinary
 > rules continue to observe the original representation; only
-> `validated()`, `safe()`, and `valid()` return parsed values. The request
+> successful `validated()` and `safe()` calls return parsed values. The request
 > itself is never modified.
 
 Points the documentation must make explicitly, because each was a measured
@@ -2351,18 +2488,27 @@ surprise:
    Pair `Parse::integer()` with `integer` when sizing matters.
 3. `$request->input()` does not change. This is deliberate.
 4. Parsing rules are implicit, so `''` and `null` fail unless `nullable`.
-5. Escaped-dot attributes are unsupported.
+5. Escaped-dot attributes require Laravel's marked placeholder format. Older
+   Laravel 10 releases fail validation loudly rather than writing to the wrong
+   path.
 6. Laravel `>= 10.7.0` is required for parsing, while analysis supports
-   `>= 10.0`. Composer will not enforce this; the analyzer will.
+   `>= 10.0`. Composer cannot enforce that conditional floor; the runtime
+   guard does, and an analyzer-side diagnostic remains follow-up work.
 7. **Do not read `validated()`, `safe()`, `valid()`, or `getData()` inside an
-   `after()` callback** — those observe values from before parsing, in *every*
-   callable form `after()` accepts, not only the ones the analyzer reports. In
-   a `FormRequest`, use `passedValidation()`; `withValidator()` is for adding
-   validation, not for reading results. Show both, side by side, with the
-   measured output from §8.1, and say explicitly that the PHPStan diagnostic
-   is a safety net for the common forms rather than a guarantee. This is the
-   single most likely way for a user to get a wrong runtime value out of a
-   correct-looking type.
+   `after()` callback** — those observe values from before parsing, in every
+   callable form `after()` accepts. In a FormRequest, use
+   `passedValidation()`; `withValidator()` is for adding validation, not for
+   reading results. A captured rule-aware validator may retain its final
+   parsed type inside the callback; document that static mismatch as a known
+   limitation rather than implying it is diagnosed.
+8. A validator that completes parser write-back is single-use. Calling
+   `passes()` again, including after `setData()`, fails validation rather than
+   restoring ambiguous stale data.
+9. `valid()` on failed validation is not parsed output. An early stop can leave
+   raw values for parsing rules Laravel never reached.
+10. Executable custom and opaque rules have no enforceable finalization
+    contract. PHPStan returns `mixed` when they are combined with parsing
+    rules.
 
 ---
 
@@ -2437,13 +2583,13 @@ Three conditions on proceeding:
 2. **Escaped-dot attributes fail loudly at runtime and are refused statically.**
    A silent no-op there is exactly the class of dishonesty this project exists
    to criticise.
-3. **The `after()` hole ships with a PHPStan rule *and* an honest statement of
-   its limits.** `validated()` inside a pre-registered `after()` callback
-   returns raw values on every supported Laravel and in every callable form,
-   and the ordering cannot be repaired. A package whose premise is that
-   inferred types match runtime behaviour cannot leave a known counter-example
-   undetected — but it also must not claim the diagnostic is complete when it
-   only follows inline closures.
+3. **The `after()` ordering limitation ships with an honest statement of its
+   static limits.** `validated()` inside a pre-registered `after()` callback
+   returns raw values on every supported Laravel and in every callable form.
+   Ordinary injected callback parameters are not currently specialized, but a
+   captured rule-aware validator may retain its final parsed type. That case
+   remains a documented limitation while parsing is experimental; a partial
+   diagnostic is not a release condition.
 
 Build the runtime and its test matrix first. Only once the runtime semantics
 are pinned by tests should the analyzer learn to claim the type.

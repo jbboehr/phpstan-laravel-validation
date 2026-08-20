@@ -1,0 +1,5 @@
+parameters:
+  phpstanLaravelValidation:
+    # Validator::setValue(), which parsing rules write through, arrived in
+    # Laravel 10.7.
+    laravelVersion: '10.7.0'

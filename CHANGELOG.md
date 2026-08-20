@@ -2,6 +2,40 @@
 
 ## Unreleased
 
+### Added
+
+- Experimental opt-in parsing rules under the `jbboehr\Rensei` namespace.
+  `Parse::integer()` produces an `int` in successful `validated()` and
+  `safe()` output, or fails validation; ordinary rules continue to observe the
+  original representation and the request itself is never rewritten.
+  PHPStan infers the produced type, reading it from the `ParsingRule<T>`
+  binding, so a parser defined outside this package needs no support here.
+- Requires `laravel/framework` 10.7.0 or later, which introduced
+  `Validator::setValue()`. Static analysis still supports Laravel 10.0; the
+  narrower floor applies only to code that uses a parsing rule, and is
+  reported at runtime rather than through a Composer constraint.
+
+  The grammar is deliberately narrower than Laravel's `integer` rule: it
+  rejects `'042'`, `'+42'`, `' 42'`, `'42.0'`, the float `42.0`, and values
+  beyond the platform integer width. Size rules still compare the original
+  representation, so pair the parser with `integer` or `numeric` when
+  `min`, `max`, `between`, or `size` matter. A validator that completes parser
+  write-back is single-use: another validation run fails closed. Laravel
+  exposes no hook that can distinguish residual parser output from equal new
+  data supplied through `setData()`, so attempting to restore it would risk
+  corrupting caller data. `valid()` on failed or short-circuited validation is
+  not parsed output and may contain raw values from rules Laravel never ran.
+
+  Callbacks registered with `Validator::after()` before validation run before
+  parsing-rule write-back and therefore observe the original values. Read
+  parsed values only after validation completes; in a FormRequest, use
+  `passedValidation()`. PHPStan does not currently model this phase boundary:
+  a callback that captures the rule-aware validator may still be given its
+  final parsed type. This is a known limitation of the experimental feature.
+  Executable custom or opaque rules can also mutate validator data outside the
+  parser's finalization point; PHPStan therefore returns `mixed` when they are
+  combined with parsing rules.
+
 ### Documentation
 
 - Split the project manual into a concise README and an mdBook site covering
