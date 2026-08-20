@@ -155,10 +155,12 @@ satisfies, and nothing in the rule set reads as wrong. The documented
 workaround is confirmed to work, but relying on documentation to avoid a
 wrong-direction rejection with a self-contradicting message is not adequate.
 
-This raises the priority of the two remedies the parsing investigation
-already names: a diagnostic requiring a numeric companion rule beside a
-numeric parser, and `Parse::integer()->min(5)` carrying the comparison
-itself.
+The project chose the smaller immediate remedy: PHPStan now reports
+`laravelValidation.parsingNumericSize` when a numeric parser is combined with
+`min`, `max`, `between`, or `size` without Laravel's `integer`, `numeric`, or
+`decimal` marker. Parser-carried bounds such as `Parse::integer()->min(5)`
+remain possible future work, but are no longer required to make this mistake
+visible.
 
 ## Finding 3: rule sets in a mutable property lose inference
 
@@ -237,9 +239,11 @@ shape exactly as a controller does.
 
 ## Remaining follow-up
 
-- Decide between the numeric-companion diagnostic and parser-carried size
-  constraints for finding 2. Finding 2 is the strongest argument yet for
-  doing one of them before more parsers land.
+- **Decided: diagnose the missing numeric companion.**
+  `laravelValidation.parsingNumericSize` catches the representation-sensitive
+  `min`, `max`, `between`, and `size` combinations measured in finding 2.
+  Parser-carried size constraints remain an optional later API rather than a
+  prerequisite for safe use.
 - **Decided: the extension does nothing about finding 3.** Inferring a shape
   from a mutable property's initializer would be unsound, and BookStack is
   its own counterexample: `ApiController` declares `protected array $rules =

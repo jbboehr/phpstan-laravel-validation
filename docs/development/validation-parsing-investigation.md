@@ -2382,10 +2382,12 @@ Notes for the implementer, revised against what building it established:
   it. So `[Parse::integer(), 'min:10']` compares string length. The legacy
   `Rule` contract with `__toString(): 'Numeric'` does satisfy `hasRule()`, but
   it means implementing a deprecated interface and misreporting the rule to
-  every other consumer. The better answer is to put the bound on the parser --
-  `Parse::integer()->min(18)` -- which sidesteps Laravel's sizing entirely and
-  lets the analyzer narrow to `int<18, max>`. Until then, pair the parser with
-  `integer` or `numeric`.
+  every other consumer. The implemented answer is a focused
+  `laravelValidation.parsingNumericSize` diagnostic: pair a numeric parser
+  with `integer`, `numeric`, or `decimal` when `min`, `max`, `between`, or
+  `size` is meant numerically. Putting the bound on the parser --
+  `Parse::integer()->min(18)` -- could still sidestep Laravel's sizing entirely
+  and let the analyzer narrow to `int<18, max>`, but remains future API work.
 - **Failure messages are literal strings, so only the default is unlocalized.**
   `$fail()` takes a message rather than resolving a translation key, so a
   parser's own message never reaches the `validation.php` lang files.

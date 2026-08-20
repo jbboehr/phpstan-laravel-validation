@@ -44,6 +44,7 @@
             "src/Validation/InvalidRuleException.php",
             "src/Validation/Rule.php",
             "src/Validation/RuleParser.php",
+            "src/Rule/ParsingNumericSizeRule.php",
             "src/Rule/ValidatorMutationRule.php",
             "src/Rule/UnvalidatedArrayKeysConfigurationRule.php"
         ]

@@ -203,3 +203,14 @@ options. PHPStan reports mutations of existing inferred validators under
 `laravelValidation.validatorMutation` while allowing conservative or precise
 handling of supported fresh chains. See
 [Supported Entry Points](entry-points.md#validator-mutation-and-contract-invalidation).
+
+Numeric parsing rules combined with `min`, `max`, `between`, or `size` without
+Laravel's `integer`, `numeric`, or `decimal` marker are reported as
+`laravelValidation.parsingNumericSize`. Laravel otherwise measures the
+original representation rather than the parsed numeric value. The diagnostic
+inspects supported factory, facade, helper, request, and controller validation
+calls, including `validateWith()` and `validateWithBag()`, as well as returns
+from `FormRequest::rules()`. FormRequest rules are checked independently of
+`formRequests.enabled` because the diagnostic concerns runtime behavior rather
+than inferred FormRequest output. See
+[Parsing validated output](../guides/parsing-validated-output.md#presence-and-adjacent-laravel-rules).

@@ -1,0 +1,4 @@
+parameters:
+  phpstanLaravelValidation:
+    # Rule::numeric() and Numeric were introduced in Laravel 11.42.
+    laravelVersion: '12.55.0'

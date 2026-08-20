@@ -83,6 +83,9 @@ services:
   - class: jbboehr\PhpstanLaravelValidation\Rule\ValidatorMutationRule
     tags:
       - phpstan.rules.rule
+  - class: jbboehr\PhpstanLaravelValidation\Rule\ParsingNumericSizeRule
+    tags:
+      - phpstan.rules.rule
   - class: jbboehr\PhpstanLaravelValidation\Extension\ControllerValidateExtension
     arguments:
       assumeHttpInputNormalization: %phpstanLaravelValidation.assumeHttpInputNormalization%

@@ -146,6 +146,14 @@ named numeric rule, Laravel may compare the raw string by length even though
 `validated()` later contains an `int`. Rule order does not change that phase
 boundary.
 
+PHPStan reports this combination as
+`laravelValidation.parsingNumericSize` when a numeric parser is paired with
+`min`, `max`, `between`, or `size` but the rule list has no `integer`,
+`numeric`, or `decimal` marker. Add the marker when the bound is numeric. If
+a custom numeric parser intentionally accepts values whose original string,
+array, or file representation should be measured, the diagnostic can be
+ignored by identifier at that site.
+
 ## Which values each phase observes
 
 | Location | Representation |

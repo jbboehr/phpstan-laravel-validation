@@ -19,8 +19,10 @@
   The grammar is deliberately narrower than Laravel's `integer` rule: it
   rejects `'042'`, `'+42'`, `' 42'`, `'42.0'`, the float `42.0`, and values
   beyond the platform integer width. Size rules still compare the original
-  representation, so pair the parser with `integer` or `numeric` when
-  `min`, `max`, `between`, or `size` matter. A validator that completes parser
+  representation, so pair the parser with `integer`, `numeric`, or `decimal` when
+  `min`, `max`, `between`, or `size` matter. PHPStan reports a missing
+  `integer`, `numeric`, or `decimal` companion as
+  `laravelValidation.parsingNumericSize`. A validator that completes parser
   write-back is single-use: another validation run fails closed. Laravel
   exposes no hook that can distinguish residual parser output from equal new
   data supplied through `setData()`, so attempting to restore it would risk

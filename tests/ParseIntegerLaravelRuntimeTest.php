@@ -272,6 +272,87 @@ final class ParseIntegerLaravelRuntimeTest extends \PHPStan\Testing\PHPStanTestC
     }
 
     /**
+     * Laravel chooses numeric or string-length size semantics from named rules,
+     * before delayed parser write-back changes the successful output value.
+     *
+     * @return iterable<string, array{string, array<mixed, mixed>, array<string, mixed>, bool, array<mixed, mixed>|null}>
+     */
+    public static function sizeSemanticsCases(): iterable
+    {
+        yield 'min measures an unmarked numeric string by length' => [
+            'min measures an unmarked numeric string by length',
+            ['age' => '7'],
+            ['age' => [Parse::integer(), 'min:5']],
+            false,
+            null,
+        ];
+
+        yield 'integer gives min numeric semantics' => [
+            'integer gives min numeric semantics',
+            ['age' => '7'],
+            ['age' => ['integer', Parse::integer(), 'min:5']],
+            true,
+            ['age' => 7],
+        ];
+
+        yield 'max measures an unmarked numeric string by length' => [
+            'max measures an unmarked numeric string by length',
+            ['age' => '100'],
+            ['age' => [Parse::integer(), 'max:50']],
+            true,
+            ['age' => 100],
+        ];
+
+        yield 'max measures an unmarked native integer as text' => [
+            'max measures an unmarked native integer as text',
+            ['age' => 100],
+            ['age' => [Parse::integer(), 'max:50']],
+            true,
+            ['age' => 100],
+        ];
+
+        yield 'numeric gives max numeric semantics' => [
+            'numeric gives max numeric semantics',
+            ['age' => '100'],
+            ['age' => ['numeric', Parse::integer(), 'max:50']],
+            false,
+            null,
+        ];
+
+        yield 'between measures an unmarked numeric string by length' => [
+            'between measures an unmarked numeric string by length',
+            ['age' => '7'],
+            ['age' => [Parse::integer(), 'between:5,10']],
+            false,
+            null,
+        ];
+
+        yield 'decimal gives between numeric semantics' => [
+            'decimal gives between numeric semantics',
+            ['age' => '7'],
+            ['age' => ['decimal:0', Parse::integer(), 'between:5,10']],
+            true,
+            ['age' => 7],
+        ];
+
+        yield 'size measures an unmarked numeric string by length' => [
+            'size measures an unmarked numeric string by length',
+            ['age' => '7'],
+            ['age' => [Parse::integer(), 'size:7']],
+            false,
+            null,
+        ];
+
+        yield 'integer gives size numeric semantics' => [
+            'integer gives size numeric semantics',
+            ['age' => '7'],
+            ['age' => ['integer', Parse::integer(), 'size:7']],
+            true,
+            ['age' => 7],
+        ];
+    }
+
+    /**
      * @param array<mixed, mixed> $data
      * @param array<string, mixed> $rules
      * @param array<mixed, mixed>|null $expectedValidated
@@ -279,6 +360,7 @@ final class ParseIntegerLaravelRuntimeTest extends \PHPStan\Testing\PHPStanTestC
     #[DataProvider('presenceCases')]
     #[DataProvider('grammarCases')]
     #[DataProvider('interactionCases')]
+    #[DataProvider('sizeSemanticsCases')]
     public function testRuntimeOutputStaysWithinTheInferredType(
         string $caseId,
         array $data,
