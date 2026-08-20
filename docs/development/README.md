@@ -54,8 +54,8 @@ values into a declared runtime type without disturbing ordinary Laravel
 validation semantics. It traces the validator lifecycle across every supported
 major, measures a delayed write-back prototype, and documents the presence,
 null, wildcard, exclusion, version-floor, and `after()`-ordering hazards it
-found. Experimental implementations of `Parse::integer()` and
-`Parse::boolean()` have since been built on that design; the report's Status
+found. Experimental implementations of `Parse::integer()`, `Parse::boolean()`,
+and `Parse::enum()` have since been built on that design; the report's Status
 section records the corrections and remaining constraints exposed while
 building them.
 

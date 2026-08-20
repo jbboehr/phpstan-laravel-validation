@@ -21,7 +21,9 @@ declare(strict_types=1);
 
 namespace jbboehr\Rensei;
 
+use BackedEnum;
 use jbboehr\Rensei\Rules\BooleanRule;
+use jbboehr\Rensei\Rules\EnumRule;
 use jbboehr\Rensei\Rules\IntegerRule;
 
 /**
@@ -34,6 +36,7 @@ use jbboehr\Rensei\Rules\IntegerRule;
  *     'age' => ['required', 'integer'],        // validated() holds "42"
  *     'age' => ['required', Parse::integer()], // validated() holds 42
  *     'enabled' => ['required', Parse::boolean()], // "0" becomes false
+ *     'status' => ['required', Parse::enum(Status::class)], // "draft" becomes Status::Draft
  *
  * Only the validated output changes. Ordinary rules still see the original
  * representation, and the request itself is never modified: `$request->all()`
@@ -68,6 +71,25 @@ final class Parse
     public static function boolean(): BooleanRule
     {
         return new BooleanRule();
+    }
+
+    /**
+     * Parse a backed enum's native representation into its case object.
+     *
+     * Existing cases pass through unchanged. Otherwise, string-backed enums
+     * accept only strings and int-backed enums accept only ints; PHP's scalar
+     * coercions are deliberately not part of the grammar. Pure enums have no
+     * canonical wire representation and are rejected by the constructor.
+     *
+     * @template T of BackedEnum
+     *
+     * @param class-string<T> $enum
+     *
+     * @return EnumRule<T>
+     */
+    public static function enum(string $enum): EnumRule
+    {
+        return new EnumRule($enum);
     }
 
     /**

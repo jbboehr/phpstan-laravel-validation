@@ -21,13 +21,14 @@ Investigation date: 2026-08-17. Prototype built and corrections folded in:
 
 ## Status
 
-Prototypes of `Parse::integer()` and `Parse::boolean()` have since been built
-on this design. The integer slice proved the mechanism and corrected the report
-in several places; the boolean slice then confirmed that another concrete
-parser can reuse the same lifecycle while retaining runtime/static conformance.
-Each correction is recorded where the original claim appeared; they are
-collected here because a reader following the report to implement the remaining
-parsers needs them.
+Implementations of `Parse::integer()`, `Parse::boolean()`, and `Parse::enum()`
+have since been built on this design. The integer slice proved the mechanism
+and corrected the report in several places; the boolean slice confirmed that
+another concrete parser can reuse the lifecycle; and the enum slice proved
+that the generic produced type can carry a concrete call-site class without a
+per-rule resolver branch. Each correction is recorded where the original claim
+appeared; they are collected here because a reader following the report to
+implement the remaining parsers needs them.
 
 1. `['required', 'nullable', Parse::integer()]` infers `array{age: int}`, not
    `int|null` (§5.3). `required` rejects null outright.
@@ -1226,25 +1227,26 @@ cleanest way to guarantee this is a single shared table (§21).
 
 `Parse::enum(Status::class): Status`
 
-Measured behaviour of the prototype versus Laravel's `Rule::enum`:
+Measured behaviour of the implemented parser versus Laravel's `Rule::enum`:
 
 | enum | input | `Parse::enum` | `Rule::enum` |
 | --- | --- | --- | --- |
 | string-backed | `'draft'` | `Status::Draft` | passes, returns `string('draft')` |
 | string-backed | `'nope'` | fail | fail |
 | string-backed | `Status::Live` (case object) | `Status::Live` | passes, returns the case |
-| string-backed | `1` | fail | fail |
+| string-backed | `1` | fail | passes, returns `int(1)` |
 | int-backed | `1` | `Level::Low` | passes, returns `int(1)` |
 | int-backed | `'1'` (string) | **fail** | **passes**, returns `string('1')` |
 | int-backed | `9` | fail | fail |
 | int-backed | `Level::High` | `Level::High` | passes, returns the case |
 
 Laravel's `Rules\Enum::passes()` calls `$this->type::tryFrom($value)` inside a
-`try { } catch (TypeError)`, so an int-backed enum accepts the string `'1'`
-through PHP's coercive `tryFrom` — and then leaves `string('1')` in the output.
-That is a perfect miniature of this project's whole thesis.
+`try { } catch (TypeError)` from a weakly typed file. A string-backed enum can
+therefore accept the integer `1`, while an int-backed enum can accept the string
+`'1'`; Laravel then leaves that original integer or string in the output. That
+is a perfect miniature of this project's whole thesis.
 
-**Recommended semantics:**
+**Implemented semantics:**
 
 - Already an instance of the target enum → pass through unchanged.
 - Backed enums: require the value's PHP type to match the backing type

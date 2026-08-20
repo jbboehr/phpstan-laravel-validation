@@ -59,6 +59,7 @@
             "runtime/ParsingRule.php",
             "runtime/Rules/BaseParsingRule.php",
             "runtime/Rules/BooleanRule.php",
+            "runtime/Rules/EnumRule.php",
             "runtime/Rules/IntegerRule.php",
             "runtime/UnsupportedLaravelVersion.php"
         ]

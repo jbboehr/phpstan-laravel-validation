@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Validator;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\ArrayParsingRule;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\IntegerValidationStatus;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\MoneyParsingRule;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\StringValidationStatus;
 use jbboehr\Rensei\Parse;
 use jbboehr\Rensei\Rules\BooleanRule;
+use jbboehr\Rensei\Rules\EnumRule;
 use jbboehr\Rensei\Rules\IntegerRule;
 
 use function PHPStan\Testing\assertType;
@@ -78,6 +81,30 @@ assertType('array{enabled: bool}', Validator::make([], [
     'enabled' => ['required', new BooleanRule()],
 ])->validated());
 
+// Enum parsing carries the concrete enum class through the generic rule.
+assertType('array{status?: jbboehr\PhpstanLaravelValidation\Test\Fixtures\StringValidationStatus}', Validator::make([], [
+    'status' => [Parse::enum(StringValidationStatus::class)],
+])->validated());
+
+assertType('array{status: jbboehr\PhpstanLaravelValidation\Test\Fixtures\StringValidationStatus}', Validator::make([], [
+    'status' => ['required', Parse::enum(StringValidationStatus::class)],
+])->validated());
+
+assertType('array{status?: jbboehr\PhpstanLaravelValidation\Test\Fixtures\StringValidationStatus|null}', Validator::make([], [
+    'status' => ['nullable', Parse::enum(StringValidationStatus::class)],
+])->validated());
+
+assertType('array{level: jbboehr\PhpstanLaravelValidation\Test\Fixtures\IntegerValidationStatus}', Validator::make([], [
+    'level' => ['required', new EnumRule(IntegerValidationStatus::class)],
+])->validated());
+
+assertType(
+    'array{users?: array<int|string, array{status: jbboehr\PhpstanLaravelValidation\Test\Fixtures\StringValidationStatus}>}',
+    Validator::make([], [
+        'users.*.status' => ['required', Parse::enum(StringValidationStatus::class)],
+    ])->validated()
+);
+
 // A parser defined outside this package needs no support here.
 assertType('array{amount: non-empty-string}', Validator::make([], [
     'amount' => ['required', new MoneyParsingRule()],
@@ -123,4 +150,11 @@ assertType(
 $data = ['age' => '42'];
 if (Validator::make($data, ['age' => ['required', Parse::integer()]])->passes()) {
     assertType("array{age: '42'}", $data);
+}
+
+$enumData = ['status' => 'draft'];
+if (Validator::make($enumData, [
+    'status' => ['required', Parse::enum(StringValidationStatus::class)],
+])->passes()) {
+    assertType("array{status: 'draft'}", $enumData);
 }
