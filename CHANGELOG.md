@@ -38,12 +38,15 @@
 
 ### Changed
 
-- Report statically identifiable calls to the validator mutation methods
-  `setData()`, `setValue()`, `setRules()`, `addRules()`, and `sometimes()` as
-  errors. Laravel does not invalidate its previous message state when data or
-  rules change, and mutation also invalidates the rule metadata used for
-  inference. This replaces the partial `setRules()` return-type inference;
-  construct a new validator with complete data and rules instead.
+- Invalidate returned validator contracts after `setData()`, `setRules()`, and
+  imperative `sometimes()` calls. A statically resolvable
+  `setRules()` chained directly from a fresh factory, facade, or helper call is
+  re-inferred, and fresh `setData()` chains retain their rules. Mutations of an
+  existing inferred validator still produce
+  `laravelValidation.validatorMutation`, because Laravel retains validation
+  state and PHPStan cannot invalidate ignored calls or aliases. `setValue()`
+  and `addRules()` are diagnostic-only because their APIs do not return a
+  validator contract that can be replaced portably.
 
 ### Documentation
 

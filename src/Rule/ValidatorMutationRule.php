@@ -21,16 +21,18 @@ declare(strict_types=1);
 
 namespace jbboehr\PhpstanLaravelValidation\Rule;
 
+use jbboehr\PhpstanLaravelValidation\Type\ValidatorType;
 use PhpParser\Node;
+use PhpParser\Node\Expr;
+use PhpParser\Node\Expr\FuncCall;
 use PhpParser\Node\Expr\MethodCall;
+use PhpParser\Node\Expr\StaticCall;
 use PHPStan\Analyser\Scope;
 use PHPStan\Rules\Rule;
 use PHPStan\Rules\RuleErrorBuilder;
-use PHPStan\Type\NeverType;
-use PHPStan\Type\ObjectType;
 use PHPStan\Type\Type;
-use PHPStan\Type\TypeCombinator;
-use PHPStan\Type\UnionType;
+use PHPStan\Type\ObjectType;
+use PHPStan\Type\TypeTraverser;
 
 /**
  * @implements Rule<MethodCall>
@@ -70,8 +72,9 @@ final class ValidatorMutationRule implements Rule
         if (
             $methods === []
             || !$this->containsOnlyMutationMethods($methods)
-            || !$this->mayBeLaravelValidator($scope->getType($node->var), $methods)
+            || !$this->carriesInferredValidatorContract($scope->getType($node->var))
             || $this->isTrustedParsingWriteBack($methods, $scope)
+            || $this->isKnownFreshValidator($node->var, $scope)
         ) {
             return [];
         }
@@ -126,46 +129,58 @@ final class ValidatorMutationRule implements Rule
         return true;
     }
 
-    /** @param list<string> $methods */
-    private function mayBeLaravelValidator(Type $type, array $methods): bool
+    private function carriesInferredValidatorContract(Type $type): bool
     {
-        if ($type->isNull()->yes()) {
-            return false;
-        }
+        $found = false;
+        TypeTraverser::map(
+            $type,
+            static function (Type $innerType, callable $traverse) use (&$found): Type {
+                if ($innerType instanceof ValidatorType) {
+                    $found = true;
 
-        $type = TypeCombinator::removeNull($type);
-        if ($type instanceof NeverType) {
-            return false;
-        }
+                    return $innerType;
+                }
 
-        foreach ($methods as $method) {
-            $validatorType = new ObjectType(
-                $method === 'sometimes'
-                    ? \Illuminate\Contracts\Validation\Validator::class
-                    : \Illuminate\Validation\Validator::class
-            );
-
-            if ($this->typeContains($type, $validatorType)) {
-                return true;
+                return $traverse($innerType);
             }
-        }
+        );
 
-        return false;
+        return $found;
     }
 
-    private function typeContains(Type $type, ObjectType $validatorType): bool
+    private function isKnownFreshValidator(Expr $expression, Scope $scope): bool
     {
-        if ($type instanceof UnionType) {
-            foreach ($type->getTypes() as $innerType) {
-                if ($validatorType->isSuperTypeOf($innerType)->yes()) {
-                    return true;
-                }
-            }
+        if ($expression instanceof MethodCall) {
+            return $expression->name instanceof Node\Identifier
+                && $expression->name->toLowerString() === 'make'
+                && !$expression->isFirstClassCallable()
+                && (new ObjectType(\Illuminate\Validation\Factory::class))
+                    ->isSuperTypeOf($scope->getType($expression->var))
+                    ->yes();
+        }
 
+        if ($expression instanceof StaticCall) {
+            return $expression->name instanceof Node\Identifier
+                && $expression->name->toLowerString() === 'make'
+                && !$expression->isFirstClassCallable()
+                && $expression->class instanceof Node\Name
+                && $scope->resolveName($expression->class)
+                    === \Illuminate\Support\Facades\Validator::class;
+        }
+
+        if (!$expression instanceof FuncCall
+            || $expression->isFirstClassCallable()
+            || !$expression->name instanceof Node\Name
+        ) {
             return false;
         }
 
-        return $validatorType->isSuperTypeOf($type)->yes();
+        $resolvedName = $expression->name->getAttribute('resolvedName');
+        $functionName = $resolvedName instanceof Node\Name
+            ? $resolvedName->toString()
+            : $expression->name->toString();
+
+        return strtolower($functionName) === 'validator';
     }
 
     /** @param list<string> $methods */

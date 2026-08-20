@@ -26,10 +26,14 @@ A directly constructed `Illuminate\Validation\Validator` retains Laravel's
 broad declared return type and is not narrowed from configuration
 assumptions such as `includeUnvalidatedArrayKeys`.
 
-## Validator mutation is prohibited
+## Validator mutation and contract invalidation
 
-The extension reports statically identifiable calls to these methods as
-errors:
+Laravel validators are mutable, but Laravel does not clear their previous
+validation message state when their data or rules change. After validation has
+run, `validated()` can therefore return data that was never checked against the
+current rules, or reject valid data because an earlier input failed.
+
+The extension tracks these mutation methods:
 
 - `setData()`;
 - `setValue()`;
@@ -37,27 +41,44 @@ errors:
 - `addRules()`;
 - imperative `$validator->sometimes()`.
 
-The diagnostic identifier is `laravelValidation.validatorMutation`.
+When one of these methods is called on an existing validator carrying an
+inferred rule contract, PHPStan reports
+`laravelValidation.validatorMutation`. When the return value of `setData()`,
+`setRules()`, or `sometimes()` is used, that returned contract is also widened
+to a plain validator unless the call is one of the fresh cases below.
 
-The `sometimes` validation rule remains supported. This restriction applies
-only to the method that mutates an existing validator.
+The `sometimes` validation rule remains supported. This behavior concerns only
+the method that mutates an existing validator.
 
-Laravel retains the validator's previous message state when its data or rules
-change. After validation has already run, `validated()` can therefore return
-data that was never checked against the current rules, or reject valid data
-because an earlier input failed. Rule mutation also invalidates the static
-metadata attached to an inferred validator. Construct a new validator with
-the complete data and rule set instead.
+Two syntactically fresh cases are safe enough to retain useful inference:
+
+- `setData()` chained directly from a statically resolved factory, facade, or
+  `validator()` helper call retains the freshly constructed validator's rule
+  contract;
+- a statically resolvable `setRules()` chain from the same fresh entry points
+  receives the replacement rules' inferred contract.
+
+Other returned mutation chains are broad. Calling `setRules()` through a
+variable is broad even when its argument is constant: static analysis cannot
+prove that the validator has not already validated, cached a result, or been
+aliased.
+
+Broadly typed Laravel validators do not carry a contract for this extension to
+invalidate, so their mutations are not diagnosed. This includes ordinary
+`FormRequest::withValidator()` hooks: non-empty lifecycle hooks already make
+FormRequest inference fall back unless the request is explicitly trusted.
+Constructing a new validator with complete data and rules remains the clearest
+general solution.
 
 The experimental Rensei runtime uses `setValue()` internally during its
 invariant-checked final write-back. Calls made from the package-owned
 `BaseParsingRule` implementation are exempt; subclasses and application code
 are not.
 
-A future implementation may replace some diagnostics with sound type
-invalidation or lifecycle-aware inference. Widening only the variable through
-which a mutation occurs is insufficient because another alias can retain the
-old inferred type.
+Return-value widening cannot change the type of an ignored receiver or another
+alias. Suppressing the diagnostic can therefore make later analysis unsound.
+PHPStan has no general object-identity or validator-typestate model with which
+to invalidate every reference to the mutable object.
 
 ## Input refinement
 

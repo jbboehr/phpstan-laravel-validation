@@ -503,7 +503,7 @@ final class InferenceAuditCases
             'validation entry points' => [
                 'status' => 'covered-by-static-suite',
                 'evidence' => [],
-                'note' => 'Facade, factory, request, controller, helper, validator unions, and prohibited mutations have static fixtures.',
+                'note' => 'Facade, factory, request, controller, helper, validator unions, and mutation invalidation have static fixtures.',
             ],
         ];
     }

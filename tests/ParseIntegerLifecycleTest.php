@@ -395,7 +395,7 @@ final class ParseIntegerLifecycleTest extends TestCase
     {
         $validator = self::factory()->make(['age' => '42'], ['age' => [Parse::integer()]]);
         $validator->after(static function (Validator $validator): void {
-            $validator->setValue('age', 'changed'); // @phpstan-ignore laravelValidation.validatorMutation
+            $validator->setValue('age', 'changed');
         });
 
         self::assertFalse($validator->passes());
@@ -667,7 +667,7 @@ final class LateAfterMutationRule implements ValidationRule, ValidatorAwareRule
         $this->validator = null;
 
         $validator?->after(static function (Validator $validator): void {
-            $validator->setValue('age', 'changed'); // @phpstan-ignore laravelValidation.validatorMutation
+            $validator->setValue('age', 'changed');
         });
     }
 }

@@ -75,7 +75,7 @@
             { id: "custom-rules", title: "Custom rules" },
         ],
         "reference/entry-points.html": [
-            { id: "validator-mutation-is-prohibited", title: "Validator mutation" },
+            { id: "validator-mutation-and-contract-invalidation", title: "Validator mutation" },
             { id: "input-refinement", title: "Input refinement" },
         ],
         "reference/static-resolvability.html": [
@@ -127,6 +127,7 @@
             { id: "formrequest-lifecycle", title: "FormRequest lifecycle" },
             { id: "application-execution", title: "Application execution" },
             { id: "mixed-factory-modes", title: "Mixed factory modes" },
+            { id: "validator-aliases-and-lifecycle-state", title: "Validator aliases and lifecycle state" },
             { id: "what-the-test-suite-does-not-prove", title: "What the test suite does not prove" },
         ],
         "reference/laravel-versions.html": [

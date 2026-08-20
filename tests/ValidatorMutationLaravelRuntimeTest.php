@@ -35,7 +35,7 @@ final class ValidatorMutationLaravelRuntimeTest extends \PHPStan\Testing\PHPStan
     {
         $validator = self::validatedStringValidator();
 
-        $validator->setData(['age' => 123]); // @phpstan-ignore laravelValidation.validatorMutation
+        $validator->setData(['age' => 123]);
 
         self::assertSame(['age' => 123], self::validatedData($validator));
     }
@@ -62,7 +62,7 @@ final class ValidatorMutationLaravelRuntimeTest extends \PHPStan\Testing\PHPStan
 
         $validator = self::validatedStringValidator();
 
-        $validator->setValue('age', 123); // @phpstan-ignore laravelValidation.validatorMutation
+        $validator->setValue('age', 123);
 
         self::assertSame(['age' => 123], self::validatedData($validator));
     }
@@ -71,16 +71,31 @@ final class ValidatorMutationLaravelRuntimeTest extends \PHPStan\Testing\PHPStan
     {
         $validator = self::validatedStringValidator();
 
-        $validator->setRules(['age' => 'required|integer']); // @phpstan-ignore laravelValidation.validatorMutation
+        $validator->setRules(['age' => 'required|integer']);
 
         self::assertSame(['age' => 'old'], self::validatedData($validator));
+    }
+
+    public function testSetRulesReturnReplacesRulesBeforeValidation(): void
+    {
+        $validator = self::factory()->make(
+            ['age' => 123],
+            ['age' => 'required|string']
+        );
+
+        $replacement = $validator->setRules([ // @phpstan-ignore laravelValidation.validatorMutation
+            'age' => 'required|integer',
+        ]);
+
+        self::assertSame($validator, $replacement);
+        self::assertSame(['age' => 123], self::validatedData($replacement));
     }
 
     public function testAddRulesRetainsAStaleSuccessfulValidationResult(): void
     {
         $validator = self::validatedStringValidator();
 
-        $validator->addRules(['age' => 'integer']); // @phpstan-ignore laravelValidation.validatorMutation
+        $validator->addRules(['age' => 'integer']);
 
         self::assertSame(['age' => 'old'], self::validatedData($validator));
     }
@@ -89,7 +104,7 @@ final class ValidatorMutationLaravelRuntimeTest extends \PHPStan\Testing\PHPStan
     {
         $validator = self::validatedStringValidator();
 
-        $validator->sometimes( // @phpstan-ignore laravelValidation.validatorMutation
+        $validator->sometimes(
             'age',
             'integer',
             static fn (): bool => true

@@ -41,6 +41,17 @@ A single `includeUnvalidatedArrayKeys` option cannot model a process that
 uses both including and excluding factories. See
 [Configuration](configuration.md#includeunvalidatedarraykeys).
 
+## Validator aliases and lifecycle state
+
+Mutation can widen a returned validator value, but PHPStan cannot invalidate
+an ignored receiver or every alias to the same object. The mutation diagnostic
+therefore remains part of the soundness boundary for existing inferred
+validators. If it is suppressed, the receiver or an alias may retain obsolete
+rule metadata. Laravel's cached validation state also prevents precise
+re-inference of a reused validator even when replacement rules are constant.
+See
+[Supported Entry Points](entry-points.md#validator-mutation-and-contract-invalidation).
+
 ## What the test suite does not prove
 
 The suite includes pinned Laravel runtime audits, PHP and Laravel matrices,

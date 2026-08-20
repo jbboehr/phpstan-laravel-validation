@@ -198,7 +198,8 @@ parameters:
 
 ## Diagnostics
 
-Validator mutation is prohibited independently of the inference options.
-PHPStan reports direct, statically identifiable calls under
-`laravelValidation.validatorMutation`. See
-[Supported Entry Points](entry-points.md#validator-mutation-is-prohibited).
+Validator-contract invalidation operates independently of the inference
+options. PHPStan reports mutations of existing inferred validators under
+`laravelValidation.validatorMutation` while allowing conservative or precise
+handling of supported fresh chains. See
+[Supported Entry Points](entry-points.md#validator-mutation-and-contract-invalidation).

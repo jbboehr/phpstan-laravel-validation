@@ -17,6 +17,28 @@ assertType('Illuminate\Support\ValidatedInput', $larastan->safe());
 assertType('array<string, mixed>', $larastan->safe(['before']));
 assertType('array', $larastan->safe()->all());
 
+$replacement = $factory->make([], ['before' => 'required|string'])
+    ->setRules(['after' => 'required|integer'])
+    ->validated();
+assertType('array{after: float|int|numeric-string|Stringable|true}', $replacement);
+
+$reassignedReplacement = $factory->make([], ['before' => 'required|string']);
+$reassignedReplacement = $reassignedReplacement->setRules(['after' => 'required|string']); // @phpstan-ignore laravelValidation.validatorMutation
+assertType('array', $reassignedReplacement->validated());
+
+$directInvalidatedRules = $factory->make([], ['before' => 'required|string']);
+$directInvalidatedRules->setRules(['after' => 'required|string']); // @phpstan-ignore laravelValidation.validatorMutation
+assertType('array{before: string}', $directInvalidatedRules->validated());
+
+$invalidatedData = $factory->make([], ['before' => 'required|string'])
+    ->setData(['before' => 'changed'])
+    ->validated();
+assertType('array{before: string}', $invalidatedData);
+
+$directInvalidatedData = $factory->make([], ['before' => 'required|string']);
+$directInvalidatedData->setData(['before' => 'changed']); // @phpstan-ignore laravelValidation.validatorMutation
+assertType('array{before: string}', $directInvalidatedData->validated());
+
 $union = random_int(0, 1) === 1
     ? $factory->make([], ['name' => 'required|string'])
     : $factory->make([], ['age' => 'required|integer']);

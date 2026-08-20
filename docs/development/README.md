@@ -69,9 +69,11 @@ a mutable property costs all inference.
 
 ### [Validator mutation inference](validator-mutation-inference.md)
 
-This records why validator data and rule mutators currently produce PHPStan
-errors, and the alias-safe lifecycle model that would be required before some
-of those diagnostics could be replaced with conservative type invalidation.
+This records Laravel's stale validation state, the hybrid invalidation and
+diagnostic policy used for inferred validators, and the alias-safe lifecycle
+model that would be required for broader precision. It also records downstream
+smoke tests against BookStack, Koel, and Pterodactyl, including the adoption
+cost of the earlier strict diagnostic prototype.
 
 ## Maintenance rules
 

@@ -1,54 +1,60 @@
 # Validator mutation inference
 
-## Current decision
+## Runtime problem
 
-PHPStan reports direct, statically identifiable calls to Laravel validator
-methods that mutate data or rules:
+Laravel validators combine mutable data and rules with cached validation
+state. `setData()`, `setValue()`, `setRules()`, `addRules()`, and imperative
+`sometimes()` can therefore change the apparent contract without clearing the
+result of an earlier validation.
 
-- `setData()`;
-- `setValue()`;
-- `setRules()`;
-- `addRules()`;
-- imperative `$validator->sometimes()`.
+The runtime suite verifies two particularly hostile cases on every supported
+Laravel major:
 
-Laravel does not clear its existing validation message state when these
-methods change data or rules. A validator that has already run can consequently
-return unchecked replacement data from `validated()` or retain an obsolete
-failure. Changing rules also detaches the extension's inferred rule metadata
-from the validator's runtime rules.
+- after a successful validation, `setData()` can make `validated()` return
+  replacement data that was never checked against the rules;
+- after a successful validation, `setRules()` can leave `validated()` returning
+  data accepted under the old rules rather than the replacement rules.
 
-The current policy is deliberately simple: construct a new validator with its
-complete data and rules instead of mutating an existing instance. The Rensei
-parsing runtime's package-owned `setValue()` call is a narrow exception. It
-runs during controlled finalization and checks that the value still equals the
-input that was parsed before writing the produced value.
+An earlier failure can remain stale as well. This means constant replacement
+rules are not enough to recover a precise type for a validator held in a
+variable: PHPStan would also need to prove that validation has never run.
 
-The rule recognizes direct calls and finite dynamic method names whose every
-possible value is a prohibited mutator. It cannot follow a mutator through a
-first-class callable, reflection, `call_user_func()`, `mixed`, or arbitrary
-runtime dispatch. Suppressing or bypassing the diagnostic can therefore leave
-obsolete inferred metadata in place. This is an intentional limit of the
-current hard-error policy, not a supported mutation path.
+## Current hybrid model
 
-Laravel also exposes mutable state outside these methods. In particular,
-assigning `Validator::$excludeUnvalidatedArrayKeys` changes output projection
-without a method call. The current diagnostic does not detect that assignment.
+The implementation combines conservative invalidation with a diagnostic where
+invalidation cannot cover every reference to the same object.
 
-## Possible future refinement
+| Mutation form | Result |
+| --- | --- |
+| Fresh `make(...)->setData(...)->validated()` | Retain the fresh validator's resolved rules |
+| Fresh `make(...)->setRules($constant)->validated()` | Infer the statically resolved replacement rules |
+| Returned `setData()`, `setRules()`, or `sometimes()` on an existing validator | Widen to Laravel's plain validator type |
+| Ignored `setData()`, `setRules()`, `addRules()`, or `sometimes()` on an existing inferred validator | Report `laravelValidation.validatorMutation`; PHPStan cannot rewrite the ignored receiver |
+| `setValue()` on an existing inferred validator | Report the mutation |
+| Mutation of a broad Laravel validator | Retain Laravel's broad declared type without an extension diagnostic |
 
-A later implementation could replace selected errors with lifecycle-aware type
-invalidation. A sound design would need to account for all of the following:
+“Fresh” is deliberately syntactic. The receiver must be a statically resolved
+`Factory::make()`, validator facade `make()`, or `validator()` helper call in
+the same expression. A validator first stored in a variable is not assumed to
+be unused, even if local code happens not to show an earlier validation.
 
-- fresh, validated, failed, and mutated validator states;
-- mutations whose return value is ignored;
-- `$this`-returning chains;
-- aliases that still refer to the same mutable object;
-- explicit revalidation after mutation;
-- Larastan or other stubs that could take precedence over a future
-  invalidation stub;
-- custom validator implementations and factory resolvers.
+`setValue()` is absent from Laravel 10.0 through 10.6, and `addRules()` does not
+return the validator. Neither exposes a portable returned contract to replace.
+The Rensei parsing runtime's package-owned `setValue()` call is exempt from the
+diagnostic; it runs during invariant-checked finalization. Application and
+subclass calls are not exempt.
 
-Merely widening the variable used for the mutation is not enough:
+Non-empty FormRequest lifecycle hooks already make FormRequest inference broad
+unless the request is explicitly trusted. Their broadly typed validator
+parameters therefore do not produce mutation diagnostics. The extension does
+not turn ordinary `withValidator()->sometimes()` usage into a repository-wide
+style prohibition when no inferred validator contract is at stake.
+
+## Why the diagnostic remains
+
+PHPStan can widen the value returned from a mutation, but an ignored method
+call does not replace its receiver, and PHPStan does not provide a general
+object-identity model that invalidates every alias:
 
 ```php
 $alias = $validator;
@@ -56,8 +62,56 @@ $validator->setRules($replacement);
 $alias->validated();
 ```
 
-If PHPStan widens only `$validator`, `$alias` can retain the obsolete inferred
-shape. A future implementation should therefore prove that its invalidation is
-alias-safe or retain the diagnostic. A smaller safe exception may be possible
-for mutation chained directly from a freshly constructed validator, where no
-earlier validation or alias can exist.
+Even a hypothetical widening of `$validator` would leave `$alias` carrying
+obsolete rule metadata. The diagnostic makes that residual risk visible.
+Suppressing or bypassing it through a first-class callable, reflection,
+`call_user_func()`, `mixed`, or arbitrary runtime dispatch can therefore make
+later inference unsound.
+
+Laravel also exposes relevant mutable state outside these methods. Assigning
+`Validator::$excludeUnvalidatedArrayKeys`, for example, changes output
+projection without a method call. The current diagnostic does not detect that
+assignment.
+
+The return-type extension only specializes Laravel's base mutator methods.
+Overrides remain conservative. Larastan-first and extension-first consumer
+tests verify that returned-value invalidation is independent of stub
+precedence. An earlier receiver-stub prototype was rejected because PHPStan
+does not merge it with Larastan's validator stub; the result changed depending
+on which package supplied the selected declaration.
+
+## Downstream smoke test
+
+The strict diagnostic prototype and the hybrid follow-up were exercised on
+2026-08-20 against the same disposable, pinned application checkouts. Each
+checkout loaded this repository through a Composer path package. The hybrid
+follow-up used the working tree based on `b1f9d65334ed`.
+
+| Application | Application revision | Laravel | PHPStan | Strict prototype | Hybrid model |
+| --- | --- | --- | --- | ---: | ---: |
+| BookStack | `e1cd3229966d` | 12.64.0 | 2.2.8 | 0 | 0 |
+| Koel | `dfec91ff2905` | 13.24.0 | 2.1.55 | 0 | 0 |
+| Pterodactyl | `850f2b9a4ff9` | 12.64.0 | 2.2.6 | 5 | 0 |
+
+BookStack's application-level `setValue()` call targets its own MFA value
+object and was correctly ignored. Koel contains no mutation of an inferred
+Laravel validator.
+
+The strict Pterodactyl result consisted of one safe pre-validation `setData()`
+pattern and four conventional `sometimes()` calls in
+`StoreServerRequest::withValidator()`. They were adoption cost rather than
+five demonstrated stale-state bugs. Under the hybrid model, Pterodactyl
+returned to its native 29 diagnostics with no added mutation diagnostics,
+while BookStack and Koel remained clean.
+
+These were compatibility checks, not new performance benchmarks. The earlier
+BookStack and FormRequest reports remain the performance evidence.
+
+## Remaining refinement boundary
+
+A stronger model would require first-class validator typestate and alias
+tracking: fresh, validated, failed, mutated, and explicitly revalidated states
+would all need distinct treatment across every reference to the object. PHPStan
+does not currently expose that model to this extension. The hybrid policy
+therefore takes the useful precision available for provably fresh chains,
+widening elsewhere and retaining a diagnostic at the alias-unsafe boundary.
