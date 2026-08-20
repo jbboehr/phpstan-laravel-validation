@@ -75,6 +75,7 @@ Version-specific inference boundaries are listed in
 ## Next
 
 - [Understanding Inferred Types](guides/inferred-types.md)
+- [Parsing Validated Output](guides/parsing-validated-output.md)
 - [FormRequest Inference](guides/form-requests.md)
 - [Custom Validation Rules](guides/custom-rules.md)
 - [Limitations](reference/limitations.md)

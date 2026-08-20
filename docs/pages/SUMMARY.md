@@ -6,6 +6,7 @@
 # Guides
 
 - [Understanding Inferred Types](guides/inferred-types.md)
+- [Parsing Validated Output](guides/parsing-validated-output.md)
 - [Laravel Validation and Type Safety](guides/laravel-validation-and-type-safety.md)
 - [FormRequest Inference](guides/form-requests.md)
 - [Custom Validation Rules](guides/custom-rules.md)

@@ -124,6 +124,34 @@ final class ParseIntegerLifecycleTest extends TestCase
         self::assertSame(['a' => 42, 'b' => '42'], $validator->validate());
     }
 
+    public function testFailsThenValidateAttemptsAForbiddenSecondRun(): void
+    {
+        $validator = self::factory()->make(
+            ['age' => '42'],
+            ['age' => ['required', Parse::integer()]]
+        );
+
+        self::assertFalse($validator->fails());
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('A validator containing parsing rules cannot be reused.');
+        $validator->validate();
+    }
+
+    public function testValidateCannotBeRepeated(): void
+    {
+        $validator = self::factory()->make(
+            ['age' => '42'],
+            ['age' => ['required', Parse::integer()]]
+        );
+
+        self::assertSame(['age' => 42], $validator->validate());
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('A validator containing parsing rules cannot be reused.');
+        $validator->validate();
+    }
+
     /**
      * A run that unwinds before its after callbacks leaves results pending.
      * They must not be written over data nobody parsed.
@@ -349,7 +377,13 @@ final class ParseIntegerLifecycleTest extends TestCase
         );
 
         if (!self::usesMarkedDotPlaceholder($validator)) {
-            self::markTestSkipped('This Laravel release has no recoverable escaped-dot marker.');
+            self::assertFalse($validator->passes());
+            self::assertStringContainsString(
+                'cannot address this attribute name',
+                $validator->errors()->first('a.b')
+            );
+
+            return;
         }
 
         self::assertTrue($validator->passes());
@@ -365,10 +399,6 @@ final class ParseIntegerLifecycleTest extends TestCase
             ['a.b' => 'nope'],
             ['a\.b' => ['required', Parse::integer()]]
         );
-
-        if (!self::usesMarkedDotPlaceholder($validator)) {
-            self::markTestSkipped('This Laravel release has no recoverable escaped-dot marker.');
-        }
 
         self::assertFalse($validator->passes());
     }
@@ -536,6 +566,7 @@ final class ParseIntegerLifecycleTest extends TestCase
 
         self::assertSame(['age' => 42], $request->validated());
         self::assertSame(42, $request->validated('age'));
+        self::assertSame(42, $request->passedValidationAge);
 
         $safe = $request->safe();
         self::assertInstanceOf(ValidatedInput::class, $safe);
@@ -623,10 +654,17 @@ final class ParseIntegerLifecycleTest extends TestCase
 
 final class ParseIntegerRequest extends FormRequest
 {
+    public mixed $passedValidationAge = null;
+
     /** @return array<string, mixed> */
     public function rules(): array
     {
         return ['age' => ['required', Parse::integer()]];
+    }
+
+    protected function passedValidation(): void
+    {
+        $this->passedValidationAge = $this->validated('age');
     }
 
     /**

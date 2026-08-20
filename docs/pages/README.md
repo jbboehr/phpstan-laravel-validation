@@ -39,6 +39,8 @@ $data = \Illuminate\Support\Facades\Validator::make($request->all(), [
 - **Install and run a first analysis.** [Getting Started](getting-started.md)
 - **Understand why a type is broader than the rule name.**
   [Understanding Inferred Types](guides/inferred-types.md)
+- **Opt into normalized integer, boolean, or backed-enum output.**
+  [Parsing Validated Output](guides/parsing-validated-output.md)
 - **Look up a rule, builder, or configuration key.**
   [Configuration](reference/configuration.md),
   [Validation Rules](reference/validation-rules.md),

@@ -244,10 +244,10 @@ abstract class BaseParsingRule implements ParsingRule, ValidatorAwareRule
      * nested branch and leave the real value unparsed.
      *
      * The placeholder is recoverable because it is one fixed random string per
-     * process, marked with `__dot__`. Releases before that marker existed --
-     * Laravel 10 up to 10.48 -- substituted a bare random string with nothing
-     * to anchor on, so there the attribute is reported as unaddressable rather
-     * than silently mishandled.
+     * process, marked with `__dot__`. Earlier supported releases -- Laravel
+     * 10 up to 10.48.28, 11 up to 11.44.0, and 12 up to 12.1.0 -- substituted
+     * a bare random string with nothing to anchor on, so there the attribute
+     * is reported as unaddressable rather than silently mishandled.
      */
     private function resolveDataKey(Validator $validator, string $attribute): ?string
     {

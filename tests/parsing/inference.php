@@ -13,6 +13,7 @@ use jbboehr\Rensei\Rules\EnumRule;
 use jbboehr\Rensei\Rules\IntegerRule;
 
 use function PHPStan\Testing\assertType;
+use function PHPStan\Testing\assertSuperType;
 
 // A parsing rule produces its declared type. Presence is still decided by the
 // ordinary presence rules.
@@ -103,6 +104,49 @@ assertType(
     Validator::make([], [
         'users.*.status' => ['required', Parse::enum(StringValidationStatus::class)],
     ])->validated()
+);
+
+assertType(
+    'array{age: int, enabled: bool, status: jbboehr\PhpstanLaravelValidation\Test\Fixtures\StringValidationStatus}',
+    Validator::make([], [
+        'age' => ['required', Parse::integer()],
+        'enabled' => ['required', Parse::boolean()],
+        'status' => ['required', Parse::enum(StringValidationStatus::class)],
+    ])->validated()
+);
+
+// Direct Validator safe() inference stays broad because Factory::resolver()
+// may substitute a Validator with a different virtual validated() contract.
+assertType(
+    'array',
+    Validator::make([], [
+        'age' => ['required', Parse::integer()],
+        'enabled' => ['required', Parse::boolean()],
+        'status' => ['required', Parse::enum(StringValidationStatus::class)],
+    ])->safe()->all()
+);
+
+// Laravel 13 later gained a conditional PHPDoc return for safe(), narrowing
+// this call from the historical union to array<string, mixed>. Do not pin an
+// upstream declaration detail that does not change parser inference.
+assertSuperType(
+    'array|Illuminate\Support\ValidatedInput',
+    Validator::make([], ['age' => ['required', Parse::integer()]])->safe(['age'])
+);
+
+assertType(
+    'array',
+    Validator::make([], ['age' => ['required', Parse::integer()]])->safe()->only(['age'])
+);
+
+assertType(
+    'array',
+    Validator::make([], ['age' => ['required', Parse::integer()]])->safe()->toArray()
+);
+
+assertType(
+    'array',
+    Validator::make([], ['age' => ['required', Parse::integer()]])->validate()
 );
 
 // A parser defined outside this package needs no support here.

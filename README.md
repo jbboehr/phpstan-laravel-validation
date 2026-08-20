@@ -131,6 +131,7 @@ Source pages live under [`docs/pages/`](docs/pages/):
 
 - [Getting Started](docs/pages/getting-started.md)
 - [Understanding Inferred Types](docs/pages/guides/inferred-types.md)
+- [Parsing Validated Output](docs/pages/guides/parsing-validated-output.md)
 - [Laravel Validation and Type Safety](docs/pages/guides/laravel-validation-and-type-safety.md)
 - [FormRequest Inference](docs/pages/guides/form-requests.md)
 - [Custom Validation Rules](docs/pages/guides/custom-rules.md)

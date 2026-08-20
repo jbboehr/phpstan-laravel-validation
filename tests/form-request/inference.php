@@ -29,6 +29,7 @@ use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\OverriddenValidat
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\OverriddenSafeRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\OverriddenEmptyWithValidatorRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\PassedValidationRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\ParsingRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\ReturnOnlyWithValidatorRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\SelfConstantChildRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\StaticConstantChildRequest;
@@ -81,6 +82,16 @@ function inspectBasic(BasicRequest $request): void
 
     $stored = $request->safe();
     assertType('array', $stored->toArray());
+}
+
+function inspectParsing(ParsingRequest $request): void
+{
+    // This fixture's configured Laravel 10.0 context deliberately proves that
+    // analysis can recover the produced type below the runtime's 10.7 floor.
+    // The runtime fails closed there, as the public parsing guide documents.
+    assertType('array{age: int}', $request->validated());
+    assertType('array{age: int}', $request->safe()->all());
+    assertType('array{age: int}', $request->safe(['age']));
 }
 
 function inspectInherited(ConcreteInheritedRequest $request): void

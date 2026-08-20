@@ -21,6 +21,23 @@
             { id: "when-inference-stays-conservative", title: "When inference stays conservative" },
             { id: "input-refinement-after-validate", title: "Input refinement after validate()" },
         ],
+        "guides/parsing-validated-output.html": [
+            { id: "installation-and-compatibility", title: "Installation and compatibility" },
+            { id: "basic-use", title: "Basic use" },
+            {
+                id: "exact-parser-grammars",
+                title: "Exact parser grammars",
+                children: [
+                    { id: "parseinteger", title: "Parse::integer()" },
+                    { id: "parseboolean", title: "Parse::boolean()" },
+                    { id: "parseenum", title: "Parse::enum()" },
+                ],
+            },
+            { id: "presence-and-adjacent-laravel-rules", title: "Presence and adjacent Laravel rules" },
+            { id: "which-values-each-phase-observes", title: "Which values each phase observes" },
+            { id: "formrequests", title: "FormRequests" },
+            { id: "lifecycle-and-soundness-limits", title: "Lifecycle and soundness limits" },
+        ],
         "guides/laravel-validation-and-type-safety.html": [
             { id: "tldr", title: "TL;DR" },
             { id: "laravel-validation-is-not-typed-parsing", title: "Laravel validation is not typed parsing" },
