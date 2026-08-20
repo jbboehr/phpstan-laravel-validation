@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Validator;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\ArrayParsingRule;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\MoneyParsingRule;
 use jbboehr\Rensei\Parse;
+use jbboehr\Rensei\Rules\BooleanRule;
 use jbboehr\Rensei\Rules\IntegerRule;
 
 use function PHPStan\Testing\assertType;
@@ -57,6 +58,24 @@ assertType('array{age?: int}', Validator::make([], [
 // Constructing the rule directly resolves the same way as the factory.
 assertType('array{age: int}', Validator::make([], [
     'age' => ['required', new IntegerRule()],
+])->validated());
+
+// Boolean parsing accepts Laravel's boolean input set but produces one
+// canonical PHP type.
+assertType('array{enabled?: bool}', Validator::make([], [
+    'enabled' => [Parse::boolean()],
+])->validated());
+
+assertType('array{enabled: bool}', Validator::make([], [
+    'enabled' => ['required', Parse::boolean()],
+])->validated());
+
+assertType('array{enabled?: bool|null}', Validator::make([], [
+    'enabled' => ['nullable', Parse::boolean()],
+])->validated());
+
+assertType('array{enabled: bool}', Validator::make([], [
+    'enabled' => ['required', new BooleanRule()],
 ])->validated());
 
 // A parser defined outside this package needs no support here.

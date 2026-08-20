@@ -21,10 +21,13 @@ Investigation date: 2026-08-17. Prototype built and corrections folded in:
 
 ## Status
 
-A prototype of `Parse::integer()` has since been built on this design, which
-proved the mechanism and corrected the report in several places. Each correction
-is recorded where the original claim appeared; they are collected here because
-a reader following the report to implement the remaining parsers needs them.
+Prototypes of `Parse::integer()` and `Parse::boolean()` have since been built
+on this design. The integer slice proved the mechanism and corrected the report
+in several places; the boolean slice then confirmed that another concrete
+parser can reuse the same lifecycle while retaining runtime/static conformance.
+Each correction is recorded where the original claim appeared; they are
+collected here because a reader following the report to implement the remaining
+parsers needs them.
 
 1. `['required', 'nullable', Parse::integer()]` infers `array{age: int}`, not
    `int|null` (§5.3). `required` rejects null outright.

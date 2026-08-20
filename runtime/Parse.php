@@ -21,6 +21,7 @@ declare(strict_types=1);
 
 namespace jbboehr\Rensei;
 
+use jbboehr\Rensei\Rules\BooleanRule;
 use jbboehr\Rensei\Rules\IntegerRule;
 
 /**
@@ -32,6 +33,7 @@ use jbboehr\Rensei\Rules\IntegerRule;
  *
  *     'age' => ['required', 'integer'],        // validated() holds "42"
  *     'age' => ['required', Parse::integer()], // validated() holds 42
+ *     'enabled' => ['required', Parse::boolean()], // "0" becomes false
  *
  * Only the validated output changes. Ordinary rules still see the original
  * representation, and the request itself is never modified: `$request->all()`
@@ -56,6 +58,18 @@ use jbboehr\Rensei\Rules\IntegerRule;
  */
 final class Parse
 {
+    /**
+     * Parse Laravel's canonical boolean input set into a bool.
+     *
+     * Accepts `true`, `1`, and `'1'` as true; accepts `false`, `0`, and `'0'`
+     * as false. Rejects every other value, including `'true'`, `'false'`,
+     * `'on'`, `'off'`, blank strings, and floats.
+     */
+    public static function boolean(): BooleanRule
+    {
+        return new BooleanRule();
+    }
+
     /**
      * Parse canonical decimal integer syntax into an int.
      *

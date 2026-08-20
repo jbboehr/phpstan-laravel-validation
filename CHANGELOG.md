@@ -5,9 +5,10 @@
 ### Added
 
 - Experimental opt-in parsing rules under the `jbboehr\Rensei` namespace.
-  `Parse::integer()` produces an `int` in successful `validated()` and
-  `safe()` output, or fails validation; ordinary rules continue to observe the
-  original representation and the request itself is never rewritten.
+  `Parse::integer()` and `Parse::boolean()` produce canonical native values in
+  successful `validated()` and `safe()` output, or fail validation; ordinary
+  rules continue to observe the original representation and the request itself
+  is never rewritten.
   PHPStan infers the produced type, reading it from the `ParsingRule<T>`
   binding, so a parser defined outside this package needs no support here.
 - Requires `laravel/framework` 10.7.0 or later, which introduced
@@ -25,6 +26,11 @@
   data supplied through `setData()`, so attempting to restore it would risk
   corrupting caller data. `valid()` on failed or short-circuited validation is
   not parsed output and may contain raw values from rules Laravel never ran.
+
+  `Parse::boolean()` accepts exactly Laravel's strict `boolean` input set:
+  `true`, `false`, `0`, `1`, `'0'`, and `'1'`. It maps those representations to
+  `bool` and rejects textual forms such as `'true'`, `'false'`, `'on'`, and
+  `'off'` rather than applying PHP truthiness.
 
   Callbacks registered with `Validator::after()` before validation run before
   parsing-rule write-back and therefore observe the original values. Read
