@@ -22,14 +22,15 @@ Investigation date: 2026-08-17. Prototype built and corrections folded in:
 ## Status
 
 Implementations of `Parse::integer()`, `Parse::float()`, `Parse::boolean()`,
-and `Parse::enum()` have since been built on this design. The integer slice
-proved the mechanism and corrected the report in several places; the float
-slice pinned finite canonical decimal semantics; the boolean slice confirmed
-that another concrete parser can reuse the lifecycle; and the enum slice
-proved that the generic produced type can carry a concrete call-site class
-without a per-rule resolver branch. Each correction is recorded where the
-original claim appeared and collected here for maintainers of the experimental
-feature.
+`Parse::enum()`, and `Parse::dateTime()` have since been built on this design.
+The integer slice proved the mechanism and corrected the report in several
+places; the float slice pinned finite canonical decimal semantics; the boolean
+slice confirmed that another concrete parser can reuse the lifecycle; the enum
+slice proved that the generic produced type can carry a concrete call-site
+class without a per-rule resolver branch; and the date/time slice applied the
+same contract to Laravel-compatible and exact, timezone-stable
+`DateTimeImmutable` parsing. Each correction is recorded where the original
+claim appeared and collected here for maintainers of the experimental feature.
 
 1. `['required', 'nullable', Parse::integer()]` infers `array{age: int}`, not
    `int|null` (§5.3). `required` rejects null outright.
@@ -1985,7 +1986,7 @@ package may register any number of PSR-4 roots.
 
 ```text
 runtime/                                  ← Laravel only, never PHPStan
-    Parse.php                             Parse::integer() | float() | boolean() | enum()
+    Parse.php                             first-party parser factories
     ParsingRule.php                       interface ParsingRule<T> extends ValidationRule
     ParseFailure.php
     Rules/
@@ -1994,9 +1995,10 @@ runtime/                                  ← Laravel only, never PHPStan
         FloatRule.php                     implements ParsingRule<float>
         BooleanRule.php                   implements ParsingRule<bool>
         EnumRule.php                      implements ParsingRule<T of BackedEnum>
+        DateTimeRule.php                  implements ParsingRule<DateTimeImmutable>
     Internal/
         ParseState.php                    per-validator WeakMap state
-        Lexer.php                         shared narrow grammars
+        *Grammar.php                      narrow parser grammars
 
 src/                                      ← unchanged root
     Validation/
@@ -2216,7 +2218,7 @@ than being skipped silently.
 | Users expect `input()` to change | Low (DX) | Document that only `validated()`/`safe()` transform. Arguably the correct behaviour |
 | PHPStan in production | Low | Move to `require-dev` + `conflict`, per Carbon |
 | `nikic/php-parser` move breaks minimum-PHPStan consumer | Low | Existing `consumer-phpstan-minimum` smoke test covers it |
-| Scope creep into a DTO framework | Medium | Hard cap: four parsers, no `Parse::using()`, no `only()`/`except()`, no object mapping, no `Parse::string()` |
+| Scope creep into a DTO framework | Medium | The original v1 cap was four parsers. Later additions require a canonical output contract and the repository-wide candidate audit; no `Parse::using()`, object mapping, or generic `Parse::string()` |
 | `Rule::forEach` interaction | Unknown | Untested; declare unsupported in v1 |
 | Precognition `after()` hook | Low | Registered before the parser's flush; precognitive requests short-circuit before `validated()` |
 | Laravel adds native casting | Low | #46162 was closed; if it lands, `Parse::*` becomes a thin adapter |

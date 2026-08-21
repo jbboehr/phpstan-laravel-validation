@@ -10,7 +10,8 @@ representations.
 
 The strongest additional first-party parsers are:
 
-1. strict formatted date/time input to `DateTimeImmutable`;
+1. Laravel-compatible or strict formatted date/time input to
+   `DateTimeImmutable`;
 2. timezone identifiers to `DateTimeZone`;
 3. an explicit accepted/declined token grammar to `bool`;
 4. top-level-specific JSON decoding, after a separate structural investigation;
@@ -133,16 +134,19 @@ Neither rule constructs a date object from successful scalar input.
 A parser can provide a substantially stronger boundary:
 
 ```php
+Parse::dateTime()
 Parse::dateTime(format: 'Y-m-d', timezone: 'UTC')
 // ParsingRule<DateTimeImmutable>
 ```
 
-The parser should require an explicit format, use exact round-trip validation,
-reject warnings and trailing data, and use an explicit timezone. It should not
-inherit PHP's process timezone or copy Laravel's relative `strtotime()` grammar.
-The implementation decision must also state whether an existing
-`DateTimeInterface` passes through, is copied into a `DateTimeImmutable`, or is
-rejected in favor of one wire representation.
+The initial recommendation was to require an explicit format and avoid
+Laravel's relative `strtotime()` grammar. The implemented API instead makes
+Laravel-compatible `date` acceptance the default while requiring successful
+`DateTimeImmutable` construction. Supplying a format, or an ordered non-empty
+list of formats, opts into exact round-trip validation that rejects warnings,
+normalization, and trailing data. The configured timezone makes output stable
+when input carries no zone. The parser additionally rejects embedded NUL bytes
+instead of reproducing PHP date parsing's hidden-byte ambiguity.
 
 Laravel changed `date_format` to construct its comparison date in UTC during
 the supported version range. A parser-owned timezone contract avoids making
@@ -150,6 +154,10 @@ its produced value depend on that framework detail.
 
 **Recommendation:** highest-value next parser; complete the grammar and
 timezone decision before implementation.
+
+**Follow-up:** `Parse::dateTime()` now implements both contracts. UTC is its
+stable output fallback; existing `DateTimeImmutable` values pass through and
+other `DateTimeInterface` values are copied to immutable values.
 
 ### Timezone identifiers
 
@@ -283,7 +291,8 @@ contract and downstream demand.
 
 ## Recommended sequence
 
-1. Specify strict formatted date/time parsing into `DateTimeImmutable`.
+1. Specify Laravel-compatible and strict formatted date/time parsing into
+   `DateTimeImmutable`.
 2. Implement timezone identifier parsing into `DateTimeZone`, either before or
    alongside date/time according to the shared timezone API.
 3. Decide whether accepted/declined token parsing deserves separate literal

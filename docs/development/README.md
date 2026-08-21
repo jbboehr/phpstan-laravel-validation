@@ -55,17 +55,17 @@ validation semantics. It traces the validator lifecycle across every supported
 major, measures a delayed write-back prototype, and documents the presence,
 null, wildcard, exclusion, version-floor, and `after()`-ordering hazards it
 found. Experimental implementations of `Parse::integer()`, `Parse::float()`,
-`Parse::boolean()`, and `Parse::enum()` have since been built on that design;
-the report's Status section records the corrections and remaining constraints
-exposed while building them.
+`Parse::boolean()`, `Parse::enum()`, and `Parse::dateTime()` have since been
+built on that design; the report's Status section records the corrections and
+remaining constraints exposed while building them.
 
 ### [Parser candidate audit](parser-candidate-audit.md)
 
 This classifies every reserved Laravel rule by whether it can support a useful
-canonical output representation. It recommends strict date/time and timezone
-parsing as the strongest next additions, separates JSON and value-object work
-behind explicit design decisions, and records cross-major runtime evidence for
-the candidates.
+canonical output representation. It recommends date/time and timezone parsing
+as the strongest next additions, separates JSON and value-object work behind
+explicit design decisions, and records cross-major runtime evidence for the
+candidates.
 
 ### [BookStack parsing smoke test](bookstack-parsing-smoke-test.md)
 

@@ -55,18 +55,19 @@ $validator = Validator::make($input, [
     'ratio' => ['required', Parse::float()],
     'enabled' => ['required', Parse::boolean()],
     'status' => ['required', Parse::enum(AccountStatus::class)],
+    'starts_at' => ['required', Parse::dateTime()],
 ]);
 
 $validated = $validator->validated();
 \PHPStan\dumpType($validated);
-// array{age: int, ratio: float, enabled: bool, status: AccountStatus}
+// array{age: int, ratio: float, enabled: bool, status: AccountStatus,
+//     starts_at: DateTimeImmutable}
 
 $safe = $validator->safe()->all();
 ```
 
-For input such as `['age' => '42', 'ratio' => '1.5', 'enabled' => '0',
-'status' => 'active']`, both output calls contain `42`, `1.5`, `false`, and
-`AccountStatus::Active`.
+For corresponding string input, both output calls contain `42`, `1.5`,
+`false`, `AccountStatus::Active`, and a `DateTimeImmutable`.
 
 PHPStan deliberately retains Laravel's broad `array` type for
 `$validator->safe()->all()`. A factory may use `Factory::resolver()` to return
@@ -132,6 +133,70 @@ coercion.
 Passing a pure enum throws `InvalidArgumentException` when the rule is
 constructed because it has no canonical wire representation. Name matching
 and `only()` / `except()` filters are not supported.
+
+### `Parse::dateTime()`
+
+Produces `DateTimeImmutable` from Laravel-compatible date input by default, or
+from one or more exact PHP date formats:
+
+```php
+Parse::dateTime()
+Parse::dateTime(timezone: 'America/New_York')
+Parse::dateTime('Y-m-d H:i:s')
+Parse::dateTime(['Y-m-d', DateTimeInterface::ATOM])
+Parse::dateTime('Y-m-d H:i:sP', 'America/New_York')
+Parse::dateTime('Y-m-d', new DateTimeZone('UTC'))
+```
+
+With no format, acceptance follows Laravel's ordinary `date` rule: PHP's
+`strtotime()` must recognize the string or numeric value, `date_parse()` must
+describe a valid calendar date, and this parser must be able to construct a
+`DateTimeImmutable` from the same input. This deliberately includes Laravel's
+broad grammar. For example, `2024-2-29`, the integer `20240229`, and
+`2024-02-29 +1 day` pass; `tomorrow` alone and `2024-02-30` fail. Laravel
+validates and preserves those successful scalar representations; this parser
+turns them into an immutable date object. Embedded NUL bytes are rejected even
+on PHP versions where Laravel's predicate accepts them: a parser must not let a
+hidden byte change the apparent date into a different date or timezone.
+
+An explicit format selects strict mode. String input is parsed with
+`DateTimeImmutable::createFromFormat()`, with unspecified fields reset from
+the Unix epoch. Parsing must report no warnings or errors, and formatting the
+result with the same format must reproduce the input byte for byte. This
+rejects PHP's ordinary date normalization, relative `strtotime()` expressions,
+trailing data, whitespace, and alternate spellings. For example, `2024-02-29`
+matches `Y-m-d`; `2024-02-30`, `2024-2-29`, and `tomorrow` do not. A non-empty
+list tries exact formats in declaration order and returns the first match.
+
+The format is used both to parse and to reproduce the input. Unescaped
+`createFromFormat()`-only controls (`!`, `|`, `+`, `*`, `?`, and `#`) are
+therefore rejected when the rule is constructed; `!` reset semantics are
+already applied automatically. Escape one of those characters with `\` only
+when it is intended as literal input. A dangling escape is also invalid.
+
+UTC is the default output timezone for input that does not carry one. An
+explicit `DateTimeZone` or identifier string changes that fallback; an offset
+or timezone parsed from the input takes precedence. The configured timezone,
+not PHP's process default, is used when constructing zone-less output in both
+modes. Default mode still uses `strtotime()` as Laravel's compatibility gate.
+An `@` timestamp fixes an instant but PHP otherwise forces its result to
+`+00:00`; this parser represents that instant in the configured timezone.
+
+In strict mode, Unix-timestamp formats such as `U` and `U.u` retain the encoded
+instant but represent the resulting object in the configured timezone. Because
+a Unix timestamp already fixes the instant, combining `U` with an input
+timezone character such as `e`, `O`, `P`, `p`, or `T` is rejected at
+construction. A nonexistent local wall time during a daylight-saving
+transition fails because PHP's normalized result does not round-trip exactly.
+Ambiguous local wall times follow the timezone database's resolution; include
+an offset in the format when the instant itself must be unambiguous.
+
+An existing `DateTimeImmutable` passes through unchanged. Another
+`DateTimeInterface` implementation is copied with
+`DateTimeImmutable::createFromInterface()`, preserving its instant and
+timezone. The configured formats and timezone constrain scalar input only. An
+invalid format, format list, or timezone is rejected when the rule is
+constructed.
 
 ## Presence and adjacent Laravel rules
 

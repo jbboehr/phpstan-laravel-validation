@@ -22,7 +22,9 @@ declare(strict_types=1);
 namespace jbboehr\Rensei;
 
 use BackedEnum;
+use DateTimeZone;
 use jbboehr\Rensei\Rules\BooleanRule;
+use jbboehr\Rensei\Rules\DateTimeRule;
 use jbboehr\Rensei\Rules\EnumRule;
 use jbboehr\Rensei\Rules\FloatRule;
 use jbboehr\Rensei\Rules\IntegerRule;
@@ -39,6 +41,7 @@ use jbboehr\Rensei\Rules\IntegerRule;
  *     'ratio' => ['required', Parse::float()], // "1.5" becomes 1.5
  *     'enabled' => ['required', Parse::boolean()], // "0" becomes false
  *     'status' => ['required', Parse::enum(Status::class)], // "draft" becomes Status::Draft
+ *     'starts_at' => ['required', Parse::dateTime()], // date input becomes DateTimeImmutable
  *
  * Only the validated output changes. Ordinary rules still see the original
  * representation, and the request itself is never modified: `$request->all()`
@@ -73,6 +76,31 @@ final class Parse
     public static function boolean(): BooleanRule
     {
         return new BooleanRule();
+    }
+
+    /**
+     * Parse a Laravel-compatible date/time into a DateTimeImmutable.
+     *
+     * With no format, input follows Laravel's ordinary `date` rule as long as
+     * a DateTimeImmutable can be constructed. An explicit format, or ordered
+     * list of formats, instead requires an exact byte-for-byte round trip
+     * without warnings or normalization.
+     *
+     * The explicit timezone supplies fields not carried by the input and is
+     * applied to Unix-timestamp output; an offset or timezone in the input
+     * takes precedence. UTC is the stable default for parsed output. Existing
+     * DateTimeImmutable values pass through, and other DateTimeInterface
+     * implementations are copied to immutable values.
+     *
+     * @param string|list<string>|null $format
+     *
+     * @throws \InvalidArgumentException for an invalid format or timezone
+     */
+    public static function dateTime(
+        string|array|null $format = null,
+        DateTimeZone|string $timezone = 'UTC'
+    ): DateTimeRule {
+        return new DateTimeRule($format, $timezone);
     }
 
     /**

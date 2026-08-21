@@ -32,6 +32,7 @@
                     { id: "parsefloat", title: "Parse::float()" },
                     { id: "parseboolean", title: "Parse::boolean()" },
                     { id: "parseenum", title: "Parse::enum()" },
+                    { id: "parsedatetime", title: "Parse::dateTime()" },
                 ],
             },
             { id: "presence-and-adjacent-laravel-rules", title: "Presence and adjacent Laravel rules" },

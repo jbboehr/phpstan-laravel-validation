@@ -64,6 +64,28 @@ trait AssertsLaravelValidation
         $validated = $validator->validated();
         self::assertSame($expectedValidated, $validated, $context);
 
+        $this->assertInferredTypeContainsLaravelOutput(
+            $context,
+            $rules,
+            $validated
+        );
+    }
+
+    /**
+     * Cross-check a real successful Laravel output against the static type
+     * inferred from the same rules. This separate entry point supports object
+     * outputs whose identity cannot be supplied as an expected array.
+     *
+     * @param array<array-key, mixed> $rules
+     * @param array<mixed, mixed> $validated
+     */
+    protected function assertInferredTypeContainsLaravelOutput(
+        string $context,
+        array $rules,
+        array $validated
+    ): void {
+        self::getContainer();
+
         $inferred = (new TypeResolver())->evaluate(RuleParser::parse(self::analyzerRules($rules)));
         $actual = LaravelValueType::fromValue($validated);
         self::assertTrue($inferred->isSuperTypeOf($actual)->yes(), sprintf(

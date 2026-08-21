@@ -5,10 +5,11 @@
 ### Added
 
 - Experimental opt-in parsing rules under the `jbboehr\Rensei` namespace.
-  `Parse::integer()`, `Parse::float()`, `Parse::boolean()`, and `Parse::enum()`
-  produce canonical native values in successful `validated()` and `safe()`
-  output, or fail validation; ordinary rules continue to observe the original
-  representation and the request itself is never rewritten.
+  `Parse::integer()`, `Parse::float()`, `Parse::boolean()`, `Parse::enum()`,
+  and `Parse::dateTime()` produce canonical native values in successful
+  `validated()` and `safe()` output, or fail validation; ordinary rules
+  continue to observe the original representation and the request itself is
+  never rewritten.
   PHPStan infers the produced type, reading it from the `ParsingRule<T>`
   binding, so a parser defined outside this package needs no support here.
 - Requires `laravel/framework` 10.7.0 or later, which introduced
@@ -45,6 +46,18 @@
   strings; int-backed enums accept only ints. This deliberately refuses the
   scalar coercions used by Laravel's `Rule::enum()`. Pure enums, `only()` and
   `except()` filters, and name-based matching are not supported.
+
+  `Parse::dateTime($format, $timezone)` produces `DateTimeImmutable`. With no
+  format it follows Laravel's ordinary `date` acceptance as long as an
+  immutable object can be constructed. A string or ordered non-empty list of
+  formats selects exact parsing: input must parse without warnings or
+  normalization and round-trip byte-for-byte through the matching format. UTC
+  is the stable output fallback; an input offset or timezone takes precedence,
+  while `@` timestamps and explicit Unix-timestamp formats are represented in
+  the configured zone. NUL bytes are rejected even where Laravel's predicate
+  accepts them. Parse-only format controls are rejected unless escaped as
+  literal input. Existing immutable values pass through, and other
+  `DateTimeInterface` values are copied to immutable objects.
 
   Callbacks registered with `Validator::after()` before validation run before
   parsing-rule write-back and therefore observe the original values. Read

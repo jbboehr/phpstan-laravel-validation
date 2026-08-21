@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use DateTimeImmutable;
 use Illuminate\Support\Facades\Validator;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\ArrayParsingRule;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\IntegerValidationStatus;
@@ -9,6 +10,7 @@ use jbboehr\PhpstanLaravelValidation\Test\Fixtures\MoneyParsingRule;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\StringValidationStatus;
 use jbboehr\Rensei\Parse;
 use jbboehr\Rensei\Rules\BooleanRule;
+use jbboehr\Rensei\Rules\DateTimeRule;
 use jbboehr\Rensei\Rules\EnumRule;
 use jbboehr\Rensei\Rules\FloatRule;
 use jbboehr\Rensei\Rules\IntegerRule;
@@ -81,6 +83,35 @@ assertType('array{ratio?: float|null}', Validator::make([], [
 
 assertType('array{ratio: float}', Validator::make([], [
     'ratio' => ['required', new FloatRule()],
+])->validated());
+
+// Laravel-compatible and exact date/time parsing both produce one stable
+// object type.
+assertType('array{starts_at: DateTimeImmutable}', Validator::make([], [
+    'starts_at' => ['required', Parse::dateTime()],
+])->validated());
+
+assertType('array{starts_at?: DateTimeImmutable}', Validator::make([], [
+    'starts_at' => [Parse::dateTime('Y-m-d H:i:s')],
+])->validated());
+
+assertType('array{starts_at: DateTimeImmutable}', Validator::make([], [
+    'starts_at' => ['required', Parse::dateTime(
+        ['Y-m-d H:i:s', DateTimeInterface::ATOM],
+        'UTC'
+    )],
+])->validated());
+
+assertType('array{starts_at?: DateTimeImmutable|null}', Validator::make([], [
+    'starts_at' => ['nullable', Parse::dateTime('Y-m-d H:i:s')],
+])->validated());
+
+assertType('array{starts_at: DateTimeImmutable}', Validator::make([], [
+    'starts_at' => ['required', new DateTimeRule('Y-m-d H:i:s')],
+])->validated());
+
+assertType('array{}', Validator::make([], [
+    'starts_at' => ['exclude', Parse::dateTime('Y-m-d H:i:s')],
 ])->validated());
 
 // Boolean parsing accepts Laravel's boolean input set but produces one
@@ -210,6 +241,13 @@ assertType(
 assertType(
     'array{measurements?: array<int|string, array{ratio: float}>}',
     Validator::make([], ['measurements.*.ratio' => ['required', Parse::float()]])->validated()
+);
+
+assertType(
+    'array{events?: array<int|string, array{starts_at: DateTimeImmutable}>}',
+    Validator::make([], [
+        'events.*.starts_at' => ['required', Parse::dateTime('Y-m-d H:i:s')],
+    ])->validated()
 );
 
 // The parsed value lands in the validator's copy of the data. The caller's
