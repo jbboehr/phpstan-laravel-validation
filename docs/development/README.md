@@ -59,6 +59,14 @@ found. Experimental implementations of `Parse::integer()`, `Parse::float()`,
 the report's Status section records the corrections and remaining constraints
 exposed while building them.
 
+### [Parser candidate audit](parser-candidate-audit.md)
+
+This classifies every reserved Laravel rule by whether it can support a useful
+canonical output representation. It recommends strict date/time and timezone
+parsing as the strongest next additions, separates JSON and value-object work
+behind explicit design decisions, and records cross-major runtime evidence for
+the candidates.
+
 ### [BookStack parsing smoke test](bookstack-parsing-smoke-test.md)
 
 This records a one-off downstream exercise of the opt-in `Parse::*` rules
