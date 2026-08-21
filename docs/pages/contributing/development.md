@@ -141,6 +141,10 @@ closure and saves the resulting Nix store under a derivation-specific cache
 key. Every matrix job requires an exact cache restore. This keeps the jobs
 independent without making each runner download the same Composer archives.
 
+A newer run supersedes an older run for the same branch or pull-request ref.
+Push and pull-request refs remain separate because they validate different Git
+states.
+
 A documentation failure is a flake-check failure. It is not silent.
 
 ## Downstream investigations
