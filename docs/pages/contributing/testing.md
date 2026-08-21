@@ -233,9 +233,10 @@ Mutation testing is an explicit Nix package rather than a flake check:
 nix build -L .#mutation
 ```
 
-GitHub's exhaustive Nix matrix adds that package to the normal check set. The
-package builds the four source shards independently, each with the configured
-four Infection workers. GitHub schedules the shard derivations serially to
-avoid oversubscribing its four-core runner. The aggregate derivation enforces
-the project-wide MSI, covered-MSI, timeout, and expected-ignore behavior.
-Ordinary `nix flake check` never runs it.
+The explicit package builds five source shards independently, each with the
+configured four Infection workers, and enforces the project-wide MSI,
+covered-MSI, timeout, and expected-ignore behavior. GitHub adds those shard
+derivations to the exhaustive Nix matrix as separate jobs, then applies the
+same aggregate checks to their uploaded reports. Each runner therefore uses at
+most four Infection workers while the five shards can progress in parallel.
+Ordinary `nix flake check` never runs mutation testing.
