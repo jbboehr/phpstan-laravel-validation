@@ -57,6 +57,8 @@ final class ParsingNumericSizeRuleTest extends RuleTestCase
     {
         $tip = 'Add `integer`, `numeric`, or `decimal` for numeric size semantics. '
             . 'Leave the rule list unchanged only if measuring the original representation is intentional.';
+        $floatTip = 'Add `numeric` or an appropriate `decimal` rule for numeric size semantics. '
+            . 'Leave the rule list unchanged only if measuring the original representation is intentional.';
         $single = static fn (string $path, string $rule): string => sprintf(
             'The rules for `%s` combine a numeric parsing rule with Laravel size rule `%s` but declare no `integer`, `numeric`, or `decimal` rule. Laravel therefore measures the original input representation rather than the parsed numeric value.',
             $path,
@@ -82,13 +84,18 @@ final class ParsingNumericSizeRuleTest extends RuleTestCase
                 [$single('profile.age', 'min'), 21, $tip],
                 [$single('users.*.age', 'min'), 22, $tip],
                 [$single('field.name', 'min'), 23, $tip],
-                [$single('named', 'max'), 33, $tip],
-                [$single('custom', 'size'), 37, $tip],
-                [$single('variable', 'min'), 40, $tip],
-                [$single('request', 'min'), 48, $tip],
-                [$single('facade_make', 'min'), 52, $tip],
-                [$single('facade_validate', 'min'), 56, $tip],
-                [$single('helper', 'min'), 60, $tip],
+                [
+                    'The rules for `float` combine a numeric parsing rule with Laravel size rule `min` but declare no `numeric` or `decimal` rule. Laravel therefore measures the original input representation rather than the parsed numeric value.',
+                    29,
+                    $floatTip,
+                ],
+                [$single('named', 'max'), 35, $tip],
+                [$single('custom', 'size'), 39, $tip],
+                [$single('variable', 'min'), 42, $tip],
+                [$single('request', 'min'), 50, $tip],
+                [$single('facade_make', 'min'), 54, $tip],
+                [$single('facade_validate', 'min'), 58, $tip],
+                [$single('helper', 'min'), 62, $tip],
                 [$single('controller', 'min'), 19, $tip],
                 [$single('validate_with', 'min'), 23, $tip],
                 [$single('validate_with_bag', 'min'), 27, $tip],

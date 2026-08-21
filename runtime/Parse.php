@@ -24,6 +24,7 @@ namespace jbboehr\Rensei;
 use BackedEnum;
 use jbboehr\Rensei\Rules\BooleanRule;
 use jbboehr\Rensei\Rules\EnumRule;
+use jbboehr\Rensei\Rules\FloatRule;
 use jbboehr\Rensei\Rules\IntegerRule;
 
 /**
@@ -35,6 +36,7 @@ use jbboehr\Rensei\Rules\IntegerRule;
  *
  *     'age' => ['required', 'integer'],        // validated() holds "42"
  *     'age' => ['required', Parse::integer()], // validated() holds 42
+ *     'ratio' => ['required', Parse::float()], // "1.5" becomes 1.5
  *     'enabled' => ['required', Parse::boolean()], // "0" becomes false
  *     'status' => ['required', Parse::enum(Status::class)], // "draft" becomes Status::Draft
  *
@@ -90,6 +92,20 @@ final class Parse
     public static function enum(string $enum): EnumRule
     {
         return new EnumRule($enum);
+    }
+
+    /**
+     * Parse canonical decimal syntax into a finite float.
+     *
+     * Accepts finite floats, widens ints, and accepts strings such as `'42'`,
+     * `'-1.5'`, and `'0.25'`. Rejects scientific notation, leading zeroes,
+     * whitespace, booleans, `INF`, `NAN`, and decimal strings that overflow
+     * to infinity. Conversion may lose precision or underflow to zero;
+     * negative zero is preserved.
+     */
+    public static function float(): FloatRule
+    {
+        return new FloatRule();
     }
 
     /**

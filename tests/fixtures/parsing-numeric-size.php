@@ -26,6 +26,8 @@ function factoryCalls(Factory $factory): void
         'decimal' => ['decimal:0', Parse::integer(), 'between:5,10'],
         'relative' => [Parse::integer(), 'gte:other'],
         'boolean' => [Parse::boolean(), 'min:1'],
+        'float' => [Parse::float(), 'min:1'],
+        'float_numeric' => ['numeric', Parse::float(), 'min:1'],
     ]);
 
     $factory->validate(

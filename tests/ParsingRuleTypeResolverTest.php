@@ -29,9 +29,11 @@ use jbboehr\PhpstanLaravelValidation\Validation\ParsingRuleTypeResolver;
 use jbboehr\PhpstanLaravelValidation\Validation\Rule;
 use jbboehr\Rensei\ParsingRule;
 use jbboehr\Rensei\Rules\BaseParsingRule;
+use jbboehr\Rensei\Rules\FloatRule;
 use jbboehr\Rensei\Rules\IntegerRule;
 use PHPStan\Testing\PHPStanTestCase;
 use PHPStan\Type\Generic\GenericObjectType;
+use PHPStan\Type\FloatType;
 use PHPStan\Type\IntegerType;
 use PHPStan\Type\IntersectionType;
 use PHPStan\Type\ObjectType;
@@ -55,6 +57,7 @@ final class ParsingRuleTypeResolverTest extends PHPStanTestCase
     {
         // The shape produced by `new IntegerRule()` at a call site.
         self::assertSame('int', self::resolve(new ObjectType(IntegerRule::class)));
+        self::assertSame('float', self::resolve(new ObjectType(FloatRule::class)));
     }
 
     /**
@@ -77,6 +80,10 @@ final class ParsingRuleTypeResolverTest extends PHPStanTestCase
 
         self::assertNull(self::resolveRule(
             new GenericObjectType(BaseParsingRule::class, [new IntegerType()])
+        ));
+
+        self::assertNull(self::resolveRule(
+            new GenericObjectType(BaseParsingRule::class, [new FloatType()])
         ));
 
         self::assertNull(self::resolveRule(new ObjectType(BaseParsingRule::class)));

@@ -52,19 +52,20 @@ enum AccountStatus: string
 
 $validator = Validator::make($input, [
     'age' => ['required', Parse::integer()],
+    'ratio' => ['required', Parse::float()],
     'enabled' => ['required', Parse::boolean()],
     'status' => ['required', Parse::enum(AccountStatus::class)],
 ]);
 
 $validated = $validator->validated();
 \PHPStan\dumpType($validated);
-// array{age: int, enabled: bool, status: AccountStatus}
+// array{age: int, ratio: float, enabled: bool, status: AccountStatus}
 
 $safe = $validator->safe()->all();
 ```
 
-For input such as `['age' => '42', 'enabled' => '0', 'status' =>
-'active']`, both output calls contain `42`, `false`, and
+For input such as `['age' => '42', 'ratio' => '1.5', 'enabled' => '0',
+'status' => 'active']`, both output calls contain `42`, `1.5`, `false`, and
 `AccountStatus::Active`.
 
 PHPStan deliberately retains Laravel's broad `array` type for
@@ -91,6 +92,20 @@ It rejects floats, booleans, leading `+`, leading zeroes, whitespace,
 decimals, scientific notation, trailing data, and integer overflow. For
 example, `'42'` becomes `42` and `'-0'` becomes `0`, while `'042'`, `'+42'`,
 `'42.0'`, and `42.0` fail validation.
+
+### `Parse::float()`
+
+Accepts finite native floats, widens native ints, and accepts canonical ASCII
+decimal strings matching `^-?(0|[1-9][0-9]*)(\.[0-9]+)?\z`. It produces
+`float`.
+
+It rejects booleans, leading `+`, leading zeroes, whitespace, scientific
+notation, locale-specific separators, `INF`, `NAN`, and decimal strings whose
+conversion overflows to infinity. For example, `'42'` becomes `42.0` and
+`'-1.5'` becomes `-1.5`, while `'01.5'`, `'.5'`, `'1e3'`, and `INF` fail.
+Conversion to PHP's native float may lose precision or underflow to zero; the
+parser promises a finite `float`, not arbitrary-precision decimal arithmetic.
+`'-0'` and `'-0.0'` preserve IEEE 754 negative zero.
 
 ### `Parse::boolean()`
 
@@ -149,10 +164,12 @@ boundary.
 PHPStan reports this combination as
 `laravelValidation.parsingNumericSize` when a numeric parser is paired with
 `min`, `max`, `between`, or `size` but the rule list has no `integer`,
-`numeric`, or `decimal` marker. Add the marker when the bound is numeric. If
-a custom numeric parser intentionally accepts values whose original string,
-array, or file representation should be measured, the diagnostic can be
-ignored by identifier at that site.
+`numeric`, or `decimal` marker. For an integer-producing parser, add
+`integer`, `numeric`, or an appropriate `decimal` rule. For a float-producing
+parser, use `numeric` or an appropriate `decimal` rule; `integer` rejects
+non-integral values. If a custom numeric parser intentionally accepts values
+whose original string, array, or file representation should be measured, the
+diagnostic can be ignored by identifier at that site.
 
 ## Which values each phase observes
 

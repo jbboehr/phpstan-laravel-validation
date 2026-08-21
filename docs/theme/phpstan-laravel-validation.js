@@ -29,6 +29,7 @@
                 title: "Exact parser grammars",
                 children: [
                     { id: "parseinteger", title: "Parse::integer()" },
+                    { id: "parsefloat", title: "Parse::float()" },
                     { id: "parseboolean", title: "Parse::boolean()" },
                     { id: "parseenum", title: "Parse::enum()" },
                 ],

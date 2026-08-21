@@ -98,15 +98,15 @@ final class ParsingNumericSizeRule implements Rule
             return [];
         }
 
-        /** @var array<string, array<string, true>> $hazards */
+        /** @var array<string, array{rules: array<string, true>, integerMarker: bool}> $hazards */
         $hazards = [];
         foreach ($trees as $tree) {
             $this->collectHazards($tree, $hazards);
         }
 
         $errors = [];
-        foreach ($hazards as $path => $ruleSet) {
-            $rules = array_keys($ruleSet);
+        foreach ($hazards as $path => $hazard) {
+            $rules = array_keys($hazard['rules']);
             sort($rules);
             $displayRules = array_map(strtolower(...), $rules);
             $ruleDescription = count($displayRules) === 1
@@ -117,16 +117,23 @@ final class ParsingNumericSizeRule implements Rule
                 ? sprintf('The rules for `%s` combine', $path)
                 : sprintf('A resolved rule branch for `%s` combines', $path);
             $declaration = $singleBranch ? 'but declare no' : 'but declares no';
+            $markerDescription = $hazard['integerMarker']
+                ? '`integer`, `numeric`, or `decimal`'
+                : '`numeric` or `decimal`';
+            $tip = $hazard['integerMarker']
+                ? 'Add `integer`, `numeric`, or `decimal` for numeric size semantics. Leave the rule list unchanged only if measuring the original representation is intentional.'
+                : 'Add `numeric` or an appropriate `decimal` rule for numeric size semantics. Leave the rule list unchanged only if measuring the original representation is intentional.';
 
             $errors[] = RuleErrorBuilder::message(sprintf(
-                '%s a numeric parsing rule with Laravel %s %s `integer`, `numeric`, or `decimal` rule. Laravel therefore measures the original input representation rather than the parsed numeric value.',
+                '%s a numeric parsing rule with Laravel %s %s %s rule. Laravel therefore measures the original input representation rather than the parsed numeric value.',
                 $subject,
                 $ruleDescription,
-                $declaration
+                $declaration,
+                $markerDescription
             ))
                 ->identifier(self::IDENTIFIER)
                 ->line($this->findPathLine($rulesExpression, $path, $scope))
-                ->tip('Add `integer`, `numeric`, or `decimal` for numeric size semantics. Leave the rule list unchanged only if measuring the original representation is intentional.')
+                ->tip($tip)
                 ->build();
         }
 
@@ -235,7 +242,7 @@ final class ParsingNumericSizeRule implements Rule
     }
 
     /**
-     * @param array<string, array<string, true>> $hazards
+     * @param array<string, array{rules: array<string, true>, integerMarker: bool}> $hazards
      */
     private function collectHazards(RuleTreeNode $node, array &$hazards): void
     {
@@ -244,13 +251,30 @@ final class ParsingNumericSizeRule implements Rule
             static fn (ValidationRule $rule): string => $rule->getRuleName(),
             $node->getRules()
         );
+        $sizeRules = array_intersect(self::SIZE_RULES, $ruleNames);
 
         if ($producedType !== null
             && $this->isNumericType($producedType)
+            && $sizeRules !== []
             && array_intersect(self::NUMERIC_RULES, $ruleNames) === []
         ) {
-            foreach (array_intersect(self::SIZE_RULES, $ruleNames) as $sizeRule) {
-                $hazards[$node->getPath()][$sizeRule] = true;
+            $path = $node->getPath();
+            $integerMarker = (new IntegerType())->isSuperTypeOf($producedType)->yes();
+            if (!isset($hazards[$path])) {
+                $hazards[$path] = [
+                    'rules' => [],
+                    'integerMarker' => $integerMarker,
+                ];
+            } else {
+                // Advice aggregated across conditional branches must remain
+                // valid for every branch. One float-producing branch makes
+                // Laravel's integer predicate an inappropriate suggestion.
+                $hazards[$path]['integerMarker'] = $hazards[$path]['integerMarker']
+                    && $integerMarker;
+            }
+
+            foreach ($sizeRules as $sizeRule) {
+                $hazards[$path]['rules'][$sizeRule] = true;
             }
         }
 

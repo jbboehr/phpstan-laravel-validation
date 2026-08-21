@@ -21,14 +21,15 @@ Investigation date: 2026-08-17. Prototype built and corrections folded in:
 
 ## Status
 
-Implementations of `Parse::integer()`, `Parse::boolean()`, and `Parse::enum()`
-have since been built on this design. The integer slice proved the mechanism
-and corrected the report in several places; the boolean slice confirmed that
-another concrete parser can reuse the lifecycle; and the enum slice proved
-that the generic produced type can carry a concrete call-site class without a
-per-rule resolver branch. Each correction is recorded where the original claim
-appeared; they are collected here because a reader following the report to
-implement the remaining parsers needs them.
+Implementations of `Parse::integer()`, `Parse::float()`, `Parse::boolean()`,
+and `Parse::enum()` have since been built on this design. The integer slice
+proved the mechanism and corrected the report in several places; the float
+slice pinned finite canonical decimal semantics; the boolean slice confirmed
+that another concrete parser can reuse the lifecycle; and the enum slice
+proved that the generic produced type can carry a concrete call-site class
+without a per-rule resolver branch. Each correction is recorded where the
+original claim appeared and collected here for maintainers of the experimental
+feature.
 
 1. `['required', 'nullable', Parse::integer()]` infers `array{age: int}`, not
    `int|null` (§5.3). `required` rejects null outright.
@@ -2523,6 +2524,7 @@ surprise:
 
 ```php
 Parse::integer()            // ParsingRule<int>
+Parse::float()              // ParsingRule<float>
 Parse::boolean()            // ParsingRule<bool>
 Parse::enum(Status::class)  // ParsingRule<Status>
 ```
@@ -2530,9 +2532,10 @@ Parse::enum(Status::class)  // ParsingRule<Status>
 plus the public `ParsingRule<T>` interface and `BaseParsingRule` so users can
 write their own.
 
-`Parse::float()` — include if `float` semantics land cleanly; it is the least
-demanded of the three primitives and carries the most edge cases (`INF`,
-precision, scientific notation). Shipping it in v1.1 costs nothing.
+`Parse::float()` uses the narrow grammar in §9.2. It accepts only finite native
+values and canonical decimal strings; scientific notation, `INF`, `NAN`, and
+overflow are rejected. Precision loss and underflow are properties of the
+produced native `float`, not extra syntax accepted by the parser.
 
 `Parse::string()` — **out.** Near-no-op over Laravel's `string` rule; its only
 added behaviour is coercion, which the design opposes.

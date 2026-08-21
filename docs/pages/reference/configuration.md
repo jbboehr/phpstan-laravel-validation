@@ -207,10 +207,12 @@ handling of supported fresh chains. See
 Numeric parsing rules combined with `min`, `max`, `between`, or `size` without
 Laravel's `integer`, `numeric`, or `decimal` marker are reported as
 `laravelValidation.parsingNumericSize`. Laravel otherwise measures the
-original representation rather than the parsed numeric value. The diagnostic
-inspects supported factory, facade, helper, request, and controller validation
-calls, including `validateWith()` and `validateWithBag()`, as well as returns
-from `FormRequest::rules()`. FormRequest rules are checked independently of
-`formRequests.enabled` because the diagnostic concerns runtime behavior rather
-than inferred FormRequest output. See
+original representation rather than the parsed numeric value. For a
+float-producing parser, the diagnostic recommends `numeric` or an appropriate
+`decimal` rule rather than `integer`, which rejects non-integral values. The
+diagnostic inspects supported factory, facade, helper, request, and controller
+validation calls, including `validateWith()` and `validateWithBag()`, as well
+as returns from `FormRequest::rules()`. FormRequest rules are checked
+independently of `formRequests.enabled` because the diagnostic concerns runtime
+behavior rather than inferred FormRequest output. See
 [Parsing validated output](../guides/parsing-validated-output.md#presence-and-adjacent-laravel-rules).

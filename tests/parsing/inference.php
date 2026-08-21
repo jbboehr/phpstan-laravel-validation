@@ -10,6 +10,7 @@ use jbboehr\PhpstanLaravelValidation\Test\Fixtures\StringValidationStatus;
 use jbboehr\Rensei\Parse;
 use jbboehr\Rensei\Rules\BooleanRule;
 use jbboehr\Rensei\Rules\EnumRule;
+use jbboehr\Rensei\Rules\FloatRule;
 use jbboehr\Rensei\Rules\IntegerRule;
 
 use function PHPStan\Testing\assertType;
@@ -62,6 +63,24 @@ assertType('array{age?: int}', Validator::make([], [
 // Constructing the rule directly resolves the same way as the factory.
 assertType('array{age: int}', Validator::make([], [
     'age' => ['required', new IntegerRule()],
+])->validated());
+
+// Float parsing accepts several representations but always produces a finite
+// native float.
+assertType('array{ratio?: float}', Validator::make([], [
+    'ratio' => [Parse::float()],
+])->validated());
+
+assertType('array{ratio: float}', Validator::make([], [
+    'ratio' => ['required', Parse::float()],
+])->validated());
+
+assertType('array{ratio?: float|null}', Validator::make([], [
+    'ratio' => ['nullable', Parse::float()],
+])->validated());
+
+assertType('array{ratio: float}', Validator::make([], [
+    'ratio' => ['required', new FloatRule()],
 ])->validated());
 
 // Boolean parsing accepts Laravel's boolean input set but produces one
@@ -186,6 +205,11 @@ assertType('array{payload: array{name?: mixed}|array{parsed: true}}', Validator:
 assertType(
     'array{users?: array<int|string, array{age: int}>}',
     Validator::make([], ['users.*.age' => ['required', Parse::integer()]])->validated()
+);
+
+assertType(
+    'array{measurements?: array<int|string, array{ratio: float}>}',
+    Validator::make([], ['measurements.*.ratio' => ['required', Parse::float()]])->validated()
 );
 
 // The parsed value lands in the validator's copy of the data. The caller's
