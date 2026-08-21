@@ -467,11 +467,22 @@
           value = mutationShard shard;
         })
         mutationShardNames);
+      mutationShardPackages = builtins.listToAttrs (map (shard: {
+          name = "mutation-${shard}";
+          value = mutationShards.${shard};
+        })
+        mutationShardNames);
       mutationReportPaths =
         map (
           shard: "${mutationShards.${shard}}/reports/infection-summary.json"
         )
         mutationShardNames;
+      mutationReportAggregator = pkgs.writeShellApplication {
+        name = "aggregate-infection-reports";
+        text = ''
+          exec ${phpVersions.php85}/bin/php ${./scripts/aggregate-infection-reports.php} "$@"
+        '';
+      };
 
       pre-commit-check = git-hooks.lib.${system}.run {
         inherit src;
@@ -620,75 +631,44 @@
         // auditChecks
         // dateParserChecks;
 
-      packages.ci-dependencies =
-        pkgs.linkFarm
-        "phpstan-laravel-validation-ci-dependencies"
-        (map (closure: {
-            name = closure.vendorPname;
-            path = closure.vendor;
-          })
-          ciComposerClosures);
+      packages =
+        mutationShardPackages
+        // {
+          ci-dependencies =
+            pkgs.linkFarm
+            "phpstan-laravel-validation-ci-dependencies"
+            (map (closure: {
+                name = closure.vendorPname;
+                path = closure.vendor;
+              })
+              ciComposerClosures);
 
-      packages.mutation =
-        pkgs.runCommand "phpstan-laravel-validation-mutation" {
-          nativeBuildInputs = [pkgs.jq];
-        } ''
-          reports=(
-            ${pkgs.lib.concatStringsSep "\n" mutationReportPaths}
-          )
+          mutation-report = mutationReportAggregator;
 
-          aggregate="$(${pkgs.jq}/bin/jq -s '
-            {
-              total: map(.stats.totalMutantsCount - .stats.skippedCount - .stats.ignoredCount) | add,
-              covered: map(.stats.totalMutantsCount - .stats.skippedCount - .stats.ignoredCount - .stats.notCoveredCount) | add,
-              detected: map(.stats.killedCount + .stats.errorCount + .stats.syntaxErrorCount) | add,
-              ignored: map(.stats.ignoredCount) | add,
-              timeouts: map(.stats.timeOutCount) | add
-            }
-            | .msi = (if .total == 0 then 0 else ((10000 * .detected / .total | round) / 100) end)
-            | .coveredMsi = (if .covered == 0 then 0 else ((10000 * .detected / .covered | round) / 100) end)
-          ' "''${reports[@]}")"
+          mutation = pkgs.runCommand "phpstan-laravel-validation-mutation" {} ''
+            reports=(
+              ${pkgs.lib.concatStringsSep "\n" mutationReportPaths}
+            )
 
-          mkdir -p "$out/shards"
-          printf '%s\n' "$aggregate" | tee "$out/infection-summary.json"
-          ${pkgs.lib.concatMapStringsSep "\n" (shard: ''
-              ln -s ${mutationShards.${shard}}/reports "$out/shards/${shard}"
-            '')
-            mutationShardNames}
+            mkdir -p "$out/shards"
+            set -o pipefail
+            ${mutationReportAggregator}/bin/aggregate-infection-reports \
+              "''${reports[@]}" | tee "$out/infection-summary.json"
+            ${pkgs.lib.concatMapStringsSep "\n" (shard: ''
+                ln -s ${mutationShards.${shard}}/reports "$out/shards/${shard}"
+              '')
+              mutationShardNames}
 
-          failed=0
-          if [ "$(${pkgs.jq}/bin/jq -r '.timeouts' <<< "$aggregate")" -gt 10 ]; then
-            echo "Aggregate timed-out mutants exceed infection.json5.dist maxTimeouts (10)." >&2
-            failed=1
-          fi
-          if [ "$(${pkgs.jq}/bin/jq -r '.ignored' <<< "$aggregate")" -ne 5 ]; then
-            echo "Expected 5 ignored non-progressing resolvePath() mutants." >&2
-            failed=1
-          fi
-          if ! ${pkgs.jq}/bin/jq -e '.msi >= 50' <<< "$aggregate" >/dev/null; then
-            echo "Aggregate MSI is below infection.json5.dist minMsi (50)." >&2
-            failed=1
-          fi
-          if ! ${pkgs.jq}/bin/jq -e '.coveredMsi >= 80' <<< "$aggregate" >/dev/null; then
-            echo "Aggregate covered MSI is below infection.json5.dist minCoveredMsi (80)." >&2
-            failed=1
-          fi
-
-          if [ "$failed" -ne 0 ]; then
-            exit "$failed"
-          fi
-
-          touch "$out/passed"
-        '';
+            touch "$out/passed"
+          '';
+        };
 
       legacyPackages = pkgs.lib.optionalAttrs (system == "x86_64-linux") {
         githubActions = nix-github-actions.lib.mkGithubMatrix {
           checks = {
             x86_64-linux =
               self.checks.x86_64-linux
-              // {
-                mutation = self.packages.x86_64-linux.mutation;
-              };
+              // mutationShardPackages;
           };
           attrPrefix = "legacyPackages.x86_64-linux.githubActions.checks";
         };

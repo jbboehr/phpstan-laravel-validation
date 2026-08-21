@@ -95,9 +95,11 @@ nix build -L .#mutation
 
 The package supplies PHP 8.5 with PCOV and preserves the thresholds,
 timeouts, test exclusions, and worker count from `infection.json5.dist`.
-It divides the source into four cached shard derivations, each using four
-Infection workers, then aggregates the project-wide thresholds. GitHub
-builds those shards serially so a four-core runner is not oversubscribed.
+It divides the source into five cached shard derivations, each using four
+Infection workers, then aggregates the project-wide thresholds. The exhaustive
+GitHub workflow schedules those derivations as independent jobs and checks
+their uploaded summaries in a final aggregate job. Each runner therefore uses
+at most four Infection workers while the five shards can progress in parallel.
 
 PHPStan type-inference fixtures that cover extension code must run their
 first `gatherAssertTypes()` analysis inside the test body. Data providers

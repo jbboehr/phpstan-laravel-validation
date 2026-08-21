@@ -22,6 +22,7 @@ parameters:
     paths:
         - runtime
         - src
+        - scripts/aggregate-infection-reports.php
         - scripts/benchmark-bookstack.php
         - scripts/benchmark-form-requests.php
         - scripts/valid-test-extractor-functions.php

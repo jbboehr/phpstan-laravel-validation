@@ -143,17 +143,65 @@ jobs:
               shell: bash
               env:
                   NIX_INSTALLABLE: .#${{ matrix.attr }}
-                  NIX_MATRIX_NAME: ${{ matrix.name }}
               run: |
-                  max_jobs=4
-                  if [ "$NIX_MATRIX_NAME" = "mutation" ]; then
-                      # Each Infection shard already uses four workers. Build
-                      # the shards serially to avoid running sixteen workers
-                      # on a four-core GitHub-hosted runner.
-                      max_jobs=1
-                  fi
-
                   bash scripts/nix-build-with-vendor-hash-report.bash \
                       "$RUNNER_TEMP/nix-build.log" \
-                      nix build -L --keep-going --max-jobs "$max_jobs" \
+                      nix build -L --keep-going --max-jobs 4 \
+                      --out-link "$RUNNER_TEMP/nix-result" \
                       "$NIX_INSTALLABLE"
+
+            - name: Prepare Infection shard report
+              if: startsWith(matrix.name, 'mutation-')
+              run: cp -LR "$RUNNER_TEMP/nix-result/reports" "$RUNNER_TEMP/infection-report"
+
+            - name: Upload Infection shard report
+              if: startsWith(matrix.name, 'mutation-')
+              uses: actions/upload-artifact@v7
+              with:
+                  name: ${{ matrix.name }}
+                  path: ${{ runner.temp }}/infection-report
+                  if-no-files-found: error
+                  retention-days: 7
+
+    mutation-report:
+        name: Nix | mutation aggregate
+        if: ${{ !cancelled() }}
+        needs: nix-build
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v7
+
+            - uses: cachix/install-nix-action@v31
+
+            - name: Download Infection shard reports
+              uses: actions/download-artifact@v8
+              with:
+                  pattern: mutation-*
+                  path: ${{ runner.temp }}/infection-reports
+
+            - name: Enforce aggregate mutation thresholds
+              shell: bash
+              run: |
+                  set -Eeu -o pipefail
+
+                  reports=()
+                  while IFS= read -r shard; do
+                      report="$RUNNER_TEMP/infection-reports/mutation-$shard/infection-summary.json"
+                      if [ ! -f "$report" ]; then
+                          echo "Missing Infection report for shard: $shard" >&2
+                          exit 1
+                      fi
+                      reports+=("$report")
+                  done < <(jq -r 'keys[]' .github/infection-shards.json)
+
+                  nix run -L .#mutation-report -- "${reports[@]}" \
+                      | tee "$RUNNER_TEMP/infection-summary.json"
+
+            - name: Upload aggregate mutation report
+              if: ${{ !cancelled() }}
+              uses: actions/upload-artifact@v7
+              with:
+                  name: mutation-summary
+                  path: ${{ runner.temp }}/infection-summary.json
+                  if-no-files-found: warn
+                  retention-days: 7
