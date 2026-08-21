@@ -401,6 +401,19 @@
         })
         dateParserProfileNames);
 
+      ciComposerClosures =
+        [
+          rootClosure
+          laravel11Closure
+          laravel12Closure
+          laravel13Closure
+          minimumPhpstanClosure
+          larastanClosure
+          infectionClosure
+        ]
+        ++ map auditClosure auditProfileNames
+        ++ map dateParserClosure dateParserProfileNames;
+
       mutationShardDefinitions = builtins.fromJSON (builtins.readFile ./.github/infection-shards.json);
       mutationShardNames = builtins.attrNames mutationShardDefinitions;
       mutationShard = shard: let
@@ -606,6 +619,15 @@
         }
         // auditChecks
         // dateParserChecks;
+
+      packages.ci-dependencies =
+        pkgs.linkFarm
+        "phpstan-laravel-validation-ci-dependencies"
+        (map (closure: {
+            name = closure.vendorPname;
+            path = closure.vendor;
+          })
+          ciComposerClosures);
 
       packages.mutation =
         pkgs.runCommand "phpstan-laravel-validation-mutation" {

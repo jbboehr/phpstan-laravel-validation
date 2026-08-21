@@ -136,6 +136,11 @@ surfaces:
   php-cs-fixer);
 - an exhaustive Nix matrix generated from flake checks, plus mutation.
 
+Before the Nix matrix fans out, one job builds every pinned Composer vendor
+closure and saves the resulting Nix store under a derivation-specific cache
+key. Every matrix job requires an exact cache restore. This keeps the jobs
+independent without making each runner download the same Composer archives.
+
 A documentation failure is a flake-check failure. It is not silent.
 
 ## Downstream investigations

@@ -67,9 +67,50 @@ jobs:
                   matrix="$(nix eval --json '.#legacyPackages.x86_64-linux.githubActions.matrix')"
                   echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 
+    nix-dependencies:
+        name: Prebuild Nix Composer dependencies
+        runs-on: ubuntu-latest
+        outputs:
+            cache-key: ${{ steps.cache-key.outputs.cache-key }}
+        steps:
+            - uses: actions/checkout@v7
+
+            - uses: cachix/install-nix-action@v31
+
+            - name: Use the nix-phps binary cache
+              uses: cachix/cachix-action@v17
+              with:
+                  name: fossar
+                  skipPush: true
+
+            - id: cache-key
+              name: Identify the Composer dependency closure
+              run: |
+                  drv_path="$(nix eval --raw '.#packages.x86_64-linux.ci-dependencies.drvPath')"
+                  drv_name="${drv_path##*/}"
+                  echo "cache-key=nix-ci-dependencies-${RUNNER_OS}-${drv_name%.drv}" >> "$GITHUB_OUTPUT"
+
+            - name: Restore or prepare the Composer dependency cache
+              uses: nix-community/cache-nix-action@v7
+              with:
+                  primary-key: ${{ steps.cache-key.outputs.cache-key }}
+                  restore-prefixes-first-match: nix-ci-dependencies-${{ runner.os }}-
+                  gc-max-store-size-linux: 4G
+
+            - name: Build every Composer dependency closure
+              shell: bash
+              run: |
+                  bash scripts/nix-build-with-vendor-hash-report.bash \
+                      "$RUNNER_TEMP/nix-dependencies-build.log" \
+                      nix build -L --keep-going \
+                      --out-link "$RUNNER_TEMP/ci-dependencies" \
+                      .#ci-dependencies
+
     nix-build:
         name: Nix | ${{ matrix.name }}
-        needs: nix-matrix
+        needs:
+            - nix-matrix
+            - nix-dependencies
         runs-on: ${{ matrix.os }}
         timeout-minutes: 90
         strategy:
@@ -80,6 +121,13 @@ jobs:
             - uses: actions/checkout@v7
 
             - uses: cachix/install-nix-action@v31
+
+            - name: Restore prebuilt Composer dependencies
+              uses: nix-community/cache-nix-action@v7
+              with:
+                  primary-key: ${{ needs.nix-dependencies.outputs.cache-key }}
+                  fail-on: primary-key.not-restored
+                  save: false
 
             - name: Use the nix-phps binary cache
               uses: cachix/cachix-action@v17
@@ -101,30 +149,7 @@ jobs:
                       max_jobs=1
                   fi
 
-                  set +e
-                  nix build -L --keep-going --max-jobs "$max_jobs" "$NIX_INSTALLABLE" 2>&1 | tee "$RUNNER_TEMP/nix-build.log"
-                  nix_status=${PIPESTATUS[0]}
-                  set -e
-
-                  if [ "$nix_status" -ne 0 ]; then
-                      mapfile -t replacement_hashes < <(
-                          sed -nE 's/^[[:space:]]*got:[[:space:]]+(sha256-[^[:space:]]+).*$/\1/p' \
-                              "$RUNNER_TEMP/nix-build.log" | sort -u
-                      )
-
-                      if [ "${#replacement_hashes[@]}" -gt 0 ]; then
-                          {
-                              echo "## Nix Composer vendor hash update"
-                              echo
-                              echo "Nix reported the following authoritative replacement hash values:"
-                              echo
-                              for replacement_hash in "${replacement_hashes[@]}"; do
-                                  echo "- \`$replacement_hash\`"
-                              done
-                              echo
-                              echo "Update the matching entry in \`nix/vendor-hashes.nix\`, then rerun the failed target."
-                          } | tee -a "$GITHUB_STEP_SUMMARY"
-                      fi
-                  fi
-
-                  exit "$nix_status"
+                  bash scripts/nix-build-with-vendor-hash-report.bash \
+                      "$RUNNER_TEMP/nix-build.log" \
+                      nix build -L --keep-going --max-jobs "$max_jobs" \
+                      "$NIX_INSTALLABLE"
