@@ -23,8 +23,10 @@ namespace jbboehr\Rensei;
 
 use BackedEnum;
 use DateTimeZone;
+use jbboehr\Rensei\Rules\AcceptedRule;
 use jbboehr\Rensei\Rules\BooleanRule;
 use jbboehr\Rensei\Rules\DateTimeRule;
+use jbboehr\Rensei\Rules\DeclinedRule;
 use jbboehr\Rensei\Rules\EnumRule;
 use jbboehr\Rensei\Rules\FloatRule;
 use jbboehr\Rensei\Rules\IntegerRule;
@@ -41,6 +43,8 @@ use jbboehr\Rensei\Rules\TimezoneRule;
  *     'age' => ['required', Parse::integer()], // validated() holds 42
  *     'ratio' => ['required', Parse::float()], // "1.5" becomes 1.5
  *     'enabled' => ['required', Parse::boolean()], // "0" becomes false
+ *     'terms' => ['required', Parse::accepted()], // "yes" becomes true
+ *     'opt_out' => ['required', Parse::declined()], // "off" becomes false
  *     'status' => ['required', Parse::enum(Status::class)], // "draft" becomes Status::Draft
  *     'starts_at' => ['required', Parse::dateTime()], // date input becomes DateTimeImmutable
  *     'timezone' => ['required', Parse::timezone()], // "UTC" becomes DateTimeZone
@@ -68,6 +72,17 @@ use jbboehr\Rensei\Rules\TimezoneRule;
  */
 final class Parse
 {
+    /**
+     * Parse Laravel's accepted token set into literal true.
+     *
+     * Accepts `'yes'`, `'on'`, `'1'`, `1`, `true`, and `'true'`. Presence is
+     * separate: add `required` when an absent value must fail validation.
+     */
+    public static function accepted(): AcceptedRule
+    {
+        return new AcceptedRule();
+    }
+
     /**
      * Parse Laravel's canonical boolean input set into a bool.
      *
@@ -103,6 +118,17 @@ final class Parse
         DateTimeZone|string $timezone = 'UTC'
     ): DateTimeRule {
         return new DateTimeRule($format, $timezone);
+    }
+
+    /**
+     * Parse Laravel's declined token set into literal false.
+     *
+     * Accepts `'no'`, `'off'`, `'0'`, `0`, `false`, and `'false'`. Presence
+     * is separate: add `required` when an absent value must fail validation.
+     */
+    public static function declined(): DeclinedRule
+    {
+        return new DeclinedRule();
     }
 
     /**

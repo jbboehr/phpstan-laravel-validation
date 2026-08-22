@@ -5,7 +5,8 @@
 ### Added
 
 - Experimental opt-in parsing rules under the `jbboehr\Rensei` namespace.
-  `Parse::integer()`, `Parse::float()`, `Parse::boolean()`, `Parse::enum()`,
+  `Parse::integer()`, `Parse::float()`, `Parse::boolean()`,
+  `Parse::accepted()`, `Parse::declined()`, `Parse::enum()`,
   `Parse::dateTime()`, and `Parse::timezone()` produce canonical values of
   declared PHP types in successful `validated()` and `safe()` output, or fail
   validation; ordinary rules continue to observe the original representation
@@ -40,6 +41,11 @@
   `true`, `false`, `0`, `1`, `'0'`, and `'1'`. It maps those representations to
   `bool` and rejects textual forms such as `'true'`, `'false'`, `'on'`, and
   `'off'` rather than applying PHP truthiness.
+
+  `Parse::accepted()` and `Parse::declined()` accept Laravel's respective
+  strict token sets and normalize them to literal `true` and `false`. They do
+  not widen `Parse::boolean()` and, like every parsing rule, do not imply that
+  the field is present; add `required` when absence must fail.
 
   `Parse::enum(Status::class)` accepts an existing case or an exact native
   backing value and produces the case object. String-backed enums accept only

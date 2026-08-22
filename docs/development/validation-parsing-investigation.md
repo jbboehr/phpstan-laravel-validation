@@ -22,8 +22,9 @@ Investigation date: 2026-08-17. Prototype built and corrections folded in:
 ## Status
 
 Implementations of `Parse::integer()`, `Parse::float()`, `Parse::boolean()`,
-`Parse::enum()`, `Parse::dateTime()`, and `Parse::timezone()` have since been
-built on this design.
+`Parse::accepted()`, `Parse::declined()`, `Parse::enum()`,
+`Parse::dateTime()`, and `Parse::timezone()` have since been built on this
+design.
 The integer slice proved the mechanism and corrected the report in several
 places; the float slice pinned finite canonical decimal semantics; the boolean
 slice confirmed that another concrete parser can reuse the lifecycle; the enum
@@ -34,6 +35,11 @@ same contract to Laravel-compatible and exact, timezone-stable
 produced-type path to Laravel's default identifier set and a `DateTimeZone`
 fixed point. Each correction is recorded where the original claim appeared and
 collected here for maintainers of the experimental feature.
+
+The accepted/declined slice kept `Parse::boolean()` narrow and added two
+literal-output rules for Laravel's larger form-token sets. Presence remains an
+adjacent-rule concern, and the conditional variants remain ordinary predicates
+because their inactive branches do not establish a parsed representation.
 
 1. `['required', 'nullable', Parse::integer()]` infers `array{age: int}`, not
    `int|null` (§5.3). `required` rejects null outright.

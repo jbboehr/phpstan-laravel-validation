@@ -54,6 +54,8 @@ $validator = Validator::make($input, [
     'age' => ['required', Parse::integer()],
     'ratio' => ['required', Parse::float()],
     'enabled' => ['required', Parse::boolean()],
+    'terms' => ['required', Parse::accepted()],
+    'opt_out' => ['required', Parse::declined()],
     'status' => ['required', Parse::enum(AccountStatus::class)],
     'starts_at' => ['required', Parse::dateTime()],
     'timezone' => ['required', Parse::timezone()],
@@ -61,14 +63,16 @@ $validator = Validator::make($input, [
 
 $validated = $validator->validated();
 \PHPStan\dumpType($validated);
-// array{age: int, ratio: float, enabled: bool, status: AccountStatus,
-//     starts_at: DateTimeImmutable, timezone: DateTimeZone}
+// array{age: int, ratio: float, enabled: bool, terms: true, opt_out: false,
+//     status: AccountStatus, starts_at: DateTimeImmutable,
+//     timezone: DateTimeZone}
 
 $safe = $validator->safe()->all();
 ```
 
 For corresponding string input, both output calls contain `42`, `1.5`,
-`false`, `AccountStatus::Active`, a `DateTimeImmutable`, and a `DateTimeZone`.
+`false`, literal `true` and `false` acceptance values, `AccountStatus::Active`,
+a `DateTimeImmutable`, and a `DateTimeZone`.
 
 PHPStan deliberately retains Laravel's broad `array` type for
 `$validator->safe()->all()`. A factory may use `Factory::resolver()` to return
@@ -120,6 +124,27 @@ false, 0, '0'  -> false
 
 Values such as `'true'`, `'false'`, `'on'`, `'off'`, floats, and blank
 strings fail. PHP truthiness is deliberately not used.
+
+### `Parse::accepted()`
+
+Accepts exactly Laravel's accepted token set and produces literal `true`:
+
+```text
+'yes', 'on', '1', 1, true, 'true' -> true
+```
+
+### `Parse::declined()`
+
+Accepts exactly Laravel's declined token set and produces literal `false`:
+
+```text
+'no', 'off', '0', 0, false, 'false' -> false
+```
+
+These are separate parsers rather than a widened `Parse::boolean()` contract.
+They are also unconditional grammars: Laravel's `accepted_if` and
+`declined_if` predicates may become inactive and leave an arbitrary original
+value untouched, so they do not imply a corresponding conditional parser.
 
 ### `Parse::enum()`
 
@@ -247,6 +272,12 @@ A parser controls the value it produces, not whether the key must exist:
 ['age' => ['required', Parse::integer()]]           // array{age: int}
 ['age' => ['nullable', Parse::integer()]]           // array{age?: int|null}
 ```
+
+That separation also applies to accepted and declined tokens. Laravel's
+built-in `accepted` and `declined` rules imply requiredness; their parsing
+counterparts do not. Use `['required', Parse::accepted()]` or
+`['required', Parse::declined()]` to preserve that presence behavior while
+normalizing the successful output.
 
 Parsing rules are implicit, so a present blank string cannot bypass them. The
 value is passed to the parser and fails unless that parser's grammar accepts

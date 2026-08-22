@@ -10,8 +10,10 @@ use jbboehr\PhpstanLaravelValidation\Test\Fixtures\IntegerValidationStatus;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\MoneyParsingRule;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\StringValidationStatus;
 use jbboehr\Rensei\Parse;
+use jbboehr\Rensei\Rules\AcceptedRule;
 use jbboehr\Rensei\Rules\BooleanRule;
 use jbboehr\Rensei\Rules\DateTimeRule;
+use jbboehr\Rensei\Rules\DeclinedRule;
 use jbboehr\Rensei\Rules\EnumRule;
 use jbboehr\Rensei\Rules\FloatRule;
 use jbboehr\Rensei\Rules\IntegerRule;
@@ -19,6 +21,49 @@ use jbboehr\Rensei\Rules\TimezoneRule;
 
 use function PHPStan\Testing\assertType;
 use function PHPStan\Testing\assertSuperType;
+
+// Accepted and declined token parsers retain literal output information.
+// Presence remains a separate rule, as it does for every parser.
+assertType('array{terms?: true}', Validator::make([], [
+    'terms' => [Parse::accepted()],
+])->validated());
+
+assertType('array{terms: true}', Validator::make([], [
+    'terms' => ['required', Parse::accepted()],
+])->validated());
+
+assertType('array{terms?: true|null}', Validator::make([], [
+    'terms' => ['nullable', Parse::accepted()],
+])->validated());
+
+assertType('array{opt_out?: false}', Validator::make([], [
+    'opt_out' => [Parse::declined()],
+])->validated());
+
+assertType('array{opt_out: false}', Validator::make([], [
+    'opt_out' => ['required', Parse::declined()],
+])->validated());
+
+assertType('array{opt_out?: false|null}', Validator::make([], [
+    'opt_out' => ['nullable', Parse::declined()],
+])->validated());
+
+assertType('array{terms: true, opt_out: false}', Validator::make([], [
+    'terms' => ['required', new AcceptedRule()],
+    'opt_out' => ['required', new DeclinedRule()],
+])->validated());
+
+assertType(
+    'array{users?: array<int|string, array{terms: true, opt_out: false}>}',
+    Validator::make([], [
+        'users.*.terms' => ['required', Parse::accepted()],
+        'users.*.opt_out' => ['required', Parse::declined()],
+    ])->validated()
+);
+
+assertType('array{}', Validator::make([], [
+    'terms' => ['exclude', Parse::accepted()],
+])->validated());
 
 // A parsing rule produces its declared type. Presence is still decided by the
 // ordinary presence rules.

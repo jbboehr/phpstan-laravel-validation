@@ -18,10 +18,9 @@ The strongest additional first-party parser candidates were:
 5. canonical Base64 decoding, if semantic normalization without a narrower PHP
    type proves useful.
 
-Date/time and timezone parsing are now implemented. Accepted and declined
-tokens remain a plausible small follow-up. JSON should not enter the runtime
-API until its output families and nested-projection behavior have a written
-contract.
+Date/time, timezone, and accepted/declined token parsing are now implemented.
+JSON should not enter the runtime API until its output families and
+nested-projection behavior have a written contract.
 
 Do not add a core runtime dependency merely to supply UUID, ULID, URI, email,
 IP-address, color, or decimal value objects. Applications can implement those
@@ -204,8 +203,11 @@ Conditional `accepted_if` and `declined_if` are not separate parser candidates.
 They control whether a predicate is active and can leave the original value
 untouched when inactive.
 
-**Recommendation:** useful, but settle naming and inactive-branch semantics
-before implementation.
+**Follow-up:** `Parse::accepted()` and `Parse::declined()` now implement the
+separate literal contracts. They produce `true` and `false`, respectively,
+without widening `Parse::boolean()`. Like every parser, they leave presence to
+an adjacent rule; `required` restores the built-in rules' implicit-presence
+behavior. No conditional parser was added.
 
 ### JSON
 
@@ -296,16 +298,14 @@ contract and downstream demand.
 
 ## Remaining sequence
 
-Date/time and timezone parsing completed the first two recommendations. The
-remaining candidates are:
+Date/time, timezone, and accepted/declined parsing completed the first three
+recommendations. The remaining candidates are:
 
-1. Decide whether accepted/declined token parsing deserves separate literal
-   rules or one explicitly widened boolean grammar.
-2. Investigate JSON as a structural parser before changing the scalar-only
+1. Investigate JSON as a structural parser before changing the scalar-only
    scope boundary.
-3. Add no value-object dependencies to core. Collect real consumer demand and
+2. Add no value-object dependencies to core. Collect real consumer demand and
    prefer optional adapters.
-4. Add Base64 decoding only for a demonstrated normalization use case.
+3. Add Base64 decoding only for a demonstrated normalization use case.
 
 Each implementation slice must include grammar tests, Laravel runtime and
 static-inference conformance, optional and nullable paths, nested and wildcard

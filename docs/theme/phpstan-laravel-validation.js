@@ -31,6 +31,8 @@
                     { id: "parseinteger", title: "Parse::integer()" },
                     { id: "parsefloat", title: "Parse::float()" },
                     { id: "parseboolean", title: "Parse::boolean()" },
+                    { id: "parseaccepted", title: "Parse::accepted()" },
+                    { id: "parsedeclined", title: "Parse::declined()" },
                     { id: "parseenum", title: "Parse::enum()" },
                     { id: "parsedatetime", title: "Parse::dateTime()" },
                     { id: "parsetimezone", title: "Parse::timezone()" },

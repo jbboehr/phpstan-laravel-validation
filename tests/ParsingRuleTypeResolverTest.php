@@ -30,8 +30,10 @@ use jbboehr\PhpstanLaravelValidation\Test\Fixtures\NonImplicitParsingRule;
 use jbboehr\PhpstanLaravelValidation\Validation\ParsingRuleTypeResolver;
 use jbboehr\PhpstanLaravelValidation\Validation\Rule;
 use jbboehr\Rensei\ParsingRule;
+use jbboehr\Rensei\Rules\AcceptedRule;
 use jbboehr\Rensei\Rules\BaseParsingRule;
 use jbboehr\Rensei\Rules\DateTimeRule;
+use jbboehr\Rensei\Rules\DeclinedRule;
 use jbboehr\Rensei\Rules\FloatRule;
 use jbboehr\Rensei\Rules\IntegerRule;
 use jbboehr\Rensei\Rules\TimezoneRule;
@@ -70,6 +72,8 @@ final class ParsingRuleTypeResolverTest extends PHPStanTestCase
             'DateTimeZone',
             self::resolve(new ObjectType(TimezoneRule::class))
         );
+        self::assertSame('true', self::resolve(new ObjectType(AcceptedRule::class)));
+        self::assertSame('false', self::resolve(new ObjectType(DeclinedRule::class)));
     }
 
     /**
