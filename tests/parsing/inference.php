@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use DateTimeImmutable;
+use DateTimeZone;
 use Illuminate\Support\Facades\Validator;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\ArrayParsingRule;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\IntegerValidationStatus;
@@ -14,6 +15,7 @@ use jbboehr\Rensei\Rules\DateTimeRule;
 use jbboehr\Rensei\Rules\EnumRule;
 use jbboehr\Rensei\Rules\FloatRule;
 use jbboehr\Rensei\Rules\IntegerRule;
+use jbboehr\Rensei\Rules\TimezoneRule;
 
 use function PHPStan\Testing\assertType;
 use function PHPStan\Testing\assertSuperType;
@@ -112,6 +114,35 @@ assertType('array{starts_at: DateTimeImmutable}', Validator::make([], [
 
 assertType('array{}', Validator::make([], [
     'starts_at' => ['exclude', Parse::dateTime('Y-m-d H:i:s')],
+])->validated());
+
+// Timezone parsing follows Laravel's default identifier list for strings and
+// always produces a DateTimeZone object.
+assertType('array{timezone?: DateTimeZone}', Validator::make([], [
+    'timezone' => [Parse::timezone()],
+])->validated());
+
+assertType('array{timezone: DateTimeZone}', Validator::make([], [
+    'timezone' => ['required', Parse::timezone()],
+])->validated());
+
+assertType('array{timezone?: DateTimeZone|null}', Validator::make([], [
+    'timezone' => ['nullable', Parse::timezone()],
+])->validated());
+
+assertType('array{timezone: DateTimeZone}', Validator::make([], [
+    'timezone' => ['required', new TimezoneRule()],
+])->validated());
+
+assertType(
+    'array{offices?: array<int|string, array{timezone: DateTimeZone}>}',
+    Validator::make([], [
+        'offices.*.timezone' => ['required', Parse::timezone()],
+    ])->validated()
+);
+
+assertType('array{}', Validator::make([], [
+    'timezone' => ['exclude', Parse::timezone()],
 ])->validated());
 
 // Boolean parsing accepts Laravel's boolean input set but produces one

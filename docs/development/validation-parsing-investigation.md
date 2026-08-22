@@ -22,15 +22,18 @@ Investigation date: 2026-08-17. Prototype built and corrections folded in:
 ## Status
 
 Implementations of `Parse::integer()`, `Parse::float()`, `Parse::boolean()`,
-`Parse::enum()`, and `Parse::dateTime()` have since been built on this design.
+`Parse::enum()`, `Parse::dateTime()`, and `Parse::timezone()` have since been
+built on this design.
 The integer slice proved the mechanism and corrected the report in several
 places; the float slice pinned finite canonical decimal semantics; the boolean
 slice confirmed that another concrete parser can reuse the lifecycle; the enum
 slice proved that the generic produced type can carry a concrete call-site
 class without a per-rule resolver branch; and the date/time slice applied the
 same contract to Laravel-compatible and exact, timezone-stable
-`DateTimeImmutable` parsing. Each correction is recorded where the original
-claim appeared and collected here for maintainers of the experimental feature.
+`DateTimeImmutable` parsing. The timezone slice then applied the generic
+produced-type path to Laravel's default identifier set and a `DateTimeZone`
+fixed point. Each correction is recorded where the original claim appeared and
+collected here for maintainers of the experimental feature.
 
 1. `['required', 'nullable', Parse::integer()]` infers `array{age: int}`, not
    `int|null` (§5.3). `required` rejects null outright.

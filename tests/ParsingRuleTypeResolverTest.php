@@ -22,6 +22,7 @@ declare(strict_types=1);
 namespace jbboehr\PhpstanLaravelValidation\Test;
 
 use DateTimeImmutable;
+use DateTimeZone;
 use jbboehr\PhpstanLaravelValidation\Test\CustomRules\UnknownRule;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\GenericParsingRule;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\MoneyParsingRule;
@@ -33,6 +34,7 @@ use jbboehr\Rensei\Rules\BaseParsingRule;
 use jbboehr\Rensei\Rules\DateTimeRule;
 use jbboehr\Rensei\Rules\FloatRule;
 use jbboehr\Rensei\Rules\IntegerRule;
+use jbboehr\Rensei\Rules\TimezoneRule;
 use PHPStan\Testing\PHPStanTestCase;
 use PHPStan\Type\Generic\GenericObjectType;
 use PHPStan\Type\FloatType;
@@ -64,6 +66,10 @@ final class ParsingRuleTypeResolverTest extends PHPStanTestCase
             'DateTimeImmutable',
             self::resolve(new ObjectType(DateTimeRule::class))
         );
+        self::assertSame(
+            'DateTimeZone',
+            self::resolve(new ObjectType(TimezoneRule::class))
+        );
     }
 
     /**
@@ -94,6 +100,10 @@ final class ParsingRuleTypeResolverTest extends PHPStanTestCase
 
         self::assertNull(self::resolveRule(
             new GenericObjectType(BaseParsingRule::class, [new ObjectType(DateTimeImmutable::class)])
+        ));
+
+        self::assertNull(self::resolveRule(
+            new GenericObjectType(BaseParsingRule::class, [new ObjectType(DateTimeZone::class)])
         ));
 
         self::assertNull(self::resolveRule(new ObjectType(BaseParsingRule::class)));

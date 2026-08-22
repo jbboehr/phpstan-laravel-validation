@@ -6,10 +6,10 @@
 
 - Experimental opt-in parsing rules under the `jbboehr\Rensei` namespace.
   `Parse::integer()`, `Parse::float()`, `Parse::boolean()`, `Parse::enum()`,
-  and `Parse::dateTime()` produce canonical native values in successful
-  `validated()` and `safe()` output, or fail validation; ordinary rules
-  continue to observe the original representation and the request itself is
-  never rewritten.
+  `Parse::dateTime()`, and `Parse::timezone()` produce canonical values of
+  declared PHP types in successful `validated()` and `safe()` output, or fail
+  validation; ordinary rules continue to observe the original representation
+  and the request itself is never rewritten.
   PHPStan infers the produced type, reading it from the `ParsingRule<T>`
   binding, so a parser defined outside this package needs no support here.
 - Requires `laravel/framework` 10.7.0 or later, which introduced
@@ -58,6 +58,11 @@
   accepts them. Parse-only format controls are rejected unless escaped as
   literal input. Existing immutable values pass through, and other
   `DateTimeInterface` values are copied to immutable objects.
+
+  `Parse::timezone()` produces `DateTimeZone` from Laravel's default timezone
+  identifier set. It rejects constructor-only offset strings, abbreviations,
+  and backward-compatible aliases; an existing `DateTimeZone` passes through
+  unchanged.
 
   Callbacks registered with `Validator::after()` before validation run before
   parsing-rule write-back and therefore observe the original values. Read

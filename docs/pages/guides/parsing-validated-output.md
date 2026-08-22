@@ -56,18 +56,19 @@ $validator = Validator::make($input, [
     'enabled' => ['required', Parse::boolean()],
     'status' => ['required', Parse::enum(AccountStatus::class)],
     'starts_at' => ['required', Parse::dateTime()],
+    'timezone' => ['required', Parse::timezone()],
 ]);
 
 $validated = $validator->validated();
 \PHPStan\dumpType($validated);
 // array{age: int, ratio: float, enabled: bool, status: AccountStatus,
-//     starts_at: DateTimeImmutable}
+//     starts_at: DateTimeImmutable, timezone: DateTimeZone}
 
 $safe = $validator->safe()->all();
 ```
 
 For corresponding string input, both output calls contain `42`, `1.5`,
-`false`, `AccountStatus::Active`, and a `DateTimeImmutable`.
+`false`, `AccountStatus::Active`, a `DateTimeImmutable`, and a `DateTimeZone`.
 
 PHPStan deliberately retains Laravel's broad `array` type for
 `$validator->safe()->all()`. A factory may use `Factory::resolver()` to return
@@ -197,6 +198,45 @@ An existing `DateTimeImmutable` passes through unchanged. Another
 timezone. The configured formats and timezone constrain scalar input only. An
 invalid format, format list, or timezone is rejected when the rule is
 constructed.
+
+### `Parse::timezone()`
+
+For required input, this produces `DateTimeZone` from the same string
+identifiers accepted by Laravel's default `timezone` rule. Matching is exact
+and case-sensitive. An existing `DateTimeZone` passes through unchanged,
+including one constructed from a representation outside Laravel's string
+grammar.
+
+The parser deliberately does not accept every string understood by the
+`DateTimeZone` constructor. Numeric offsets such as `+05:30`, abbreviations
+such as `EST`, backward-compatible aliases such as `US/Eastern`, and the
+`Etc/*` group—including `Etc/UTC` and `Etc/GMT+5`—are constructor inputs but
+are not members of Laravel's default
+`timezone_identifiers_list(DateTimeZone::ALL)` set. Accepting them would make
+the parser's apparent relationship to Laravel's rule false.
+
+This parser does not expose Laravel's group and country parameters. From
+Laravel 10.12 onward, an application that needs a subset can keep that
+predicate as an ordinary rule so it checks the original identifier before
+parsing:
+
+```php
+'timezone' => ['required', 'timezone:per_country,US', Parse::timezone()]
+```
+
+Laravel 10.7 through 10.11 silently ignores those parameters and applies the
+default identifier set. On those releases, use an explicit membership rule:
+
+```php
+use Illuminate\Validation\Rule;
+
+$usTimezones = timezone_identifiers_list(DateTimeZone::PER_COUNTRY, 'US');
+'timezone' => ['required', Rule::in($usTimezones), Parse::timezone()]
+```
+
+Unlike Laravel's optional non-implicit `timezone` rule, the parser is implicit:
+a present blank or whitespace-only value is parsed and rejected rather than
+being skipped and preserved.
 
 ## Presence and adjacent Laravel rules
 

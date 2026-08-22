@@ -8,7 +8,7 @@ already useful native type. Giving each one a `Parse::*` counterpart would
 reproduce Laravel's overloaded rule catalog instead of establishing canonical
 representations.
 
-The strongest additional first-party parsers are:
+The strongest additional first-party parser candidates were:
 
 1. Laravel-compatible or strict formatted date/time input to
    `DateTimeImmutable`;
@@ -18,9 +18,10 @@ The strongest additional first-party parsers are:
 5. canonical Base64 decoding, if semantic normalization without a narrower PHP
    type proves useful.
 
-Date/time is the strongest next feature. Timezone parsing is the smallest
-low-risk slice. JSON should not enter the runtime API until its output families
-and nested-projection behavior have a written contract.
+Date/time and timezone parsing are now implemented. Accepted and declined
+tokens remain a plausible small follow-up. JSON should not enter the runtime
+API until its output families and nested-projection behavior have a written
+contract.
 
 Do not add a core runtime dependency merely to supply UUID, ULID, URI, email,
 IP-address, color, or decimal value objects. Applications can implement those
@@ -152,8 +153,8 @@ Laravel changed `date_format` to construct its comparison date in UTC during
 the supported version range. A parser-owned timezone contract avoids making
 its produced value depend on that framework detail.
 
-**Recommendation:** highest-value next parser; complete the grammar and
-timezone decision before implementation.
+**Original recommendation:** highest-value next parser; complete the grammar
+and timezone decision before implementation.
 
 **Follow-up:** `Parse::dateTime()` now implements both contracts. UTC is its
 stable output fallback; existing `DateTimeImmutable` values pass through and
@@ -169,13 +170,17 @@ Parse::timezone()
 // ParsingRule<DateTimeZone>
 ```
 
-This requires no third-party dependency. The parser must decide whether to
-mirror Laravel's group and country parameters. It must not rely only on the
-`DateTimeZone` constructor, which can accept representations outside Laravel's
-identifier list.
+This requires no third-party dependency. The implemented parser mirrors the
+default identifier set. Group and country filtering can remain an adjacent
+ordinary Laravel rule from Laravel 10.12 onward; Laravel 10.7 through 10.11
+silently ignores those parameters, so those releases need an explicit
+membership rule. The parser also accepts an existing `DateTimeZone` as a fixed
+point. It does not rely only on the `DateTimeZone` constructor, which accepts
+offsets, abbreviations, backward-compatible aliases, and other representations
+outside Laravel's default identifier list.
 
-**Recommendation:** low-risk and useful; a suitable first implementation slice
-if the date/time grammar is not yet settled.
+**Follow-up:** `Parse::timezone()` now implements this contract and produces
+`DateTimeZone` for both direct factory use and static inference.
 
 ### Accepted and declined tokens
 
@@ -289,19 +294,18 @@ policy and a target representation.
 **Recommendation:** no first-party parsers without a concrete normalization
 contract and downstream demand.
 
-## Recommended sequence
+## Remaining sequence
 
-1. Specify Laravel-compatible and strict formatted date/time parsing into
-   `DateTimeImmutable`.
-2. Implement timezone identifier parsing into `DateTimeZone`, either before or
-   alongside date/time according to the shared timezone API.
-3. Decide whether accepted/declined token parsing deserves separate literal
+Date/time and timezone parsing completed the first two recommendations. The
+remaining candidates are:
+
+1. Decide whether accepted/declined token parsing deserves separate literal
    rules or one explicitly widened boolean grammar.
-4. Investigate JSON as a structural parser before changing the scalar-only
+2. Investigate JSON as a structural parser before changing the scalar-only
    scope boundary.
-5. Add no value-object dependencies to core. Collect real consumer demand and
+3. Add no value-object dependencies to core. Collect real consumer demand and
    prefer optional adapters.
-6. Add Base64 decoding only for a demonstrated normalization use case.
+4. Add Base64 decoding only for a demonstrated normalization use case.
 
 Each implementation slice must include grammar tests, Laravel runtime and
 static-inference conformance, optional and nullable paths, nested and wildcard

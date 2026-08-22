@@ -28,6 +28,7 @@ use jbboehr\Rensei\Rules\DateTimeRule;
 use jbboehr\Rensei\Rules\EnumRule;
 use jbboehr\Rensei\Rules\FloatRule;
 use jbboehr\Rensei\Rules\IntegerRule;
+use jbboehr\Rensei\Rules\TimezoneRule;
 
 /**
  * Opt-in parsing rules for Laravel validation.
@@ -42,6 +43,7 @@ use jbboehr\Rensei\Rules\IntegerRule;
  *     'enabled' => ['required', Parse::boolean()], // "0" becomes false
  *     'status' => ['required', Parse::enum(Status::class)], // "draft" becomes Status::Draft
  *     'starts_at' => ['required', Parse::dateTime()], // date input becomes DateTimeImmutable
+ *     'timezone' => ['required', Parse::timezone()], // "UTC" becomes DateTimeZone
  *
  * Only the validated output changes. Ordinary rules still see the original
  * representation, and the request itself is never modified: `$request->all()`
@@ -151,5 +153,18 @@ final class Parse
     public static function integer(): IntegerRule
     {
         return new IntegerRule();
+    }
+
+    /**
+     * Parse a Laravel timezone identifier into a DateTimeZone.
+     *
+     * String input matches Laravel's default `timezone` rule. Offset strings,
+     * abbreviations, and backward-compatible aliases accepted only by the
+     * DateTimeZone constructor are rejected. An existing DateTimeZone passes
+     * through unchanged.
+     */
+    public static function timezone(): TimezoneRule
+    {
+        return new TimezoneRule();
     }
 }
