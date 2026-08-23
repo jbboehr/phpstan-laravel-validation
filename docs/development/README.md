@@ -68,6 +68,13 @@ accepted/declined token candidates are now implemented; it separates the
 remaining JSON and value-object work behind explicit design decisions and
 records cross-major runtime evidence for the candidates.
 
+### [JSON parser investigation](json-parser-investigation.md)
+
+This separates Laravel's coercive JSON predicate from decoding and structural
+validation. It records numeric, object-key, duplicate-member, and depth policy
+decisions, demonstrates that nested Laravel rules never inspect delayed
+decoded output, and explains why no general first-party JSON parser was added.
+
 ### [BookStack parsing smoke test](bookstack-parsing-smoke-test.md)
 
 This records a one-off downstream exercise of the opt-in `Parse::*` rules

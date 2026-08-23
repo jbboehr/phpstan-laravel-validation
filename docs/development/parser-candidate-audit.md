@@ -224,14 +224,23 @@ Parse::jsonObject()  // ParsingRule<array<array-key, mixed>> or stdClass
 Parse::jsonScalar()  // ParsingRule<bool|float|int|string|null>
 ```
 
-The contract must decide associative arrays versus objects, large integers,
-duplicate object keys, depth, invalid UTF-8, empty structures, and whether
-native values pass through. Array-producing parsers also interact with nested
-Laravel rules, wildcard traversal, and output reconstruction. Those
-interactions exceed the scalar-only evidence behind the current parsers.
+The [JSON parser investigation](json-parser-investigation.md) resolved these
+questions far enough to reject a general parser for now. Associative decoding
+requires `array-key` rather than string keys, large integers need an explicit
+precision policy, duplicate members silently overwrite, and a valid exponent
+can decode to `INF`.
 
-**Recommendation:** separate design and runtime investigation; do not add a
-general `mixed` parser.
+More importantly, delayed parser write-back means Laravel child rules inspect
+the encoded string, not the decoded value. An explicit child fails as missing,
+while a wildcard descendant can match nothing and let arbitrary decoded
+elements through. A sound inferred type can retain the broad parser-produced
+branch, but the rule set still misleadingly resembles structural validation.
+
+**Recommendation:** no general parser. If a concrete consumer justifies a
+first-party `Parse::jsonList()` or `Parse::jsonObject()`, make it a terminal,
+string-only decoder with explicit numeric and object policies, and diagnose
+descendant Laravel rules on the same field. Prefer an application-defined
+typed parser when decoded values need a declared nested shape.
 
 ### Base64
 
@@ -301,8 +310,8 @@ contract and downstream demand.
 Date/time, timezone, and accepted/declined parsing completed the first three
 recommendations. The remaining candidates are:
 
-1. Investigate JSON as a structural parser before changing the scalar-only
-   scope boundary.
+1. Add no JSON parser until a concrete terminal-decoding use case justifies
+   the contract recorded in the JSON parser investigation.
 2. Add no value-object dependencies to core. Collect real consumer demand and
    prefer optional adapters.
 3. Add Base64 decoding only for a demonstrated normalization use case.
