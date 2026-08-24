@@ -14,13 +14,15 @@ The strongest additional first-party parser candidates were:
    `DateTimeImmutable`;
 2. timezone identifiers to `DateTimeZone`;
 3. an explicit accepted/declined token grammar to `bool`;
-4. top-level-specific JSON decoding, after a separate structural investigation;
-5. canonical Base64 decoding, if semantic normalization without a narrower PHP
+4. explicit conversion of strings, integers, and `Stringable` objects to
+   `string`;
+5. top-level-specific JSON decoding, after a separate structural investigation;
+6. canonical Base64 decoding, if semantic normalization without a narrower PHP
    type proves useful.
 
-Date/time, timezone, and accepted/declined token parsing are now implemented.
-JSON should not enter the runtime API until its output families and
-nested-projection behavior have a written contract.
+Date/time, timezone, accepted/declined token, and explicit string parsing are
+now implemented. JSON should not enter the runtime API until its output
+families and nested-projection behavior have a written contract.
 
 Do not add a core runtime dependency merely to supply UUID, ULID, URI, email,
 IP-address, color, or decimal value objects. Applications can implement those
@@ -94,10 +96,10 @@ Every reserved Laravel rule has one primary disposition in this audit:
 
 | Disposition | Rule names | Count |
 | --- | --- | ---: |
-| Already served by current parsers or adjacent numeric constraints | `Boolean`, `Decimal`, `Digits`, `DigitsBetween`, `Enum`, `Integer`, `MaxDigits`, `MinDigits`, `MultipleOf`, `Numeric` | 10 |
+| Already served by current parsers or adjacent numeric constraints | `Boolean`, `Decimal`, `Digits`, `DigitsBetween`, `Enum`, `Integer`, `MaxDigits`, `MinDigits`, `MultipleOf`, `Numeric`, `String` | 11 |
 | Credible dependency-free parser track | `Accepted`, `Base64`, `Date`, `DateFormat`, `Declined`, `Json`, `Timezone` | 7 |
 | Useful only with a chosen value-object dependency | `ActiveUrl`, `Email`, `HexColor`, `Ip`, `Ipv4`, `Ipv6`, `MacAddress`, `Ulid`, `Url`, `Uuid` | 10 |
-| Same-native-type normalization with little static gain | `Alpha`, `AlphaDash`, `AlphaNum`, `Ascii`, `DoesntEndWith`, `DoesntStartWith`, `Encoding`, `EndsWith`, `Lowercase`, `StartsWith`, `String`, `Uppercase` | 12 |
+| Same-native-type normalization with little static gain | `Alpha`, `AlphaDash`, `AlphaNum`, `Ascii`, `DoesntEndWith`, `DoesntStartWith`, `Encoding`, `EndsWith`, `Lowercase`, `StartsWith`, `Uppercase` | 11 |
 | No distinct parser responsibility | All rules in the grouped table below | 75 |
 | **Total** |  | **114** |
 
@@ -124,6 +126,30 @@ domain but do not choose its representation. Database, password, DNS, callback,
 and regular-expression behavior may have no stable local contract at all.
 
 ## First-party candidates
+
+### Explicit string conversion
+
+Laravel's `string` predicate accepts only native strings and preserves them.
+That already establishes `string`, but it does not solve the coercive unions
+produced by rules such as `integer`, `in`, `json`, and `date_format`.
+
+An explicit parser can normalize a deliberately bounded set of representations
+with an unsurprising string form:
+
+```php
+Parse::string() // ParsingRule<string>
+```
+
+Native strings pass through, integers use decimal notation, and `Stringable`
+objects contribute their declared string. Floats are rejected because a
+generic spelling introduces precision policy. Booleans are rejected because
+PHP would map `true` to `'1'` and `false` to `''`.
+
+**Follow-up:** `Parse::string()` now implements this contract. The original
+parsing investigation dismissed it as implicit coercion; a concrete consumer
+need exposed the distinction it missed. Laravel's coercion is surprising
+because it is hidden and preserves the original value. `Parse::string()` is an
+explicit conversion with a narrower grammar and a guaranteed output type.
 
 ### Formatted date and time
 
@@ -290,9 +316,9 @@ a separate integration package.
 ## Same-type normalization is not enough
 
 The `Alpha`, `AlphaDash`, `AlphaNum`, `Ascii`, `DoesntEndWith`,
-`DoesntStartWith`, `Encoding`, `EndsWith`, `Lowercase`, `StartsWith`, `String`,
-and `Uppercase` rules produce strings or constrain existing strings. A parser
-that merely returns the same string adds no type information. A parser that
+`DoesntStartWith`, `Encoding`, `EndsWith`, `Lowercase`, `StartsWith`, and
+`Uppercase` rules produce strings or constrain existing strings. A parser that
+merely returns the same string adds no type information. A parser that
 lowercases, uppercases, strips characters, or transcodes input changes invalid
 input into valid input according to an application-specific normalization
 policy.
@@ -307,8 +333,9 @@ contract and downstream demand.
 
 ## Remaining sequence
 
-Date/time, timezone, and accepted/declined parsing completed the first three
-recommendations. The remaining candidates are:
+Date/time, timezone, accepted/declined, and explicit string parsing completed
+the useful dependency-free scalar recommendations. The remaining candidates
+are:
 
 1. Add no JSON parser until a concrete terminal-decoding use case justifies
    the contract recorded in the JSON parser investigation.

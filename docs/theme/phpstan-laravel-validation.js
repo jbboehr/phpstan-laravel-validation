@@ -30,6 +30,7 @@
                 children: [
                     { id: "parseinteger", title: "Parse::integer()" },
                     { id: "parsefloat", title: "Parse::float()" },
+                    { id: "parsestring", title: "Parse::string()" },
                     { id: "parseboolean", title: "Parse::boolean()" },
                     { id: "parseaccepted", title: "Parse::accepted()" },
                     { id: "parsedeclined", title: "Parse::declined()" },

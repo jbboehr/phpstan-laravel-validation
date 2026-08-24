@@ -53,6 +53,7 @@ enum AccountStatus: string
 $validator = Validator::make($input, [
     'age' => ['required', Parse::integer()],
     'ratio' => ['required', Parse::float()],
+    'identifier' => ['required', Parse::string()],
     'enabled' => ['required', Parse::boolean()],
     'terms' => ['required', Parse::accepted()],
     'opt_out' => ['required', Parse::declined()],
@@ -63,16 +64,16 @@ $validator = Validator::make($input, [
 
 $validated = $validator->validated();
 \PHPStan\dumpType($validated);
-// array{age: int, ratio: float, enabled: bool, terms: true, opt_out: false,
-//     status: AccountStatus, starts_at: DateTimeImmutable,
+// array{age: int, ratio: float, identifier: string, enabled: bool,
+//     terms: true, opt_out: false, status: AccountStatus, starts_at: DateTimeImmutable,
 //     timezone: DateTimeZone}
 
 $safe = $validator->safe()->all();
 ```
 
-For corresponding string input, both output calls contain `42`, `1.5`,
-`false`, literal `true` and `false` acceptance values, `AccountStatus::Active`,
-a `DateTimeImmutable`, and a `DateTimeZone`.
+For corresponding input, both output calls contain `42`, `1.5`, a string
+identifier, `false`, literal `true` and `false` acceptance values,
+`AccountStatus::Active`, a `DateTimeImmutable`, and a `DateTimeZone`.
 
 PHPStan deliberately retains Laravel's broad `array` type for
 `$validator->safe()->all()`. A factory may use `Factory::resolver()` to return
@@ -112,6 +113,35 @@ conversion overflows to infinity. For example, `'42'` becomes `42.0` and
 Conversion to PHP's native float may lose precision or underflow to zero; the
 parser promises a finite `float`, not arbitrary-precision decimal arithmetic.
 `'-0'` and `'-0.0'` preserve IEEE 754 negative zero.
+
+### `Parse::string()`
+
+Accepts native strings unchanged, converts native integers to their lossless
+decimal representation, and converts `Stringable` objects through
+`__toString()`. It produces `string`. A `Stringable` conversion that throws or
+otherwise fails becomes an ordinary validation failure.
+
+It rejects floats, booleans, arrays, resources, and non-Stringable objects.
+Generic float stringification would introduce a mutable precision and spelling
+policy; PHP's boolean casts would turn `true` into `'1'` and `false` into `''`.
+Those conversions are not part of this grammar.
+
+This parser is not Laravel's `string` predicate under another name:
+
+```php
+'string'        // accepts native strings and preserves them
+Parse::string() // deliberately converts int and Stringable input
+```
+
+Adjacent Laravel rules still inspect the original representation. For example,
+`['integer', Parse::string()]` accepts native integers and strings that satisfy
+Laravel's non-strict `integer` predicate, then returns a string. It does not
+impose the canonical grammar used by `Parse::integer()`: strings such as
+`'+42'`, `' 42'`, and `'42 '` are preserved unchanged. The string parser still
+rejects an integral float or `true` even though Laravel's `integer` predicate
+accepts them. A `Stringable` object may produce an empty string after
+`required` has accepted the original object; `required` does not constrain the
+later parsed representation.
 
 ### `Parse::boolean()`
 

@@ -30,6 +30,7 @@ use jbboehr\Rensei\Rules\DeclinedRule;
 use jbboehr\Rensei\Rules\EnumRule;
 use jbboehr\Rensei\Rules\FloatRule;
 use jbboehr\Rensei\Rules\IntegerRule;
+use jbboehr\Rensei\Rules\StringRule;
 use jbboehr\Rensei\Rules\TimezoneRule;
 
 /**
@@ -42,6 +43,7 @@ use jbboehr\Rensei\Rules\TimezoneRule;
  *     'age' => ['required', 'integer'],        // validated() holds "42"
  *     'age' => ['required', Parse::integer()], // validated() holds 42
  *     'ratio' => ['required', Parse::float()], // "1.5" becomes 1.5
+ *     'identifier' => ['required', Parse::string()], // 42 becomes "42"
  *     'enabled' => ['required', Parse::boolean()], // "0" becomes false
  *     'terms' => ['required', Parse::accepted()], // "yes" becomes true
  *     'opt_out' => ['required', Parse::declined()], // "off" becomes false
@@ -179,6 +181,19 @@ final class Parse
     public static function integer(): IntegerRule
     {
         return new IntegerRule();
+    }
+
+    /**
+     * Parse a deliberately bounded scalar-ish representation into a string.
+     *
+     * Native strings pass through unchanged, ints use decimal notation, and
+     * Stringable objects contribute their declared string. Failed Stringable
+     * conversions, floats, booleans, arrays, resources, and other objects are
+     * rejected through ordinary validation failure.
+     */
+    public static function string(): StringRule
+    {
+        return new StringRule();
     }
 
     /**

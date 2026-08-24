@@ -21,8 +21,8 @@ Investigation date: 2026-08-17. Prototype built and corrections folded in:
 
 ## Status
 
-Implementations of `Parse::integer()`, `Parse::float()`, `Parse::boolean()`,
-`Parse::accepted()`, `Parse::declined()`, `Parse::enum()`,
+Implementations of `Parse::integer()`, `Parse::float()`, `Parse::string()`,
+`Parse::boolean()`, `Parse::accepted()`, `Parse::declined()`, `Parse::enum()`,
 `Parse::dateTime()`, and `Parse::timezone()` have since been built on this
 design.
 The integer slice proved the mechanism and corrected the report in several
@@ -40,6 +40,12 @@ The accepted/declined slice kept `Parse::boolean()` narrow and added two
 literal-output rules for Laravel's larger form-token sets. Presence remains an
 adjacent-rule concern, and the conditional variants remain ordinary predicates
 because their inactive branches do not establish a parsed representation.
+
+The string slice reversed one original recommendation below. Explicit
+conversion is not Laravel's hidden coercion: `Parse::string()` now accepts only
+native strings, integers with a lossless decimal representation, and
+`Stringable` objects with a declared representation. It rejects floats and
+booleans rather than inheriting their ambiguous generic casts.
 
 1. `['required', 'nullable', Parse::integer()]` infers `array{age: int}`, not
    `int|null` (§5.3). `required` rejects null outright.
@@ -1212,6 +1218,12 @@ is coercion from `int`/`float`/`Stringable`, which is exactly the surprising
 conversion this design is trying to avoid. Ship `Parse::string()` only if a
 concrete need appears.
 
+**Follow-up:** that concrete need appeared in the coercive unions exposed by
+the extension. The implementation still rejects float and boolean coercion;
+it converts only native strings, integers, and `Stringable` objects. Calling a
+parser explicitly makes that bounded conversion visible at the rule site and
+guarantees the returned `string`, unlike Laravel's predicate coercions.
+
 ### 9.3 Correctness hazards checklist
 
 | Hazard | Handling |
@@ -2227,7 +2239,7 @@ than being skipped silently.
 | Users expect `input()` to change | Low (DX) | Document that only `validated()`/`safe()` transform. Arguably the correct behaviour |
 | PHPStan in production | Low | Move to `require-dev` + `conflict`, per Carbon |
 | `nikic/php-parser` move breaks minimum-PHPStan consumer | Low | Existing `consumer-phpstan-minimum` smoke test covers it |
-| Scope creep into a DTO framework | Medium | The original v1 cap was four parsers. Later additions require a canonical output contract and the repository-wide candidate audit; no `Parse::using()`, object mapping, or generic `Parse::string()` |
+| Scope creep into a DTO framework | Medium | The original v1 cap was four parsers. Later additions require a canonical output contract and the repository-wide candidate audit; `Parse::string()` remains scalar and deliberately bounded, with no `Parse::using()` or object mapping |
 | `Rule::forEach` interaction | Unknown | Untested; declare unsupported in v1 |
 | Precognition `after()` hook | Low | Registered before the parser's flush; precognitive requests short-circuit before `validated()` |
 | Laravel adds native casting | Low | #46162 was closed; if it lands, `Parse::*` becomes a thin adapter |
@@ -2548,8 +2560,10 @@ values and canonical decimal strings; scientific notation, `INF`, `NAN`, and
 overflow are rejected. Precision loss and underflow are properties of the
 produced native `float`, not extra syntax accepted by the parser.
 
-`Parse::string()` — **out.** Near-no-op over Laravel's `string` rule; its only
-added behaviour is coercion, which the design opposes.
+`Parse::string()` was originally **out** as a near-no-op over Laravel's
+`string` rule. It was later implemented with the narrower explicit grammar
+recorded above; the explicit conversion and guaranteed output are the concrete
+need this prototype had not yet observed.
 
 Explicitly out of v1: `Parse::using()`, `only()`/`except()` on enums, pure
 enums, date/`Carbon` parsing, collection parsing, nested-object parsing,

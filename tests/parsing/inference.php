@@ -17,6 +17,7 @@ use jbboehr\Rensei\Rules\DeclinedRule;
 use jbboehr\Rensei\Rules\EnumRule;
 use jbboehr\Rensei\Rules\FloatRule;
 use jbboehr\Rensei\Rules\IntegerRule;
+use jbboehr\Rensei\Rules\StringRule;
 use jbboehr\Rensei\Rules\TimezoneRule;
 
 use function PHPStan\Testing\assertType;
@@ -112,6 +113,29 @@ assertType('array{age?: int}', Validator::make([], [
 // Constructing the rule directly resolves the same way as the factory.
 assertType('array{age: int}', Validator::make([], [
     'age' => ['required', new IntegerRule()],
+])->validated());
+
+// String parsing deliberately normalizes only its bounded representations:
+// strings pass through, integers use decimal syntax, and Stringable objects
+// contribute their declared string.
+assertType('array{identifier?: string}', Validator::make([], [
+    'identifier' => [Parse::string()],
+])->validated());
+
+assertType('array{identifier: string}', Validator::make([], [
+    'identifier' => ['required', 'integer', Parse::string()],
+])->validated());
+
+assertType('array{identifier?: string|null}', Validator::make([], [
+    'identifier' => ['nullable', Parse::string()],
+])->validated());
+
+assertType('array{identifier: string}', Validator::make([], [
+    'identifier' => ['required', new StringRule()],
+])->validated());
+
+assertType('array{}', Validator::make([], [
+    'identifier' => ['exclude', Parse::string()],
 ])->validated());
 
 // Float parsing accepts several representations but always produces a finite
