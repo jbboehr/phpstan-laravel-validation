@@ -22,10 +22,10 @@ $validated = Validator::make([], [
 
 $date = 'DateTimeInterface|float|int|non-empty-string';
 assertType(
-    'array{date_time: float|int|non-empty-string, date_time_past: float|int|non-empty-string, past: ' . $date
+    'array{date_time: non-empty-string, date_time_past: non-empty-string, past: ' . $date
         . ', future: ' . $date . ', now_or_past: ' . $date . ', now_or_future: ' . $date
         . ', direct_future: ' . $date . ', formatted_future: float|int|non-empty-string, '
-        . 'optional_date_time?: float|int|string}',
+        . 'optional_date_time?: string}',
     $validated
 );
 

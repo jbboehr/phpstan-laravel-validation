@@ -212,6 +212,27 @@ final class InferenceAuditCases
             'date_format.integer' => $case(20240101, 'required|date_format:Ymd'),
             'date_format.invalid_integer' => $case(42, 'required|date_format:Ymd', 'predicate precision'),
             'date_format.float' => $case(20240101.0, 'required|date_format:Ymd'),
+            'date_format.separator_string' => $case('2024-01-01', 'required|date_format:Y-m-d'),
+            'date_format.separator_integer' => $case(
+                20240101,
+                'required|date_format:Y-m-d',
+                'format-parameter precision'
+            ),
+            'date_format.separator_float' => $case(
+                20240101.0,
+                'required|date_format:Y-m-d',
+                'format-parameter precision'
+            ),
+            'date_format.numeric_alternative' => $case(
+                20240101,
+                'required|date_format:Y-m-d,Ymd',
+                'multiple-format numeric preservation'
+            ),
+            'date_format.leading_whitespace_integer' => $case(
+                2024,
+                'required|date_format: Y',
+                'numeric-string whitespace grammar'
+            ),
             'date.object' => [
                 'data' => static fn (): array => ['value' => new \DateTimeImmutable('2024-01-01')],
                 'rules' => ['value' => 'required|date'],
@@ -453,7 +474,10 @@ final class InferenceAuditCases
             'JSON, dates, and membership' => [
                 'status' => 'probed',
                 'evidence' => [
-                    'json.integer', 'date.integer', 'date_format.integer', 'before.integer',
+                    'json.integer', 'date.integer', 'date_format.integer',
+                    'date_format.separator_string', 'date_format.separator_integer',
+                    'date_format.separator_float', 'date_format.numeric_alternative',
+                    'date_format.leading_whitespace_integer', 'before.integer',
                     'after_or_equal.object', 'in.integer', 'in.stringable',
                 ],
             ],

@@ -213,15 +213,18 @@ $validated = Validator::make($input, [
 
 \PHPStan\dumpType($validated);
 // Laravel 11.41+: array{
-//   published_on: float|int|non-empty-string,
+//   published_on: non-empty-string,
 //   deadline: DateTimeInterface|float|int|non-empty-string
 // }
 ```
 
 Laravel 12.44 adds `Rule::dateTime()` and the `past()`, `future()`,
-`nowOrPast()`, and `nowOrFuture()` predicates. `dateTime()` has the same
-native family as a formatted date. Laravel 12.3 changed how `format()`
-serializes; both forms produce that same sound output family.
+`nowOrPast()`, and `nowOrFuture()` predicates. `dateTime()` uses
+`Y-m-d H:i:s` and therefore infers `non-empty-string`. Formatted builders
+follow the same parameter-sensitive contract as `date_format`: separator
+formats such as `Y-m-d` exclude native numerics, while a numeric format such
+as `Ymd` retains `float|int|non-empty-string`. Laravel 12.3 changed how
+`format()` serializes, but both forms preserve this contract.
 
 These builders validate and preserve successful input. They do not parse it
 into a canonical date object.

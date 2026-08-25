@@ -107,7 +107,24 @@ final class TypeResolverTest extends PHPStanTestCase
             yield $rule => [$rule, 'float|int<0, max>|non-empty-string'];
         }
 
-        yield 'date format' => ['date_format:Y-m-d', 'float|int|non-empty-string'];
+        yield 'date format with separators' => ['date_format:Y-m-d', 'non-empty-string'];
+        yield 'date format without separators' => ['date_format:Ymd', 'float|int|non-empty-string'];
+        yield 'date format with a numeric alternative' => [
+            'date_format:Y-m-d,Ymd',
+            'float|int|non-empty-string',
+        ];
+        yield 'date format with an escaped exponent marker' => [
+            'date_format:Y\\eH',
+            'float|int|non-empty-string',
+        ];
+        yield 'date format with leading whitespace' => [
+            'date_format: Y',
+            'float|int|non-empty-string',
+        ];
+        yield 'date format with an unknown escaped letter' => [
+            'date_format:\\q',
+            'float|int|non-empty-string',
+        ];
 
         foreach (
             [

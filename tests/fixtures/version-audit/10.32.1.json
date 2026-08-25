@@ -2331,6 +2331,152 @@
                 "classification": "observed-realizable"
             }
         },
+        "date_format.separator_string": {
+            "concern": "native value",
+            "rules": {
+                "value": "required|date_format:Y-m-d"
+            },
+            "input": {
+                "value": "2024-01-01"
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": "2024-01-01"
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: non-empty-string}",
+                "outputType": "array{value: '2024-01-01'}",
+                "containsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            },
+            "precision": {
+                "candidateOutputType": "array{value: '2024-01-01'}",
+                "containedByInference": "yes",
+                "preservedOnSuccess": true,
+                "classification": "observed-realizable"
+            }
+        },
+        "date_format.separator_integer": {
+            "concern": "format-parameter precision",
+            "rules": {
+                "value": "required|date_format:Y-m-d"
+            },
+            "input": {
+                "value": 20240101
+            },
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: non-empty-string}",
+                "outputType": null,
+                "containsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            },
+            "precision": {
+                "candidateOutputType": "array{value: 20240101}",
+                "containedByInference": "no",
+                "preservedOnSuccess": null,
+                "classification": "candidate-outside-inference"
+            }
+        },
+        "date_format.separator_float": {
+            "concern": "format-parameter precision",
+            "rules": {
+                "value": "required|date_format:Y-m-d"
+            },
+            "input": {
+                "value": 20240101.0
+            },
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: non-empty-string}",
+                "outputType": null,
+                "containsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            },
+            "precision": {
+                "candidateOutputType": "array{value: 20240101.0}",
+                "containedByInference": "no",
+                "preservedOnSuccess": null,
+                "classification": "candidate-outside-inference"
+            }
+        },
+        "date_format.numeric_alternative": {
+            "concern": "multiple-format numeric preservation",
+            "rules": {
+                "value": "required|date_format:Y-m-d,Ymd"
+            },
+            "input": {
+                "value": 20240101
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": 20240101
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|non-empty-string}",
+                "outputType": "array{value: 20240101}",
+                "containsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            },
+            "precision": {
+                "candidateOutputType": "array{value: 20240101}",
+                "containedByInference": "yes",
+                "preservedOnSuccess": true,
+                "classification": "observed-realizable"
+            }
+        },
+        "date_format.leading_whitespace_integer": {
+            "concern": "numeric-string whitespace grammar",
+            "rules": {
+                "value": "required|date_format: Y"
+            },
+            "input": {
+                "value": 2024
+            },
+            "runtime": {
+                "outcome": "passed",
+                "output": {
+                    "value": 2024
+                },
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|non-empty-string}",
+                "outputType": "array{value: 2024}",
+                "containsOutput": "yes",
+                "exception": null,
+                "classification": "observed-sound"
+            },
+            "precision": {
+                "candidateOutputType": "array{value: 2024}",
+                "containedByInference": "yes",
+                "preservedOnSuccess": true,
+                "classification": "observed-realizable"
+            }
+        },
         "date.object": {
             "concern": "date object preservation",
             "rules": {

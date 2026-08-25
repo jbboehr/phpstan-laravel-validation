@@ -1194,16 +1194,7 @@ final class TypeResolver
                 new AccessoryNonEmptyStringType(),
             ]),
 
-            // DateTime::createFromFormat accepts numeric scalars through weak
-            // string coercion, and Laravel preserves the original value.
-            "DateFormat" => Type\TypeCombinator::union(
-                new Type\FloatType(),
-                new Type\IntegerType(),
-                new IntersectionType([
-                    new StringType(),
-                    new AccessoryNonEmptyStringType(),
-                ]),
-            ),
+            "DateFormat" => $this->resolveTypeDateFormat($rule),
 
             // Laravel admits any scalar or Stringable value to its JSON check,
             // then preserves the original native value. False and
@@ -1367,6 +1358,135 @@ final class TypeResolver
     {
         return $this->customRuleTypeResolver?->resolveName($rule->getRuleName())
             ?? new Type\MixedType();
+    }
+
+    private function resolveTypeDateFormat(Rule $rule): Type\Type
+    {
+        $stringType = new IntersectionType([
+            new StringType(),
+            new AccessoryNonEmptyStringType(),
+        ]);
+
+        if (!$this->dateFormatMayAcceptNumericScalar($rule)) {
+            return $stringType;
+        }
+
+        // DateTime::createFromFormat accepts numeric scalars through weak
+        // string coercion, compares the formatted value loosely, and Laravel
+        // preserves the original value. Retain both native numeric types when
+        // any format can produce a numeric string.
+        return Type\TypeCombinator::union(
+            new Type\FloatType(),
+            new Type\IntegerType(),
+            $stringType,
+        );
+    }
+
+    private function dateFormatMayAcceptNumericScalar(Rule $rule): bool
+    {
+        $formats = $rule->getParameters();
+        if ($formats === []) {
+            return true;
+        }
+
+        foreach ($formats as $format) {
+            if (!is_string($format) || $format === '') {
+                return true;
+            }
+
+            if ($this->dateFormatMayProduceNumericString($format)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Whether DateTime::format() may produce a PHP numeric string.
+     *
+     * This deliberately recognizes only numeric-producing format directives.
+     * An unknown or textual directive keeps the broad numeric fallback rather
+     * than risking a false narrowing. Literal separators are interpreted with
+     * a small numeric-string state machine so `Y-m-d` is rejected while `Ymd`,
+     * `U.u`, and an escaped exponent such as `Y\\eH` remain possible.
+     */
+    private function dateFormatMayProduceNumericString(string $format): bool
+    {
+        /** @var array<int, true> $states */
+        $states = [0 => true];
+        $length = strlen($format);
+
+        for ($index = 0; $index < $length; $index++) {
+            $character = $format[$index];
+
+            if ($character === '\\') {
+                if (++$index >= $length) {
+                    return true;
+                }
+
+                if (preg_match('/^[A-DF-Za-df-z]$/D', $format[$index]) === 1) {
+                    return true;
+                }
+
+                $states = $this->advanceNumericStringStates($states, $format[$index]);
+            } elseif (str_contains('djNwzWmntLoYyBgGhHisuIv', $character)) {
+                $states = $this->advanceNumericStringStates($states, '0');
+            } elseif (str_contains('UXxOZ', $character)) {
+                $unsigned = $this->advanceNumericStringStates($states, '0');
+                $positive = $this->advanceNumericStringStates(
+                    $this->advanceNumericStringStates($states, '+'),
+                    '0'
+                );
+                $negative = $this->advanceNumericStringStates(
+                    $this->advanceNumericStringStates($states, '-'),
+                    '0'
+                );
+                $states = $unsigned + $positive + $negative;
+            } elseif (preg_match('/^[A-Za-z]$/D', $character) === 1) {
+                return true;
+            } else {
+                $states = $this->advanceNumericStringStates($states, $character);
+            }
+
+            if ($states === []) {
+                return false;
+            }
+        }
+
+        return array_intersect_key($states, [2 => true, 3 => true, 4 => true, 7 => true, 9 => true]) !== [];
+    }
+
+    /**
+     * @param array<int, true> $states
+     * @return array<int, true>
+     */
+    private function advanceNumericStringStates(array $states, string $character): array
+    {
+        $next = [];
+        foreach ($states as $state => $_) {
+            $nextState = match (true) {
+                $state === 0 && ctype_space($character) => 0,
+                $state === 0 && ($character === '+' || $character === '-') => 1,
+                ($state === 0 || $state === 1) && $character === '.' => 8,
+                ($state === 0 || $state === 1) && ctype_digit($character) => 2,
+                $state === 2 && ctype_digit($character) => 2,
+                $state === 2 && $character === '.' => 3,
+                ($state === 2 || $state === 3 || $state === 4)
+                    && ($character === 'e' || $character === 'E') => 5,
+                ($state === 3 || $state === 4 || $state === 8) && ctype_digit($character) => 4,
+                $state === 5 && ($character === '+' || $character === '-') => 6,
+                ($state === 5 || $state === 6 || $state === 7) && ctype_digit($character) => 7,
+                in_array($state, [2, 3, 4, 7, 9], true) && ctype_space($character) => 9,
+                default => null,
+            };
+
+            if ($nextState !== null) {
+                $next[$nextState] = true;
+            }
+        }
+
+        return $next;
     }
 
     private function resolvesAsciiAsNativeString(): bool

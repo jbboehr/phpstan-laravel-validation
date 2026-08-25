@@ -128,7 +128,7 @@ The following 57 names contribute a concrete type today:
 | String predicates | `ActiveUrl`, `Alpha`, `CurrentPassword`, `Email`, `Ip`, `Ipv4`, `Ipv6`, `MacAddress`, `Timezone`, `Ulid`, `Url`, `Uuid` | Usually `non-empty-string` |
 | Native string checks | `Lowercase`, `String`, `Uppercase` | `string` |
 | Coercive text checks | `AlphaDash`, `AlphaNum`, `Json`, `NotRegex`, `Regex` | Unions containing the native scalar or `Stringable` values Laravel preserves |
-| Date checks | `After`, `AfterOrEqual`, `Before`, `BeforeOrEqual`, `Date`, `DateEquals`, `DateFormat` | Numeric scalars, non-empty strings, and where applicable `DateTimeInterface` |
+| Date checks | `After`, `AfterOrEqual`, `Before`, `BeforeOrEqual`, `Date`, `DateEquals`, `DateFormat` | Numeric scalars, non-empty strings, and where applicable `DateTimeInterface`; `DateFormat` removes native numerics when every known format proves they cannot satisfy Laravel's weakly coerced comparison |
 | Numeric checks | `Decimal`, `Digits`, `DigitsBetween`, `Integer`, `MaxDigits`, `MinDigits`, `MultipleOf`, `Numeric` | Numeric strings and the native numeric values Laravel accepts and preserves |
 | Arrays and files | `Array`, `RequiredArrayKeys`, `Dimensions`, `File`, `Image`, `Mimes`, `Mimetypes` | Array shapes, required-offset constraints, or Symfony file objects; fresh inline array and file builders recover their built-in rule semantics at the applicable Laravel version |
 | Built-in object rules | `Enum` | Statically visible enum cases, backing values, and the weakly coerced native values Laravel preserves; literal `only`/`except` state is modeled from Laravel 10.46 |
@@ -321,11 +321,12 @@ their declared width, height, and ratio constraints. The extended
 `minRatio()`, `maxRatio()`, and `ratioBetween()` methods begin at Laravel
 11.23; assigned builders, subclasses, callbacks, macros, and dynamic chains
 remain opaque.
-Fresh exact `Date` builders recover the preserved date or formatted-date family
-from their statically visible fluent predicates. Their comparisons still
-validate and preserve input rather than parsing it into a date object. The
-resolver retains Laravel 11's distinct parser boundaries: bare builders begin
-at 11.40, chains in rule lists at 11.41, and standalone chains at 11.43.2.
+Fresh exact `Date` builders recover the preserved date or parameter-sensitive
+formatted-date family from their statically visible fluent predicates. Their
+comparisons still validate and preserve input rather than parsing it into a
+date object. The resolver retains Laravel 11's distinct parser boundaries:
+bare builders begin at 11.40, chains in rule lists at 11.41, and standalone
+chains at 11.43.2.
 Literal-boolean `RequiredIf`, `ExcludeIf`, and `ProhibitedIf` factories and
 exact constructions collapse to their unconditional rule or to Laravel's
 constraint-free empty-rule projection marker. Callback and dynamic conditions

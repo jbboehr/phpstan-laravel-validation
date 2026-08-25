@@ -60,9 +60,12 @@ the original native value.
 | Rule | Successful native type |
 | --- | --- |
 | `date`, `date_equals`, `after`, `after_or_equal`, `before`, `before_or_equal` | `DateTimeInterface\|float\|int\|non-empty-string` |
-| `date_format` | `float\|int\|non-empty-string` (`date_format` rejects `DateTimeInterface`) |
+| `date_format` | `non-empty-string` when every statically known format cannot produce a PHP numeric string; otherwise `float\|int\|non-empty-string` (`date_format` rejects `DateTimeInterface`) |
 
-These rules do not parse input into a canonical date object.
+These rules do not parse input into a canonical date object. For example,
+`date_format:Y-m-d` narrows to `non-empty-string`, while `date_format:Ymd`
+and a format list containing `Ymd` retain native numerics because Laravel can
+accept and preserve them. Unknown formats remain conservative.
 
 ## Numbers
 

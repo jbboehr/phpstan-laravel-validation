@@ -96,6 +96,11 @@
 
 ### Changed
 
+- Make `date_format` inference parameter-sensitive. Formats that cannot
+  produce a PHP numeric string, such as `Y-m-d`, now infer
+  `non-empty-string`; numeric formats such as `Ymd` retain
+  `float|int|non-empty-string` because Laravel can accept and preserve native
+  numerics.
 - Invalidate returned validator contracts after `setData()`, `setRules()`, and
   imperative `sometimes()` calls. A statically resolvable
   `setRules()` chained directly from a fresh factory, facade, or helper call is
