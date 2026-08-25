@@ -168,6 +168,7 @@
             { id: "rules-with-direct-accepted-value-inference", title: "Rules with direct accepted-value inference" },
             { id: "explicitly-neutral-rules", title: "Explicitly neutral rules" },
             { id: "rules-currently-falling-back-to-mixed", title: "Rules currently falling back to mixed" },
+            { id: "object-only-built-in-predicates", title: "Object-only built-in predicates" },
             { id: "presence-and-output-shape-findings", title: "Presence and output-shape findings" },
             { id: "built-in-rule-objects-and-fluent-builders", title: "Built-in rule objects and fluent builders" },
             {

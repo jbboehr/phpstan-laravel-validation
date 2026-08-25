@@ -1,9 +1,9 @@
 # Laravel validation rule coverage survey
 
-This document inventories Laravel's built-in validation-rule surface and maps
-it to the inference currently implemented by `phpstan-laravel-validation`. It
-is an audit and roadmap, not a claim that every listed rule is completely or
-universally modeled.
+This document inventories Laravel's canonical validation-rule names and its
+distinct built-in predicate objects, then maps them to the inference currently
+implemented by `phpstan-laravel-validation`. It is an audit and roadmap, not a
+claim that every listed rule is completely or universally modeled.
 
 For a lookup table of emitted types, see
 [Validation Rules](validation-rules.md).
@@ -28,12 +28,24 @@ the repository's generated fixtures:
 | 13.24.0 | [`6d481710`](https://github.com/laravel/framework/commit/6d481710375d2aa67656922ef760cdd2b18bcfe0) | 112 | Pinned boundary fixture; adds `array_keys`; 13.25.0 has the same rule inventory |
 
 `Enum` and `Password` are rule objects rather than `validate*` methods. With
-those included, the current Laravel 13.25 surface corresponds exactly to the
-114 names reserved by `TypeResolver::BUILT_IN_RULE_NAMES`.
+those included, Laravel 13.25 has 114 canonical rule identities reserved by
+`TypeResolver::BUILT_IN_RULE_NAMES`.
+
+That reserved-name inventory is not the whole public predicate-object surface.
+`Rule::can()` and `Rule::anyOf()` return distinct built-in rule objects with no
+equivalent `validate*` method or canonical string-rule name. Counting those
+objects once gives 116 built-in rule semantics. A follow-up source audit against
+Laravel 13.x commit
+[`0189a60`](https://github.com/laravel/framework/commit/0189a60b261bbd94bffe21bba4e43323cf6af051)
+confirmed the same 112 `validate*` methods plus these object-only rules.
+Composition helpers such as `Rule::when()`, `Rule::unless()`, and
+`Rule::forEach()` are not additional predicates and are not counted again.
 
 Laravel added these rules and rule-object features during the supported major
 range:
 
+- Laravel 10.14: `Rule::can()` adds the object-only `Can` authorization
+  predicate;
 - Laravel 10.21.1: `In` and `NotIn` builders gain enum-value serialization,
   and their concrete constructors gain scalar, variadic, and `Arrayable`
   inputs in 10.36;
@@ -47,6 +59,8 @@ range:
   `Date` builder, 11.41 makes its chains usable inside
   rule lists, 11.42 adds the fluent `Numeric` builder, and 11.43.2 makes Date
   chains usable as standalone field rules;
+- Laravel 12.8: `Rule::anyOf()` adds an object-only alternative-ruleset
+  predicate;
 - Laravel 12: `in_array_keys` and `Rule::contains()` in 12.16, followed by
   `doesnt_contain` and `Rule::doesntContain()` in 12.22, `encoding` in 12.40,
   `Rule::dateTime()` and the date builder's
@@ -63,17 +77,22 @@ supported major before its inferred type is narrowed.
 `CustomRulesInferenceTest::testEveryInstalledLaravelAttributeRuleNameIsReservedFromCustomAliases`
 also reflects the installed `ValidatesAttributes` trait. The floating Laravel
 CI profiles will therefore detect a newly added `validate*` method even before
-the next pinned fixture refresh.
+the next pinned fixture refresh. It cannot discover a new object-only rule;
+those require a separate audit of `Illuminate\Validation\Rule` and the
+classes under `Illuminate\Validation\Rules`.
 
 ## Status definitions
 
-The tables use three accepted-value statuses:
+The tables use four accepted-value statuses:
 
 - **direct**: the rule contributes a non-`mixed` PHPStan type;
 - **neutral**: the rule is explicitly recognized but contributes no local
   accepted-value type, leaving adjacent rules to determine it;
 - **mixed**: the rule falls through to the conservative default because no
   built-in accepted-value model exists.
+- **object-only mixed**: Laravel supplies a distinct predicate object outside
+  the canonical name inventory, and the object currently contributes `mixed`
+  through the custom-rule path.
 
 These statuses describe only accepted native values. Presence, exclusion,
 nested projection, wildcard traversal, and correlations with other fields are
@@ -81,12 +100,18 @@ separate dimensions.
 
 ## Summary
 
-| Accepted-value handling | Rule names | Focused static coverage | Meaning |
+| Accepted-value handling | Rule forms | Focused static coverage | Meaning |
 | --- | ---: | ---: | --- |
 | Direct type contribution | 57 | 57 | A native value type is emitted and has dedicated focused static coverage |
 | Explicitly neutral | 49 | 18 | The rule does not independently narrow the local value type, whether intentionally or because a correlated model is unavailable |
 | Conservative `mixed` fallback | 8 | 0 | No built-in accepted-value model is applied |
-| **Total reserved names** | **114** | **89 files** | Covers the current Laravel 13.25 name inventory, including `Enum` and `Password` |
+| Object-only built-in predicate with `mixed` contribution | 2 | 0 | `Can` and `AnyOf` are recognized by their Laravel predicate contracts but have no dedicated built-in extraction |
+| **Total public rule semantics** | **116** | **89 files** | 114 reserved identities plus the two distinct object-only predicates |
+
+The first three rows are exactly the 114 names reserved against custom string
+aliases. The object-only row does not expand that alias namespace: neither
+`Can` nor `AnyOf` has a canonical string-rule name for a custom alias to
+shadow.
 
 The repository's generated Laravel fixtures provide broader conformance
 coverage than the focused-file count suggests. Focused files are still
@@ -190,6 +215,22 @@ runtime and static coverage instead. `Encoding` and `Extensions` also have
 focused file coverage, while `ArrayKeys` is newer than the pinned Laravel 13
 fixture but has focused runtime and static coverage.
 
+## Object-only built-in predicates
+
+Two Laravel predicates sit outside the 114-name table because they exist only
+as rule objects:
+
+| Rule object | Introduced | Laravel consequence | Current inference |
+| --- | --- | --- | --- |
+| `Rule::can()` / `Can` | 10.14 | Calls the authorization gate with the configured ability, arguments, and validated value | Custom predicate with a `mixed` accepted type; authorization policy supplies no native-value contract |
+| `Rule::anyOf()` / `AnyOf` | 12.8 | Runs alternative nested rule sets and succeeds when at least one complete set passes | Custom predicate with a `mixed` accepted type; branch state and resulting unions are not extracted |
+
+This treatment is conservative. `Can` is an application-service predicate and
+has no general type contribution to recover. A fresh, statically resolvable
+`AnyOf` could eventually contribute the union of its branches, but that is a
+built-in rule-object inference project rather than a parsing rule: Laravel
+still preserves the successful branch's original value.
+
 ## Presence and output-shape findings
 
 Comparing Laravel's implicit and dependent rule lists with `RuleTreeNode`
@@ -224,9 +265,11 @@ unmentioned nested keys remain possible.
 
 ## Built-in rule objects and fluent builders
 
-String rules are only part of Laravel's public surface. Laravel 13.24 exposes
-fluent builders through `Illuminate\Validation\Rule` and classes under
-`Illuminate\Validation\Rules`.
+String rules are only part of Laravel's public surface. The supported Laravel
+majors expose fluent builders through `Illuminate\Validation\Rule` and
+classes under `Illuminate\Validation\Rules`; the object-only `Can` and
+`AnyOf` predicates are part of that surface even though they have no reserved
+string-rule identity.
 
 Current static extraction treats them in four ways:
 

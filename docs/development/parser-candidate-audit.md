@@ -2,11 +2,12 @@
 
 ## Decision
 
-Laravel's 114 built-in rule names do not justify 114 parsing rules. Most rules
-describe predicates, presence, projection, relationships, or constraints on an
-already useful native type. Giving each one a `Parse::*` counterpart would
-reproduce Laravel's overloaded rule catalog instead of establishing canonical
-representations.
+Laravel's 114 canonical rule identities, plus the object-only `Can` and
+`AnyOf` predicates, do not justify 116 parsing rules. Most rules describe
+predicates, presence, projection, relationships, authorization, alternative
+rule sets, or constraints on an already useful native type. Giving each one a
+`Parse::*` counterpart would reproduce Laravel's overloaded rule catalog
+instead of establishing canonical representations.
 
 The strongest additional first-party parser candidates were:
 
@@ -32,9 +33,13 @@ contract.
 
 ## Scope and evidence
 
-This audit covers the 114 names reserved by `TypeResolver` at extension revision
-`e2c2fe7`. That inventory corresponds to Laravel 13.25 and is documented in the
+The original audit covered the 114 names reserved by `TypeResolver` at
+extension revision `e2c2fe7`. That inventory corresponds to Laravel 13.25 and
+is documented in the
 [validation rule coverage survey](../pages/reference/validation-rule-coverage.md).
+A 2026-08-24 follow-up against Laravel 13.x commit `0189a60` retained those 114
+identities and separately counted `Can` and `AnyOf`, which are built-in
+predicate objects without canonical string-rule names.
 
 Candidate source behavior was inspected at the pinned Laravel fixture commits:
 
@@ -92,16 +97,16 @@ PHPStan a materially stronger type.
 
 ## Complete inventory
 
-Every reserved Laravel rule has one primary disposition in this audit:
+Every audited Laravel rule semantic has one primary disposition in this audit:
 
 | Disposition | Rule names | Count |
 | --- | --- | ---: |
-| Already served by current parsers or adjacent numeric constraints | `Boolean`, `Decimal`, `Digits`, `DigitsBetween`, `Enum`, `Integer`, `MaxDigits`, `MinDigits`, `MultipleOf`, `Numeric`, `String` | 11 |
-| Credible dependency-free parser track | `Accepted`, `Base64`, `Date`, `DateFormat`, `Declined`, `Json`, `Timezone` | 7 |
+| Already served by current parsers or adjacent numeric constraints | `Accepted`, `Boolean`, `Date`, `DateFormat`, `Decimal`, `Declined`, `Digits`, `DigitsBetween`, `Enum`, `Integer`, `MaxDigits`, `MinDigits`, `MultipleOf`, `Numeric`, `String`, `Timezone` | 16 |
+| Remaining dependency-free parser track | `Base64`, `Json` | 2 |
 | Useful only with a chosen value-object dependency | `ActiveUrl`, `Email`, `HexColor`, `Ip`, `Ipv4`, `Ipv6`, `MacAddress`, `Ulid`, `Url`, `Uuid` | 10 |
 | Same-native-type normalization with little static gain | `Alpha`, `AlphaDash`, `AlphaNum`, `Ascii`, `DoesntEndWith`, `DoesntStartWith`, `Encoding`, `EndsWith`, `Lowercase`, `StartsWith`, `Uppercase` | 11 |
-| No distinct parser responsibility | All rules in the grouped table below | 75 |
-| **Total** |  | **114** |
+| No distinct parser responsibility | All rules and object-only predicates in the grouped table below | 77 |
+| **Total** |  | **116** |
 
 The first row does not claim that one parser replaces every listed predicate.
 `Parse::integer()`, `Parse::float()`, and the numeric Laravel rules have
@@ -110,7 +115,7 @@ constraints that can accompany a parser. They do not each define a canonical
 output representation. In particular, parsing a digit string as an integer can
 destroy meaningful leading zeroes.
 
-The 75 rules with no distinct parser responsibility divide as follows:
+The 77 rules with no distinct parser responsibility divide as follows:
 
 | Reason | Rules | Count |
 | --- | --- | ---: |
@@ -119,6 +124,7 @@ The 75 rules with no distinct parser responsibility divide as follows:
 | Comparison or size predicates | `After`, `AfterOrEqual`, `Before`, `BeforeOrEqual`, `Between`, `DateEquals`, `Gt`, `Gte`, `Lt`, `Lte`, `Max`, `Min`, `Size` | 13 |
 | Cross-field, membership, database, or environment predicates | `AcceptedIf`, `Confirmed`, `CurrentPassword`, `DeclinedIf`, `Different`, `Distinct`, `Exists`, `In`, `InArray`, `NotIn`, `Password`, `Same`, `Unique` | 13 |
 | Application-defined regular-expression predicates | `NotRegex`, `Regex` | 2 |
+| Authorization or alternative-rule composition | `Can`, `AnyOf` | 2 |
 
 Presence and projection rules determine whether parsed values reach output;
 they are not conversions. Comparison and membership rules constrain a parsed
@@ -331,6 +337,31 @@ policy and a target representation.
 **Recommendation:** no first-party parsers without a concrete normalization
 contract and downstream demand.
 
+## Best remaining candidates
+
+The following scores combine likely application value, clarity of the
+canonical representation, soundness of a static contract, and dependency cost.
+They record relative opportunity, not a commitment to put every candidate in
+the core package.
+
+| Candidate | Usefulness | Most plausible direction | Main obstacle |
+| --- | ---: | --- | --- |
+| UUID and ULID | 9/10 | Optional adapter producing Symfony UID objects | Would make an optional or new runtime dependency part of the public contract |
+| Email address | 8/10 | Optional adapter producing a declared email-address value object | No standard PHP representation; syntax and normalization policy belong to the chosen library |
+| URL / URI | 8/10 | Optional adapter producing a declared URI object | URI implementation, IDNA handling, and normalization policy must be selected explicitly |
+| IP, IPv4, and IPv6 | 8/10 | Optional adapter producing an address value object | No standard PHP representation; textual normalization needs an explicit library contract |
+| JSON | 7/10 | Terminal, string-only `jsonList()` or `jsonObject()` parser | Top-level families, numeric policy, duplicate keys, and descendant Laravel rules prevent one honest general parser |
+| `in` | 6/10 | Parser that returns one statically declared allowed literal | Laravel's loose string comparison can make several native inputs equivalent, leaving no canonical winner without a new policy |
+| Active URL | 6/10 | Parse the URL representation separately and retain DNS as an ordinary predicate | Network liveness is not parsing and must not determine the produced representation |
+| Hex color and MAC address | 6/10 | Optional adapters producing declared value objects | Lower demand and no standard representation justify keeping them out of core |
+| Base64 | 5/10 | Strict canonical decoding to a byte string | The runtime representation is still `string`, so PHPStan gains little without a byte-string value object |
+| Encoding | 4/10 | Explicit source-to-target transcoding parser | Validation checks existing bytes; transcoding requires application-owned source, target, and error policy |
+
+The strongest high-scoring candidates are therefore adapter work, not reasons
+to add core dependencies. JSON remains the strongest dependency-free semantic
+conversion, but only after a concrete terminal-decoding use case chooses one
+of the contracts already measured in the JSON investigation.
+
 ## Remaining sequence
 
 Date/time, timezone, accepted/declined, and explicit string parsing completed
@@ -359,6 +390,8 @@ candidate values above, and recorded `get_debug_type()` plus value identity.
 
 The source audit used
 `git show <commit>:src/Illuminate/Validation/Concerns/ValidatesAttributes.php`
-against the four pinned Laravel commits. The complete rule count was checked by
+against the four pinned Laravel commits. The 114-name count was checked by
 partitioning `TypeResolver::BUILT_IN_RULE_NAMES`; every name appears exactly
-once in the disposition table.
+once in the disposition table. The two object-only predicates were checked
+separately against `Illuminate\Validation\Rule` and their concrete classes so
+they do not masquerade as string-rule aliases.
