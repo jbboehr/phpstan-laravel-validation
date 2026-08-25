@@ -226,9 +226,9 @@
       }: let
         runCommand =
           if pkgs.stdenv.isLinux
-          then ''${pkgs.proot}/bin/proot -b "$TMPDIR/usr/bin/env:/usr/bin/env" ${pkgs.bash}/bin/bash -c ${pkgs.lib.escapeShellArg command}''
+          then ''${pkgs.proot}/bin/proot -b "$TMPDIR/usr/bin/env:/usr/bin/env" ${pkgs.bash}/bin/bash -euo pipefail -c ${pkgs.lib.escapeShellArg command}''
           else ''
-            ${pkgs.bash}/bin/bash -c ${pkgs.lib.escapeShellArg command}
+            ${pkgs.bash}/bin/bash -euo pipefail -c ${pkgs.lib.escapeShellArg command}
           '';
       in
         pkgs.runCommand "phpstan-laravel-validation-${name}" {

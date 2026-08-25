@@ -56,13 +56,12 @@ final class StringRule extends BaseParsingRule
         }
 
         try {
-            return (string) $value;
+            return $value->__toString();
         } catch (Throwable) {
             // A Stringable that cannot produce its declared representation is
             // invalid input, not an exception that should escape validation.
+            throw new ParseFailure();
         }
-
-        throw new ParseFailure();
     }
 
     protected function message(): string
