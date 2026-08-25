@@ -11,6 +11,7 @@ use jbboehr\PhpstanLaravelValidation\Test\Fixtures\MoneyParsingRule;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\StringValidationStatus;
 use jbboehr\Rensei\Parse;
 use jbboehr\Rensei\Rules\AcceptedRule;
+use jbboehr\Rensei\Rules\Base64Rule;
 use jbboehr\Rensei\Rules\BooleanRule;
 use jbboehr\Rensei\Rules\DateTimeRule;
 use jbboehr\Rensei\Rules\DeclinedRule;
@@ -136,6 +137,35 @@ assertType('array{identifier: string}', Validator::make([], [
 
 assertType('array{}', Validator::make([], [
     'identifier' => ['exclude', Parse::string()],
+])->validated());
+
+// Canonical Base64 decoding produces at least one byte. PHPStan's
+// non-empty-string type applies to binary strings as well as text.
+assertType('array{payload?: non-empty-string}', Validator::make([], [
+    'payload' => [Parse::base64()],
+])->validated());
+
+assertType('array{payload: non-empty-string}', Validator::make([], [
+    'payload' => ['required', Parse::base64()],
+])->validated());
+
+assertType('array{payload?: non-empty-string|null}', Validator::make([], [
+    'payload' => ['nullable', Parse::base64()],
+])->validated());
+
+assertType('array{payload: non-empty-string}', Validator::make([], [
+    'payload' => ['required', new Base64Rule()],
+])->validated());
+
+assertType(
+    'array{documents?: array<int|string, array{payload: non-empty-string}>}',
+    Validator::make([], [
+        'documents.*.payload' => ['required', Parse::base64()],
+    ])->validated()
+);
+
+assertType('array{}', Validator::make([], [
+    'payload' => ['exclude', Parse::base64()],
 ])->validated());
 
 // Float parsing accepts several representations but always produces a finite

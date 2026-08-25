@@ -18,12 +18,11 @@ The strongest additional first-party parser candidates were:
 4. explicit conversion of strings, integers, and `Stringable` objects to
    `string`;
 5. top-level-specific JSON decoding, after a separate structural investigation;
-6. canonical Base64 decoding, if semantic normalization without a narrower PHP
-   type proves useful.
+6. canonical Base64 decoding to a non-empty binary string.
 
-Date/time, timezone, accepted/declined token, and explicit string parsing are
-now implemented. JSON should not enter the runtime API until its output
-families and nested-projection behavior have a written contract.
+Date/time, timezone, accepted/declined token, explicit string, and canonical
+Base64 parsing are now implemented. JSON should not enter the runtime API until
+its output families and nested-projection behavior have a written contract.
 
 Do not add a core runtime dependency merely to supply UUID, ULID, URI, email,
 IP-address, color, or decimal value objects. Applications can implement those
@@ -91,9 +90,10 @@ A built-in parser should satisfy all of these conditions:
 6. It remains one input value to one output value. It does not become object
    hydration or a schema language.
 
-A parser can still be useful when its input and output are both strings, as
-with decoded Base64 bytes. That case ranks below a parser that also gives
-PHPStan a materially stronger type.
+A parser can still be useful when its input and output are both strings. Base64
+decoding changes the representation and retains the useful guarantee that
+successful output is non-empty, even though PHP still represents the bytes as
+a string.
 
 ## Complete inventory
 
@@ -101,8 +101,8 @@ Every audited Laravel rule semantic has one primary disposition in this audit:
 
 | Disposition | Rule names | Count |
 | --- | --- | ---: |
-| Already served by current parsers or adjacent numeric constraints | `Accepted`, `Boolean`, `Date`, `DateFormat`, `Decimal`, `Declined`, `Digits`, `DigitsBetween`, `Enum`, `Integer`, `MaxDigits`, `MinDigits`, `MultipleOf`, `Numeric`, `String`, `Timezone` | 16 |
-| Remaining dependency-free parser track | `Base64`, `Json` | 2 |
+| Already served by current parsers or adjacent numeric constraints | `Accepted`, `Base64`, `Boolean`, `Date`, `DateFormat`, `Decimal`, `Declined`, `Digits`, `DigitsBetween`, `Enum`, `Integer`, `MaxDigits`, `MinDigits`, `MultipleOf`, `Numeric`, `String`, `Timezone` | 17 |
+| Remaining dependency-free parser track | `Json` | 1 |
 | Useful only with a chosen value-object dependency | `ActiveUrl`, `Email`, `HexColor`, `Ip`, `Ipv4`, `Ipv6`, `MacAddress`, `Ulid`, `Url`, `Uuid` | 10 |
 | Same-native-type normalization with little static gain | `Alpha`, `AlphaDash`, `AlphaNum`, `Ascii`, `DoesntEndWith`, `DoesntStartWith`, `Encoding`, `EndsWith`, `Lowercase`, `StartsWith`, `Uppercase` | 11 |
 | No distinct parser responsibility | All rules and object-only predicates in the grouped table below | 77 |
@@ -277,19 +277,22 @@ typed parser when decoded values need a declared nested shape.
 ### Base64
 
 Laravel 13.21 added a strict canonical Base64 predicate and preserves the
-encoded string. A parser could return the decoded bytes:
+encoded string. The implemented parser instead returns the decoded bytes:
 
 ```php
-Parse::base64() // ParsingRule<string>
+Parse::base64() // ParsingRule<non-empty-string>
 ```
 
-The runtime result is useful, but the PHP type remains `string`. The contract
-must decide empty payloads and URL-safe Base64; neither follows automatically
-from the rule name.
+It accepts non-empty native strings in the standard alphabet, uses strict
+decoding, and requires an exact encode/decode round trip. It rejects empty
+payloads, the URL-safe alphabet, whitespace, extra padding, and omitted required
+padding. Every successful input decodes to at least one byte, so PHPStan can
+retain `non-empty-string` even though PHP has no distinct native byte-string
+type.
 
-**Recommendation:** low priority unless a concrete consumer needs decoded
-bytes. A byte-string value object would provide more static distinction but
-would reintroduce the dependency question.
+**Decision:** implemented as a dependency-free parser. A byte-string value
+object could provide nominal distinction later but would reintroduce the
+dependency question.
 
 ## Candidates requiring value-object policy
 
@@ -354,7 +357,6 @@ the core package.
 | `in` | 6/10 | Parser that returns one statically declared allowed literal | Laravel's loose string comparison can make several native inputs equivalent, leaving no canonical winner without a new policy |
 | Active URL | 6/10 | Parse the URL representation separately and retain DNS as an ordinary predicate | Network liveness is not parsing and must not determine the produced representation |
 | Hex color and MAC address | 6/10 | Optional adapters producing declared value objects | Lower demand and no standard representation justify keeping them out of core |
-| Base64 | 5/10 | Strict canonical decoding to a byte string | The runtime representation is still `string`, so PHPStan gains little without a byte-string value object |
 | Encoding | 4/10 | Explicit source-to-target transcoding parser | Validation checks existing bytes; transcoding requires application-owned source, target, and error policy |
 
 The strongest high-scoring candidates are therefore adapter work, not reasons
@@ -364,15 +366,14 @@ of the contracts already measured in the JSON investigation.
 
 ## Remaining sequence
 
-Date/time, timezone, accepted/declined, and explicit string parsing completed
-the useful dependency-free scalar recommendations. The remaining candidates
-are:
+Date/time, timezone, accepted/declined, explicit string, and Base64 parsing
+completed the useful dependency-free scalar recommendations. The remaining
+candidates are:
 
 1. Add no JSON parser until a concrete terminal-decoding use case justifies
    the contract recorded in the JSON parser investigation.
 2. Add no value-object dependencies to core. Collect real consumer demand and
    prefer optional adapters.
-3. Add Base64 decoding only for a demonstrated normalization use case.
 
 Each implementation slice must include grammar tests, Laravel runtime and
 static-inference conformance, optional and nullable paths, nested and wildcard

@@ -22,9 +22,9 @@ Investigation date: 2026-08-17. Prototype built and corrections folded in:
 ## Status
 
 Implementations of `Parse::integer()`, `Parse::float()`, `Parse::string()`,
-`Parse::boolean()`, `Parse::accepted()`, `Parse::declined()`, `Parse::enum()`,
-`Parse::dateTime()`, and `Parse::timezone()` have since been built on this
-design.
+`Parse::base64()`, `Parse::boolean()`, `Parse::accepted()`,
+`Parse::declined()`, `Parse::enum()`, `Parse::dateTime()`, and
+`Parse::timezone()` have since been built on this design.
 The integer slice proved the mechanism and corrected the report in several
 places; the float slice pinned finite canonical decimal semantics; the boolean
 slice confirmed that another concrete parser can reuse the lifecycle; the enum

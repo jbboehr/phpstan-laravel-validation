@@ -24,6 +24,7 @@ namespace jbboehr\Rensei;
 use BackedEnum;
 use DateTimeZone;
 use jbboehr\Rensei\Rules\AcceptedRule;
+use jbboehr\Rensei\Rules\Base64Rule;
 use jbboehr\Rensei\Rules\BooleanRule;
 use jbboehr\Rensei\Rules\DateTimeRule;
 use jbboehr\Rensei\Rules\DeclinedRule;
@@ -42,6 +43,7 @@ use jbboehr\Rensei\Rules\TimezoneRule;
  *
  *     'age' => ['required', 'integer'],        // validated() holds "42"
  *     'age' => ['required', Parse::integer()], // validated() holds 42
+ *     'payload' => ['required', Parse::base64()], // "aGk=" becomes "hi"
  *     'ratio' => ['required', Parse::float()], // "1.5" becomes 1.5
  *     'identifier' => ['required', Parse::string()], // 42 becomes "42"
  *     'enabled' => ['required', Parse::boolean()], // "0" becomes false
@@ -83,6 +85,19 @@ final class Parse
     public static function accepted(): AcceptedRule
     {
         return new AcceptedRule();
+    }
+
+    /**
+     * Decode canonical standard Base64 into its represented bytes.
+     *
+     * Input must be a non-empty native string using the standard alphabet and
+     * canonical padding. URL-safe, whitespace-containing, and permissively
+     * unpadded spellings fail validation. Successful output is a non-empty
+     * binary string and is not required to contain UTF-8 text.
+     */
+    public static function base64(): Base64Rule
+    {
+        return new Base64Rule();
     }
 
     /**

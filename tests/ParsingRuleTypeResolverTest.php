@@ -32,6 +32,7 @@ use jbboehr\PhpstanLaravelValidation\Validation\Rule;
 use jbboehr\Rensei\ParsingRule;
 use jbboehr\Rensei\Rules\AcceptedRule;
 use jbboehr\Rensei\Rules\BaseParsingRule;
+use jbboehr\Rensei\Rules\Base64Rule;
 use jbboehr\Rensei\Rules\DateTimeRule;
 use jbboehr\Rensei\Rules\DeclinedRule;
 use jbboehr\Rensei\Rules\FloatRule;
@@ -74,6 +75,7 @@ final class ParsingRuleTypeResolverTest extends PHPStanTestCase
         );
         self::assertSame('true', self::resolve(new ObjectType(AcceptedRule::class)));
         self::assertSame('false', self::resolve(new ObjectType(DeclinedRule::class)));
+        self::assertSame('non-empty-string', self::resolve(new ObjectType(Base64Rule::class)));
     }
 
     /**

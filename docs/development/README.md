@@ -55,7 +55,7 @@ validation semantics. It traces the validator lifecycle across every supported
 major, measures a delayed write-back prototype, and documents the presence,
 null, wildcard, exclusion, version-floor, and `after()`-ordering hazards it
 found. Experimental implementations of `Parse::integer()`, `Parse::float()`,
-`Parse::string()`, `Parse::boolean()`, `Parse::accepted()`,
+`Parse::string()`, `Parse::base64()`, `Parse::boolean()`, `Parse::accepted()`,
 `Parse::declined()`, `Parse::enum()`, `Parse::dateTime()`, and
 `Parse::timezone()` have since been built on that design; the report's Status
 section records the corrections and remaining constraints exposed while

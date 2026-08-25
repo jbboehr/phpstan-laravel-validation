@@ -6,11 +6,12 @@
 
 - Experimental opt-in parsing rules under the `jbboehr\Rensei` namespace.
   `Parse::integer()`, `Parse::float()`, `Parse::boolean()`,
-  `Parse::string()`, `Parse::accepted()`, `Parse::declined()`, `Parse::enum()`,
-  `Parse::dateTime()`, and `Parse::timezone()` produce canonical values of
-  declared PHP types in successful `validated()` and `safe()` output, or fail
-  validation; ordinary rules continue to observe the original representation
-  and the request itself is never rewritten.
+  `Parse::string()`, `Parse::base64()`, `Parse::accepted()`,
+  `Parse::declined()`, `Parse::enum()`, `Parse::dateTime()`, and
+  `Parse::timezone()` produce canonical values of declared PHP types in
+  successful `validated()` and `safe()` output, or fail validation; ordinary
+  rules continue to observe the original representation and the request itself
+  is never rewritten.
   PHPStan infers the produced type, reading it from the `ParsingRule<T>`
   binding, so a parser defined outside this package needs no support here.
 - Requires `laravel/framework` 10.7.0 or later, which introduced
@@ -47,6 +48,13 @@
   declared representation. It rejects floats and booleans rather than
   inheriting mutable float precision or PHP's `false`-to-empty-string cast;
   failed `Stringable` conversions become ordinary validation failures.
+
+  `Parse::base64()` accepts non-empty native strings in canonical standard
+  Base64 and produces the represented bytes as `non-empty-string`. Strict
+  decoding plus an exact encode/decode round trip rejects whitespace, URL-safe
+  input, extra padding, and omitted required padding. The parser supplies this
+  grammar on every parser-supported Laravel release; it does not depend on the
+  native preserving `base64` predicate introduced in Laravel 13.21.
 
   `Parse::accepted()` and `Parse::declined()` accept Laravel's respective
   strict token sets and normalize them to literal `true` and `false`. They do

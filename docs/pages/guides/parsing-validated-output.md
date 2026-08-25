@@ -54,6 +54,7 @@ $validator = Validator::make($input, [
     'age' => ['required', Parse::integer()],
     'ratio' => ['required', Parse::float()],
     'identifier' => ['required', Parse::string()],
+    'payload' => ['required', Parse::base64()],
     'enabled' => ['required', Parse::boolean()],
     'terms' => ['required', Parse::accepted()],
     'opt_out' => ['required', Parse::declined()],
@@ -64,16 +65,16 @@ $validator = Validator::make($input, [
 
 $validated = $validator->validated();
 \PHPStan\dumpType($validated);
-// array{age: int, ratio: float, identifier: string, enabled: bool,
-//     terms: true, opt_out: false, status: AccountStatus, starts_at: DateTimeImmutable,
-//     timezone: DateTimeZone}
+// array{age: int, ratio: float, identifier: string, payload: non-empty-string,
+//     enabled: bool, terms: true, opt_out: false, status: AccountStatus,
+//     starts_at: DateTimeImmutable, timezone: DateTimeZone}
 
 $safe = $validator->safe()->all();
 ```
 
 For corresponding input, both output calls contain `42`, `1.5`, a string
-identifier, `false`, literal `true` and `false` acceptance values,
-`AccountStatus::Active`, a `DateTimeImmutable`, and a `DateTimeZone`.
+identifier, decoded bytes, `false`, literal `true` and `false` acceptance
+values, `AccountStatus::Active`, a `DateTimeImmutable`, and a `DateTimeZone`.
 
 PHPStan deliberately retains Laravel's broad `array` type for
 `$validator->safe()->all()`. A factory may use `Factory::resolver()` to return
@@ -142,6 +143,24 @@ rejects an integral float or `true` even though Laravel's `integer` predicate
 accepts them. A `Stringable` object may produce an empty string after
 `required` has accepted the original object; `required` does not constrain the
 later parsed representation.
+
+### `Parse::base64()`
+
+Accepts a non-empty native string in canonical standard Base64 and produces
+the represented bytes as `non-empty-string`. The output is a PHP binary string;
+it is not promised to be UTF-8 text. For example, `'aGk='` becomes `'hi'`, and
+`'AA=='` becomes a one-byte string containing NUL.
+
+The parser uses strict decoding and requires that encoding the decoded bytes
+reproduce the input exactly. It therefore rejects whitespace, the URL-safe
+alphabet, extra padding, and spellings such as `'aGk'` that omit required `=`
+padding. Canonical input such as `'TWFu'` needs no padding and remains valid.
+Empty input fails rather than producing an empty string.
+
+Laravel added its preserving `base64` predicate in 13.21. `Parse::base64()`
+performs its own validation and is available on every Laravel release supported
+by the parsing runtime. The native `base64` rule is not required, and does not
+exist as a built-in on earlier releases.
 
 ### `Parse::boolean()`
 

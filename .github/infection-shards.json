@@ -62,6 +62,7 @@
             "runtime/ParsingRule.php",
             "runtime/Rules/BaseParsingRule.php",
             "runtime/Rules/AcceptedRule.php",
+            "runtime/Rules/Base64Rule.php",
             "runtime/Rules/BooleanRule.php",
             "runtime/Rules/DateTimeRule.php",
             "runtime/Rules/DeclinedRule.php",
