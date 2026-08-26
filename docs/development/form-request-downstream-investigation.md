@@ -12,7 +12,7 @@ This is a pinned development investigation, not a compatibility or performance
 promise for later revisions.
 
 Initial investigation date: 2026-08-10. Follow-up implementation and rerun:
-2026-08-11.
+2026-08-11. Cold discovery phase profile: 2026-08-25.
 
 ## Result
 
@@ -185,6 +185,91 @@ Cold analysis still builds the registry, and Pterodactyl now resolves many
 more eligible requests, so this optimization primarily addresses repeated
 cached invocations rather than eliminating cold discovery.
 
+### Cold discovery phase profile
+
+A later profile isolated the registry's cold work from whole-application
+analysis. A temporary instrumented copy of `FormRequestTypeRegistry` recorded
+wall-clock time around source fingerprinting, AST class discovery, PHPStan
+class reflection, lifecycle eligibility, and rule resolution. The
+instrumentation was not retained in production code.
+
+Each application was analyzed three times with a fresh PHPStan `tmpDir`. The
+analysis target was one ordinary service-provider file so unrelated rule
+analysis did not dominate the sample. FormRequest discovery still traversed
+the same project and Composer source roots as the full scan. The table reports
+medians from the three runs:
+
+| Phase | Koel | Pterodactyl |
+| --- | ---: | ---: |
+| Complete registry `getHash()` | 3.580 s | 2.528 s |
+| Source-path enumeration and content fingerprint | 0.011 s | 0.006 s |
+| Parse source files and collect class names | 0.934 s | 0.477 s |
+| Reflect classes and test FormRequest ancestry | 1.616 s | 1.038 s |
+| Reflect the FormRequest base class | 0.028 s | 0.028 s |
+| Lifecycle eligibility checks | 0.027 s | 0.079 s |
+| Resolve eligible `rules()` methods | 0.439 s | 0.597 s |
+| Other registry work, including type descriptions | 0.526 s | 0.304 s |
+
+The corpus behind those timings was:
+
+| App | PHP source files | Declared classes | FormRequests | Eligible | Inferred |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Koel | 1,363 | 1,221 | 97 | 94 | 90 |
+| Pterodactyl | 681 | 635 | 113 | 98 | 88 |
+
+The result rejects the simplest optimization hypothesis. Filesystem traversal
+and content hashing are negligible on this warm operating-system cache, while
+AST discovery is material and PHPStan reflection is the largest measured
+phase. Rule resolution is also significant, especially in Pterodactyl, but it
+is not the principal Koel cost.
+
+A disposable experiment skipped class declarations with no `extends` clause;
+such a class cannot inherit `FormRequest`. It preserved every FormRequest,
+eligibility, and inferred-type count in both applications. The prefilter
+reduced reflected candidates from 1,221 to 918 in Koel and from 635 to 525 in
+Pterodactyl. Median registry time fell from 3.580 to 3.275 seconds in Koel
+(-8.5%) and from 2.528 to 2.445 seconds in Pterodactyl (-3.3%). This is a safe,
+modest optimization candidate, not evidence that more aggressive syntactic
+ancestry reconstruction would be sound. Indirect and external base classes
+still require PHPStan reflection.
+
+### Result-cache correctness and invalidation boundary
+
+The registry manifest and PHPStan's result cache have different invalidation
+boundaries. Any content change among the discovered PHP sources or Composer
+metadata invalidates the manifest and rebuilds the registry. If that rebuild
+produces the same semantic descriptor hash, PHPStan can still reuse its result
+cache. A changed descriptor hash invalidates the complete PHPStan result cache
+through `ResultCacheMetaExtension`.
+
+The global hash is currently necessary for soundness. A controlled experiment
+removed the registry's result-cache metadata tag. PHPStan then reused a stale
+caller result after either a FormRequest `rules()` body changed or an external
+constant used by its rules changed. The focused
+`FormRequestResultCacheTest::testChangingOnlyRulesMethodBodyInvalidatesCachedCaller()`
+and
+`FormRequestResultCacheTest::testChangingExternalRuleConstantInvalidatesCachedCaller()`
+cases preserve these regressions. PHPStan's ordinary dependency graph does not
+express this method-body-derived semantic dependency.
+
+PHPStan does not currently expose a supported per-file semantic dependency
+extension point. Draft
+[phpstan/phpstan-src#5364](https://github.com/phpstan/phpstan-src/pull/5364)
+proposes per-file dependencies on external paths, with a companion Symfony use
+case in
+[phpstan/phpstan-symfony#478](https://github.com/phpstan/phpstan-symfony/pull/478).
+The proposal remains unmerged. Its maintainer discussion identifies a more
+precise target: record that an analyzed file consumes a particular semantic
+key, then ask the owning extension for that key's current hash. This would let
+a FormRequest contract change invalidate its actual consumers without making
+the dependency a raw file path or discarding the complete cache.
+
+Until PHPStan provides such an extension point, the global semantic descriptor
+hash plus the manifest is the safest available compromise. FormRequest
+inference remains disabled by default so projects that do not opt in pay none
+of this discovery or invalidation cost. Disabling invalidation for enabled
+projects would knowingly permit stale inferred types.
+
 ### Raw wall-time samples
 
 These are the five wall-time samples, in seconds, behind each median. "Off"
@@ -251,8 +336,9 @@ Pterodactyl and 0.85 seconds for Koel.
 The manifest follow-up removes most of that fixed warm cost while preserving
 content-based invalidation. The integration is disabled by default, so
 ordinary extension users do not pay its cold discovery cost. Projects opting
-into FormRequests still pay for initial analysis and whenever relevant source
-or Composer metadata changes.
+into FormRequests still pay for initial analysis and registry reconstruction
+whenever any discovered PHP source or Composer metadata changes. Only a
+changed semantic descriptor hash invalidates PHPStan's complete result cache.
 
 Pterodactyl initially exhausted its project's effective 128 MiB limit when the
 audit first enabled FormRequests. A controlled rerun used a 2 GiB limit and
@@ -365,7 +451,17 @@ metadata.
 
 ## Remaining candidates
 
-1. Profile cold discovery separately now that warm cache hashing is cheap.
+1. Pursue a supported PHPStan API for per-file, extension-defined semantic
+   dependencies. A consumer should record a stable dependency key, such as a
+   FormRequest class, and the extension should provide that key's current
+   contract hash.
+1. Consider an optional exact FormRequest class list, separate from
+   `trustedClasses`, for projects that prefer explicit discovery. Unlisted
+   requests must retain Laravel's broad declared type. This would reduce
+   registry discovery work without weakening lifecycle checks or cache
+   invalidation.
+1. Consider the measured `extends` prefilter if its modest cold-start benefit
+   justifies a production change and dedicated discovery regression tests.
 1. Extend selected rule-object support only where Laravel runtime evidence
    establishes a useful static contract.
 1. Consider additional `ValidatedInput` access patterns beyond the implemented
