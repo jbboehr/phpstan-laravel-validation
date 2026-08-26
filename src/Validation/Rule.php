@@ -109,6 +109,14 @@ final class Rule
         return new self(self::RULE_PARSE, [], null, false, $producedType);
     }
 
+    /**
+     * A known base parsing rule whose produced type is unavailable.
+     */
+    public static function unresolvedParsing(): self
+    {
+        return new self(self::RULE_PARSE);
+    }
+
     public static function opaque(): self
     {
         return new self(self::RULE_OPAQUE);

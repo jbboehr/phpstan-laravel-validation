@@ -30,7 +30,8 @@
             "src/Validation/RuleParameterExpressionResolver.php",
             "src/Validation/RuleSetResolver.php",
             "src/Validation/StaticRuleValue.php",
-            "src/Validation/StringRuleExpressionResolver.php"
+            "src/Validation/StringRuleExpressionResolver.php",
+            "src/Validation/ValidationRulesExpressionResolver.php"
         ]
     },
     "integration": {
@@ -45,6 +46,7 @@
             "src/Validation/Rule.php",
             "src/Validation/RuleParser.php",
             "src/Rule/ParsingNumericSizeRule.php",
+            "src/Rule/ParsingRuleLaravelVersionRule.php",
             "src/Rule/ValidatorMutationRule.php",
             "src/Rule/UnvalidatedArrayKeysConfigurationRule.php"
         ]

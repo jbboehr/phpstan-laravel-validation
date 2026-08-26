@@ -766,8 +766,17 @@ final class RuleSetResolver
             // A parsing rule also satisfies the ValidationRule contract that
             // the custom resolver recognizes, so it must be offered the type
             // first or its produced type is lost to a predicate reading.
-            return $this->parsingRuleTypeResolver->resolveRule($value->getType())
-                ?? $this->customRuleTypeResolver->resolveRule($value->getType());
+            $type = $value->getType();
+            $parsingRule = $this->parsingRuleTypeResolver->resolveRule($type);
+            if ($parsingRule !== null) {
+                return $parsingRule;
+            }
+
+            if ($this->parsingRuleTypeResolver->requiresValidatorSetValue($type)) {
+                return Rule::unresolvedParsing();
+            }
+
+            return $this->customRuleTypeResolver->resolveRule($type);
         }
         if (!is_array($value)) {
             return $value;

@@ -2758,6 +2758,20 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
             : ltrim($version, 'v');
     }
 
+    /** @group laravel */
+    public function testSetValueCapabilityMatchesTheParsingRuntimeFloor(): void
+    {
+        self::assertSame(
+            version_compare(
+                self::frameworkVersion(),
+                \jbboehr\Rensei\Internal\ValidatorCapabilities::SET_VALUE_INTRODUCED,
+                '>='
+            ),
+            (new \ReflectionClass(\Illuminate\Validation\Validator::class))
+                ->hasMethod('setValue')
+        );
+    }
+
     public function testConfirmedComparisonFieldIsOnlyValidatedWhenItHasRules(): void
     {
         $factory = new \Illuminate\Validation\Factory(

@@ -20,9 +20,12 @@ The analysis extension supports Laravel 10.0 through 13. The parsing runtime
 requires Laravel 10.7 or newer because it uses `Validator::setValue()` for
 checked final write-back. Composer cannot express a version floor that applies
 only when an optional class is used, so an older Laravel release fails with
-`UnsupportedLaravelVersion` when it attempts to run a parser. PHPStan does not
-currently diagnose that mismatch: it can infer the produced type below 10.7,
-but the unsupported runtime still fails closed.
+`UnsupportedLaravelVersion` when it attempts to run a parser. When PHPStan can
+identify a supported `laravel/framework` version below 10.7, it also reports
+each statically resolvable parser use as
+`laravelValidation.parsingRuleLaravelVersion`. If the version is unavailable,
+analysis stays conservative about compatibility and the runtime guard still
+fails closed.
 
 Literal dots in attribute names have a narrower compatibility window. Parser
 rules on a path such as `a\.b` cannot recover Laravel's unmarked internal key

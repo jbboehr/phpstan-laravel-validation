@@ -95,6 +95,15 @@ final class ParsingRuleTypeTest extends TestCase
         self::assertSame('int', self::describe($node->getProducedType()));
     }
 
+    public function testAnUnresolvedParsingRuleProducesMixedRatherThanRetainingPredicateTypes(): void
+    {
+        $node = self::treeFor(['string', Rule::unresolvedParsing()]);
+
+        self::assertTrue($node->hasParsingRule());
+        self::assertNull($node->getProducedType());
+        self::assertSame('mixed', self::describe((new TypeResolver())->evaluateLeaf($node)));
+    }
+
     public function testAParsingRuleDoesNotConstrainTheCallerInput(): void
     {
         // The parsed value lands in the validator's own copy of the data. The

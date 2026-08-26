@@ -21,10 +21,9 @@ declare(strict_types=1);
 
 namespace jbboehr\PhpstanLaravelValidation\Test;
 
-use jbboehr\PhpstanLaravelValidation\Extension\CallArgumentResolver;
 use jbboehr\PhpstanLaravelValidation\Rule\ParsingNumericSizeRule;
 use jbboehr\PhpstanLaravelValidation\Validation\RuleSetResolver;
-use PHPStan\Reflection\ReflectionProvider;
+use jbboehr\PhpstanLaravelValidation\Validation\ValidationRulesExpressionResolver;
 use PHPStan\Rules\Rule;
 use PHPStan\Testing\RuleTestCase;
 
@@ -48,8 +47,7 @@ final class ParsingNumericSizeRuleTest extends RuleTestCase
 
         return new ParsingNumericSizeRule(
             $container->getByType(RuleSetResolver::class),
-            $container->getByType(CallArgumentResolver::class),
-            $container->getByType(ReflectionProvider::class)
+            $container->getByType(ValidationRulesExpressionResolver::class)
         );
     }
 

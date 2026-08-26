@@ -75,6 +75,7 @@ services:
   - class: jbboehr\PhpstanLaravelValidation\Type\ValidatorTypeHelper
   - class: jbboehr\PhpstanLaravelValidation\Type\ValidatedInputTypeResolver
   - class: jbboehr\PhpstanLaravelValidation\Extension\CallArgumentResolver
+  - class: jbboehr\PhpstanLaravelValidation\Validation\ValidationRulesExpressionResolver
   - class: jbboehr\PhpstanLaravelValidation\Rule\UnvalidatedArrayKeysConfigurationRule
     arguments:
       includeUnvalidatedArrayKeys: %phpstanLaravelValidation.includeUnvalidatedArrayKeys%
@@ -84,6 +85,9 @@ services:
     tags:
       - phpstan.rules.rule
   - class: jbboehr\PhpstanLaravelValidation\Rule\ParsingNumericSizeRule
+    tags:
+      - phpstan.rules.rule
+  - class: jbboehr\PhpstanLaravelValidation\Rule\ParsingRuleLaravelVersionRule
     tags:
       - phpstan.rules.rule
   - class: jbboehr\PhpstanLaravelValidation\Extension\ControllerValidateExtension

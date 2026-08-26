@@ -124,6 +124,28 @@ final class ParsingRuleTypeResolverTest extends PHPStanTestCase
         );
     }
 
+    public function testIdentifiesAConcreteBaseParserWhenItsProducedTypeIsMixed(): void
+    {
+        $resolver = new ParsingRuleTypeResolver(self::createReflectionProvider());
+
+        self::assertNull($resolver->resolveRule(new ObjectType(MixedOutputParsingRule::class)));
+        self::assertTrue($resolver->requiresValidatorSetValue(
+            new ObjectType(MixedOutputParsingRule::class)
+        ));
+    }
+
+    public function testIdentifiesAbstractBaseTypesButNotUnrelatedTypes(): void
+    {
+        $resolver = new ParsingRuleTypeResolver(self::createReflectionProvider());
+
+        self::assertTrue($resolver->requiresValidatorSetValue(
+            new ObjectType(BaseParsingRule::class)
+        ));
+        self::assertFalse($resolver->requiresValidatorSetValue(
+            new ObjectType(UnknownRule::class)
+        ));
+    }
+
     public function testUnionsTheProducedTypesOfSeveralParsers(): void
     {
         self::assertSame('int|non-empty-string', self::resolve(TypeCombinator::union(
@@ -294,6 +316,20 @@ final class MutableImplicitParsingRule extends BaseParsingRule
     public function parse(mixed $value): int
     {
         return 1;
+    }
+
+    protected function message(): string
+    {
+        return 'The :attribute field could not be parsed.';
+    }
+}
+
+/** @extends BaseParsingRule<mixed> */
+final class MixedOutputParsingRule extends BaseParsingRule
+{
+    public function parse(mixed $value): mixed
+    {
+        return $value;
     }
 
     protected function message(): string

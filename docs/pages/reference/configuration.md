@@ -204,6 +204,12 @@ options. PHPStan reports mutations of existing inferred validators under
 handling of supported fresh chains. See
 [Supported Entry Points](entry-points.md#validator-mutation-and-contract-invalidation).
 
+Statically resolvable parsing rules on a detected `laravel/framework` version
+below 10.7 are reported as
+`laravelValidation.parsingRuleLaravelVersion`. The analyzer remains silent
+when the framework version is unavailable; the parser's runtime capability
+guard still rejects validators without `setValue()`.
+
 Numeric parsing rules combined with `min`, `max`, `between`, or `size` without
 Laravel's `integer`, `numeric`, or `decimal` marker are reported as
 `laravelValidation.parsingNumericSize`. Laravel otherwise measures the

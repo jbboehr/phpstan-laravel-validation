@@ -196,8 +196,11 @@ final class TypeResolver
         // but when a parameterized parent is preserved and an optional child
         // is absent, validated() can return the parser-produced parent value
         // unchanged. Neither outcome subsumes the other in general.
-        if ($node->hasChildren() && ($producedType = $node->getProducedType()) !== null) {
-            $type = Type\TypeCombinator::union($type, $producedType);
+        if ($node->hasChildren() && $node->hasParsingRule()) {
+            $type = Type\TypeCombinator::union(
+                $type,
+                $node->getProducedType() ?? new MixedType()
+            );
         }
 
         if ($node->allowsNull()) {
@@ -711,8 +714,8 @@ final class TypeResolver
         // with children is left to the ordinary path: a parsing rule on a
         // structure has no coherent meaning, and this method also runs for
         // parents on the projection-preserving paths.
-        if (!$node->hasChildren() && ($producedType = $node->getProducedType()) !== null) {
-            return $producedType;
+        if (!$node->hasChildren() && $node->hasParsingRule()) {
+            return $node->getProducedType() ?? new MixedType();
         }
 
         $allowedKeysListType = $this->resolveAllowedKeysListIntersection($node);

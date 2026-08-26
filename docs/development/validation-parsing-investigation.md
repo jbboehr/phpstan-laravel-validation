@@ -1705,7 +1705,7 @@ exists to avoid. Substitute in test support instead, routing through the
 production resolver so the cross-check still proves the produced type is
 discoverable.
 
-**Possible PHPStan rules**
+**PHPStan rules**
 
 1. `ParsedDataInAfterCallbackRule` was considered for reads inside an
    `after()` closure, but is deferred. The extension does not currently give
@@ -1714,7 +1714,7 @@ discoverable.
    Documentation is the proportionate handling while parsing remains
    experimental. A future implementation would need to be top-down from the
    `after()` call site and must not claim to follow arbitrary callables.
-2. `ParsingRuleLaravelVersionRule` — reports use of a `ParsingRule` when
+2. `ParsingRuleLaravelVersionRule` now reports use of a `ParsingRule` when
    `LaravelVersionContext::hasFrameworkVersion()` is true and
    `isAtLeast('10.7.0')` is false. This is the static half of the version
    floor that Composer cannot express (§17, §20). Both the context object and
@@ -2524,7 +2524,7 @@ surprise:
    path.
 6. Laravel `>= 10.7.0` is required for parsing, while analysis supports
    `>= 10.0`. Composer cannot enforce that conditional floor; the runtime
-   guard does, and an analyzer-side diagnostic remains follow-up work.
+   guard and an analyzer-side diagnostic enforce it at actual parser use.
 7. **Do not read `validated()`, `safe()`, `valid()`, or `getData()` inside an
    `after()` callback** — those observe values from before parsing, in every
    callable form `after()` accepts. In a FormRequest, use

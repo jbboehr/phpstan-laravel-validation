@@ -91,6 +91,40 @@ final class ParsingRuleTypeResolver
         return Rule::parsing($producedType);
     }
 
+    /**
+     * Whether every possible value uses our base parsing lifecycle, even when
+     * its produced type cannot be recovered precisely.
+     */
+    public function requiresValidatorSetValue(Type $type): bool
+    {
+        if (!$this->reflectionProvider->hasClass(self::BASE_PARSING_RULE)) {
+            return false;
+        }
+
+        $alternatives = TypeUtils::flattenTypes($type);
+        if ($alternatives === []) {
+            return false;
+        }
+
+        foreach ($alternatives as $alternative) {
+            $matches = false;
+            foreach ($alternative->getObjectClassReflections() as $classReflection) {
+                if ($classReflection->getName() === self::BASE_PARSING_RULE
+                    || $classReflection->getAncestorWithClassName(self::BASE_PARSING_RULE) !== null
+                ) {
+                    $matches = true;
+                    break;
+                }
+            }
+
+            if (!$matches) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private function resolveProducedType(Type $type): ?Type
     {
         $producedAlternatives = [];

@@ -17,7 +17,8 @@
 - Requires `laravel/framework` 10.7.0 or later, which introduced
   `Validator::setValue()`. Static analysis still supports Laravel 10.0; the
   narrower floor applies only to code that uses a parsing rule, and is
-  reported at runtime rather than through a Composer constraint.
+  reported statically as `laravelValidation.parsingRuleLaravelVersion` and
+  enforced at runtime rather than through a Composer constraint.
 
   The grammar is deliberately narrower than Laravel's `integer` rule: it
   rejects `'042'`, `'+42'`, `' 42'`, `'42.0'`, the float `42.0`, and values

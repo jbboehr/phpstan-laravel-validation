@@ -291,6 +291,17 @@ final class RuleTreeNode implements IteratorAggregate, \Countable
         return $types === [] ? null : TypeCombinator::union(...$types);
     }
 
+    public function hasParsingRule(): bool
+    {
+        foreach ($this->rules as $rule) {
+            if ($rule->getRuleName() === Rule::RULE_PARSE) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /**
      * Laravel skips non-implicit rules for blank strings. Since PHPStan has no
      * whitespace-only string type, a node that permits this bypass must include
