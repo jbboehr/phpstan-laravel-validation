@@ -46,7 +46,16 @@ jobs:
               run: composer validate --strict
 
             - name: PHPUnit
-              run: php vendor/bin/phpunit --no-coverage
+              run: php vendor/bin/phpunit --no-coverage --log-junit "$RUNNER_TEMP/phpunit-junit.xml"
+
+            - name: Upload PHPUnit results
+              if: ${{ always() }}
+              uses: actions/upload-artifact@v7
+              with:
+                  name: conventional-phpunit-results
+                  path: ${{ runner.temp }}/phpunit-junit.xml
+                  if-no-files-found: warn
+                  retention-days: 14
 
             - name: PHPStan
               run: php vendor/bin/phpstan analyse --no-progress
@@ -191,7 +200,7 @@ jobs:
                           echo "Missing Infection report for shard: $shard" >&2
                           exit 1
                       fi
-                      reports+=("$report")
+                      reports+=("$shard=$report")
                   done < <(jq -r 'keys[]' .github/infection-shards.json)
 
                   nix run -L .#mutation-report -- "${reports[@]}" \

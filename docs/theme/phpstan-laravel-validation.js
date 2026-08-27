@@ -256,7 +256,7 @@
             { id: "reverse-direction-precision-audit", title: "Reverse-direction precision audit" },
             { id: "ci-enforcement", title: "CI enforcement" },
             { id: "reproducing-the-audit", title: "Reproducing the audit" },
-            { id: "possible-future-cross-version-seed-sweeps", title: "Possible future cross-version seed sweeps" },
+            { id: "cross-version-catalog-execution", title: "Cross-version catalog execution" },
             { id: "possible-future-fuzzing", title: "Possible future fuzzing" },
             { id: "version-aware-implementation", title: "Version-aware implementation" },
         ],

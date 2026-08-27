@@ -178,18 +178,14 @@ the array-to-string warning into stable data. Unrelated PHP engine and
 dependency deprecations are not part of the Laravel validation contract and
 are omitted from the snapshot.
 
-An additional Eris property suite takes 250 seed-dependent draws in each of
-three bounded domains: scalar presence and native representations, nested
-projection and wildcards, and cross-field presence and exclusion. Their finite
-catalogs contain 1,620, 180, and 280 possible combinations respectively; draws
-are made with replacement and are not claims of exhaustive coverage. Each
-property requires at least 30 percent of its trials to produce successful
-Laravel output so a mostly rejected sample cannot pass vacuously. It then runs
-the same runtime-to-static containment check without creating snapshots.
-
-The fixed default seed makes CI reproducible, while an explicit `ERIS_SEED`
-explores or replays another input sequence. Property testing broadens the
-observed evidence; it does not prove universal soundness.
+An additional property suite exhaustively visits three finite named catalogs:
+1,620 scalar-presence and native-representation cases, 180 nested-projection
+and wildcard cases, and 280 cross-field presence and exclusion cases. Each
+catalog requires at least 30 percent of its cases to produce successful Laravel
+output so a mostly rejected domain cannot pass vacuously. Every successful
+case runs the same runtime-to-static containment check without creating a
+snapshot. Exhausting these bounded catalogs strengthens the observed evidence;
+it does not prove universal soundness outside them.
 
 ## Inventory
 
@@ -828,33 +824,23 @@ The matrix uses disposable installations below `tmp/version-audit` and does
 not modify the root Composer project. Its Nix wrapper is optional; it only
 selects a compatible PHP shell before invoking the same portable runner.
 
-Run only the bounded property suite with its default seed, or select another
-seed to explore and replay a different sequence:
+Run the exhaustive bounded property catalogs with:
 
 ```sh
 composer test:property
-ERIS_SEED=123456 composer test:property
 ```
 
-Every counterexample must be reproduced against the supported Laravel majors
+Every failure must be reproduced against the supported Laravel majors
 and promoted into the deterministic audit or a focused runtime regression
 before inference changes.
 
-## Possible future cross-version seed sweeps
+## Cross-version catalog execution
 
-A local sweep of seeds 1 through 250 on Laravel 10.50.2 completed 187,500
-generated trials without finding a containment failure. Across the sweep, the
-generated index combinations visited all 1,620 scalar, the then-current 100
-structural, and 280 conditional catalog entries at least once. This strengthens
-the local evidence but does not exercise those sequences against every
-supported Laravel release. The structural catalog has since grown to 180.
-
-CI already runs the reproducible default seed throughout the Laravel/PHP
-matrix. A useful lower-priority follow-up is a periodic or manually triggered
-cross-version sweep using several additional fixed seeds. It need not multiply
-the mandatory pull-request matrix. Any version-specific counterexample should
-be promoted into the deterministic audit or a focused runtime regression so it
-remains covered without depending on random discovery.
+CI runs the complete finite catalogs throughout the supported Laravel/PHP
+matrix. Version-specific failures must still become focused runtime or audit
+cases: the catalogs establish containment over their named combinations, while
+the deterministic audit preserves exact boundary evidence and upstream
+provenance.
 
 ## Possible future fuzzing
 

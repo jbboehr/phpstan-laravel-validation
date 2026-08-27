@@ -474,7 +474,7 @@
         mutationShardNames);
       mutationReportPaths =
         map (
-          shard: "${mutationShards.${shard}}/reports/infection-summary.json"
+          shard: "${shard}=${mutationShards.${shard}}/reports/infection-summary.json"
         )
         mutationShardNames;
       mutationReportAggregator = pkgs.writeShellApplication {

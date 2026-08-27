@@ -21,9 +21,6 @@ declare(strict_types=1);
 
 namespace jbboehr\PhpstanLaravelValidation\Test\Property;
 
-use Eris\Attributes\ErisRepeat;
-use Eris\Generators;
-use Eris\TestTrait;
 use Illuminate\Translation\ArrayLoader;
 use Illuminate\Translation\Translator;
 use Illuminate\Validation\Factory;
@@ -40,9 +37,6 @@ use PHPUnit\Framework\Attributes\Group;
 #[Group('property')]
 final class InferenceSoundnessPropertyTest extends PHPStanTestCase
 {
-    use TestTrait;
-
-    private const ITERATIONS = 250;
     private const MINIMUM_SUCCESSFUL_OUTPUT_RATIO = 0.3;
 
     private Factory $factory;
@@ -73,61 +67,37 @@ final class InferenceSoundnessPropertyTest extends PHPStanTestCase
         $this->conditionalCases = InferencePropertyCases::conditional();
     }
 
-    #[ErisRepeat(self::ITERATIONS)]
     public function testScalarPresenceAndNativeRepresentationsRemainSound(): void
     {
-        $successfulOutputs = 0;
-
-        $this->forAll(
-            Generators::choose(0, count($this->scalarCases) - 1),
-        )->then(function (int $caseIndex) use (&$successfulOutputs): void {
-            [$caseId, $case] = self::caseAt($this->scalarCases, $caseIndex);
-            $successfulOutputs += (int) $this->assertSuccessfulOutputIsContained(
-                $caseId,
-                $case['data'],
-                $case['rules'],
-            );
-        });
-
-        $this->assertEnoughSuccessfulOutputs($successfulOutputs);
+        $this->assertCatalogIsSound($this->scalarCases);
     }
 
-    #[ErisRepeat(self::ITERATIONS)]
     public function testNestedProjectionAndWildcardsRemainSound(): void
     {
-        $successfulOutputs = 0;
-
-        $this->forAll(
-            Generators::choose(0, count($this->structuralCases) - 1),
-        )->then(function (int $caseIndex) use (&$successfulOutputs): void {
-            [$caseId, $case] = self::caseAt($this->structuralCases, $caseIndex);
-            $successfulOutputs += (int) $this->assertSuccessfulOutputIsContained(
-                $caseId,
-                $case['data'],
-                $case['rules'],
-            );
-        });
-
-        $this->assertEnoughSuccessfulOutputs($successfulOutputs);
+        $this->assertCatalogIsSound($this->structuralCases);
     }
 
-    #[ErisRepeat(self::ITERATIONS)]
     public function testCrossFieldPresenceAndExclusionRemainSound(): void
+    {
+        $this->assertCatalogIsSound($this->conditionalCases);
+    }
+
+    /**
+     * @param array<string, array{data: array<mixed, mixed>, rules: array<string, string>}> $cases
+     */
+    private function assertCatalogIsSound(array $cases): void
     {
         $successfulOutputs = 0;
 
-        $this->forAll(
-            Generators::choose(0, count($this->conditionalCases) - 1),
-        )->then(function (int $caseIndex) use (&$successfulOutputs): void {
-            [$caseId, $case] = self::caseAt($this->conditionalCases, $caseIndex);
+        foreach ($cases as $caseId => $case) {
             $successfulOutputs += (int) $this->assertSuccessfulOutputIsContained(
                 $caseId,
                 $case['data'],
                 $case['rules'],
             );
-        });
+        }
 
-        $this->assertEnoughSuccessfulOutputs($successfulOutputs);
+        $this->assertEnoughSuccessfulOutputs($successfulOutputs, count($cases));
     }
 
     /**
@@ -173,28 +143,17 @@ final class InferenceSoundnessPropertyTest extends PHPStanTestCase
         return true;
     }
 
-    /**
-     * @param array<string, array{data: array<mixed, mixed>, rules: array<string, string>}> $cases
-     * @return array{string, array{data: array<mixed, mixed>, rules: array<string, string>}}
-     */
-    private static function caseAt(array $cases, int $index): array
+    private function assertEnoughSuccessfulOutputs(int $successfulOutputs, int $caseCount): void
     {
-        $caseId = array_keys($cases)[$index];
-
-        return [$caseId, $cases[$caseId]];
-    }
-
-    private function assertEnoughSuccessfulOutputs(int $successfulOutputs): void
-    {
-        $minimum = (int) ceil(self::ITERATIONS * self::MINIMUM_SUCCESSFUL_OUTPUT_RATIO);
+        $minimum = (int) ceil($caseCount * self::MINIMUM_SUCCESSFUL_OUTPUT_RATIO);
 
         self::assertGreaterThanOrEqual(
             $minimum,
             $successfulOutputs,
             sprintf(
-                'Only %d of %d generated trials produced successful Laravel output; expected at least %d.',
+                'Only %d of %d catalog cases produced successful Laravel output; expected at least %d.',
                 $successfulOutputs,
-                self::ITERATIONS,
+                $caseCount,
                 $minimum,
             ),
         );

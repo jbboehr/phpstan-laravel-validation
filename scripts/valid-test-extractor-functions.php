@@ -88,7 +88,6 @@ function validator_rules_were_mutated(Validator $validator): bool
 {
     $reflection = new ReflectionClass($validator);
     $initialRulesProperty = $reflection->getProperty('initialRules');
-    $initialRulesProperty->setAccessible(true);
 
     /** @var array<mixed, mixed> $initialRules */
     $initialRules = $initialRulesProperty->getValue($validator);
@@ -113,7 +112,6 @@ function get_validator_placeholders(Validator $validator): array
 
     if ($reflection->hasProperty('dotPlaceholder')) {
         $property = $reflection->getProperty('dotPlaceholder');
-        $property->setAccessible(true);
         $dotPlaceholder = $property->getValue($validator);
 
         return [
@@ -124,7 +122,6 @@ function get_validator_placeholders(Validator $validator): array
 
     if ($reflection->hasProperty('placeholderHash')) {
         $property = $reflection->getProperty('placeholderHash');
-        $property->setAccessible(true);
         $placeholderHash = $property->getValue($validator);
 
         if (is_string($placeholderHash)) {
@@ -196,6 +193,44 @@ function validation_fixture_hash(
 }
 
 /**
+ * Retain only the UploadedFile state used as part of a fixture's stable
+ * identity. ReflectionProperty instances can initialize the same declaration
+ * on the dependency-neutral replay object.
+ *
+ * @return array<string, array{property: ReflectionProperty, value: mixed}>
+ */
+function validation_fixture_file_properties(Symfony\Component\HttpFoundation\File\File $value): array
+{
+    $properties = [];
+
+    foreach (['originalName', 'mimeType', 'error', 'test'] as $propertyName) {
+        $class = new ReflectionObject($value);
+
+        do {
+            foreach ($class->getProperties() as $property) {
+                if (
+                    $property->getName() !== $propertyName
+                    || $property->getDeclaringClass()->getName() !== $class->getName()
+                ) {
+                    continue;
+                }
+
+                if ($property->isInitialized($value)) {
+                    $properties[$propertyName] = [
+                        'property' => $property,
+                        'value' => $property->getValue($value),
+                    ];
+                }
+
+                break 2;
+            }
+        } while (($class = $class->getParentClass()) !== false);
+    }
+
+    return $properties;
+}
+
+/**
  * Remove runtime-only state from values before hashing them.
  */
 function normalize_validation_fixture_hash_value(mixed $value): mixed
@@ -213,27 +248,8 @@ function normalize_validation_fixture_hash_value(mixed $value): mixed
     if ($value instanceof Symfony\Component\HttpFoundation\File\File) {
         $properties = [];
 
-        foreach (['originalName', 'mimeType', 'error', 'test'] as $propertyName) {
-            $class = new ReflectionObject($value);
-
-            do {
-                foreach ($class->getProperties() as $property) {
-                    if (
-                        $property->getName() !== $propertyName
-                        || $property->getDeclaringClass()->getName() !== $class->getName()
-                    ) {
-                        continue;
-                    }
-
-                    if ($property->isInitialized($value)) {
-                        $properties[$propertyName] = normalize_validation_fixture_hash_value(
-                            $property->getValue($value)
-                        );
-                    }
-
-                    break 2;
-                }
-            } while (($class = $class->getParentClass()) !== false);
+        foreach (validation_fixture_file_properties($value) as $propertyName => $state) {
+            $properties[$propertyName] = normalize_validation_fixture_hash_value($state['value']);
         }
 
         return [
@@ -249,6 +265,39 @@ function normalize_validation_fixture_hash_value(mixed $value): mixed
         foreach ($value as $key => $item) {
             $normalized[$key] = normalize_validation_fixture_hash_value($item);
         }
+        return $normalized;
+    }
+
+    return $value;
+}
+
+/**
+ * Remove dependency-version-specific implementation state before exporting a
+ * fixture. Preserve the explicitly hashed UploadedFile identity fields, but do
+ * not replay every private Symfony field against another supported dependency
+ * version: those fields may not exist there.
+ */
+function normalize_validation_fixture_export_value(mixed $value): mixed
+{
+    if ($value instanceof Symfony\Component\HttpFoundation\File\File) {
+        $normalized = (new ReflectionClass($value))->newInstanceWithoutConstructor();
+
+        foreach (validation_fixture_file_properties($value) as $state) {
+            $state['property']->setValue(
+                $normalized,
+                normalize_validation_fixture_export_value($state['value'])
+            );
+        }
+
+        return $normalized;
+    }
+
+    if (is_array($value)) {
+        $normalized = [];
+        foreach ($value as $key => $item) {
+            $normalized[$key] = normalize_validation_fixture_export_value($item);
+        }
+
         return $normalized;
     }
 
@@ -301,6 +350,6 @@ function validation_fixture_contents(array $tests, string $laravelVersion, strin
     }
 
     return '<?php /* laravel ' . $laravelVersion . ' commit ' . $laravelCommit . ' */ return '
-        . VarExporter::export($tests)
+        . VarExporter::export(normalize_validation_fixture_export_value($tests))
         . ';';
 }

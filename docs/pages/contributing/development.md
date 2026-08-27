@@ -100,6 +100,8 @@ Infection workers, then aggregates the project-wide thresholds. The exhaustive
 GitHub workflow schedules those derivations as independent jobs and checks
 their uploaded summaries in a final aggregate job. Each runner therefore uses
 at most four Infection workers while the five shards can progress in parallel.
+The aggregate JSON and a failed timeout-budget check identify each timed-out
+mutant by shard, source location, mutator, and Infection ID.
 
 PHPStan type-inference fixtures that cover extension code must run their
 first `gatherAssertTypes()` analysis inside the test body. Data providers
@@ -110,8 +112,8 @@ mutant.
 
 Tests in the `subprocess` group remain in the normal suite but are
 excluded from mutation testing because child processes cannot observe the
-active in-process mutant. The `property` group is also excluded: rerunning
-hundreds of generated cases for each mutant would be disproportionate.
+active in-process mutant. The `property` group is also excluded: rerunning the
+complete finite catalogs for each mutant would be disproportionate.
 Promoted deterministic regressions remain available to Infection.
 
 The Infection configuration also ignores mutations that make
@@ -137,6 +139,10 @@ surfaces:
 - a conventional PHP baseline job on PHP 8.5 (Composer, PHPUnit, PHPStan,
   php-cs-fixer);
 - an exhaustive Nix matrix generated from flake checks, plus mutation.
+
+The conventional job uploads PHPUnit's JUnit XML even when the test step
+fails, preserving per-test outcomes and timings for diagnosis and
+feedback-loop audits.
 
 Before the Nix matrix fans out, one job builds every pinned Composer vendor
 closure and saves the resulting Nix store under a derivation-specific cache

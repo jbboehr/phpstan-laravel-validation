@@ -34,7 +34,7 @@ Build and link-check the mdBook with `composer docs:check`. See
 | What does Laravel accept and return? | Focused runtime test with named cases | `tests/*LaravelRuntimeTest.php` |
 | What type does PHPStan show at a real call site? | Explicit `assertType()` fixture | `tests/rules`, `tests/structure`, `tests/version-aware` |
 | Is behavior stable across supported Laravel releases? | Deterministic inference audit | `tests/Support/InferenceAuditCases.php`, `tests/fixtures/version-audit` |
-| Do many bounded combinations remain sound? | Eris property suite | `tests/Property/InferenceSoundnessPropertyTest.php` |
+| Do all named bounded combinations remain sound? | Exhaustive property catalogs | `tests/Property/InferenceSoundnessPropertyTest.php` |
 | Does the whole extension still work? | Full PHPUnit and PHPStan suites | `composer exec phpunit`, `composer exec phpstan analyse` |
 
 Start with the narrowest layer that reproduces the behavior, but do not use a
@@ -81,6 +81,17 @@ vendor/bin/phpunit tests/PresenceLaravelRuntimeTest.php
 vendor/bin/phpunit --filter 'present array blank bypass'
 ```
 
+For a broad local loop without the child-process result-cache and CLI tests,
+run:
+
+```sh
+composer test:fast
+```
+
+The authoritative suite still includes the `subprocess` group. Use the fast
+loop while iterating on unrelated code, then run the complete Nix checks before
+considering a change ready.
+
 ## Static inference fixtures
 
 PHPStan fixtures remain deliberately explicit. A contributor should be able to
@@ -101,21 +112,20 @@ directories contain regeneration instructions.
 
 [`InferencePropertyCases`](https://github.com/jbboehr/phpstan-laravel-validation/blob/master/tests/Support/InferencePropertyCases.php) builds
 three finite, named catalogs for scalar, structural, and conditional behavior.
-Eris samples those catalogs with replacement. Failures print a stable semantic
+The property suite visits every catalog entry. Failures print a stable semantic
 ID such as `boolean.filled.numeric-string-zero.rule-first`, along with the
 rules, input, Laravel version, inferred type, and actual output type.
 
-The default seed is fixed by `phpunit.xml.dist` so CI is reproducible:
+Run the complete bounded catalog with:
 
 ```sh
 composer test:property
-ERIS_SEED=123456 composer test:property
 ```
 
 The catalog integrity test locks the intended sizes and requires unique,
-descriptive IDs. A generated counterexample is discovery evidence, not the
-permanent regression: promote it into a named focused runtime test or the
-deterministic audit.
+descriptive IDs. A catalog failure is discovery evidence, not the permanent
+regression: promote it into a named focused runtime test or the deterministic
+audit.
 
 ## Deterministic audit cases
 

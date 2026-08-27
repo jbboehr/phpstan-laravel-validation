@@ -37,7 +37,9 @@ try {
 
     $reportPaths = array_slice($arguments, 1);
     if ($reportPaths === []) {
-        throw new RuntimeException('Usage: aggregate-infection-reports.php <summary.json> [summary.json ...]');
+        throw new RuntimeException(
+            'Usage: aggregate-infection-reports.php <shard=summary.json> [shard=summary.json ...]'
+        );
     }
 
     $aggregate = [
@@ -48,12 +50,14 @@ try {
         'timeouts' => 0,
         'msi' => 0.0,
         'coveredMsi' => 0.0,
+        'timedOutMutants' => [],
     ];
 
-    foreach ($reportPaths as $reportPath) {
-        if (!is_string($reportPath)) {
+    foreach ($reportPaths as $reportArgument) {
+        if (!is_string($reportArgument)) {
             throw new RuntimeException('Infection report paths must be strings.');
         }
+        [$shard, $reportPath] = reportArgument($reportArgument);
 
         $contents = file_get_contents($reportPath);
         if ($contents === false) {
@@ -83,7 +87,12 @@ try {
             + integerStat($stats, 'errorCount', $reportPath)
             + integerStat($stats, 'syntaxErrorCount', $reportPath);
         $aggregate['ignored'] += $ignored;
-        $aggregate['timeouts'] += integerStat($stats, 'timeOutCount', $reportPath);
+        $timeoutCount = integerStat($stats, 'timeOutCount', $reportPath);
+        $aggregate['timeouts'] += $timeoutCount;
+        array_push(
+            $aggregate['timedOutMutants'],
+            ...timedOutMutants(dirname($reportPath) . '/infection.log', $shard, $timeoutCount),
+        );
     }
 
     $aggregate['msi'] = percentage($aggregate['detected'], $aggregate['total']);
@@ -97,6 +106,7 @@ try {
             "Aggregate timed-out mutants exceed infection.json5.dist maxTimeouts (%d).\n",
             MAXIMUM_TIMEOUTS,
         ));
+        writeTimedOutMutants($aggregate['timedOutMutants']);
         $failed = true;
     }
     if ($aggregate['ignored'] !== EXPECTED_IGNORED_MUTANTS) {
@@ -141,4 +151,83 @@ function integerStat(array $stats, string $name, string $reportPath): int
 function percentage(int $detected, int $total): float
 {
     return $total === 0 ? 0.0 : round(10000 * $detected / $total) / 100;
+}
+
+/** @return array{string, string} */
+function reportArgument(string $argument): array
+{
+    $parts = explode('=', $argument, 2);
+    if (
+        count($parts) !== 2
+        || preg_match('/^[a-z0-9][a-z0-9-]*$/D', $parts[0]) !== 1
+        || $parts[1] === ''
+    ) {
+        throw new RuntimeException(sprintf('Invalid Infection report argument: %s', $argument));
+    }
+
+    return [$parts[0], $parts[1]];
+}
+
+/**
+ * @return list<array{shard: string, file: string, line: int, mutator: string, id: string}>
+ */
+function timedOutMutants(string $logPath, string $shard, int $expectedCount): array
+{
+    if ($expectedCount === 0) {
+        return [];
+    }
+
+    $contents = file_get_contents($logPath);
+    if ($contents === false) {
+        throw new RuntimeException(sprintf('Could not read Infection text report: %s', $logPath));
+    }
+    if (preg_match('/^Timed Out mutants:\R=+\R(?<body>.*?)^Skipped mutants:\R/ms', $contents, $section) !== 1) {
+        throw new RuntimeException(sprintf('Infection text report has no timed-out mutant section: %s', $logPath));
+    }
+
+    $matchCount = preg_match_all(
+        '/^\d+\)\s+(.+):(\d+)\s+\[M\]\s+(\S+)\s+\[ID\]\s+([0-9a-f]+)\s*$/m',
+        $section['body'],
+        $matches,
+        PREG_SET_ORDER,
+    );
+    if ($matchCount === false || $matchCount !== $expectedCount) {
+        throw new RuntimeException(sprintf(
+            'Infection text report contains %d timed-out mutant identities; expected %d: %s',
+            $matchCount === false ? 0 : $matchCount,
+            $expectedCount,
+            $logPath,
+        ));
+    }
+
+    $mutants = [];
+    foreach ($matches as $match) {
+        $mutants[] = [
+            'shard' => $shard,
+            'file' => $match[1],
+            'line' => (int) $match[2],
+            'mutator' => $match[3],
+            'id' => $match[4],
+        ];
+    }
+
+    return $mutants;
+}
+
+/**
+ * @param list<array{shard: string, file: string, line: int, mutator: string, id: string}> $mutants
+ */
+function writeTimedOutMutants(array $mutants): void
+{
+    fwrite(STDERR, "Timed-out mutants:\n");
+    foreach ($mutants as $mutant) {
+        fwrite(STDERR, sprintf(
+            "- [%s] %s:%d %s (%s)\n",
+            $mutant['shard'],
+            $mutant['file'],
+            $mutant['line'],
+            $mutant['mutator'],
+            $mutant['id'],
+        ));
+    }
 }

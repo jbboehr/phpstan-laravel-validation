@@ -39,9 +39,13 @@ final class InfectionReportAggregatorTest extends \PHPUnit\Framework\TestCase
 
     protected function tearDown(): void
     {
-        $files = glob($this->temporaryDirectory . '/*.json');
-        foreach ($files !== false ? $files : [] as $file) {
-            self::assertTrue(unlink($file));
+        $directories = glob($this->temporaryDirectory . '/*', GLOB_ONLYDIR);
+        foreach ($directories !== false ? $directories : [] as $directory) {
+            $files = glob($directory . '/*');
+            foreach ($files !== false ? $files : [] as $file) {
+                self::assertTrue(unlink($file));
+            }
+            self::assertTrue(rmdir($directory));
         }
         self::assertTrue(rmdir($this->temporaryDirectory));
 
@@ -50,7 +54,7 @@ final class InfectionReportAggregatorTest extends \PHPUnit\Framework\TestCase
 
     public function testAggregatesReportsAndEnforcesProjectThresholds(): void
     {
-        $first = $this->writeReport('first.json', [
+        $first = $this->writeReport('first', [
             'totalMutantsCount' => 100,
             'skippedCount' => 10,
             'ignoredCount' => 2,
@@ -59,8 +63,11 @@ final class InfectionReportAggregatorTest extends \PHPUnit\Framework\TestCase
             'errorCount' => 5,
             'syntaxErrorCount' => 5,
             'timeOutCount' => 2,
+        ], [
+            ['/build/project/src/First.php', 10, 'LogicalNot', str_repeat('a', 32)],
+            ['/build/project/src/First.php', 20, 'ReturnRemoval', str_repeat('b', 32)],
         ]);
-        $second = $this->writeReport('second.json', [
+        $second = $this->writeReport('second', [
             'totalMutantsCount' => 50,
             'skippedCount' => 5,
             'ignoredCount' => 3,
@@ -69,6 +76,8 @@ final class InfectionReportAggregatorTest extends \PHPUnit\Framework\TestCase
             'errorCount' => 2,
             'syntaxErrorCount' => 3,
             'timeOutCount' => 1,
+        ], [
+            ['/build/project/src/Second.php', 30, 'Increment', str_repeat('c', 32)],
         ]);
 
         $process = $this->runAggregator($first, $second);
@@ -82,12 +91,35 @@ final class InfectionReportAggregatorTest extends \PHPUnit\Framework\TestCase
             'timeouts' => 3,
             'msi' => 65.38,
             'coveredMsi' => 85,
+            'timedOutMutants' => [
+                [
+                    'shard' => 'first',
+                    'file' => '/build/project/src/First.php',
+                    'line' => 10,
+                    'mutator' => 'LogicalNot',
+                    'id' => str_repeat('a', 32),
+                ],
+                [
+                    'shard' => 'first',
+                    'file' => '/build/project/src/First.php',
+                    'line' => 20,
+                    'mutator' => 'ReturnRemoval',
+                    'id' => str_repeat('b', 32),
+                ],
+                [
+                    'shard' => 'second',
+                    'file' => '/build/project/src/Second.php',
+                    'line' => 30,
+                    'mutator' => 'Increment',
+                    'id' => str_repeat('c', 32),
+                ],
+            ],
         ], json_decode($process->getOutput(), true, 512, JSON_THROW_ON_ERROR));
     }
 
     public function testFailsWhenAggregateMutationScoresAreBelowThresholds(): void
     {
-        $report = $this->writeReport('failing.json', [
+        $report = $this->writeReport('failing', [
             'totalMutantsCount' => 15,
             'skippedCount' => 0,
             'ignoredCount' => 5,
@@ -107,7 +139,7 @@ final class InfectionReportAggregatorTest extends \PHPUnit\Framework\TestCase
 
     public function testFailsWhenTimeoutAndIgnoredMutantLimitsDoNotMatch(): void
     {
-        $report = $this->writeReport('limits.json', [
+        $report = $this->writeReport('limits', [
             'totalMutantsCount' => 106,
             'skippedCount' => 0,
             'ignoredCount' => 6,
@@ -116,22 +148,60 @@ final class InfectionReportAggregatorTest extends \PHPUnit\Framework\TestCase
             'errorCount' => 0,
             'syntaxErrorCount' => 0,
             'timeOutCount' => 11,
-        ]);
+        ], array_fill(0, 11, [
+            '/build/project/src/Slow.php',
+            40,
+            'MethodCallRemoval',
+            str_repeat('d', 32),
+        ]));
 
         $process = $this->runAggregator($report);
 
         self::assertSame(1, $process->getExitCode());
         self::assertStringContainsString('Aggregate timed-out mutants exceed infection.json5.dist maxTimeouts (10).', $process->getErrorOutput());
+        self::assertStringContainsString(
+            '[limits] /build/project/src/Slow.php:40 MethodCallRemoval (' . str_repeat('d', 32) . ')',
+            $process->getErrorOutput()
+        );
         self::assertStringContainsString('Expected 5 ignored non-progressing resolvePath() mutants.', $process->getErrorOutput());
     }
 
-    /** @param array<string, int> $stats */
-    private function writeReport(string $name, array $stats): string
+    /**
+     * @param array<string, int> $stats
+     * @param list<array{string, int, string, string}> $timedOutMutants
+     */
+    private function writeReport(string $shard, array $stats, array $timedOutMutants = []): string
     {
-        $path = $this->temporaryDirectory . '/' . $name;
+        $directory = $this->temporaryDirectory . '/' . $shard;
+        self::assertTrue(mkdir($directory, 0700));
+        $path = $directory . '/infection-summary.json';
         self::assertNotFalse(file_put_contents($path, json_encode(['stats' => $stats], JSON_THROW_ON_ERROR)));
+        self::assertNotFalse(file_put_contents(
+            $directory . '/infection.log',
+            $this->infectionLog($timedOutMutants)
+        ));
 
-        return $path;
+        return $shard . '=' . $path;
+    }
+
+    /** @param list<array{string, int, string, string}> $timedOutMutants */
+    private function infectionLog(array $timedOutMutants): string
+    {
+        $lines = [
+            'Timed Out mutants:',
+            '==================',
+            '',
+        ];
+
+        foreach ($timedOutMutants as $index => [$file, $line, $mutator, $id]) {
+            $lines[] = sprintf('%d) %s:%d    [M] %s [ID] %s', $index + 1, $file, $line, $mutator, $id);
+            $lines[] = '';
+        }
+
+        $lines[] = 'Skipped mutants:';
+        $lines[] = '================';
+
+        return implode("\n", $lines) . "\n";
     }
 
     private function runAggregator(string ...$reports): Process

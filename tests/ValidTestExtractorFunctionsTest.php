@@ -133,7 +133,6 @@ class ValidTestExtractorFunctionsTest extends TestCase
             protected $dotPlaceholder = 'legacy-placeholder';
         };
         $property = (new \ReflectionClass($validator))->getProperty('dotPlaceholder');
-        $property->setAccessible(true);
         $property->setValue($validator, 'legacy-placeholder');
         $placeholders = \get_validator_placeholders($validator);
 
@@ -209,6 +208,63 @@ class ValidTestExtractorFunctionsTest extends TestCase
             \validation_fixture_hash('location', ['file' => $first], [], [], []),
             \validation_fixture_hash('location', ['file' => $second], [], [], [])
         );
+    }
+
+    public function testFixtureContentsPreserveFileHashesWithoutReplayingVersionSpecificState(): void
+    {
+        $file = new UploadedFile(__FILE__, 'fixture.php', 'text/x-php', UPLOAD_ERR_OK, true);
+        $entry = [
+            'location' => 'ValidationTest::testFile:1',
+            'data' => ['file' => $file],
+            'validated' => ['file' => $file],
+            'rules' => ['file' => 'file'],
+            'expandedRules' => ['file' => ['file']],
+        ];
+        $hash = \validation_fixture_hash(
+            $entry['location'],
+            $entry['data'],
+            $entry['validated'],
+            $entry['rules'],
+            $entry['expandedRules']
+        );
+
+        $contents = \validation_fixture_contents(
+            [$hash => $entry],
+            '13.23.0',
+            '92a707229148e57f08a249211c8a5a194159c619'
+        );
+        $fixture = eval(substr($contents, strlen('<?php ')));
+        self::assertIsArray($fixture);
+        $replayedEntry = $fixture[$hash] ?? null;
+        self::assertIsArray($replayedEntry);
+        $location = $replayedEntry['location'] ?? null;
+        $data = $replayedEntry['data'] ?? null;
+        $validated = $replayedEntry['validated'] ?? null;
+        $rules = $replayedEntry['rules'] ?? null;
+        $expandedRules = $replayedEntry['expandedRules'] ?? null;
+        self::assertIsString($location);
+        self::assertIsArray($data);
+        self::assertIsArray($validated);
+        self::assertIsArray($rules);
+        self::assertIsArray($expandedRules);
+        $replayedFile = $validated['file'] ?? null;
+
+        self::assertInstanceOf(UploadedFile::class, $replayedFile);
+        self::assertSame(
+            \normalize_validation_fixture_hash_value($file),
+            \normalize_validation_fixture_hash_value($replayedFile)
+        );
+        self::assertSame(
+            $hash,
+            \validation_fixture_hash(
+                $location,
+                $data,
+                $validated,
+                $rules,
+                $expandedRules
+            )
+        );
+        self::assertStringNotContainsString('$this->originalPath =', $contents);
     }
 
     public function testValidationLocationAcceptsTestsOutsideIlluminateNamespace(): void

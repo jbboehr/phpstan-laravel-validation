@@ -66,6 +66,7 @@
         "docs:format": "find README.md CHANGELOG.md docs -type f -name '*.md' -exec vendor/bin/akashi format --check --project-root=. --config=.php-cs-fixer.dist.php {} +",
         "docs:format:fix": "find README.md CHANGELOG.md docs -type f -name '*.md' -exec vendor/bin/akashi format --write --project-root=. --config=.php-cs-fixer.dist.php {} +",
         "infection": "@php tools/infection/vendor/bin/infection --with-uncovered --only-covering-test-cases --log-verbosity=all",
+        "test:fast": "phpunit --exclude-group=subprocess --no-coverage",
         "test:property": "phpunit --group property --no-coverage"
     },
     "config": {

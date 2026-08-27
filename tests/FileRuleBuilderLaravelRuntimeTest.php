@@ -85,7 +85,7 @@ final class FileRuleBuilderLaravelRuntimeTest extends \PHPStan\Testing\PHPStanTe
         $cases = [
             'factory file' => [$textFile, Rule::file()],
             'factory image' => [$imageFile, Rule::imageFile()],
-            'direct file' => [$textFile, (new FileRule())->min(0)->max('1mb')],
+            'direct file' => [$textFile, new FileRule()],
             'direct image' => [$imageFile, new ImageFile()],
             'typed file' => [$textFile, FileRule::types(['text/plain'])],
             'typed image' => [$imageFile, ImageFile::types(['image/png'])],

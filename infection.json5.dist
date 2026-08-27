@@ -19,7 +19,7 @@
     // time running child PHPStan processes that provide no mutation evidence.
     // Property tests also remain in the normal suite, while focused regressions
     // promoted from their findings provide mutation evidence without replaying
-    // hundreds of generated cases for each mutant.
+    // the complete finite catalogs for each mutant.
     "testFrameworkExtraArgs": "--exclude-group=subprocess,property,documentation",
     "logs": {
         "text": "infection.log",
