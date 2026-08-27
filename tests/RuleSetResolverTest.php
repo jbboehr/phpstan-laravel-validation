@@ -44,6 +44,7 @@ use PhpParser\Node\Scalar\String_;
 use PHPStan\Analyser\Scope;
 use PHPStan\Testing\PHPStanTestCase;
 use PHPStan\Type\Constant\ConstantArrayTypeBuilder;
+use PHPStan\Type\Constant\ConstantBooleanType;
 use PHPStan\Type\Constant\ConstantIntegerType;
 use PHPStan\Type\Constant\ConstantStringType;
 use PHPStan\Type\MixedType;
@@ -148,6 +149,62 @@ final class RuleSetResolverTest extends PHPStanTestCase
 
         self::assertCount(1, $trees);
         self::assertSame('array{value: string}', self::describe($trees[0]));
+    }
+
+    public function testConditionalRuleListsUsePhpArrayKeySemanticsBeforeExpansion(): void
+    {
+        $when = static fn (string $rule): Expr\StaticCall => new Expr\StaticCall(
+            new FullyQualified(\Illuminate\Validation\Rule::class),
+            new Identifier('when'),
+            [
+                new \PhpParser\Node\Arg(new Expr\ConstFetch(new \PhpParser\Node\Name('true'))),
+                new \PhpParser\Node\Arg(new String_($rule)),
+            ]
+        );
+        $expression = new Expr\Array_([
+            new Expr\ArrayItem(
+                new Expr\Array_([
+                    new Expr\ArrayItem(new String_('required'), new \PhpParser\Node\Scalar\Int_(0)),
+                    new Expr\ArrayItem($when('string')),
+                    new Expr\ArrayItem(new String_('email'), new \PhpParser\Node\Scalar\Int_(2)),
+                    new Expr\ArrayItem($when('integer'), new \PhpParser\Node\Scalar\Int_(2)),
+                    new Expr\ArrayItem($when('min:1')),
+                    new Expr\ArrayItem($when('max:10')),
+                ]),
+                new String_('value')
+            ),
+        ]);
+        $scope = $this->createMock(Scope::class);
+        $scope->method('getType')->willReturnCallback(
+            static function (Expr $node): Type {
+                if ($node instanceof String_) {
+                    return new ConstantStringType($node->value);
+                }
+                if ($node instanceof \PhpParser\Node\Scalar\Int_) {
+                    return new ConstantIntegerType($node->value);
+                }
+                if ($node instanceof Expr\ConstFetch && $node->name->toLowerString() === 'true') {
+                    return new ConstantBooleanType(true);
+                }
+
+                return new MixedType();
+            }
+        );
+        $scope->method('resolveName')->willReturnCallback(
+            static fn (\PhpParser\Node\Name $name): string => $name->toString()
+        );
+
+        $trees = $this->resolverForVersion('13.0.0')->resolve($expression, $scope);
+
+        self::assertCount(1, $trees);
+        self::assertSame(
+            ['Required', 'String', 'Integer', 'Min', 'Max'],
+            array_map(
+                static fn (\jbboehr\PhpstanLaravelValidation\Validation\Rule $rule): string =>
+                    $rule->getRuleName(),
+                $trees[0]->resolvePath('value')->getRules()
+            )
+        );
     }
 
     public function testReturnsNoRulesWhenStaticResolutionAndEvaluationFail(): void

@@ -75,6 +75,7 @@ final class ParseDateTimeLaravelRuntimeTest extends \PHPStan\Testing\PHPStanTest
         yield 'explicit offset' => ['2024-02-29T12:34:56+05:30'];
         yield 'Unix timestamp syntax' => ['@1709251198'];
         yield 'invalid calendar date' => ['2024-02-30'];
+        yield 'partial calendar date' => ['February 29'];
         yield 'relative text without a calendar date' => ['tomorrow'];
         yield 'plain Unix timestamp' => ['1709251198'];
         yield 'blank string' => [''];
@@ -377,6 +378,29 @@ final class ParseDateTimeLaravelRuntimeTest extends \PHPStan\Testing\PHPStanTest
         self::assertSame(
             ['A validator containing parsing rules cannot be reused.'],
             $validator->errors()->get('starts_at')
+        );
+    }
+
+    public function testDefaultAndExactParsersExplainDifferentFailures(): void
+    {
+        $default = self::factory()->make(
+            ['starts_at' => 'tomorrow'],
+            ['starts_at' => ['required', Parse::dateTime()]]
+        );
+        $exact = self::factory()->make(
+            ['starts_at' => '2024/02/29'],
+            ['starts_at' => ['required', Parse::dateTime('Y-m-d')]]
+        );
+
+        self::assertFalse($default->passes());
+        self::assertSame(
+            'The starts at field must be a valid date.',
+            $default->errors()->first('starts_at')
+        );
+        self::assertFalse($exact->passes());
+        self::assertSame(
+            'The starts at field must match a configured date/time format.',
+            $exact->errors()->first('starts_at')
         );
     }
 

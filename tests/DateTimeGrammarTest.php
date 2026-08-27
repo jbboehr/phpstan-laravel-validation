@@ -66,6 +66,7 @@ final class DateTimeGrammarTest extends TestCase
         yield 'trailing null byte' => ["2024-02-29\0"];
         yield 'embedded null byte' => ["2024-02\0-29"];
         yield 'invalid calendar date' => ['2024-02-30'];
+        yield 'partial calendar date' => ['February 29'];
         yield 'relative text without a calendar date' => ['tomorrow'];
         yield 'plain Unix timestamp' => ['1709251198'];
         yield 'blank string' => [''];
@@ -110,6 +111,12 @@ final class DateTimeGrammarTest extends TestCase
             '0.500000',
             'America/New_York',
             '1969-12-31T19:00:00.500000-05:00',
+        ];
+        yield 'timezone without a date' => [
+            'P',
+            '+05:30',
+            'UTC',
+            '1970-01-01T00:00:00.000000+05:30',
         ];
         yield 'escaped parse control is a literal' => [
             'Y-m-d\\|',
@@ -282,6 +289,11 @@ final class DateTimeGrammarTest extends TestCase
         self::assertNotNull($timestamp);
         self::assertSame('America/New_York', $timestamp->getTimezone()->getName());
         self::assertSame('1969-12-31T19:00:00-05:00', $timestamp->format('c'));
+
+        $paddedTimestamp = $grammar->parse(' @0');
+        self::assertNotNull($paddedTimestamp);
+        self::assertSame('America/New_York', $paddedTimestamp->getTimezone()->getName());
+        self::assertSame('1969-12-31T19:00:00-05:00', $paddedTimestamp->format('c'));
     }
 
     public function testAcceptsAnAmbiguousWallTimeWithoutPromisingItsOffset(): void
@@ -370,6 +382,14 @@ final class DateTimeGrammarTest extends TestCase
         $this->expectExceptionMessage('cannot end with an escape character');
 
         new DateTimeGrammar('Y-m-d\\', new DateTimeZone('UTC'));
+    }
+
+    public function testAnEscapedControlDoesNotHideALaterUnescapedControl(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('control character "+"');
+
+        new DateTimeGrammar('Y\\!+', new DateTimeZone('UTC'));
     }
 
     public function testRejectsAUnixTimestampCombinedWithAnInputTimezone(): void

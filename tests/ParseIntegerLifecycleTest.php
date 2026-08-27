@@ -112,6 +112,21 @@ final class ParseIntegerLifecycleTest extends TestCase
         self::assertFalse($validator->passes());
     }
 
+    public function testReuseFailsBeforeExecutingTheParserAgain(): void
+    {
+        $calls = 0;
+        $parser = new GenericParsingRule(static function (mixed $value) use (&$calls): int {
+            $calls++;
+
+            return 42;
+        });
+        $validator = self::factory()->make(['age' => '42'], ['age' => [$parser]]);
+
+        self::assertTrue($validator->passes());
+        self::assertFalse($validator->passes());
+        self::assertSame(1, $calls);
+    }
+
     public function testASingleRunIsWhatEveryOrdinaryPathPerforms(): void
     {
         // validate() runs the rules once, so the cross-field comparison above
@@ -187,6 +202,31 @@ final class ParseIntegerLifecycleTest extends TestCase
         );
 
         self::assertSame(['a' => 1, 'b' => 2], $validator->validated());
+    }
+
+    public function testASharedInstanceParsesAfterAnAlreadyNativeValue(): void
+    {
+        $shared = Parse::integer();
+        $validator = self::factory()->make(
+            ['a' => 1, 'b' => '2'],
+            ['a' => [$shared], 'b' => [$shared]]
+        );
+
+        self::assertTrue($validator->passes());
+        self::assertSame(['a' => 1, 'b' => 2], $validator->validated());
+    }
+
+    public function testASharedInstanceParsesAfterAnExcludedAttribute(): void
+    {
+        $shared = Parse::integer();
+        $validator = self::factory()->make(
+            ['excluded' => '1', 'kept' => '2'],
+            ['excluded' => [$shared, 'exclude'], 'kept' => [$shared]]
+        );
+
+        self::assertTrue($validator->passes());
+        self::assertSame(['kept' => 2], $validator->validated());
+        self::assertSame(['kept' => 2], $validator->getData());
     }
 
     public function testASharedInstanceKeepsValidatorsApart(): void
@@ -391,6 +431,33 @@ final class ParseIntegerLifecycleTest extends TestCase
 
         // And must not build a nested branch under the decoded name.
         self::assertArrayNotHasKey('a', $validator->getData());
+    }
+
+    public function testTransformsAnEscapedDotAttributeAfterAnOrdinaryRule(): void
+    {
+        $validator = self::factory()->make(
+            ['ordinary' => 'value', 'a.b' => '42'],
+            [
+                'ordinary' => ['required'],
+                'a\\.b' => ['required', Parse::integer()],
+            ]
+        );
+
+        if (!self::usesMarkedDotPlaceholder($validator)) {
+            self::assertFalse($validator->passes());
+            self::assertStringContainsString(
+                'cannot address this attribute name',
+                $validator->errors()->first('a.b')
+            );
+
+            return;
+        }
+
+        self::assertTrue($validator->passes());
+        self::assertSame(
+            ['ordinary' => 'value', 'a.b' => 42],
+            $validator->validated()
+        );
     }
 
     public function testRejectsAnUnparsableEscapedDotAttribute(): void

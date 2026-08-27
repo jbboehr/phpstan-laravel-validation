@@ -68,8 +68,7 @@ final class DateTimeRule extends BaseParsingRule
             } catch (Exception $exception) {
                 throw new InvalidArgumentException(
                     sprintf('Invalid date/time timezone "%s".', $timezone),
-                    0,
-                    $exception
+                    previous: $exception
                 );
             }
         }
