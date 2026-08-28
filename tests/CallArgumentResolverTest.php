@@ -103,6 +103,10 @@ final class CallArgumentResolverTest extends \PHPUnit\Framework\TestCase
             $data,
             new Arg(new Array_()),
         ], $data));
+        self::assertFalse($resolver->otherArgumentMayChangeEvaluationState([
+            $data,
+            new Arg(new Variable('messages')),
+        ], $data));
         self::assertTrue($resolver->otherArgumentMayChangeEvaluationState([
             $data,
             new Arg(new Assign(new Variable('data'), new Array_())),

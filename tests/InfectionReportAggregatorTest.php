@@ -134,7 +134,7 @@ final class InfectionReportAggregatorTest extends \PHPUnit\Framework\TestCase
 
         self::assertSame(1, $process->getExitCode());
         self::assertStringContainsString('Aggregate MSI is below infection.json5.dist minMsi (50).', $process->getErrorOutput());
-        self::assertStringContainsString('Aggregate covered MSI is below infection.json5.dist minCoveredMsi (80).', $process->getErrorOutput());
+        self::assertStringContainsString('Aggregate covered MSI is below infection.json5.dist minCoveredMsi (79).', $process->getErrorOutput());
     }
 
     public function testFailsWhenTimeoutAndIgnoredMutantLimitsDoNotMatch(): void

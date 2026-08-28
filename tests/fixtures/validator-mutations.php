@@ -143,3 +143,10 @@ function mutateInferredInsideClosure(Factory $factory): void
 
     $callback();
 }
+
+function maybeMutateInferredContract(Factory $factory): void
+{
+    $validator = $factory->make([], ['age' => 'required|string']);
+    $method = random_int(0, 1) === 1 ? 'setData' : 'passes';
+    $validator->{$method}([]);
+}

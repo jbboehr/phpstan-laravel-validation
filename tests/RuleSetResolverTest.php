@@ -43,6 +43,7 @@ use PhpParser\Node\Name\FullyQualified;
 use PhpParser\Node\Scalar\String_;
 use PHPStan\Analyser\Scope;
 use PHPStan\Testing\PHPStanTestCase;
+use PHPStan\Type\BooleanType;
 use PHPStan\Type\Constant\ConstantArrayTypeBuilder;
 use PHPStan\Type\Constant\ConstantBooleanType;
 use PHPStan\Type\Constant\ConstantIntegerType;
@@ -204,6 +205,40 @@ final class RuleSetResolverTest extends PHPStanTestCase
                     $rule->getRuleName(),
                 $trees[0]->resolvePath('value')->getRules()
             )
+        );
+    }
+
+    public function testConditionalRuleListsRequireOneConstantBooleanCondition(): void
+    {
+        $condition = new Expr\Variable('condition');
+        $expression = new Expr\Array_([
+            new Expr\ArrayItem(
+                new Expr\StaticCall(
+                    new FullyQualified(\Illuminate\Validation\Rule::class),
+                    new Identifier('when'),
+                    [
+                        new \PhpParser\Node\Arg($condition),
+                        new \PhpParser\Node\Arg(new String_('required|string')),
+                    ]
+                ),
+                new String_('value')
+            ),
+        ]);
+        $scope = $this->createMock(Scope::class);
+        $scope->method('getType')->willReturnCallback(
+            static fn (Expr $node): Type => match (true) {
+                $node === $condition => new BooleanType(),
+                $node instanceof String_ => new ConstantStringType($node->value),
+                default => new MixedType(),
+            }
+        );
+        $scope->method('resolveName')->willReturnCallback(
+            static fn (\PhpParser\Node\Name $name): string => $name->toString()
+        );
+
+        self::assertSame(
+            [],
+            $this->resolverForVersion('13.0.0')->resolve($expression, $scope)
         );
     }
 

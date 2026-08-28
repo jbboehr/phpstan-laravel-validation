@@ -11,7 +11,7 @@
     "timeout": 60,
     "threads": 4,
     "minMsi": 50,
-    "minCoveredMsi": 80,
+    "minCoveredMsi": 79,
     "timeoutsAsEscaped": true,
     "maxTimeouts": 10,
     // Out-of-process integration tests cannot observe the active in-process

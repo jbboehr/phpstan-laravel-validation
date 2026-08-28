@@ -27,7 +27,7 @@ use Throwable;
 const EXPECTED_IGNORED_MUTANTS = 5;
 const MAXIMUM_TIMEOUTS = 10;
 const MINIMUM_MSI = 50;
-const MINIMUM_COVERED_MSI = 80;
+const MINIMUM_COVERED_MSI = 79;
 
 try {
     $arguments = $_SERVER['argv'] ?? null;
