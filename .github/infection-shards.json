@@ -45,6 +45,7 @@
             "src/Validation/InvalidRuleException.php",
             "src/Validation/Rule.php",
             "src/Validation/RuleParser.php",
+            "src/Rule/FormRequestResultCacheDependencyRule.php",
             "src/Rule/ParsingNumericSizeRule.php",
             "src/Rule/ParsingRuleLaravelVersionRule.php",
             "src/Rule/ValidatorMutationRule.php",

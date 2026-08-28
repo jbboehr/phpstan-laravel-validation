@@ -81,16 +81,26 @@ lifecycle-hook checks. It does not make unresolved rule expressions
 resolvable and does not override a custom `validated()` implementation. A
 false trust declaration can produce an unsound type.
 
-## Discovery
+## Resolution boundary
 
 FormRequest inference does not require Larastan. Concrete requests are
-discovered from PHPStan's analysed and scan paths and from the root project's
-Composer `autoload` and `autoload-dev` source mappings. Classes outside those
-paths, including undiscovered vendor requests, retain Laravel's broad type.
+resolved on demand when PHPStan analyses a supported `validated()` or `safe()`
+call. Their files must belong to PHPStan's analysed or scan paths or to the
+root project's Composer `autoload` and `autoload-dev` source mappings. The
+extension does not scan those roots ahead of analysis. Classes outside those
+paths, including vendor requests, retain Laravel's broad type.
+Broad roots do not implicitly trust nested `.git`, `.phpunit.cache`,
+`node_modules`, or `vendor` trees.
 
-Adding an exact class to `trustedClasses` also makes it discoverable, but
-that setting simultaneously asserts that its lifecycle hooks are safe. It is
-not a risk-free discovery-only option.
+Adding an exact class to `trustedClasses` permits its on-demand resolution
+outside the project source boundary, but that setting simultaneously asserts
+that its lifecycle hooks are safe. It is not a risk-free inclusion-only
+option.
+
+Each analyzed caller records the concrete FormRequest classes whose inferred
+contracts it consumes. PHPStan's result cache can therefore reanalyze the
+callers of a changed request without discarding cached results for unrelated
+callers.
 
 ## `validated($key)` and `safe()`
 

@@ -39,6 +39,13 @@ fallbacks, and a three-configuration performance benchmark against pinned Koel
 and Pterodactyl revisions. It shows useful structural recovery in Koel and the
 cost of a shared lifecycle hook in Pterodactyl.
 
+### [PHPStan result-cache dependency prototype](phpstan-result-cache-dependency-prototype.md)
+
+This records the experimental integration with PHPStan's proposed per-file
+semantic dependency API. It replaces global FormRequest discovery and cache
+invalidation with on-demand per-class hashes, preserves the project/trust
+boundary, and records the prototype-only dependency and verification limits.
+
 ### [Work-project differential follow-up](work-project-differential-follow-up.md)
 
 This records six completed implementation slices derived from sanitized

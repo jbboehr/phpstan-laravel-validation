@@ -52,7 +52,6 @@ services:
     arguments:
       parser: @currentPhpVersionSimpleDirectParser
       workingDirectory: %currentWorkingDirectory%
-      tmpDirectory: %tmpDir%
       enabled: %phpstanLaravelValidation.formRequests.enabled%
       trustedClasses: %phpstanLaravelValidation.formRequests.trustedClasses%
       analysedPaths: %analysedPaths%
@@ -61,7 +60,7 @@ services:
       scanFiles: %scanFiles%
       scanDirectories: %scanDirectories%
     tags:
-      - phpstan.resultCacheMetaExtension
+      - phpstan.resultCacheDependencyExtension
   - class: jbboehr\PhpstanLaravelValidation\Validation\LaravelVersionContext
     arguments:
       workingDirectory: %currentWorkingDirectory%
@@ -88,6 +87,11 @@ services:
     tags:
       - phpstan.rules.rule
   - class: jbboehr\PhpstanLaravelValidation\Rule\ParsingRuleLaravelVersionRule
+    tags:
+      - phpstan.rules.rule
+  - class: jbboehr\PhpstanLaravelValidation\Rule\FormRequestResultCacheDependencyRule
+    arguments:
+      enabled: %phpstanLaravelValidation.formRequests.enabled%
     tags:
       - phpstan.rules.rule
   - class: jbboehr\PhpstanLaravelValidation\Extension\ControllerValidateExtension

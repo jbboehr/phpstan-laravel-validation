@@ -21,6 +21,7 @@ declare(strict_types=1);
 
 namespace jbboehr\PhpstanLaravelValidation\Test;
 
+use PHPStan\Collectors\ResultCacheDependencyCollector;
 use PHPUnit\Framework\Attributes\Group;
 use Symfony\Component\Process\Process;
 
@@ -129,6 +130,223 @@ NEON,
         self::assertStringContainsString(
             'Parameter #1 $string of function strlen expects string, array given.',
             $second->getErrorOutput() . $second->getOutput()
+        );
+    }
+
+    public function testChangingRequestInvalidatesConstantDynamicValidatedCaller(): void
+    {
+        $this->writeRequest("return ['value' => 'required|string'];");
+        $this->writeProjectFile('src/Controller.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+function consume(CacheRequest $request): int
+{
+    $method = 'validated';
+    $validated = $request->$method();
+
+    return strlen($validated['value']);
+}
+PHP);
+
+        $first = $this->analyse();
+        self::assertSame(0, $first->getExitCode(), $first->getErrorOutput() . $first->getOutput());
+
+        $this->writeRequest("return ['value' => 'required|array'];");
+
+        $second = $this->analyse(verbose: true);
+        $output = $second->getErrorOutput() . $second->getOutput();
+        self::assertSame(1, $second->getExitCode(), $output);
+        self::assertStringContainsString(
+            'Result cache restored. 2 files will be reanalysed.',
+            $output
+        );
+        self::assertStringContainsString(
+            'Parameter #1 $string of function strlen expects string, array given.',
+            $output
+        );
+    }
+
+    public function testChangingRequestInvalidatesFiniteDynamicValidatedCaller(): void
+    {
+        $this->writeRequest("return ['value' => 'required|string'];");
+        $this->writeProjectFile('src/Controller.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+function consume(CacheRequest $request, bool $uppercase): int
+{
+    $method = $uppercase ? 'VALIDATED' : 'validated';
+    $validated = $request->$method();
+
+    return strlen($validated['value']);
+}
+PHP);
+
+        $first = $this->analyse();
+        self::assertSame(0, $first->getExitCode(), $first->getErrorOutput() . $first->getOutput());
+
+        $this->writeRequest("return ['value' => 'required|array'];");
+
+        $second = $this->analyse(verbose: true);
+        $output = $second->getErrorOutput() . $second->getOutput();
+        self::assertSame(1, $second->getExitCode(), $output);
+        self::assertStringContainsString(
+            'Result cache restored. 2 files will be reanalysed.',
+            $output
+        );
+        self::assertStringContainsString(
+            'Parameter #1 $string of function strlen expects string, array given.',
+            $output
+        );
+    }
+
+    public function testChangingRequestInvalidatesNullsafeValidatedCaller(): void
+    {
+        $this->writeRequest('return RuleConstants::RULES;');
+        $this->writeRuleConstants('required|string');
+        $this->writeProjectFile('src/Controller.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+function consume(?CacheRequest $request): int
+{
+    $validated = $request?->validated();
+    if ($validated === null) {
+        return 0;
+    }
+
+    return strlen($validated['value']);
+}
+PHP);
+
+        $first = $this->analyse();
+        self::assertSame(0, $first->getExitCode(), $first->getErrorOutput() . $first->getOutput());
+
+        $this->writeRuleConstants('required|array');
+
+        $second = $this->analyse(verbose: true);
+        $output = $second->getErrorOutput() . $second->getOutput();
+        self::assertSame(1, $second->getExitCode(), $output);
+        self::assertStringContainsString(
+            'Result cache restored. 3 files will be reanalysed.',
+            $output
+        );
+        self::assertStringContainsString(
+            'Parameter #1 $string of function strlen expects string, array given.',
+            $output
+        );
+    }
+
+    public function testChangingRequestInvalidatesCallerDefinedInTrait(): void
+    {
+        $this->writeRequest("return ['value' => 'required|string'];");
+        $this->writeProjectFile('src/Controller.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+final class Consumer
+{
+    use ConsumerTrait;
+}
+PHP);
+        $this->writeProjectFile('src/ConsumerTrait.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+trait ConsumerTrait
+{
+    public function consume(CacheRequest $request): int
+    {
+        return strlen($request->validated()['value']);
+    }
+}
+PHP);
+
+        $first = $this->analyse();
+        self::assertSame(0, $first->getExitCode(), $first->getErrorOutput() . $first->getOutput());
+
+        $this->writeRequest("return ['value' => 'required|array'];");
+
+        $second = $this->analyse(verbose: true);
+        $output = $second->getErrorOutput() . $second->getOutput();
+        self::assertSame(1, $second->getExitCode(), $output);
+        self::assertStringContainsString(
+            'Result cache restored. 2 files will be reanalysed.',
+            $output
+        );
+        self::assertStringContainsString(
+            'Parameter #1 $string of function strlen expects string, array given.',
+            $output
+        );
+    }
+
+    public function testChangingOneRequestInvalidatesOnlyItsConsumer(): void
+    {
+        $this->writeRequest("return ['value' => 'required|string'];");
+        $this->writeProjectFile('src/Controller.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+function consume(CacheRequest $request): int
+{
+    $validated = $request->safe()->all();
+
+    return strlen($validated['value']);
+}
+PHP);
+        $this->writeNamedRequest(
+            'OtherRequest',
+            "return ['value' => 'required|string'];"
+        );
+        $this->writeProjectFile('src/OtherController.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+function consumeOther(OtherRequest $request): int
+{
+    $validated = $request->validated();
+
+    return strlen($validated['value']);
+}
+PHP);
+
+        $first = $this->analyse();
+        self::assertSame(0, $first->getExitCode(), $first->getErrorOutput() . $first->getOutput());
+
+        $this->writeRequest("return ['value' => 'required|array'];");
+
+        $second = $this->analyse(verbose: true);
+        $output = $second->getErrorOutput() . $second->getOutput();
+        self::assertSame(1, $second->getExitCode(), $output);
+        self::assertStringContainsString(
+            'Result cache restored. 2 files will be reanalysed.',
+            $output
+        );
+        self::assertStringContainsString(
+            'Parameter #1 $string of function strlen expects string, array given.',
+            $output
         );
     }
 
@@ -259,7 +477,7 @@ PHP);
         self::assertSame(0, $second->getExitCode(), $second->getErrorOutput() . $second->getOutput());
     }
 
-    public function testRegistryManifestIsWrittenAndCorruptionFallsBackSafely(): void
+    public function testWarmCacheIsReusableWithoutARegistryManifest(): void
     {
         $this->writeRequest("return ['value' => 'required|string'];");
 
@@ -270,27 +488,61 @@ PHP);
             $this->projectDirectory . '/cache/phpstan-laravel-validation/form-requests-*.json'
         );
         self::assertIsArray($manifests);
-        self::assertCount(1, $manifests);
-        $contents = file_get_contents($manifests[0]);
-        self::assertIsString($contents);
-        $manifest = json_decode($contents, true, flags: JSON_THROW_ON_ERROR);
-        self::assertIsArray($manifest);
-        self::assertSame(2, $manifest['schema'] ?? null);
-        $descriptorHash = $manifest['descriptorHash'] ?? null;
-        self::assertIsString($descriptorHash);
-        self::assertMatchesRegularExpression('/^[a-f0-9]{64}$/D', $descriptorHash);
+        self::assertSame([], $manifests);
 
-        $warm = $this->analyse(true);
-        self::assertSame(0, $warm->getExitCode(), $warm->getErrorOutput() . $warm->getOutput());
-        self::assertSame($contents, file_get_contents($manifests[0]));
-
-        self::assertNotFalse(file_put_contents($manifests[0], '{corrupt'));
-        $second = $this->analyse(true);
-        self::assertSame(0, $second->getExitCode(), $second->getErrorOutput() . $second->getOutput());
+        $warm = $this->analyse(failWithoutResultCache: true, verbose: true);
+        $output = $warm->getErrorOutput() . $warm->getOutput();
+        self::assertSame(0, $warm->getExitCode(), $output);
+        self::assertStringContainsString(
+            'Result cache restored. 0 files will be reanalysed.',
+            $output
+        );
     }
 
-    private function analyse(bool $failWithoutResultCache = false): Process
+    public function testHistoricalDependencyKeysRestoreRegardlessOfLookupOrder(): void
     {
+        $this->writeRequest("return ['value' => 'required|string'];");
+
+        $first = $this->analyse();
+        self::assertSame(0, $first->getExitCode(), $first->getErrorOutput() . $first->getOutput());
+
+        $canonical = $this->readRecordedDependency();
+        self::assertSame('CacheFixture\\CacheRequest', $canonical['dependencyKey']);
+        $leadingSeparator = $canonical;
+        $leadingSeparator['dependencyKey'] = '\\' . $canonical['dependencyKey'];
+        $missing = [
+            'extensionKey' => $canonical['extensionKey'],
+            'dependencyKey' => 'CacheFixture\\RemovedRequest',
+            'hash' => '0abc79d3e3cc3cbebc791a95f8643fd79027a112c5f9ac589c8252281f8d082f',
+        ];
+        $obsolete = [
+            'extensionKey' => $canonical['extensionKey'],
+            'dependencyKey' => 'cachefixture\\cacherequest',
+            'hash' => '8a6207e9a85b241573e5ce4c2225fe6f014ed857d61d99dd0abf4b30810c4376',
+        ];
+
+        $orders = [
+            'obsolete first' => [$obsolete, $leadingSeparator, $missing, $canonical],
+            'canonical first' => [$canonical, $missing, $leadingSeparator, $obsolete],
+        ];
+        foreach ($orders as $order => $records) {
+            $this->writeRecordedDependencies($records);
+
+            $warm = $this->analyse(failWithoutResultCache: true, verbose: true);
+            $output = $warm->getErrorOutput() . $warm->getOutput();
+            self::assertSame(0, $warm->getExitCode(), $order . "\n" . $output);
+            self::assertStringContainsString(
+                'Result cache restored. 0 files will be reanalysed.',
+                $output,
+                $order
+            );
+        }
+    }
+
+    private function analyse(
+        bool $failWithoutResultCache = false,
+        bool $verbose = false
+    ): Process {
         $command = [
             PHP_BINARY,
             dirname(__DIR__) . '/vendor/bin/phpstan',
@@ -303,6 +555,9 @@ PHP);
         if ($failWithoutResultCache) {
             $command[] = '--fail-without-result-cache';
         }
+        if ($verbose) {
+            $command[] = '-vv';
+        }
 
         $process = new Process($command, $this->projectDirectory);
         $process->setTimeout(60.0);
@@ -313,7 +568,15 @@ PHP);
 
     private function writeRequest(string $returnStatement, string $additionalMethods = ''): void
     {
-        $this->writeProjectFile('src/CacheRequest.php', sprintf(
+        $this->writeNamedRequest('CacheRequest', $returnStatement, $additionalMethods);
+    }
+
+    private function writeNamedRequest(
+        string $className,
+        string $returnStatement,
+        string $additionalMethods = ''
+    ): void {
+        $this->writeProjectFile('src/' . $className . '.php', sprintf(
             <<<'PHP'
 <?php
 
@@ -323,7 +586,7 @@ namespace CacheFixture;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-final class CacheRequest extends FormRequest
+final class %s extends FormRequest
 {
     /** @return array<string, string> */
     public function rules(): array
@@ -333,6 +596,7 @@ final class CacheRequest extends FormRequest
 %s
 }
 PHP,
+            $className,
             $returnStatement,
             $additionalMethods
         ));
@@ -356,6 +620,72 @@ final class RuleConstants
 PHP,
             $rule
         ));
+    }
+
+    /** @return array{extensionKey: string, dependencyKey: string, hash: string} */
+    private function readRecordedDependency(): array
+    {
+        $cacheFile = $this->projectDirectory . '/cache/resultCache.php';
+        /** @var array{collectedDataCallback: callable(): array<string, array<string, mixed>>} $cache */
+        $cache = require $cacheFile;
+        $collectedData = ($cache['collectedDataCallback'])();
+
+        foreach ($collectedData as $perFile) {
+            $records = $perFile[ResultCacheDependencyCollector::class] ?? null;
+            if (!is_array($records) || !isset($records[0]) || !is_array($records[0])) {
+                continue;
+            }
+
+            $record = $records[0];
+            self::assertIsString($record['extensionKey'] ?? null);
+            self::assertIsString($record['dependencyKey'] ?? null);
+            self::assertIsString($record['hash'] ?? null);
+
+            return [
+                'extensionKey' => $record['extensionKey'],
+                'dependencyKey' => $record['dependencyKey'],
+                'hash' => $record['hash'],
+            ];
+        }
+
+        self::fail('No FormRequest result-cache dependency was recorded.');
+    }
+
+    /** @param list<array{extensionKey: string, dependencyKey: string, hash: string}> $records */
+    private function writeRecordedDependencies(array $records): void
+    {
+        $cacheFile = $this->projectDirectory . '/cache/resultCache.php';
+        $contents = file_get_contents($cacheFile);
+        self::assertIsString($contents);
+
+        $callbackPosition = strpos($contents, "'collectedDataCallback' =>");
+        self::assertIsInt($callbackPosition);
+        $marker = var_export(ResultCacheDependencyCollector::class, true) . ' => ';
+        $markerPosition = strpos($contents, $marker, $callbackPosition);
+        self::assertIsInt($markerPosition);
+        $arrayStart = strpos($contents, 'array (', $markerPosition + strlen($marker));
+        self::assertIsInt($arrayStart);
+
+        $depth = 0;
+        $arrayEnd = null;
+        for ($offset = $arrayStart; $offset < strlen($contents); $offset++) {
+            if ($contents[$offset] === '(') {
+                $depth++;
+            } elseif ($contents[$offset] === ')') {
+                $depth--;
+                if ($depth === 0) {
+                    $arrayEnd = $offset + 1;
+                    break;
+                }
+            }
+        }
+        self::assertIsInt($arrayEnd);
+
+        $replacement = var_export($records, true);
+        $rewritten = substr($contents, 0, $arrayStart)
+            . $replacement
+            . substr($contents, $arrayEnd);
+        self::assertNotFalse(file_put_contents($cacheFile, $rewritten));
     }
 
     private function writeProjectFile(string $relativePath, string $contents): void

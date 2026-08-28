@@ -14,6 +14,13 @@ promise for later revisions.
 Initial investigation date: 2026-08-10. Follow-up implementation and rerun:
 2026-08-11. Cold discovery phase profile: 2026-08-25.
 
+> **Prototype follow-up, 2026-08-27:** the
+> [per-file result-cache dependency prototype](phpstan-result-cache-dependency-prototype.md)
+> replaces the global registry hash and manifest with on-demand class
+> resolution and caller-specific semantic dependencies. The measurements and
+> implementation discussion below remain the pinned evidence for the previous
+> design; they have not been rewritten as post-prototype benchmark results.
+
 ## Result
 
 Koel demonstrates that the integration can recover useful structural types
@@ -449,19 +456,19 @@ the extension by another mechanism, or `0` when a locked extension installer
 is disabled and does not load it. The chosen posture is recorded in benchmark
 metadata.
 
-## Remaining candidates
+## Remaining candidates from the pre-prototype implementation
+
+The per-file dependency and discovery items below are superseded by the
+2026-08-27 prototype. They are retained to record how the target design was
+derived:
 
 1. Pursue a supported PHPStan API for per-file, extension-defined semantic
-   dependencies. A consumer should record a stable dependency key, such as a
-   FormRequest class, and the extension should provide that key's current
-   contract hash.
-1. Consider an optional exact FormRequest class list, separate from
-   `trustedClasses`, for projects that prefer explicit discovery. Unlisted
-   requests must retain Laravel's broad declared type. This would reduce
-   registry discovery work without weakening lifecycle checks or cache
-   invalidation.
-1. Consider the measured `extends` prefilter if its modest cold-start benefit
-   justifies a production change and dedicated discovery regression tests.
+   dependencies.
+1. Avoid global discovery by resolving only FormRequests whose contracts are
+   consumed by analyzed callers.
+
+Remaining independent candidates are:
+
 1. Extend selected rule-object support only where Laravel runtime evidence
    establishes a useful static contract.
 1. Consider additional `ValidatedInput` access patterns beyond the implemented

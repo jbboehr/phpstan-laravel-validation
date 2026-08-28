@@ -80,7 +80,7 @@
             { id: "what-is-inferred", title: "What is inferred" },
             { id: "lifecycle-hooks", title: "Lifecycle hooks" },
             { id: "trusted-classes", title: "Trusted classes" },
-            { id: "discovery", title: "Discovery" },
+            { id: "resolution-boundary", title: "Resolution boundary" },
             { id: "validatedkey-and-safe", title: "validated($key) and safe()" },
             { id: "residual-assumptions", title: "Residual assumptions" },
         ],
