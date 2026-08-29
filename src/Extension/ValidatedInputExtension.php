@@ -62,7 +62,7 @@ final class ValidatedInputExtension implements DynamicMethodReturnTypeExtension
                 return null;
             }
 
-            $payloadType = $this->typeResolver->resolveDirectSafePayload(
+            $payloadType = $this->typeResolver->resolveDirectPayload(
                 $methodCall->var,
                 $scope
             );

@@ -26,6 +26,8 @@ use Illuminate\Support\ValidatedInput;
 use jbboehr\PhpstanLaravelValidation\Extension\CallArgumentResolver;
 use jbboehr\PhpstanLaravelValidation\Validation\FormRequestTypeRegistry;
 use jbboehr\PhpstanLaravelValidation\Validation\LaravelVersionContext;
+use PhpParser\Node\Expr;
+use PhpParser\Node\Expr\Array_;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Identifier;
 use PHPStan\Analyser\Scope;
@@ -33,6 +35,7 @@ use PHPStan\Type\Constant\ConstantArrayType;
 use PHPStan\Type\Constant\ConstantArrayTypeBuilder;
 use PHPStan\Type\Constant\ConstantIntegerType;
 use PHPStan\Type\Constant\ConstantStringType;
+use PHPStan\Type\NeverType;
 use PHPStan\Type\ObjectType;
 use PHPStan\Type\Type;
 use PHPStan\Type\TypeCombinator;
@@ -45,6 +48,8 @@ use PHPStan\Type\UnionType;
 final class ValidatedInputTypeResolver
 {
     private const MAX_PATHS = 128;
+
+    private const MAX_MERGE_ALTERNATIVES = 128;
 
     public function __construct(
         private FormRequestTypeRegistry $formRequestTypeRegistry,
@@ -78,17 +83,24 @@ final class ValidatedInputTypeResolver
         return $this->resolveSafeKeysType($payloadType, $keysType);
     }
 
-    public function resolveDirectSafePayload(MethodCall $safeCall, Scope $scope): ?Type
+    public function resolveDirectPayload(MethodCall $call, Scope $scope): ?Type
     {
         if (
-            !$safeCall->name instanceof Identifier
-            || strtolower($safeCall->name->toString()) !== 'safe'
-            || $safeCall->isFirstClassCallable()
+            !$call->name instanceof Identifier
+            || $call->isFirstClassCallable()
         ) {
             return null;
         }
 
-        $arguments = $safeCall->getArgs();
+        $methodName = strtolower($call->name->toString());
+        if ($methodName === 'merge') {
+            return $this->resolveMergedPayload($call, $scope);
+        }
+        if ($methodName !== 'safe') {
+            return null;
+        }
+
+        $arguments = $call->getArgs();
         if ($arguments !== []) {
             if (count($arguments) !== 1 || $arguments[0]->unpack) {
                 return null;
@@ -101,7 +113,149 @@ final class ValidatedInputTypeResolver
             }
         }
 
-        return $this->resolvePayloadType($scope->getType($safeCall->var));
+        return $this->resolvePayloadType($scope->getType($call->var));
+    }
+
+    private function resolveMergedPayload(MethodCall $mergeCall, Scope $scope): ?Type
+    {
+        if (!$mergeCall->var instanceof MethodCall) {
+            return null;
+        }
+
+        $payloadType = $this->resolveDirectPayload($mergeCall->var, $scope);
+        if ($payloadType === null) {
+            return null;
+        }
+
+        $arguments = $mergeCall->getArgs();
+        $itemsArgument = $this->callArgumentResolver->find($arguments, 'items', 0);
+        if (
+            count($arguments) !== 1
+            || $itemsArgument === null
+            || $this->callArgumentResolver->expressionMayChangeEvaluationState(
+                $itemsArgument->value
+            )
+        ) {
+            return null;
+        }
+
+        return $this->mergeConstantArrays(
+            $payloadType,
+            $scope->getType($itemsArgument->value),
+            $this->hasExplicitArrayOrder($itemsArgument->value),
+            $itemsArgument->value instanceof Expr\Variable
+        );
+    }
+
+    private function hasExplicitArrayOrder(Expr $expression): bool
+    {
+        if (!$expression instanceof Array_) {
+            return false;
+        }
+
+        foreach ($expression->items as $item) {
+            if ($item->unpack) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function mergeConstantArrays(
+        Type $leftType,
+        Type $rightType,
+        bool $rightOrderIsExplicit,
+        bool $rightListOrderIsTrusted
+    ): ?Type {
+        $leftArrays = $this->getBoundedConstantArrays($leftType, false, true);
+        $rightArrays = $this->getBoundedConstantArrays(
+            $rightType,
+            $rightOrderIsExplicit,
+            $rightListOrderIsTrusted
+        );
+        if (
+            $leftArrays === null
+            || $rightArrays === null
+            || count($leftArrays) > intdiv(self::MAX_MERGE_ALTERNATIVES, count($rightArrays))
+        ) {
+            return null;
+        }
+
+        $mergedTypes = [];
+        foreach ($leftArrays as $leftArray) {
+            foreach ($rightArrays as $rightArray) {
+                $builder = ConstantArrayTypeBuilder::createEmpty();
+                foreach ([$leftArray, $rightArray] as $arrayType) {
+                    foreach ($arrayType->getKeyTypes() as $index => $keyType) {
+                        $builder->setOffsetValueType(
+                            $keyType instanceof ConstantIntegerType ? null : $keyType,
+                            $arrayType->getValueTypes()[$index],
+                            $arrayType->isOptionalKey($index)
+                        );
+                    }
+                }
+
+                $mergedTypes[] = $builder->getArray();
+            }
+        }
+
+        return TypeCombinator::union(...$mergedTypes);
+    }
+
+    /**
+     * @return non-empty-list<ConstantArrayType>|null
+     */
+    private function getBoundedConstantArrays(
+        Type $arrayType,
+        bool $allowMultipleIntegerKeys,
+        bool $trustListOrder
+    ): ?array {
+        if (!$arrayType->isConstantArray()->yes()) {
+            return null;
+        }
+
+        $constantArrays = $arrayType->getConstantArrays();
+        if ($constantArrays === []) {
+            return null;
+        }
+
+        /** @var array<int|string, ConstantIntegerType|ConstantStringType> $keyTypes */
+        $keyTypes = [];
+        foreach ($constantArrays as $constantArray) {
+            $integerKeyCount = 0;
+            foreach ($constantArray->getKeyTypes() as $keyType) {
+                $keyTypes[$keyType->getValue()] = $keyType;
+                if ($keyType instanceof ConstantIntegerType) {
+                    $integerKeyCount++;
+                }
+            }
+            if (
+                !$allowMultipleIntegerKeys
+                && $integerKeyCount > 1
+                && (!$trustListOrder || !$constantArray->isList()->yes())
+            ) {
+                // Array shapes do not promise the insertion order of their
+                // integer keys unless PHPStan also proves listness.
+                // array_merge() reindexes in insertion order, so only a list
+                // or an explicit array expression can justify exact positions.
+                return null;
+            }
+        }
+
+        $knownKeyType = $keyTypes === []
+            ? null
+            : TypeCombinator::union(...array_values($keyTypes));
+        $iterableKeyType = $arrayType->getIterableKeyType();
+        if (
+            ($knownKeyType === null && !($iterableKeyType instanceof NeverType))
+            || ($knownKeyType !== null
+                && !$knownKeyType->isSuperTypeOf($iterableKeyType)->yes())
+        ) {
+            return null;
+        }
+
+        return $constantArrays;
     }
 
     public function resolveOnlyReturnType(

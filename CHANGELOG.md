@@ -9,6 +9,12 @@
   selectors and stored mutable `ValidatedInput` wrappers remain broad.
   Multi-selector calls conservatively remain broad before Laravel 13.24 when
   an earlier dotted traversal can affect a later selector.
+- Preserve inferred FormRequest shapes through direct
+  `safe()->merge([...])->all()`, `toArray()`, `only()`, and `except()` chains
+  when the merged array is statically bounded. String keys follow replacement
+  semantics. Numeric keys in direct array expressions are reindexed as
+  Laravel's `array_merge()` does; bounded variables with ambiguous integer-key
+  insertion order remain broad.
 - Experimental opt-in parsing rules under the `jbboehr\Rensei` namespace.
   `Parse::integer()`, `Parse::float()`, `Parse::boolean()`,
   `Parse::string()`, `Parse::base64()`, `Parse::accepted()`,

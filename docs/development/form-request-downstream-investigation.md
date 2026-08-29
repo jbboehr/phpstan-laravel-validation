@@ -466,7 +466,9 @@ metadata.
    establishes a useful static contract.
 1. Consider additional `ValidatedInput` access patterns beyond the implemented
    direct `safe()->all()`, `safe()->toArray()`, `safe()->only([...])`, and
-   `safe()->except([...])` chains. Stored wrappers deliberately remain broad
-   because their array offsets and properties are mutable. Before Laravel
-   13.24, multi-selector `except()` inference also remains broad when Laravel's
-   retained nested reference makes later selectors stateful.
+   `safe()->except([...])` chains, including through statically bounded direct
+   `safe()->merge([...])` chains. Numeric merge shapes remain broad unless their
+   insertion order is explicit. Stored wrappers deliberately remain broad because
+   their array offsets and properties are mutable. Before Laravel 13.24,
+   multi-selector `except()` inference also remains broad when Laravel's retained
+   nested reference makes later selectors stateful.

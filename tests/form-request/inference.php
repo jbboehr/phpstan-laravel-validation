@@ -52,7 +52,8 @@ function inspectAliases(AliasRulesRequest $request): void
     );
 }
 
-function inspectBasic(BasicRequest $request): void
+/** @param array<string, mixed> $dynamicItems */
+function inspectBasic(BasicRequest $request, array $dynamicItems): void
 {
     assertType(
         'array{name: string, age?: float|int|string|Stringable|true}',
@@ -81,6 +82,59 @@ function inspectBasic(BasicRequest $request): void
     assertType('array{name: string}', $request->safe()->only(['name']));
     assertType('array{name: string}', $request->safe()->except(['age']));
     assertType('array{name: string}', $request->safe()->except('age'));
+    assertType(
+        "array{name: 'override', age?: float|int|string|Stringable|true, role: 'admin'}",
+        $request->safe()->merge(['name' => 'override', 'role' => 'admin'])->all()
+    );
+    assertType(
+        'array{name: string, age?: float|int|string|Stringable|true}',
+        $request->safe()->merge(items: [])->all()
+    );
+    assertType(
+        "array{name: 'override'}",
+        $request->safe()->merge(['name' => 'override', 'role' => 'admin'])->only(['name'])
+    );
+    assertType(
+        "array{name: 'override', role: 'admin'}",
+        $request->safe()->merge(['name' => 'override', 'role' => 'admin'])->except(['age'])
+    );
+    assertType(
+        "array{name: 'second', age?: float|int|string|Stringable|true, role: 'admin'}",
+        $request->safe()
+            ->merge(['name' => 'first', 'role' => 'admin'])
+            ->merge(['name' => 'second'])
+            ->toArray()
+    );
+
+    /** @var array{role?: 'admin'} $optionalItems */
+    $optionalItems = [];
+    assertType(
+        "array{name: string, age?: float|int|string|Stringable|true, role?: 'admin'}",
+        $request->safe()->merge($optionalItems)->all()
+    );
+
+    /** @var array{name?: 42} $optionalOverride */
+    $optionalOverride = [];
+    assertType(
+        'array{name: 42|string, age?: float|int|string|Stringable|true}',
+        $request->safe()->merge($optionalOverride)->all()
+    );
+
+    /** @var array{5?: 'optional'} $optionalNumeric */
+    $optionalNumeric = [];
+    assertType(
+        "array{name: string, age?: float|int|string|Stringable|true, 0: 'optional'|'tail', 1?: 'tail'}",
+        $request->safe()->merge($optionalNumeric)->merge([9 => 'tail'])->all()
+    );
+    assertType('array', $request->safe()->merge($dynamicItems)->all());
+    assertType('array', $request->safe()->merge(...[['role' => 'admin']])->all());
+    assertType(
+        'array',
+        $request->safe()->merge($dynamicItems = ['role' => 'admin'])->all()
+    );
+
+    $storedMerge = $request->safe()->merge(['role' => 'admin']);
+    assertType('array', $storedMerge->all());
 
     $stored = $request->safe();
     assertType('array', $stored->toArray());
@@ -234,6 +288,12 @@ function inspectKeyedValidated(KeyedValidatedRequest $request, string $dynamicKe
         'array{name: string, profile: array{email: non-empty-string}}',
         $request->safe()->except(['nickname', 'age', 'items', 'profile.note'])
     );
+    assertType(
+        'array{name: string, nickname?: string|null, age?: float|int|string|Stringable|true, '
+        . "profile: array{replacement: true}, "
+        . 'items?: array<int|string, array{id: float|int|numeric-string|Stringable|true}>|string}',
+        $request->safe()->merge(['profile' => ['replacement' => true]])->all()
+    );
     assertType('array', $request->safe()->except([$dynamicKey]));
 
     $key = random_int(0, 1) === 1 ? 'name' : 'age';
@@ -280,12 +340,37 @@ function inspectDimensionsRuleRequest(DimensionsRuleRequest $request): void
     );
 }
 
-function inspectNumericKeyValidated(NumericKeyValidatedRequest $request): void
-{
+/**
+ * @param array{2: 'first', 1: 'second'}|array{1: 'second', 2: 'first'} $orderedItems
+ * @param list{'list first', 'list second'} $listItems
+ */
+function inspectNumericKeyValidated(
+    NumericKeyValidatedRequest $request,
+    array $orderedItems,
+    array $listItems
+): void {
     assertType('string', $request->validated(0));
     assertType('string', $request->validated('0'));
     assertType('null', $request->validated(1));
     assertType('array{}', $request->safe()->except([0]));
+    assertType(
+        "array{string, 'appended'}",
+        $request->safe()->merge([5 => 'appended'])->all()
+    );
+
+    assertType('array', $request->safe()->merge($orderedItems)->all());
+    assertType('array', $request->safe()->merge([...$orderedItems])->all());
+    assertType(
+        "array{0: string, 1: 'first', 2: 'second', extra: true}",
+        $request->safe()
+            ->merge([5 => 'first', 6 => 'second'])
+            ->merge(['extra' => true])
+            ->all()
+    );
+    assertType(
+        "array{string, 'list first', 'list second'}",
+        $request->safe()->merge($listItems)->all()
+    );
 }
 
 /** @param BasicRequest|TraitRequest $request */

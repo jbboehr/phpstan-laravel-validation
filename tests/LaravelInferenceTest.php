@@ -300,6 +300,75 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
             $optionalParent->except('address.street')
         );
 
+        $merged = $selected->merge([
+            'name' => 'Grace',
+            'role' => 'admin',
+            5 => 'first numeric',
+        ]);
+        self::assertSame(
+            [
+                'name' => 'Grace',
+                'profile' => [
+                    'email' => 'ada@example.com',
+                    'note' => 'mathematician',
+                ],
+                'role' => 'admin',
+                0 => 'first numeric',
+            ],
+            $merged->all()
+        );
+        self::assertSame(
+            ['name' => 'Grace', 'role' => 'admin'],
+            $merged->only(['name', 'role'])
+        );
+        self::assertSame(
+            [
+                'name' => 'Grace',
+                'profile' => [
+                    'email' => 'ada@example.com',
+                    'note' => 'mathematician',
+                ],
+                0 => 'first numeric',
+            ],
+            $merged->except(['role'])
+        );
+        self::assertSame(
+            [
+                'name' => 'second',
+                'profile' => [
+                    'email' => 'ada@example.com',
+                    'note' => 'mathematician',
+                ],
+                'role' => 'owner',
+                0 => 'first numeric',
+                1 => 'second numeric',
+            ],
+            $merged->merge([
+                'name' => 'second',
+                'role' => 'owner',
+                9 => 'second numeric',
+            ])->all()
+        );
+        self::assertSame(
+            [
+                'name' => 'Ada',
+                'profile' => ['replacement' => true],
+            ],
+            $selected->merge([
+                'profile' => ['replacement' => true],
+            ])->all()
+        );
+        self::assertSame(
+            [
+                'name' => 'Ada',
+                'profile' => [
+                    'email' => 'ada@example.com',
+                    'note' => 'mathematician',
+                ],
+            ],
+            $selected->all()
+        );
+
         $mutable = $validator->safe();
         self::assertInstanceOf(\Illuminate\Support\ValidatedInput::class, $mutable);
         $mutable['name'] = 42;

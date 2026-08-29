@@ -110,6 +110,16 @@ can retain a nested-array reference between selectors. Multi-selector
 `except()` calls therefore remain broad when an earlier dotted traversal could
 change the meaning of a later selector.
 
+Direct `safe()->merge([...])` chains also preserve the inferred payload for
+subsequent `all()`, `toArray()`, `only()`, and `except()` calls when the merged
+array has a statically bounded shape. This models Laravel's shallow
+`array_merge()` behavior: later string keys replace earlier values and numeric
+keys in direct array expressions are appended and reindexed. PHPStan array
+shapes do not guarantee the insertion order of multiple integer keys, so
+bounded variables with ambiguous numeric ordering remain broad. Dynamic merge
+arrays, state-changing arguments, and stored mutable wrappers also remain
+broad.
+
 Validator instances retain Laravel's declared `safe()` types because
 `Factory::resolver()` may return a custom Validator whose virtual
 `validated()` implementation changes the payload. The `ValidatedInput`
