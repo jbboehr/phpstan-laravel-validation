@@ -25,6 +25,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\ValidatedInput;
 use jbboehr\PhpstanLaravelValidation\Extension\CallArgumentResolver;
 use jbboehr\PhpstanLaravelValidation\Validation\FormRequestTypeRegistry;
+use jbboehr\PhpstanLaravelValidation\Validation\LaravelVersionContext;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Identifier;
 use PHPStan\Analyser\Scope;
@@ -47,7 +48,8 @@ final class ValidatedInputTypeResolver
 
     public function __construct(
         private FormRequestTypeRegistry $formRequestTypeRegistry,
-        private CallArgumentResolver $callArgumentResolver
+        private CallArgumentResolver $callArgumentResolver,
+        private LaravelVersionContext $laravelVersionContext
     ) {
     }
 
@@ -107,6 +109,78 @@ final class ValidatedInputTypeResolver
         MethodCall $methodCall,
         Scope $scope
     ): ?Type {
+        $pathSets = $this->resolvePathSets($methodCall, $scope);
+        if ($pathSets === null) {
+            return null;
+        }
+
+        $returnTypes = [];
+        foreach ($pathSets as $paths) {
+            $returnType = $this->projectOnly($payloadType, $paths);
+            if ($returnType === null) {
+                return null;
+            }
+
+            $returnTypes[] = $returnType;
+        }
+
+        return TypeCombinator::union(...$returnTypes);
+    }
+
+    public function resolveExceptReturnType(
+        Type $payloadType,
+        MethodCall $methodCall,
+        Scope $scope
+    ): ?Type {
+        $pathSets = $this->resolvePathSets($methodCall, $scope);
+        if ($pathSets === null) {
+            return null;
+        }
+
+        $returnTypes = [];
+        foreach ($pathSets as $paths) {
+            if (!$this->canResolveExceptPathsIndependently($paths)) {
+                return null;
+            }
+
+            $returnType = $this->removePaths($payloadType, $paths);
+            if ($returnType === null) {
+                return null;
+            }
+
+            $returnTypes[] = $returnType;
+        }
+
+        return TypeCombinator::union(...$returnTypes);
+    }
+
+    /**
+     * @param list<array{path: string, required: bool}> $paths
+     */
+    private function canResolveExceptPathsIndependently(array $paths): bool
+    {
+        if ($this->laravelVersionContext->isAtLeast('13.24.0')) {
+            return true;
+        }
+
+        // Older Arr::forget() releases reset their nested-array reference only
+        // after checking the next selector as an exact key. A dotted selector
+        // can therefore change where a later selector is first applied.
+        array_pop($paths);
+        foreach ($paths as $path) {
+            if (str_contains($path['path'], '.')) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @return list<list<array{path: string, required: bool}>>|null
+     */
+    private function resolvePathSets(MethodCall $methodCall, Scope $scope): ?array
+    {
         if ($methodCall->isFirstClassCallable()) {
             return null;
         }
@@ -128,12 +202,27 @@ final class ValidatedInputTypeResolver
         $firstType = $scope->getType($arguments[0]->value);
         if ($firstType->isArray()->yes()) {
             if (count($arguments) !== 1) {
-                // ValidatedInput::only() ignores later arguments when its first
+                // ValidatedInput ignores later arguments when its first
                 // argument is an array. Declining keeps unusual calls obvious.
                 return null;
             }
 
-            return $this->resolveSafeKeysType($payloadType, $firstType, false);
+            $constantArrays = $firstType->getConstantArrays();
+            if ($constantArrays === []) {
+                return null;
+            }
+
+            $pathSets = [];
+            foreach ($constantArrays as $constantArray) {
+                $paths = $this->extractPaths($constantArray);
+                if ($paths === null) {
+                    return null;
+                }
+
+                $pathSets[] = $paths;
+            }
+
+            return $pathSets;
         }
 
         $paths = [];
@@ -151,7 +240,7 @@ final class ValidatedInputTypeResolver
             $paths[] = ['path' => (string) $path, 'required' => true];
         }
 
-        return $this->projectOnly($payloadType, $paths);
+        return [$paths];
     }
 
     private function resolvePayloadType(Type $receiverType): ?Type
@@ -303,6 +392,123 @@ final class ValidatedInputTypeResolver
         }
 
         return $projectedTypes === [] ? null : TypeCombinator::union(...$projectedTypes);
+    }
+
+    /**
+     * @param list<array{path: string, required: bool}> $paths
+     */
+    private function removePaths(Type $payloadType, array $paths): ?Type
+    {
+        $type = $payloadType;
+        foreach ($paths as $path) {
+            $withoutPath = $this->forgetPath($type, $path['path']);
+            if ($withoutPath === null) {
+                return null;
+            }
+
+            $type = $path['required']
+                ? $withoutPath
+                : TypeCombinator::union($type, $withoutPath);
+        }
+
+        return $type;
+    }
+
+    private function forgetPath(Type $type, string $path): ?Type
+    {
+        if ($type instanceof UnionType) {
+            $types = [];
+            foreach ($type->getTypes() as $innerType) {
+                $forgottenType = $this->forgetPath($innerType, $path);
+                if ($forgottenType === null) {
+                    return null;
+                }
+
+                $types[] = $forgottenType;
+            }
+
+            return TypeCombinator::union(...$types);
+        }
+
+        if (!$type->isArray()->yes()) {
+            return null;
+        }
+
+        $offset = (new ConstantStringType($path))->toArrayKey();
+        $hasExactOffset = $type->hasOffsetValueType($offset);
+        $withoutExactOffset = $type->unsetOffset($offset);
+        if ($hasExactOffset->yes()) {
+            return $withoutExactOffset;
+        }
+
+        $withoutNestedPath = $this->forgetNestedPath(
+            $withoutExactOffset,
+            explode('.', $path)
+        );
+        if ($withoutNestedPath === null || $hasExactOffset->no()) {
+            return $withoutNestedPath;
+        }
+
+        return TypeCombinator::union($withoutExactOffset, $withoutNestedPath);
+    }
+
+    /**
+     * @param non-empty-list<string> $segments
+     */
+    private function forgetNestedPath(Type $type, array $segments): ?Type
+    {
+        if ($type instanceof UnionType) {
+            $types = [];
+            foreach ($type->getTypes() as $innerType) {
+                $forgottenType = $this->forgetNestedPath($innerType, $segments);
+                if ($forgottenType === null) {
+                    return null;
+                }
+
+                $types[] = $forgottenType;
+            }
+
+            return TypeCombinator::union(...$types);
+        }
+
+        if (!$type->isArray()->yes()) {
+            return $type;
+        }
+
+        $offset = (new ConstantStringType($segments[0]))->toArrayKey();
+        $hasOffset = $type->hasOffsetValueType($offset);
+        if ($hasOffset->no()) {
+            return $type;
+        }
+        if (count($segments) === 1) {
+            return $type->unsetOffset($offset);
+        }
+
+        $valueType = $type->getOffsetValueType($offset);
+        $remainingSegments = array_slice($segments, 1);
+        if ($remainingSegments === []) {
+            return null;
+        }
+        $forgottenValueType = $this->forgetNestedPath(
+            $valueType,
+            $remainingSegments
+        );
+        if ($forgottenValueType === null) {
+            return null;
+        }
+
+        $withForgottenValue = $type->setOffsetValueType(
+            $offset,
+            $forgottenValueType
+        );
+        if ($hasOffset->yes()) {
+            return $withForgottenValue;
+        }
+
+        return TypeCombinator::union(
+            $type->unsetOffset($offset),
+            $withForgottenValue
+        );
     }
 
     /**

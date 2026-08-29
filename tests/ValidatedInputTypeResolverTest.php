@@ -21,7 +21,10 @@ declare(strict_types=1);
 
 namespace jbboehr\PhpstanLaravelValidation\Test;
 
+use jbboehr\PhpstanLaravelValidation\Extension\CallArgumentResolver;
 use jbboehr\PhpstanLaravelValidation\Type\ValidatedInputTypeResolver;
+use jbboehr\PhpstanLaravelValidation\Validation\FormRequestTypeRegistry;
+use jbboehr\PhpstanLaravelValidation\Validation\LaravelVersionContext;
 use PhpParser\Node\Arg;
 use PhpParser\Node\Expr;
 use PhpParser\Node\Identifier;
@@ -115,6 +118,208 @@ final class ValidatedInputTypeResolverTest extends PHPStanTestCase
                 $scope
             ), $name);
         }
+    }
+
+    public function testOnlyNormalizesNumericPathSegmentsForLists(): void
+    {
+        $type = $this->resolvePaths(
+            'only',
+            'array{items: non-empty-list<array{id: string, name: string}>}',
+            ['items.0.id']
+        );
+
+        self::assertSame(
+            'array{items: array{array{id: string}}}',
+            $type?->describe(VerbosityLevel::precise())
+        );
+    }
+
+    public function testExceptPrefersAnExactDottedKeyOverNestedTraversal(): void
+    {
+        $type = $this->resolvePaths(
+            'except',
+            "array{'profile.note': string, profile: array{note: string, email: int}}",
+            ['profile.note']
+        );
+
+        self::assertSame(
+            'array{profile: array{note: string, email: int}}',
+            $type?->describe(VerbosityLevel::precise())
+        );
+    }
+
+    public function testExceptAccountsForAnOptionalExactDottedKey(): void
+    {
+        $type = $this->resolvePaths(
+            'except',
+            "array{'profile.note'?: string, profile: array{note: string, email: int}}",
+            ['profile.note']
+        );
+
+        self::assertSame(
+            'array{profile: array{note?: string, email: int}}',
+            $type?->describe(VerbosityLevel::precise())
+        );
+    }
+
+    public function testExceptNormalizesNumericPathSegmentsForLists(): void
+    {
+        $container = self::getContainer();
+        $type = $this->resolvePaths(
+            'except',
+            'array{items: non-empty-list<array{id: string, name: string}>}',
+            ['items.0.id']
+        );
+
+        self::assertNotNull($type);
+        $itemsType = $type->getOffsetValueType(new ConstantStringType('items'));
+        self::assertTrue($itemsType->hasOffsetValueType(new ConstantIntegerType(0))->yes());
+        $firstItemType = $itemsType->getOffsetValueType(new ConstantIntegerType(0));
+        self::assertFalse(
+            $firstItemType->hasOffsetValueType(new ConstantStringType('id'))->yes(),
+            $type->describe(VerbosityLevel::precise())
+        );
+        self::assertTrue(
+            $firstItemType->hasOffsetValueType(new ConstantStringType('name'))->yes(),
+            $type->describe(VerbosityLevel::precise())
+        );
+        self::assertTrue(
+            $type->isSuperTypeOf($container->getByType(TypeStringResolver::class)->resolve(
+                'array{items: array{array{name: string}, array{id: string, name: string}}}'
+            ))->yes(),
+            $type->describe(VerbosityLevel::precise())
+        );
+    }
+
+    public function testExceptAllowsAListToBecomeSparseAfterRemovingAnElement(): void
+    {
+        $container = self::getContainer();
+        $type = $this->resolvePaths(
+            'except',
+            'array{items: non-empty-list<string>}',
+            ['items.0']
+        );
+
+        self::assertNotNull($type);
+        self::assertTrue(
+            $type->isSuperTypeOf($container->getByType(TypeStringResolver::class)->resolve(
+                'array{items: array{1: string}}'
+            ))->yes(),
+            $type->describe(VerbosityLevel::precise())
+        );
+    }
+
+    public function testExceptPreservesAnOptionalNestedParent(): void
+    {
+        $type = $this->resolvePaths(
+            'except',
+            'array{name: string, address?: array{street: string, city: string}}',
+            ['address.street']
+        );
+
+        self::assertSame(
+            'array{name: string, address?: array{city: string}}',
+            $type?->describe(VerbosityLevel::precise())
+        );
+    }
+
+    public function testExceptPreservesAnOptionalNumericParent(): void
+    {
+        $container = self::getContainer();
+        $type = $this->resolvePaths(
+            'except',
+            'array{items: array{0?: array{id: string, name: string}}}',
+            ['items.0.id']
+        );
+
+        self::assertNotNull($type);
+        self::assertTrue(
+            $type->isSuperTypeOf($container->getByType(TypeStringResolver::class)->resolve(
+                'array{items: array{}}'
+            ))->yes(),
+            $type->describe(VerbosityLevel::precise())
+        );
+        self::assertTrue(
+            $type->isSuperTypeOf($container->getByType(TypeStringResolver::class)->resolve(
+                'array{items: array{array{name: string}}}'
+            ))->yes(),
+            $type->describe(VerbosityLevel::precise())
+        );
+    }
+
+    public function testExceptHandlesExactDottedKeysPerUnionMember(): void
+    {
+        $type = $this->resolvePaths(
+            'except',
+            "array{'profile.note': string}|array{profile: array{note: string, email: int}}",
+            ['profile.note']
+        );
+
+        self::assertSame(
+            'array{}|array{profile: array{email: int}}',
+            $type?->describe(VerbosityLevel::precise())
+        );
+    }
+
+    public function testExceptRespectsTheLaravel1324PathResetBoundary(): void
+    {
+        foreach (
+            [
+                '13.23.0' => null,
+                '13.24.0' => 'array{a: array{b: int}}',
+            ] as $version => $expected
+        ) {
+            $type = $this->resolvePaths(
+                'except',
+                'array{a: array{x: int, b: int}, b: int}',
+                ['a.x', 'b'],
+                $version
+            );
+
+            self::assertSame(
+                $expected,
+                $type?->describe(VerbosityLevel::precise()),
+                $version
+            );
+        }
+    }
+
+    /**
+     * @param 'except'|'only' $method
+     * @param list<string> $paths
+     */
+    private function resolvePaths(
+        string $method,
+        string $payloadDescription,
+        array $paths,
+        ?string $laravelVersion = null
+    ): ?Type {
+        $container = self::getContainer();
+        $payload = $container->getByType(TypeStringResolver::class)->resolve(
+            $payloadDescription
+        );
+        $keysExpression = new Expr\Array_();
+        $scope = self::createMock(Scope::class);
+        $scope->expects(self::once())
+            ->method('getType')
+            ->with($keysExpression)
+            ->willReturn(self::constantPathList($paths));
+        $resolver = $laravelVersion === null
+            ? $container->getByType(ValidatedInputTypeResolver::class)
+            : new ValidatedInputTypeResolver(
+                $container->getByType(FormRequestTypeRegistry::class),
+                $container->getByType(CallArgumentResolver::class),
+                new LaravelVersionContext('', $laravelVersion)
+            );
+        $methodCall = new Expr\MethodCall(
+            new Expr\Variable('validated'),
+            new Identifier($method),
+            [new Arg($keysExpression)]
+        );
+
+        return $method === 'only'
+            ? $resolver->resolveOnlyReturnType($payload, $methodCall, $scope)
+            : $resolver->resolveExceptReturnType($payload, $methodCall, $scope);
     }
 
     /**

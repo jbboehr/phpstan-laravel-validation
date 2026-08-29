@@ -4,6 +4,11 @@
 
 ### Added
 
+- Infer direct FormRequest `safe()->except(...)` projections for constant
+  string and integer paths, including dotted and numeric paths. Unbounded dynamic
+  selectors and stored mutable `ValidatedInput` wrappers remain broad.
+  Multi-selector calls conservatively remain broad before Laravel 13.24 when
+  an earlier dotted traversal can affect a later selector.
 - Experimental opt-in parsing rules under the `jbboehr\Rensei` namespace.
   `Parse::integer()`, `Parse::float()`, `Parse::boolean()`,
   `Parse::string()`, `Parse::base64()`, `Parse::accepted()`,

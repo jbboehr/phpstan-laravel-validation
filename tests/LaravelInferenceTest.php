@@ -270,6 +270,35 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
             ['profile' => ['note' => 'mathematician']],
             $selected->only(['profile.note'])
         );
+        self::assertSame(
+            [
+                'profile' => ['email' => 'ada@example.com'],
+            ],
+            $selected->except(['name', 'profile.note', 'absent'])
+        );
+        self::assertSame(
+            [
+                'profile' => ['email' => 'ada@example.com'],
+            ],
+            $selected->except('name', 'profile.note', 'absent')
+        );
+
+        $literalDot = new \Illuminate\Support\ValidatedInput([
+            'profile.note' => 'literal',
+            'profile' => ['note' => 'nested'],
+        ]);
+        self::assertSame(
+            ['profile' => ['note' => 'nested']],
+            $literalDot->except('profile.note')
+        );
+
+        $optionalParent = new \Illuminate\Support\ValidatedInput([
+            'name' => 'Ada',
+        ]);
+        self::assertSame(
+            ['name' => 'Ada'],
+            $optionalParent->except('address.street')
+        );
 
         $mutable = $validator->safe();
         self::assertInstanceOf(\Illuminate\Support\ValidatedInput::class, $mutable);
@@ -350,6 +379,37 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         self::assertSame(
             ['items' => [['id' => 'first']]],
             $safe->only(['items.0.id'])
+        );
+        self::assertSame(
+            ['items' => [[]]],
+            $safe->except(['items.0.id'])
+        );
+
+        $multipleItems = new \Illuminate\Support\ValidatedInput([
+            'items' => [
+                ['id' => 'first', 'name' => 'one'],
+                ['id' => 'second', 'name' => 'two'],
+            ],
+        ]);
+        self::assertSame(
+            [
+                'items' => [
+                    ['name' => 'one'],
+                    ['id' => 'second', 'name' => 'two'],
+                ],
+            ],
+            $multipleItems->except(['items.0.id'])
+        );
+
+        $statefulSelectors = new \Illuminate\Support\ValidatedInput([
+            'a' => ['x' => 1, 'b' => 2],
+            'b' => 3,
+        ]);
+        self::assertSame(
+            version_compare(self::frameworkVersion(), '13.24.0', '>=')
+                ? ['a' => ['b' => 2]]
+                : ['a' => [], 'b' => 3],
+            $statefulSelectors->except(['a.x', 'b'])
         );
     }
 

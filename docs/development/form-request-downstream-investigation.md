@@ -465,6 +465,8 @@ metadata.
 1. Extend selected rule-object support only where Laravel runtime evidence
    establishes a useful static contract.
 1. Consider additional `ValidatedInput` access patterns beyond the implemented
-   direct `safe()->all()`, `safe()->toArray()`, and `safe()->only([...])`
-   chains. Stored wrappers deliberately remain broad because their array
-   offsets and properties are mutable.
+   direct `safe()->all()`, `safe()->toArray()`, `safe()->only([...])`, and
+   `safe()->except([...])` chains. Stored wrappers deliberately remain broad
+   because their array offsets and properties are mutable. Before Laravel
+   13.24, multi-selector `except()` inference also remains broad when Laravel's
+   retained nested reference makes later selectors stateful.

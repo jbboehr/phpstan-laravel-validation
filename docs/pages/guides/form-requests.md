@@ -101,9 +101,14 @@ inference. Optional paths include the default type; an omitted default is
 object-property traversal, and `Closure` defaults remain `mixed`.
 
 Constant string and integer paths passed to `safe([...])` are projected from
-the same validated shape. Direct `safe()->all()`, `safe()->toArray()`, and
-`safe()->only([...])` chains retain that shape for registry-verified
-FormRequests.
+the same validated shape. Direct `safe()->all()`, `safe()->toArray()`,
+`safe()->only([...])`, and `safe()->except([...])` chains retain or project
+that shape for registry-verified FormRequests. `only()` and `except()` follow
+Laravel's dotted-path behavior; a literal top-level key containing a dot takes
+precedence when `except()` removes a key. Before Laravel 13.24, `Arr::forget()`
+can retain a nested-array reference between selectors. Multi-selector
+`except()` calls therefore remain broad when an earlier dotted traversal could
+change the meaning of a later selector.
 
 Validator instances retain Laravel's declared `safe()` types because
 `Factory::resolver()` may return a custom Validator whose virtual

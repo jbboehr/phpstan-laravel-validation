@@ -79,6 +79,8 @@ function inspectBasic(BasicRequest $request): void
         $request->safe()->all()
     );
     assertType('array{name: string}', $request->safe()->only(['name']));
+    assertType('array{name: string}', $request->safe()->except(['age']));
+    assertType('array{name: string}', $request->safe()->except('age'));
 
     $stored = $request->safe();
     assertType('array', $stored->toArray());
@@ -228,6 +230,11 @@ function inspectKeyedValidated(KeyedValidatedRequest $request, string $dynamicKe
         'array{profile?: array{note?: string}}',
         $request->safe()->only(['profile.note'])
     );
+    assertType(
+        'array{name: string, profile: array{email: non-empty-string}}',
+        $request->safe()->except(['nickname', 'age', 'items', 'profile.note'])
+    );
+    assertType('array', $request->safe()->except([$dynamicKey]));
 
     $key = random_int(0, 1) === 1 ? 'name' : 'age';
     assertType('float|int|string|Stringable|true|null', $request->validated($key));
@@ -250,6 +257,10 @@ function inspectNumericSafe(NumericSafeRequest $request): void
     assertType(
         'array{items: array{array{id: string}}}',
         $request->safe()->only(['items.0.id'])
+    );
+    assertType(
+        'array{items: array{array{}}}',
+        $request->safe()->except(['items.0.id'])
     );
 }
 
@@ -274,6 +285,7 @@ function inspectNumericKeyValidated(NumericKeyValidatedRequest $request): void
     assertType('string', $request->validated(0));
     assertType('string', $request->validated('0'));
     assertType('null', $request->validated(1));
+    assertType('array{}', $request->safe()->except([0]));
 }
 
 /** @param BasicRequest|TraitRequest $request */

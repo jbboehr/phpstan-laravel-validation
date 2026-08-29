@@ -49,7 +49,7 @@ final class ValidatedInputExtension implements DynamicMethodReturnTypeExtension
 
     public function isMethodSupported(MethodReflection $methodReflection): bool
     {
-        return in_array($methodReflection->getName(), ['all', 'only', 'toArray'], true);
+        return in_array($methodReflection->getName(), ['all', 'except', 'only', 'toArray'], true);
     }
 
     public function getTypeFromMethodCall(
@@ -70,6 +70,13 @@ final class ValidatedInputExtension implements DynamicMethodReturnTypeExtension
                 return null;
             }
 
+            if ($methodReflection->getName() === 'except') {
+                return $this->typeResolver->resolveExceptReturnType(
+                    $payloadType,
+                    $methodCall,
+                    $scope
+                );
+            }
             if ($methodReflection->getName() === 'only') {
                 return $this->typeResolver->resolveOnlyReturnType(
                     $payloadType,
