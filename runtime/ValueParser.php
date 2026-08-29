@@ -21,15 +21,20 @@ declare(strict_types=1);
 
 namespace jbboehr\Rensei;
 
-use RuntimeException;
-
 /**
- * Signals that a value has no representation in a parser's produced type.
+ * Converts one runtime value into a declared type or rejects it.
  *
- * This is internal control flow between `ValueParser::parse()` and the rule
- * that calls it. A parse failure is an ordinary validation failure, so the
- * base rule converts it into a message and never lets it escape validation.
+ * This contract is independent of Laravel's validation lifecycle. Adapt a
+ * value parser with {@see Parse::using()} before placing it in a rule list.
+ *
+ * @template-covariant T
  */
-final class ParseFailure extends RuntimeException
+interface ValueParser
 {
+    /**
+     * @return T
+     *
+     * @throws ParseFailure when the value has no representation in T
+     */
+    public function parse(mixed $value): mixed;
 }

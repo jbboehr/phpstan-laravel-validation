@@ -19,17 +19,15 @@
 
 declare(strict_types=1);
 
-namespace jbboehr\Rensei;
+namespace jbboehr\PhpstanLaravelValidation\Test\Fixtures;
 
-use RuntimeException;
-
-/**
- * Signals that a value has no representation in a parser's produced type.
- *
- * This is internal control flow between `ValueParser::parse()` and the rule
- * that calls it. A parse failure is an ordinary validation failure, so the
- * base rule converts it into a message and never lets it escape validation.
- */
-final class ParseFailure extends RuntimeException
+/** @extends ExtensibleValueParsingRule<int> */
+final class NonImplicitIntegerParsingRule extends ExtensibleValueParsingRule
 {
+    public bool $implicit = false;
+
+    public function __construct()
+    {
+        parent::__construct(static fn (mixed $value): int => 1);
+    }
 }

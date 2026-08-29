@@ -25,6 +25,10 @@
   is never rewritten.
   PHPStan infers the produced type, reading it from the `ParsingRule<T>`
   binding, so a parser defined outside this package needs no support here.
+  `ValueParser<T>` and `Parse::using()` separate application conversion logic
+  from Laravel's validation lifecycle. The final adapter preserves `T` through
+  polymorphic parser abstractions. Parsing rules reject serialization and
+  unserialization because validator-scoped lifecycle state is not transferable.
 - Requires `laravel/framework` 10.7.0 or later, which introduced
   `Validator::setValue()`. Static analysis still supports Laravel 10.0; the
   narrower floor applies only to code that uses a parsing rule, and is

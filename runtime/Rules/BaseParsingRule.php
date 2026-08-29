@@ -72,6 +72,28 @@ use function str_replace;
 abstract class BaseParsingRule implements ParsingRule, ValidatorAwareRule
 {
     /**
+     * Validator-scoped parsing lifecycle state cannot be transferred safely.
+     *
+     * Rejecting both directions also prevents unserialization from injecting
+     * an `implicit` property without passing through the immutable magic
+     * marker below.
+     *
+     * @return never
+     */
+    final public function __serialize(): array
+    {
+        throw new LogicException('Parsing rules cannot be serialized.');
+    }
+
+    /**
+     * @param array<array-key, mixed> $_data
+     */
+    final public function __unserialize(array $_data): void
+    {
+        throw new LogicException('Parsing rules cannot be unserialized.');
+    }
+
+    /**
      * Expose an immutable implicit marker to Laravel.
      *
      * `InvokableValidationRule::make()` reads `$rule->implicit ?? false`.

@@ -47,6 +47,13 @@ native strings, integers with a lossless decimal representation, and
 `Stringable` objects with a declared representation. It rejects floats and
 booleans rather than inheriting their ambiguous generic casts.
 
+The adapter slice later separated pure application parsing from Laravel's
+lifecycle. `ValueParser<T>` now carries conversion logic without requiring a
+Laravel validation callback, while `Parse::using()` wraps it in a final
+`ParsingRuleAdapter<T>`. The adapter supplies implicitness, delayed write-back,
+and single-use enforcement, and static inference preserves concrete and live
+template bindings for `T`.
+
 1. `['required', 'nullable', Parse::integer()]` infers `array{age: int}`, not
    `int|null` (§5.3). `required` rejects null outright.
 2. `TypeResolver::hasExecutableRule()` must recognize parsing rules (§15). The
@@ -82,8 +89,9 @@ produced type is sound only when Laravel always treats the rule as implicit. A
 public `bool $implicit = true` can be changed before Laravel wraps the rule,
 letting a blank string bypass parsing. `BaseParsingRule` now exposes a final
 magic marker that always reads true and rejects writes. Static analysis trusts
-concrete subclasses only when no declared property shadows that marker; direct
-implementations and abstract types are declined. `Parse::integer()`
+final concrete subclasses only when no declared property shadows that marker;
+non-final classes, direct implementations, and abstract types are declined.
+`Parse::integer()`
 consequently returns `IntegerRule`, not `ParsingRule<int>`: erasing the
 concrete class costs inference, not correctness.
 
@@ -2008,10 +2016,12 @@ package may register any number of PSR-4 roots.
 ```text
 runtime/                                  ← Laravel only, never PHPStan
     Parse.php                             first-party parser factories
-    ParsingRule.php                       interface ParsingRule<T> extends ValidationRule
+    ValueParser.php                       pure conversion interface ValueParser<T>
+    ParsingRule.php                       Laravel rule extending ValueParser<T>
     ParseFailure.php
     Rules/
         BaseParsingRule.php               implicit marker, presence, null policy, flush
+        ParsingRuleAdapter.php            adapts ValueParser<T> to the sound lifecycle
         IntegerRule.php                   implements ParsingRule<int>
         FloatRule.php                     implements ParsingRule<float>
         BooleanRule.php                   implements ParsingRule<bool>

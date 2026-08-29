@@ -71,9 +71,11 @@
             "runtime/Rules/EnumRule.php",
             "runtime/Rules/FloatRule.php",
             "runtime/Rules/IntegerRule.php",
+            "runtime/Rules/ParsingRuleAdapter.php",
             "runtime/Rules/StringRule.php",
             "runtime/Rules/TimezoneRule.php",
-            "runtime/UnsupportedLaravelVersion.php"
+            "runtime/UnsupportedLaravelVersion.php",
+            "runtime/ValueParser.php"
         ]
     }
 }

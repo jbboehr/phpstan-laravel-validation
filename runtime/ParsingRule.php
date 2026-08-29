@@ -41,18 +41,26 @@ use Illuminate\Contracts\Validation\ValidationRule;
  * rather than attempting to distinguish residual parser output from equal new
  * input supplied through `setData()`.
  *
- * An implementation must also be permanently implicit. Extend
+ * Parsing rules cannot be serialized or unserialized. Their validator-scoped
+ * lifecycle state is not transferable, and deserialization could otherwise
+ * inject state that bypasses the immutable implicit marker.
+ *
+ * An implementation used directly as a Laravel rule must also be permanently
+ * implicit. Extend
  * {@see Rules\BaseParsingRule}, which exposes the immutable marker Laravel
  * reads. Laravel skips a non-implicit rule for a blank or whitespace-only
  * string, so without it the raw string survives into validated output while
  * this interface's type argument promises otherwise.
  *
- * Static analysis trusts concrete subclasses of that base class only when no
- * declared `implicit` property shadows its marker. It declines direct
- * implementations of this interface and abstractly typed expressions because
- * PHP cannot require immutable instance state through an interface. Declare
- * the concrete parser where the produced type is wanted; erasing it to this
- * interface costs inference, not correctness.
+ * Static analysis trusts final concrete subclasses of that base class only
+ * when no declared `implicit` property shadows its marker. A non-final class
+ * can acquire such a property through a runtime subclass, so it is declined
+ * along with direct implementations of this interface and abstractly typed
+ * expressions. Declare a final concrete parser where the produced type is
+ * wanted. Application parsing logic that should not implement Laravel's
+ * lifecycle can instead implement `ValueParser<T>` and pass through
+ * `Parse::using()`. Its final adapter restores the lifecycle guarantee while
+ * preserving `T`.
  *
  * Laravel runs callbacks registered with `Validator::after()` before
  * validation ahead of a parsing rule's delayed write-back. Such callbacks
@@ -60,15 +68,9 @@ use Illuminate\Contracts\Validation\ValidationRule;
  * after validation completes.
  *
  * @template-covariant T
+ *
+ * @extends ValueParser<T>
  */
-interface ParsingRule extends ValidationRule
+interface ParsingRule extends ValueParser, ValidationRule
 {
-    /**
-     * Parse a value, or reject it.
-     *
-     * @return T
-     *
-     * @throws ParseFailure when the value has no representation in T
-     */
-    public function parse(mixed $value): mixed;
 }

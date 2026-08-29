@@ -25,6 +25,7 @@ use DateTimeImmutable;
 use DateTimeZone;
 use jbboehr\PhpstanLaravelValidation\Test\CustomRules\UnknownRule;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\GenericParsingRule;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\ExtensibleValueParsingRule;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\MoneyParsingRule;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\NonImplicitParsingRule;
 use jbboehr\PhpstanLaravelValidation\Validation\ParsingRuleTypeResolver;
@@ -37,12 +38,14 @@ use jbboehr\Rensei\Rules\DateTimeRule;
 use jbboehr\Rensei\Rules\DeclinedRule;
 use jbboehr\Rensei\Rules\FloatRule;
 use jbboehr\Rensei\Rules\IntegerRule;
+use jbboehr\Rensei\Rules\ParsingRuleAdapter;
 use jbboehr\Rensei\Rules\TimezoneRule;
 use PHPStan\Testing\PHPStanTestCase;
 use PHPStan\Type\Generic\GenericObjectType;
 use PHPStan\Type\FloatType;
 use PHPStan\Type\IntegerType;
 use PHPStan\Type\IntersectionType;
+use PHPStan\Type\MixedType;
 use PHPStan\Type\ObjectType;
 use PHPStan\Type\StringType;
 use PHPStan\Type\Type;
@@ -76,6 +79,40 @@ final class ParsingRuleTypeResolverTest extends PHPStanTestCase
         self::assertSame('true', self::resolve(new ObjectType(AcceptedRule::class)));
         self::assertSame('false', self::resolve(new ObjectType(DeclinedRule::class)));
         self::assertSame('non-empty-string', self::resolve(new ObjectType(Base64Rule::class)));
+    }
+
+    public function testReadsTheProducedTypeFromTheFinalParserAdapter(): void
+    {
+        self::assertSame('int', self::resolve(
+            new GenericObjectType(ParsingRuleAdapter::class, [new IntegerType()])
+        ));
+    }
+
+    public function testDeclinesASubclassableParser(): void
+    {
+        self::assertNull(self::resolveRule(
+            new GenericObjectType(ExtensibleValueParsingRule::class, [new IntegerType()])
+        ));
+    }
+
+    public function testDoesNotTreatPhpDocFinalAsARuntimeGuarantee(): void
+    {
+        $reflection = self::createReflectionProvider()
+            ->getClass(PhpDocFinalIntegerParsingRule::class);
+
+        self::assertTrue($reflection->isFinal());
+        self::assertFalse($reflection->isFinalByKeyword());
+        self::assertNull(self::resolveRule(new ObjectType(
+            PhpDocFinalIntegerParsingRule::class
+        )));
+    }
+
+    public function testDeclinesAnUnboundFinalParserAdapter(): void
+    {
+        self::assertNull(self::resolveRule(new ObjectType(ParsingRuleAdapter::class)));
+        self::assertNull(self::resolveRule(
+            new GenericObjectType(ParsingRuleAdapter::class, [new MixedType()])
+        ));
     }
 
     /**
@@ -179,7 +216,7 @@ final class ParsingRuleTypeResolverTest extends PHPStanTestCase
     public function testRecognizesAParserInsideAnIntersection(): void
     {
         self::assertSame('int', self::resolve(new IntersectionType([
-            new ObjectType(ExtensibleIntegerParsingRule::class),
+            new ObjectType(FinalIntegerParsingRule::class),
             new ObjectType(ParsingRuleMarker::class),
         ])));
     }
@@ -295,7 +332,25 @@ interface ParsingRuleMarker
 }
 
 /** @extends BaseParsingRule<int> */
-class ExtensibleIntegerParsingRule extends BaseParsingRule implements ParsingRuleMarker
+final class FinalIntegerParsingRule extends BaseParsingRule implements ParsingRuleMarker
+{
+    public function parse(mixed $value): int
+    {
+        return 1;
+    }
+
+    protected function message(): string
+    {
+        return 'The :attribute field could not be parsed.';
+    }
+}
+
+/**
+ * @final
+ *
+ * @extends BaseParsingRule<int>
+ */
+class PhpDocFinalIntegerParsingRule extends BaseParsingRule
 {
     public function parse(mixed $value): int
     {

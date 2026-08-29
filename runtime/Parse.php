@@ -31,6 +31,7 @@ use jbboehr\Rensei\Rules\DeclinedRule;
 use jbboehr\Rensei\Rules\EnumRule;
 use jbboehr\Rensei\Rules\FloatRule;
 use jbboehr\Rensei\Rules\IntegerRule;
+use jbboehr\Rensei\Rules\ParsingRuleAdapter;
 use jbboehr\Rensei\Rules\StringRule;
 use jbboehr\Rensei\Rules\TimezoneRule;
 
@@ -76,6 +77,24 @@ use jbboehr\Rensei\Rules\TimezoneRule;
  */
 final class Parse
 {
+    /**
+     * Adapt an abstractly typed parser to Laravel's parsing-rule lifecycle.
+     *
+     * A `ValueParser<T>` describes conversion without making claims about
+     * Laravel-visible implicitness or write-back. This final adapter supplies
+     * those lifecycle guarantees while retaining `T` for static inference.
+     *
+     * @template T
+     *
+     * @param ValueParser<T> $parser
+     *
+     * @return ParsingRuleAdapter<T>
+     */
+    public static function using(ValueParser $parser): ParsingRuleAdapter
+    {
+        return new ParsingRuleAdapter($parser);
+    }
+
     /**
      * Parse Laravel's accepted token set into literal true.
      *

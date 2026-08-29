@@ -19,17 +19,31 @@
 
 declare(strict_types=1);
 
-namespace jbboehr\Rensei;
+namespace jbboehr\PhpstanLaravelValidation\Test\Fixtures;
 
-use RuntimeException;
+use Closure;
+use jbboehr\Rensei\Rules\BaseParsingRule;
 
 /**
- * Signals that a value has no representation in a parser's produced type.
+ * @template-covariant T
  *
- * This is internal control flow between `ValueParser::parse()` and the rule
- * that calls it. A parse failure is an ordinary validation failure, so the
- * base rule converts it into a message and never lets it escape validation.
+ * @extends BaseParsingRule<T>
  */
-final class ParseFailure extends RuntimeException
+class ExtensibleValueParsingRule extends BaseParsingRule
 {
+    /** @param Closure(mixed): T $parse */
+    public function __construct(private Closure $parse)
+    {
+    }
+
+    /** @return T */
+    public function parse(mixed $value): mixed
+    {
+        return ($this->parse)($value);
+    }
+
+    protected function message(): string
+    {
+        return 'The :attribute field could not be parsed.';
+    }
 }

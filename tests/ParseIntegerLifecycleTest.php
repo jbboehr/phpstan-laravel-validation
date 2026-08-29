@@ -34,8 +34,12 @@ use Illuminate\Validation\Factory;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Validator;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\GenericParsingRule;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\IntegerValueParser;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\NonImplicitIntegerParsingRule;
 use jbboehr\Rensei\Parse;
+use jbboehr\Rensei\ValueParser;
 use jbboehr\Rensei\Rules\BaseParsingRule;
+use jbboehr\Rensei\Rules\ParsingRuleAdapter;
 use jbboehr\Rensei\UnsupportedLaravelVersion;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -74,6 +78,86 @@ final class ParseIntegerLifecycleTest extends TestCase
         $safe = $validator->safe();
         self::assertInstanceOf(ValidatedInput::class, $safe);
         self::assertSame(['age' => 42], $safe->all());
+    }
+
+    public function testAdaptsAPureValueParserIntoTheLaravelLifecycle(): void
+    {
+        $parser = self::abstractIntegerParser();
+        $validator = self::factory()->make(
+            ['age' => '42'],
+            ['age' => ['required', Parse::using($parser)]]
+        );
+
+        self::assertTrue($validator->passes());
+        self::assertSame(['age' => 42], $validator->validated());
+    }
+
+    public function testSubclassCanDisableImplicitnessOnAnExtensibleParser(): void
+    {
+        $validator = self::factory()->make(
+            ['age' => ''],
+            ['age' => [new NonImplicitIntegerParsingRule()]]
+        );
+
+        self::assertTrue($validator->passes());
+        self::assertSame(['age' => ''], $validator->validated());
+    }
+
+    public function testAdapterRejectsInvalidAndBlankValues(): void
+    {
+        foreach (['nope', ''] as $value) {
+            $validator = self::factory()->make(
+                ['age' => $value],
+                ['age' => [Parse::using(new IntegerValueParser())]]
+            );
+
+            self::assertFalse($validator->passes());
+            self::assertSame(['age'], $validator->errors()->keys());
+        }
+    }
+
+    public function testAdapterPreservesNullableNull(): void
+    {
+        $validator = self::factory()->make(
+            ['age' => null],
+            ['age' => ['nullable', Parse::using(new IntegerValueParser())]]
+        );
+
+        self::assertTrue($validator->passes());
+        self::assertSame(['age' => null], $validator->validated());
+    }
+
+    public function testAdapterFailsClosedWhenValidatorIsReused(): void
+    {
+        $adapter = Parse::using(new IntegerValueParser());
+        $validator = self::factory()->make(['age' => '42'], ['age' => [$adapter]]);
+
+        self::assertTrue($validator->passes());
+        self::assertFalse($validator->passes());
+        self::assertSame(['age'], $validator->errors()->keys());
+    }
+
+    public function testParsingRulesCannotBeSerialized(): void
+    {
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('Parsing rules cannot be serialized.');
+
+        serialize(Parse::integer());
+    }
+
+    public function testParsingRulesRejectInjectedStateDuringUnserialization(): void
+    {
+        $class = ParsingRuleAdapter::class;
+        $payload = sprintf(
+            'O:%d:"%s":1:{s:8:"implicit";b:0;}',
+            strlen($class),
+            $class
+        );
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('Parsing rules cannot be unserialized.');
+
+        unserialize($payload, ['allowed_classes' => [$class]]);
     }
 
     public function testOrdinaryRulesObserveTheOriginalRepresentation(): void
@@ -671,6 +755,12 @@ final class ParseIntegerLifecycleTest extends TestCase
         $validator = self::factory()->make(['age' => '42'], ['age' => ['required', $parser]]);
 
         self::assertSame(['age' => 42], $validator->validate());
+    }
+
+    /** @return ValueParser<int> */
+    private static function abstractIntegerParser(): ValueParser
+    {
+        return new IntegerValueParser();
     }
 
     private static function factory(): Factory

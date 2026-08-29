@@ -35,8 +35,8 @@ use PHPStan\Type\TypeUtils;
  *
  * The type is read from the `ParsingRule<T>` binding rather than from a table
  * of known rule classes, so a parser defined outside this package is
- * understood without a release here when it extends the runtime's sound base
- * class. It is kept separate from
+ * understood without a release here when it is a final class extending the
+ * runtime's sound base class. It is kept separate from
  * {@see CustomRuleTypeResolver}, whose metadata describes an original value
  * that survives a predicate; a produced value is a different claim and must
  * not share that vocabulary.
@@ -177,14 +177,16 @@ final class ParsingRuleTypeResolver
             ->getType(self::PRODUCED_TYPE_TEMPLATE);
 
         // An unbound argument means the expression was typed as the bare
-        // interface, which resolves the template to its default rather than to
+        // interface, which resolves the template to plain mixed rather than to
         // a produced type. Declining leaves the attribute to ordinary
-        // predicate handling, which is the conservative reading.
+        // predicate handling, which is the conservative reading. A live
+        // TemplateType is different: a final adapter guarantees the lifecycle
+        // independently of T, so retaining that caller template is both sound
+        // and necessary for Parse::using() to remain polymorphic.
         if (
             $producedType === null
             || $producedType instanceof ErrorType
-            || $producedType instanceof TemplateType
-            || $producedType instanceof MixedType
+            || ($producedType instanceof MixedType && !($producedType instanceof TemplateType))
         ) {
             return null;
         }
@@ -195,9 +197,11 @@ final class ParsingRuleTypeResolver
     /**
      * Whether Laravel will treat this rule as implicit.
      *
-     * A concrete class must inherit BaseParsingRule's immutable magic marker.
-     * A declared `implicit` property would shadow that marker and could be
-     * mutable or inaccessible to Laravel, so such classes are declined.
+     * A final concrete class must inherit BaseParsingRule's immutable magic
+     * marker. A declared `implicit` property would shadow that marker and
+     * could be mutable or inaccessible to Laravel, so such classes are
+     * declined. A subclassable class is declined because a runtime subclass
+     * can introduce the same shadowing property after this reflection check.
      * Direct implementations of ParsingRule are declined as well: PHP cannot
      * require a public immutable property through an interface.
      *
@@ -206,7 +210,11 @@ final class ParsingRuleTypeResolver
      */
     private function isImplicit(ClassReflection $classReflection): bool
     {
-        if ($classReflection->isInterface() || $classReflection->isAbstract()) {
+        if (
+            $classReflection->isInterface()
+            || $classReflection->isAbstract()
+            || !$classReflection->isFinalByKeyword()
+        ) {
             return false;
         }
 

@@ -398,6 +398,9 @@ can mutate application state or replace the effective contract.
   also fails. A first call to `validated()` may perform the one allowed run and
   preserves the inferred shape, whereas direct `Validator::validate()`
   currently retains Laravel's broad `array` return type.
+- Parsing rules cannot be serialized or unserialized. Their validator-scoped
+  lifecycle state is not transferable, and accepting deserialized properties
+  could bypass the immutable implicit marker on which parsed types depend.
 - `valid()` on failed or short-circuited validation is not parsed output. It
   may contain raw attributes whose parsing rules Laravel never reached.
 - Executable custom rules and runtime validation extensions can mutate data
@@ -435,7 +438,35 @@ final class NonEmptyStringRule extends BaseParsingRule
 ```
 
 `parse()` returns the declared `T` or throws `ParseFailure`; `message()` is
-required for validation failures. Static inference deliberately requires a
-concrete `BaseParsingRule<T>` subclass. Do not declare an `implicit` property:
-it would shadow the base class's immutable marker, so PHPStan conservatively
-declines the produced type.
+required for validation failures. Direct static inference deliberately
+requires a final concrete `BaseParsingRule<T>` subclass. A non-final parser can
+be extended with an `implicit` property that shadows the base class's immutable
+marker, so PHPStan conservatively declines it. A final parser must not declare
+that property itself.
+
+Application abstractions may intentionally expose only the generic parser
+contract. Adapt that value before putting it in a Laravel rule list:
+
+```php
+use jbboehr\Rensei\Parse;
+use jbboehr\Rensei\ValueParser;
+
+/** @return ValueParser<int> */
+function ageParser(): ValueParser
+{
+    return Parse::integer();
+}
+
+$rules = [
+    'age' => ['required', Parse::using(ageParser())],
+];
+```
+
+`ValueParser<T>` is a pure conversion contract; it does not require application
+code to implement Laravel's validation callbacks. `Parse::using()` delegates
+only `parse()` to the supplied parser. Its final
+concrete adapter supplies the immutable implicit marker, single-use validator
+lifecycle, and delayed write-back that PHPStan cannot prove from the interface
+alone. The adapter retains `T`, so the example still infers `age` as `int`.
+Using an abstract Laravel-facing `ParsingRule<T>` directly remains
+conservative.

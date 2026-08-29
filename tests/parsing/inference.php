@@ -6,10 +6,14 @@ use DateTimeImmutable;
 use DateTimeZone;
 use Illuminate\Support\Facades\Validator;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\ArrayParsingRule;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\ExtensibleValueParsingRule;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\IntegerValidationStatus;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\MoneyParsingRule;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\NonImplicitIntegerParsingRule;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\StringValidationStatus;
 use jbboehr\Rensei\Parse;
+use jbboehr\Rensei\ParsingRule;
+use jbboehr\Rensei\ValueParser;
 use jbboehr\Rensei\Rules\AcceptedRule;
 use jbboehr\Rensei\Rules\Base64Rule;
 use jbboehr\Rensei\Rules\BooleanRule;
@@ -23,6 +27,65 @@ use jbboehr\Rensei\Rules\TimezoneRule;
 
 use function PHPStan\Testing\assertType;
 use function PHPStan\Testing\assertSuperType;
+
+/** @param ParsingRule<int> $parser */
+function inspectAbstractIntegerParser(ParsingRule $parser): void
+{
+    // A caller may expose a parser through its public generic contract
+    // without losing the produced type when it is adapted back into Laravel's
+    // lifecycle.
+    assertType('array{age: int}', Validator::make([], [
+        'age' => ['required', Parse::using($parser)],
+    ])->validated());
+}
+
+/**
+ * @template T of object
+ *
+ * @param ValueParser<T> $parser
+ *
+ * @return T
+ */
+function parseAbstractObject(ValueParser $parser): object
+{
+    $value = Validator::make([], [
+        'value' => ['required', Parse::using($parser)],
+    ])->validated()['value'];
+
+    assertType('T of object (function parseAbstractObject(), argument)', $value);
+
+    return $value;
+}
+
+/**
+ * @template T
+ *
+ * @param ValueParser<T> $parser
+ *
+ * @return T
+ */
+function parseAbstractValue(ValueParser $parser): mixed
+{
+    $value = Validator::make([], [
+        'value' => ['required', Parse::using($parser)],
+    ])->validated()['value'];
+
+    assertType('T (function parseAbstractValue(), argument)', $value);
+
+    return $value;
+}
+
+/** @param ExtensibleValueParsingRule<int> $parser */
+function inspectSubclassableParser(ExtensibleValueParsingRule $parser): void
+{
+    assertType('array{age?: mixed}', Validator::make([], [
+        'age' => [$parser],
+    ])->validated());
+}
+
+assertType('array{age?: mixed}', Validator::make([], [
+    'age' => [new NonImplicitIntegerParsingRule()],
+])->validated());
 
 // Accepted and declined token parsers retain literal output information.
 // Presence remains a separate rule, as it does for every parser.
