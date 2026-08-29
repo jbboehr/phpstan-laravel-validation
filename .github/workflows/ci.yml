@@ -134,6 +134,9 @@ jobs:
             - uses: actions/checkout@v7
 
             - uses: cachix/install-nix-action@v31
+              with:
+                  extra_nix_config: |
+                      build-dir = ${{ runner.temp }}/nix-builds
 
             - name: Restore prebuilt Composer dependencies
               uses: nix-community/cache-nix-action@v7
@@ -152,12 +155,37 @@ jobs:
               shell: bash
               env:
                   NIX_INSTALLABLE: .#${{ matrix.attr }}
+                  NIX_JUNIT_REPORT: ${{ matrix.junit }}
               run: |
+                  nix_options=(--keep-going --max-jobs 4)
+                  if [[ "$NIX_JUNIT_REPORT" == "true" ]]; then
+                      nix_options+=(--keep-failed)
+                  fi
+
                   bash scripts/nix-build-with-vendor-hash-report.bash \
                       "$RUNNER_TEMP/nix-build.log" \
-                      nix build -L --keep-going --max-jobs 4 \
+                      nix build -L "${nix_options[@]}" \
                       --out-link "$RUNNER_TEMP/nix-result" \
                       "$NIX_INSTALLABLE"
+
+            - name: Collect PHPUnit results
+              if: ${{ always() && matrix.junit }}
+              shell: bash
+              run: |
+                  bash scripts/collect-nix-junit-report.bash \
+                      "$RUNNER_TEMP/nix-build.log" \
+                      "$RUNNER_TEMP/nix-result" \
+                      "$RUNNER_TEMP/nix-builds" \
+                      "$RUNNER_TEMP/phpunit-results"
+
+            - name: Upload PHPUnit results
+              if: ${{ always() && matrix.junit }}
+              uses: actions/upload-artifact@v7
+              with:
+                  name: nix-${{ matrix.name }}-phpunit-results
+                  path: ${{ runner.temp }}/phpunit-results/phpunit-junit.xml
+                  if-no-files-found: warn
+                  retention-days: 14
 
             - name: Prepare Infection shard report
               if: startsWith(matrix.name, 'mutation-')

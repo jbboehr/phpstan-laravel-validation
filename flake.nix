@@ -222,6 +222,7 @@
         php ? phpVersions.php85,
         closure ? rootClosure,
         command,
+        junitReport ? false,
         nativeBuildInputs ? [],
       }: let
         runCommand =
@@ -233,11 +234,20 @@
       in
         pkgs.runCommand "phpstan-laravel-validation-${name}" {
           nativeBuildInputs = [php php.packages.composer pkgs.bash] ++ nativeBuildInputs;
+          passthru = {inherit junitReport;};
         } ''
           ${prepareProject closure}
           patchShebangs vendor/bin scripts
+          ${pkgs.lib.optionalString junitReport ''
+            export PHPUNIT_JUNIT_REPORT="$TMPDIR/phpstan-laravel-validation-junit/phpunit-junit.xml"
+            mkdir -p "$(dirname "$PHPUNIT_JUNIT_REPORT")"
+          ''}
           ${runCommand}
           mkdir -p "$out"
+          ${pkgs.lib.optionalString junitReport ''
+            mkdir -p "$out/reports"
+            cp "$PHPUNIT_JUNIT_REPORT" "$out/reports/phpunit-junit.xml"
+          ''}
           touch "$out/passed"
         '';
 
@@ -533,46 +543,54 @@
           phpunit-php81 = mkProjectCheck {
             name = "phpunit-php81";
             php = phpVersions.php81;
-            command = "php vendor/bin/phpunit --no-coverage";
+            junitReport = true;
+            command = "php vendor/bin/phpunit --no-coverage --log-junit \"$PHPUNIT_JUNIT_REPORT\"";
           };
           phpunit-php82 = mkProjectCheck {
             name = "phpunit-php82";
             php = phpVersions.php82;
-            command = "php vendor/bin/phpunit --no-coverage";
+            junitReport = true;
+            command = "php vendor/bin/phpunit --no-coverage --log-junit \"$PHPUNIT_JUNIT_REPORT\"";
           };
           phpunit-php83 = mkProjectCheck {
             name = "phpunit-php83";
             php = phpVersions.php83;
-            command = "php vendor/bin/phpunit --no-coverage";
+            junitReport = true;
+            command = "php vendor/bin/phpunit --no-coverage --log-junit \"$PHPUNIT_JUNIT_REPORT\"";
           };
           phpunit-php84 = mkProjectCheck {
             name = "phpunit-php84";
             php = phpVersions.php84;
-            command = "php vendor/bin/phpunit --no-coverage";
+            junitReport = true;
+            command = "php vendor/bin/phpunit --no-coverage --log-junit \"$PHPUNIT_JUNIT_REPORT\"";
           };
           phpunit-php85 = mkProjectCheck {
             name = "phpunit-php85";
             php = phpVersions.php85;
-            command = "php vendor/bin/phpunit --no-coverage";
+            junitReport = true;
+            command = "php vendor/bin/phpunit --no-coverage --log-junit \"$PHPUNIT_JUNIT_REPORT\"";
           };
 
           phpunit-laravel11 = mkProjectCheck {
             name = "phpunit-laravel11";
             php = phpVersions.php82;
             closure = laravel11Closure;
-            command = "LARAVEL_AUDIT_BASELINE=11-latest php vendor/bin/phpunit --exclude-group documentation --no-coverage";
+            junitReport = true;
+            command = "LARAVEL_AUDIT_BASELINE=11-latest php vendor/bin/phpunit --exclude-group documentation --no-coverage --log-junit \"$PHPUNIT_JUNIT_REPORT\"";
           };
           phpunit-laravel12 = mkProjectCheck {
             name = "phpunit-laravel12";
             php = phpVersions.php82;
             closure = laravel12Closure;
-            command = "LARAVEL_AUDIT_BASELINE=12-latest php vendor/bin/phpunit --exclude-group documentation --no-coverage";
+            junitReport = true;
+            command = "LARAVEL_AUDIT_BASELINE=12-latest php vendor/bin/phpunit --exclude-group documentation --no-coverage --log-junit \"$PHPUNIT_JUNIT_REPORT\"";
           };
           phpunit-laravel13 = mkProjectCheck {
             name = "phpunit-laravel13";
             php = phpVersions.php83;
             closure = laravel13Closure;
-            command = "LARAVEL_AUDIT_BASELINE=13-latest php vendor/bin/phpunit --exclude-group documentation --no-coverage";
+            junitReport = true;
+            command = "LARAVEL_AUDIT_BASELINE=13-latest php vendor/bin/phpunit --exclude-group documentation --no-coverage --log-junit \"$PHPUNIT_JUNIT_REPORT\"";
           };
 
           phpstan = mkProjectCheck {
@@ -616,16 +634,19 @@
             name = "consumer-phpstan-minimum";
             php = phpVersions.php81;
             closure = minimumPhpstanClosure;
+            junitReport = true;
             command = ''
               php vendor/bin/phpstan analyse --no-progress
-              php vendor/bin/phpunit --exclude-group documentation --no-coverage
+              php vendor/bin/phpunit --exclude-group documentation --no-coverage \
+                --log-junit "$PHPUNIT_JUNIT_REPORT"
             '';
           };
           consumer-larastan = mkProjectCheck {
             name = "consumer-larastan";
             php = phpVersions.php85;
             closure = larastanClosure;
-            command = "php vendor/bin/phpunit --group larastan --fail-on-skipped --no-coverage";
+            junitReport = true;
+            command = "php vendor/bin/phpunit --group larastan --fail-on-skipped --no-coverage --log-junit \"$PHPUNIT_JUNIT_REPORT\"";
           };
         }
         // auditChecks
@@ -664,14 +685,32 @@
         };
 
       legacyPackages = pkgs.lib.optionalAttrs (system == "x86_64-linux") {
-        githubActions = nix-github-actions.lib.mkGithubMatrix {
-          checks = {
-            x86_64-linux =
-              self.checks.x86_64-linux
-              // mutationShardPackages;
+        githubActions = let
+          generated = nix-github-actions.lib.mkGithubMatrix {
+            checks = {
+              x86_64-linux =
+                self.checks.x86_64-linux
+                // mutationShardPackages;
+            };
+            attrPrefix = "legacyPackages.x86_64-linux.githubActions.checks";
           };
-          attrPrefix = "legacyPackages.x86_64-linux.githubActions.checks";
-        };
+        in
+          generated
+          // {
+            matrix =
+              generated.matrix
+              // {
+                include =
+                  map (
+                    entry:
+                      entry
+                      // {
+                        junit = generated.checks.${entry.system}.${entry.name}.junitReport or false;
+                      }
+                  )
+                  generated.matrix.include;
+              };
+          };
       };
 
       devShells = rec {
