@@ -103,6 +103,9 @@ jobs:
                   drv_name="${drv_path##*/}"
                   echo "cache-key=nix-ci-dependencies-${RUNNER_OS}-${drv_name%.drv}" >> "$GITHUB_OUTPUT"
 
+            - name: Wait for the Nix store database
+              run: bash scripts/wait-for-nix-store-database.bash
+
             - name: Restore or prepare the Composer dependency cache
               uses: nix-community/cache-nix-action@v7
               with:
@@ -137,6 +140,9 @@ jobs:
               with:
                   extra_nix_config: |
                       build-dir = ${{ runner.temp }}/nix-builds
+
+            - name: Wait for the Nix store database
+              run: bash scripts/wait-for-nix-store-database.bash
 
             - name: Restore prebuilt Composer dependencies
               uses: nix-community/cache-nix-action@v7

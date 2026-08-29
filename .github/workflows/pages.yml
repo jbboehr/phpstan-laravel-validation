@@ -30,6 +30,9 @@ jobs:
               with:
                   github_access_token: ${{ secrets.GITHUB_TOKEN }}
 
+            - name: Wait for the Nix store database
+              run: bash scripts/wait-for-nix-store-database.bash
+
             - name: Restore and save Nix store
               uses: nix-community/cache-nix-action@v7
               with:
