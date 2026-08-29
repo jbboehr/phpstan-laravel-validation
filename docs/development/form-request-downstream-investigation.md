@@ -449,6 +449,40 @@ the extension by another mechanism, or `0` when a locked extension installer
 is disabled and does not load it. The chosen posture is recorded in benchmark
 metadata.
 
+## Stored `ValidatedInput` wrappers remain broad
+
+The direct-chain implementation intentionally does not attach a persistent
+payload type to `Illuminate\Support\ValidatedInput` instances. A generic
+internal wrapper type would make this refactor appear harmless:
+
+```php
+$safe = $request->safe();
+$validated = $safe->all();
+```
+
+That provenance would not be stable. `ValidatedInput` exposes property and
+array-offset writes and unsets, and aliases share the same object:
+
+```php
+$safe = $request->safe();
+$alias = $safe;
+$alias['name'] = 42;
+
+$safe->all(); // the alias changed this payload
+```
+
+Passing the wrapper to application or vendor code creates the same problem.
+PHPStan does not provide this extension with a general object-identity or
+typestate hook that could invalidate every alias after every possible escape.
+A custom generic type would therefore preserve a stale shape rather than make
+the existing inference composable.
+
+The supported pattern is to store the terminal array from `safe()->all()`,
+`safe()->toArray()`, `safe([...])`, `safe()->only(...)`, or
+`safe()->except(...)`. Direct bounded `merge()` chains may participate before
+the terminal accessor. Stored wrappers remain broad unless Laravel exposes an
+immutable wrapper or PHPStan gains an alias-safe invalidation mechanism.
+
 ## Remaining candidates
 
 1. Pursue a supported PHPStan API for per-file, extension-defined semantic
@@ -464,11 +498,9 @@ metadata.
    justifies a production change and dedicated discovery regression tests.
 1. Extend selected rule-object support only where Laravel runtime evidence
    establishes a useful static contract.
-1. Consider additional `ValidatedInput` access patterns beyond the implemented
-   direct `safe()->all()`, `safe()->toArray()`, `safe()->only([...])`, and
-   `safe()->except([...])` chains, including through statically bounded direct
-   `safe()->merge([...])` chains. Numeric merge shapes remain broad unless their
-   insertion order is explicit. Stored wrappers deliberately remain broad because
-   their array offsets and properties are mutable. Before Laravel 13.24,
-   multi-selector `except()` inference also remains broad when Laravel's retained
-   nested reference makes later selectors stateful.
+1. Consider additional direct `ValidatedInput` access patterns beyond the
+   implemented terminal accessors. Numeric merge shapes remain broad unless
+   their insertion order is explicit. Before Laravel 13.24, multi-selector
+   `except()` inference also remains broad when Laravel's retained nested
+   reference makes later selectors stateful. Persistent stored-wrapper
+   provenance is not a candidate without an alias-safe invalidation mechanism.

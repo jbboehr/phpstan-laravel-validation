@@ -371,8 +371,9 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
 
         $mutable = $validator->safe();
         self::assertInstanceOf(\Illuminate\Support\ValidatedInput::class, $mutable);
-        $mutable['name'] = 42;
-        unset($mutable['profile']);
+        $alias = $mutable;
+        $alias['name'] = 42;
+        unset($alias['profile']);
         self::assertSame(['name' => 42], $mutable->all());
     }
 

@@ -136,6 +136,8 @@ function inspectBasic(BasicRequest $request, array $dynamicItems): void
     $storedMerge = $request->safe()->merge(['role' => 'admin']);
     assertType('array', $storedMerge->all());
 
+    // Stored wrappers can be mutated through aliases or escaped to code that
+    // analysis cannot inspect, so their payload provenance is not stable.
     $stored = $request->safe();
     assertType('array', $stored->toArray());
 }

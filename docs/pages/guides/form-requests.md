@@ -94,6 +94,24 @@ not a risk-free discovery-only option.
 
 ## `validated($key)` and `safe()`
 
+Store the terminal array, not the mutable `ValidatedInput` wrapper, when the
+validated shape matters to downstream analysis:
+
+```php
+$validated = $request->safe()->all();
+$selected = $request->safe(['name', 'age']);
+
+$wrapper = $request->safe();
+$validatedLater = $wrapper->all(); // plain array
+```
+
+The first two expressions retain the inferred shape. The last deliberately
+does not. Laravel permits array-offset and property writes and unsets on a
+`ValidatedInput`, and every alias observes those mutations. A wrapper can also
+escape to code that PHPStan does not analyse. Preserving an old payload shape
+on the stored object would therefore turn an ordinary refactor into an unsound
+type promise.
+
 Constant string and integer keys, ordinary dotted paths, finite constant-key
 unions, and explicit defaults participate in `validated($key, $default)`
 inference. Optional paths include the default type; an omitted default is
@@ -125,8 +143,10 @@ Validator instances retain Laravel's declared `safe()` types because
 `validated()` implementation changes the payload. The `ValidatedInput`
 wrapper is mutable: Laravel exposes array-offset and property writes and
 unsets. Once a wrapper is stored in a variable, later accessors keep
-Laravel's broad declared array type. Dynamic selectors and selector
-expressions that may execute user code also remain broad.
+Laravel's broad declared array type. `merge()` returns a new wrapper rather
+than mutating the original, but storing either wrapper still creates the same
+alias and escape problem. Dynamic selectors and selector expressions that may
+execute user code also remain broad.
 
 ## Residual assumptions
 
