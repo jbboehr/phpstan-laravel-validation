@@ -3,5 +3,7 @@ parameters:
     laravelVersion: '10.0.0'
     formRequests:
       enabled: true
+      additionalClasses:
+        - jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\PassedValidationRequest
       trustedClasses:
         - jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\TrustedWithValidatorRequest

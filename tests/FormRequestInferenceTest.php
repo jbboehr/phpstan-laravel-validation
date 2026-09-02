@@ -22,10 +22,19 @@ declare(strict_types=1);
 namespace jbboehr\PhpstanLaravelValidation\Test;
 
 use Illuminate\Foundation\Http\FormRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\AdditionalClassesAbstractRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\AdditionalClassesRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\AdditionalClassesWrongEntry;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\BasicRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\PassedValidationRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\TrustedAdditionalClassesRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\UnlistedAdditionalClassesSiblingRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\ValidationRulesRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Support\AssertsFixtureUnderCoverage;
+use jbboehr\PhpstanLaravelValidation\Validation\FormRequestRuleTypeResolver;
 use jbboehr\PhpstanLaravelValidation\Validation\FormRequestTypeRegistry;
 use PHPStan\Analyser\ResultCache\ResultCacheMetaExtension;
+use PHPStan\Parser\Parser;
 use PHPStan\Reflection\ReflectionProvider;
 use PHPStan\Type\VerbosityLevel;
 
@@ -68,6 +77,112 @@ final class FormRequestInferenceTest extends \PHPStan\Testing\TypeInferenceTestC
         self::assertSame(
             'array{ordinary: string}',
             $type->describe(VerbosityLevel::precise())
+        );
+    }
+
+    public function testAdditionalClassesDiscoverWithoutBypassingLifecycleChecks(): void
+    {
+        $container = self::getContainer();
+        $reflectionProvider = $container->getByType(ReflectionProvider::class);
+        $parser = $container->getService('currentPhpVersionSimpleDirectParser');
+        self::assertInstanceOf(Parser::class, $parser);
+
+        $registry = new FormRequestTypeRegistry(
+            reflectionProvider: $reflectionProvider,
+            parser: $parser,
+            ruleTypeResolver: $container->getByType(FormRequestRuleTypeResolver::class),
+            workingDirectory: __DIR__,
+            tmpDirectory: \sys_get_temp_dir(),
+            enabled: true,
+            additionalClasses: ['\\' . BasicRequest::class, PassedValidationRequest::class],
+            trustedClasses: [],
+            analysedPaths: [],
+            analysedPathsFromConfig: [],
+            composerAutoloaderProjectPaths: [__DIR__ . '/missing-composer-project'],
+            scanFiles: [],
+            scanDirectories: []
+        );
+
+        self::assertNotNull($registry->getType(
+            $reflectionProvider->getClass(BasicRequest::class)
+        ));
+        self::assertNull($registry->getType(
+            $reflectionProvider->getClass(PassedValidationRequest::class)
+        ));
+    }
+
+    public function testConfiguredClassesDoNotDiscoverSameFileSiblings(): void
+    {
+        $container = self::getContainer();
+        $reflectionProvider = $container->getByType(ReflectionProvider::class);
+
+        $additionalRegistry = $this->createIsolatedRegistry(
+            [AdditionalClassesRequest::class],
+            []
+        );
+        self::assertNotNull($additionalRegistry->getType(
+            $reflectionProvider->getClass(AdditionalClassesRequest::class)
+        ));
+        self::assertNull($additionalRegistry->getType(
+            $reflectionProvider->getClass(UnlistedAdditionalClassesSiblingRequest::class)
+        ));
+
+        foreach ([AdditionalClassesWrongEntry::class, AdditionalClassesAbstractRequest::class] as $className) {
+            $registry = $this->createIsolatedRegistry([$className], []);
+            self::assertNull($registry->getType(
+                $reflectionProvider->getClass(UnlistedAdditionalClassesSiblingRequest::class)
+            ));
+        }
+
+        $trustedRegistry = $this->createIsolatedRegistry(
+            [],
+            [TrustedAdditionalClassesRequest::class]
+        );
+        self::assertNotNull($trustedRegistry->getType(
+            $reflectionProvider->getClass(TrustedAdditionalClassesRequest::class)
+        ));
+        self::assertNull($trustedRegistry->getType(
+            $reflectionProvider->getClass(UnlistedAdditionalClassesSiblingRequest::class)
+        ));
+
+        $scanningRegistry = $this->createIsolatedRegistry(
+            [],
+            [],
+            [__DIR__ . '/Fixtures/FormRequest/AdditionalClassesRequest.php']
+        );
+        self::assertNotNull($scanningRegistry->getType(
+            $reflectionProvider->getClass(UnlistedAdditionalClassesSiblingRequest::class)
+        ));
+    }
+
+    /**
+     * @param list<string> $additionalClasses
+     * @param list<string> $trustedClasses
+     * @param list<string> $scanFiles
+     */
+    private function createIsolatedRegistry(
+        array $additionalClasses,
+        array $trustedClasses,
+        array $scanFiles = []
+    ): FormRequestTypeRegistry {
+        $container = self::getContainer();
+        $parser = $container->getService('currentPhpVersionSimpleDirectParser');
+        self::assertInstanceOf(Parser::class, $parser);
+
+        return new FormRequestTypeRegistry(
+            reflectionProvider: $container->getByType(ReflectionProvider::class),
+            parser: $parser,
+            ruleTypeResolver: $container->getByType(FormRequestRuleTypeResolver::class),
+            workingDirectory: __DIR__,
+            tmpDirectory: \sys_get_temp_dir(),
+            enabled: true,
+            additionalClasses: $additionalClasses,
+            trustedClasses: $trustedClasses,
+            analysedPaths: [],
+            analysedPathsFromConfig: [],
+            composerAutoloaderProjectPaths: [__DIR__ . '/missing-composer-project'],
+            scanFiles: $scanFiles,
+            scanDirectories: []
         );
     }
 

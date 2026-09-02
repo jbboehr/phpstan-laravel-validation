@@ -4,6 +4,9 @@
 
 ### Added
 
+- Add `formRequests.additionalClasses` as a discovery-only exact class list.
+  These classes still pass the ordinary lifecycle-safety checks;
+  `trustedClasses` remains the separate explicit bypass.
 - Infer direct FormRequest `safe()->except(...)` projections for constant
   string and integer paths, including dotted and numeric paths. Unbounded dynamic
   selectors and stored mutable `ValidatedInput` wrappers remain broad.

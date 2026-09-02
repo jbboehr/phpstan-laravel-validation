@@ -88,9 +88,21 @@ discovered from PHPStan's analysed and scan paths and from the root project's
 Composer `autoload` and `autoload-dev` source mappings. Classes outside those
 paths, including undiscovered vendor requests, retain Laravel's broad type.
 
-Adding an exact class to `trustedClasses` also makes it discoverable, but
-that setting simultaneously asserts that its lifecycle hooks are safe. It is
-not a risk-free discovery-only option.
+Use `additionalClasses` to discover exact classes outside those paths without
+weakening lifecycle checks:
+
+```neon
+parameters:
+    phpstanLaravelValidation:
+        formRequests:
+            additionalClasses:
+                - Vendor\Package\SomeRequest
+```
+
+The list does not implicitly include subclasses. A configured class with an
+unsafe lifecycle hook still retains Laravel's broad type. Adding an exact
+class to `trustedClasses` also makes it discoverable, but additionally asserts
+that its lifecycle hooks are safe enough to bypass those checks.
 
 ## `validated($key)` and `safe()`
 

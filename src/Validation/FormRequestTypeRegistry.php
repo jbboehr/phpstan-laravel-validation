@@ -21,6 +21,7 @@ declare(strict_types=1);
 
 namespace jbboehr\PhpstanLaravelValidation\Validation;
 
+use Composer\Autoload\ClassLoader;
 use Composer\InstalledVersions;
 use Illuminate\Foundation\Http\FormRequest;
 use PhpParser\Node;
@@ -51,7 +52,11 @@ final class FormRequestTypeRegistry implements ResultCacheMetaExtension
     /** @var list<string>|null */
     private ?array $sourceFiles = null;
 
+    /** @var list<string>|null */
+    private ?array $fingerprintSourceFiles = null;
+
     /**
+     * @param list<string> $additionalClasses
      * @param list<string> $trustedClasses
      * @param list<string> $analysedPaths
      * @param list<string> $analysedPathsFromConfig
@@ -66,6 +71,7 @@ final class FormRequestTypeRegistry implements ResultCacheMetaExtension
         private string $workingDirectory,
         private string $tmpDirectory,
         private bool $enabled,
+        private array $additionalClasses,
         private array $trustedClasses,
         private array $analysedPaths,
         private array $analysedPathsFromConfig,
@@ -73,10 +79,8 @@ final class FormRequestTypeRegistry implements ResultCacheMetaExtension
         private array $scanFiles,
         private array $scanDirectories
     ) {
-        $this->trustedClasses = array_values(array_unique(array_map(
-            static fn (string $className): string => ltrim($className, '\\'),
-            $this->trustedClasses
-        )));
+        $this->additionalClasses = self::normalizeClassNames($this->additionalClasses);
+        $this->trustedClasses = self::normalizeClassNames($this->trustedClasses);
     }
 
     public function getType(ClassReflection $classReflection): ?Type
@@ -123,7 +127,10 @@ final class FormRequestTypeRegistry implements ResultCacheMetaExtension
             return;
         }
 
-        $classNames = array_fill_keys($this->trustedClasses, true);
+        $classNames = array_fill_keys(array_merge(
+            $this->additionalClasses,
+            $this->trustedClasses
+        ), true);
         foreach ($this->sourceFiles() as $fileName) {
             foreach ($this->discoverClassNames($fileName) as $className) {
                 $classNames[$className] = true;
@@ -338,6 +345,345 @@ final class FormRequestTypeRegistry implements ResultCacheMetaExtension
         return $this->sourceFiles ??= $this->discoverSourceFiles();
     }
 
+    /** @return list<string> */
+    private function fingerprintSourceFiles(): array
+    {
+        if ($this->fingerprintSourceFiles !== null) {
+            return $this->fingerprintSourceFiles;
+        }
+
+        $files = array_fill_keys($this->sourceFiles(), true);
+        $packageDirectories = [];
+        foreach (array_merge($this->additionalClasses, $this->trustedClasses) as $className) {
+            try {
+                if (!$this->reflectionProvider->hasClass($className)) {
+                    continue;
+                }
+
+                $visited = [];
+                $classReflection = $this->reflectionProvider->getClass($className);
+                $this->collectClassSourceFiles(
+                    $classReflection,
+                    $files,
+                    $visited,
+                    $packageDirectories
+                );
+                foreach ($this->ruleTypeResolver->sourceDependencyClassNames($classReflection) as $dependencyClassName) {
+                    if (!$this->reflectionProvider->hasClass($dependencyClassName)) {
+                        continue;
+                    }
+
+                    $this->collectClassSourceFiles(
+                        $this->reflectionProvider->getClass($dependencyClassName),
+                        $files,
+                        $visited,
+                        $packageDirectories
+                    );
+                }
+                foreach ($this->ruleTypeResolver->sourceDependencyFiles($classReflection) as $dependencyFile) {
+                    $files[$dependencyFile] = true;
+                }
+                $this->collectRuleConstantDependencySourceFiles(
+                    $classReflection,
+                    $files,
+                    $visited,
+                    $packageDirectories
+                );
+            } catch (\Throwable) {
+                continue;
+            }
+        }
+
+        $this->fingerprintSourceFiles = array_keys($files);
+        sort($this->fingerprintSourceFiles);
+
+        return $this->fingerprintSourceFiles;
+    }
+
+    /**
+     * @param array<string, true> $files
+     * @param array<string, true> $visitedClasses
+     * @param array<string, true> $packageDirectories
+     */
+    private function collectRuleConstantDependencySourceFiles(
+        ClassReflection $classReflection,
+        array &$files,
+        array &$visitedClasses,
+        array &$packageDirectories
+    ): void {
+        $queue = $this->ruleTypeResolver
+            ->sourceDependencyClassConstantReferences($classReflection);
+        $visitedReferences = [];
+
+        while ($queue !== []) {
+            $reference = array_shift($queue);
+            $referenceKey = strtolower($reference['className']) . '::' . $reference['constantName'];
+            if (isset($visitedReferences[$referenceKey])) {
+                continue;
+            }
+            $visitedReferences[$referenceKey] = true;
+
+            if (!$this->reflectionProvider->hasClass($reference['className'])) {
+                continue;
+            }
+
+            $dependencyClass = $this->reflectionProvider->getClass($reference['className']);
+            $this->collectClassSourceFiles(
+                $dependencyClass,
+                $files,
+                $visitedClasses,
+                $packageDirectories
+            );
+            if (strtolower($reference['constantName']) === 'class') {
+                continue;
+            }
+
+            array_push(
+                $queue,
+                ...$this->ruleTypeResolver->classConstantSourceDependencyReferences(
+                    $dependencyClass,
+                    $reference['constantName']
+                )
+            );
+        }
+    }
+
+    /**
+     * @param array<string, true> $files
+     * @param array<string, true> $visited
+     * @param array<string, true> $packageDirectories
+     */
+    private function collectClassSourceFiles(
+        ClassReflection $classReflection,
+        array &$files,
+        array &$visited,
+        array &$packageDirectories
+    ): void {
+        $className = $classReflection->getName();
+        if (isset($visited[$className])) {
+            return;
+        }
+        $visited[$className] = true;
+
+        foreach ($this->classSourceFiles($classReflection) as $fileName) {
+            $files[$fileName] = true;
+            $this->collectPackageSourceFiles($fileName, $files, $packageDirectories);
+        }
+
+        foreach ($classReflection->getTraits() as $traitReflection) {
+            $this->collectClassSourceFiles(
+                $traitReflection,
+                $files,
+                $visited,
+                $packageDirectories
+            );
+        }
+
+        foreach ($classReflection->getInterfaces() as $interfaceReflection) {
+            $this->collectClassSourceFiles(
+                $interfaceReflection,
+                $files,
+                $visited,
+                $packageDirectories
+            );
+        }
+
+        $parentReflection = $classReflection->getParentClass();
+        if ($parentReflection !== null) {
+            $this->collectClassSourceFiles(
+                $parentReflection,
+                $files,
+                $visited,
+                $packageDirectories
+            );
+        }
+    }
+
+    /**
+     * @param array<string, true> $files
+     * @param array<string, true> $packageDirectories
+     */
+    private function collectPackageSourceFiles(
+        string $fileName,
+        array &$files,
+        array &$packageDirectories
+    ): void {
+        if (str_starts_with($fileName, 'phar://')) {
+            return;
+        }
+
+        $directory = dirname($fileName);
+        while (true) {
+            $composerJson = $directory . DIRECTORY_SEPARATOR . 'composer.json';
+            if (is_file($composerJson)) {
+                if (isset($packageDirectories[$directory])) {
+                    return;
+                }
+                $packageDirectories[$directory] = true;
+                $files[$composerJson] = true;
+                $this->collectPhpFiles($directory, $files);
+                $this->collectComposerAutoloadSources($directory, $composerJson, $files);
+
+                return;
+            }
+
+            $parent = dirname($directory);
+            if ($parent === $directory) {
+                return;
+            }
+            $directory = $parent;
+        }
+    }
+
+    /** @return list<string> */
+    private function classSourceFiles(ClassReflection $classReflection): array
+    {
+        $files = [];
+        $nativeFile = $classReflection->getNativeReflection()->getFileName();
+        if (is_string($nativeFile)) {
+            $files[$nativeFile] = true;
+        }
+
+        foreach (spl_autoload_functions() as $autoloader) {
+            if (!is_array($autoloader)
+                || !$autoloader[0] instanceof ClassLoader
+            ) {
+                continue;
+            }
+
+            $autoloadFile = $autoloader[0]->findFile($classReflection->getName());
+            if (is_string($autoloadFile)) {
+                $files[$autoloadFile] = true;
+            }
+        }
+
+        return array_keys($files);
+    }
+
+    /** @param array<string, true> $files */
+    private function collectComposerAutoloadSources(
+        string $packageDirectory,
+        string $composerJson,
+        array &$files
+    ): void {
+        $contents = @file_get_contents($composerJson);
+        if (!is_string($contents)) {
+            return;
+        }
+
+        try {
+            $composer = json_decode($contents, true, flags: JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return;
+        }
+        if (!is_array($composer)) {
+            return;
+        }
+
+        foreach (['autoload', 'autoload-dev'] as $sectionName) {
+            $section = $composer[$sectionName] ?? null;
+            if (!is_array($section)) {
+                continue;
+            }
+
+            foreach (['psr-0', 'psr-4', 'classmap'] as $autoloadType) {
+                $mappings = $section[$autoloadType] ?? null;
+                if (!is_array($mappings)) {
+                    continue;
+                }
+
+                foreach ($mappings as $mapping) {
+                    foreach (is_array($mapping) ? $mapping : [$mapping] as $path) {
+                        if (!is_string($path)) {
+                            continue;
+                        }
+
+                        $this->collectPhpFiles(
+                            $this->absolutizeComposerPath($packageDirectory, $path),
+                            $files,
+                            $autoloadType === 'classmap' ? ['php', 'inc', 'hh'] : ['php']
+                        );
+                    }
+                }
+            }
+
+            $autoloadFiles = $section['files'] ?? null;
+            if (!is_array($autoloadFiles)) {
+                continue;
+            }
+
+            foreach ($autoloadFiles as $path) {
+                if (!is_string($path)) {
+                    continue;
+                }
+
+                $files[$this->absolutizeComposerPath($packageDirectory, $path)] = true;
+            }
+        }
+    }
+
+    private function absolutizeComposerPath(string $packageDirectory, string $path): string
+    {
+        $path = $this->isAbsolutePath($path)
+            ? $path
+            : $packageDirectory . DIRECTORY_SEPARATOR . $path;
+
+        $realPath = realpath($path);
+
+        return is_string($realPath) ? $realPath : $path;
+    }
+
+    /**
+     * @param array<string, true> $files
+     * @param non-empty-list<string> $extensions
+     */
+    private function collectPhpFiles(
+        string $path,
+        array &$files,
+        array $extensions = ['php']
+    ): void {
+        if (is_file($path)) {
+            if (in_array(strtolower(pathinfo($path, PATHINFO_EXTENSION)), $extensions, true)) {
+                $files[$path] = true;
+            }
+
+            return;
+        }
+        if (!is_dir($path)) {
+            return;
+        }
+
+        try {
+            $iterator = new \RecursiveCallbackFilterIterator(
+                new \RecursiveDirectoryIterator($path, \FilesystemIterator::SKIP_DOTS),
+                static function (\SplFileInfo $file): bool {
+                    if (!$file->isDir()) {
+                        return true;
+                    }
+
+                    return !in_array($file->getFilename(), [
+                        '.git',
+                        '.phpunit.cache',
+                        'node_modules',
+                        'vendor',
+                    ], true);
+                }
+            );
+
+            foreach (new \RecursiveIteratorIterator($iterator) as $file) {
+                if (!$file instanceof \SplFileInfo
+                    || !$file->isFile()
+                    || !in_array(strtolower($file->getExtension()), $extensions, true)
+                ) {
+                    continue;
+                }
+
+                $files[$file->getPathname()] = true;
+            }
+        } catch (\UnexpectedValueException) {
+        }
+    }
+
     private function descriptorHash(): string
     {
         return hash('sha256', serialize($this->descriptors));
@@ -348,6 +694,7 @@ final class FormRequestTypeRegistry implements ResultCacheMetaExtension
         $context = hash_init('sha256');
         hash_update($context, 'manifest-schema:' . self::MANIFEST_SCHEMA . "\0");
         hash_update($context, 'working-directory:' . $this->workingDirectory . "\0");
+        hash_update($context, 'additional:' . serialize($this->additionalClasses) . "\0");
         hash_update($context, 'trusted:' . serialize($this->trustedClasses) . "\0");
 
         foreach ($this->extensionContractFiles() as $relativePath => $fileName) {
@@ -359,7 +706,7 @@ final class FormRequestTypeRegistry implements ResultCacheMetaExtension
             hash_update($context, "\0");
         }
 
-        foreach ($this->sourceFiles() as $fileName) {
+        foreach ($this->fingerprintSourceFiles() as $fileName) {
             hash_update($context, 'source:' . $fileName . "\0");
             $contents = @file_get_contents($fileName);
             hash_update($context, is_string($contents)
@@ -495,6 +842,7 @@ final class FormRequestTypeRegistry implements ResultCacheMetaExtension
         $identity = hash('sha256', serialize([
             self::MANIFEST_SCHEMA,
             $this->workingDirectory,
+            $this->additionalClasses,
             $this->trustedClasses,
             $this->analysedPaths,
             $this->analysedPathsFromConfig,
@@ -508,6 +856,19 @@ final class FormRequestTypeRegistry implements ResultCacheMetaExtension
             . 'phpstan-laravel-validation'
             . DIRECTORY_SEPARATOR
             . 'form-requests-' . $identity . '.json';
+    }
+
+    /**
+     * @param list<string> $classNames
+     *
+     * @return list<string>
+     */
+    private static function normalizeClassNames(array $classNames): array
+    {
+        return array_values(array_unique(array_map(
+            static fn (string $className): string => ltrim($className, '\\'),
+            $classNames
+        )));
     }
 
     /** @return list<string> */

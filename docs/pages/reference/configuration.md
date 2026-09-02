@@ -12,6 +12,7 @@ parameters:
         experimentalConditionalPresenceInference: false
         formRequests:
             enabled: false
+            additionalClasses: []
             trustedClasses: []
         customRules:
             classes: []
@@ -178,11 +179,26 @@ parameters:
     phpstanLaravelValidation:
         formRequests:
             enabled: false
+            additionalClasses: []
             trustedClasses: []
 ```
 
+`additionalClasses` is an exact discovery-only class list for FormRequests
+outside the ordinary analysed, scan, and root Composer source paths. Each
+class still has to pass the lifecycle-safety checks described in the guide.
+The manifest fingerprints the configured class's Composer package PHP sources
+and declared autoload paths. It does the same for parent classes, implemented
+interfaces, recursively used traits, and statically referenced classes in the
+`rules()` return expressions, including injected class-constant receivers and
+transitive class-constant references. Statically referenced user constants and
+functions also contribute their available source files. Exact `autoload.files`
+entries are included even when they do not use a `.php` extension. These
+additional sources do not make unlisted classes discoverable.
+
 `trustedClasses` is an exact class list. Subclasses are not trusted
-implicitly.
+implicitly. Trust also makes the class discoverable, but bypasses those
+lifecycle checks and can therefore make inference unsound when asserted
+incorrectly.
 
 ## Custom rules
 

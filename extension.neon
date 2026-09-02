@@ -6,6 +6,7 @@ parameters:
     laravelVersion: auto
     formRequests:
       enabled: false
+      additionalClasses: []
       trustedClasses: []
     customRules:
       classes: []
@@ -19,6 +20,7 @@ parametersSchema:
     laravelVersion: string(),
     formRequests: structure([
       enabled: bool(),
+      additionalClasses: arrayOf(string()),
       trustedClasses: arrayOf(string())
     ]),
     customRules: structure([
@@ -54,6 +56,7 @@ services:
       workingDirectory: %currentWorkingDirectory%
       tmpDirectory: %tmpDir%
       enabled: %phpstanLaravelValidation.formRequests.enabled%
+      additionalClasses: %phpstanLaravelValidation.formRequests.additionalClasses%
       trustedClasses: %phpstanLaravelValidation.formRequests.trustedClasses%
       analysedPaths: %analysedPaths%
       analysedPathsFromConfig: %analysedPathsFromConfig%

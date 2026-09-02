@@ -483,17 +483,37 @@ The supported pattern is to store the terminal array from `safe()->all()`,
 the terminal accessor. Stored wrappers remain broad unless Laravel exposes an
 immutable wrapper or PHPStan gains an alias-safe invalidation mechanism.
 
+## Explicit discovery is separate from trust
+
+`formRequests.additionalClasses` provides an exact discovery-only class list
+for requests outside the analysed, scan, and root Composer source paths. The
+registry subjects those classes to the same lifecycle checks as automatically
+discovered requests. `trustedClasses` remains a distinct assertion that an
+exact class may bypass those checks.
+
+Both lists participate in the FormRequest manifest identity and source
+fingerprint. When a configured class can be reflected, the fingerprint includes
+the PHP sources and declared autoload paths in its Composer package and in the
+packages of its parent classes, implemented interfaces, and recursively used
+traits. Statically referenced classes in the `rules()` return expressions also
+contribute their sources and package mappings, including injected receivers and
+transitively referenced class constants. User constants and functions contribute
+their available source files; when PHPStan cannot identify the defining file for
+a user constant, included files are conservatively fingerprinted. Exact
+`autoload.files` entries are included regardless of extension. Files included
+only for fingerprinting are not scanned for sibling requests. This keeps the
+warm manifest optimization from hiding a change to a sibling rule helper in a
+path package without broadening the exact discovery lists. Warm-cache
+regressions change helpers in inherited, unrelated, and externally mapped
+packages without changing Composer metadata and confirm that the caller is
+reanalysed with the new rule type.
+
 ## Remaining candidates
 
 1. Pursue a supported PHPStan API for per-file, extension-defined semantic
    dependencies. A consumer should record a stable dependency key, such as a
    FormRequest class, and the extension should provide that key's current
    contract hash.
-1. Consider an optional exact FormRequest class list, separate from
-   `trustedClasses`, for projects that prefer explicit discovery. Unlisted
-   requests must retain Laravel's broad declared type. This would reduce
-   registry discovery work without weakening lifecycle checks or cache
-   invalidation.
 1. Consider the measured `extends` prefilter if its modest cold-start benefit
    justifies a production change and dedicated discovery regression tests.
 1. Extend selected rule-object support only where Laravel runtime evidence

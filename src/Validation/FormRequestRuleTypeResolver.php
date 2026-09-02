@@ -23,7 +23,10 @@ namespace jbboehr\PhpstanLaravelValidation\Validation;
 
 use PhpParser\Node;
 use PhpParser\Node\FunctionLike;
+use PhpParser\Node\Identifier;
 use PhpParser\Node\Expr\ClassConstFetch;
+use PhpParser\Node\Expr\ConstFetch;
+use PhpParser\Node\Expr\FuncCall;
 use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Expr\StaticPropertyFetch;
 use PhpParser\Node\Expr\Variable;
@@ -33,10 +36,12 @@ use PhpParser\Node\Stmt\Return_;
 use PhpParser\NodeFinder;
 use PhpParser\NodeTraverser;
 use PhpParser\NodeVisitorAbstract;
+use PHPStan\Analyser\Scope;
 use PHPStan\Analyser\ScopeContext;
 use PHPStan\Analyser\ScopeFactory;
 use PHPStan\Parser\Parser;
 use PHPStan\Reflection\ClassReflection;
+use PHPStan\Reflection\ReflectionProvider;
 use PHPStan\Type\Type;
 use PHPStan\Type\TypeCombinator;
 use PHPStan\Type\Generic\TemplateTypeMap;
@@ -52,6 +57,7 @@ final class FormRequestRuleTypeResolver
     public function __construct(
         private Parser $parser,
         private ScopeFactory $scopeFactory,
+        private ReflectionProvider $reflectionProvider,
         private RuleSetResolver $ruleSetResolver,
         private TypeResolver $typeResolver,
         private bool $assumeHttpInputNormalization
@@ -76,7 +82,171 @@ final class FormRequestRuleTypeResolver
         }
     }
 
+    /** @return list<string> */
+    public function sourceDependencyClassNames(ClassReflection $classReflection): array
+    {
+        $context = $this->resolveMethodContext($classReflection);
+        if ($context === null) {
+            return [];
+        }
+
+        [$classMethod, $scope] = $context;
+        $classNames = [];
+        foreach ($this->collectReturnNodes($classMethod->stmts ?? []) as $returnNode) {
+            if ($returnNode->expr === null) {
+                continue;
+            }
+
+            foreach ((new NodeFinder())->findInstanceOf([$returnNode->expr], Name::class) as $name) {
+                $classNames[$scope->resolveName($name)] = true;
+            }
+            foreach ((new NodeFinder())->findInstanceOf([$returnNode->expr], ClassConstFetch::class) as $fetch) {
+                foreach ($this->resolveClassConstantClassNames($fetch, $scope) as $className) {
+                    $classNames[$className] = true;
+                }
+            }
+        }
+
+        return array_keys($classNames);
+    }
+
+    /** @return list<string> */
+    public function sourceDependencyFiles(ClassReflection $classReflection): array
+    {
+        $context = $this->resolveMethodContext($classReflection);
+        if ($context === null) {
+            return [];
+        }
+
+        [$classMethod, $scope] = $context;
+        $files = [];
+        foreach ($this->collectReturnNodes($classMethod->stmts ?? []) as $returnNode) {
+            if ($returnNode->expr === null) {
+                continue;
+            }
+
+            foreach ((new NodeFinder())->findInstanceOf([$returnNode->expr], ConstFetch::class) as $fetch) {
+                if (!$this->reflectionProvider->hasConstant($fetch->name, $scope)) {
+                    continue;
+                }
+
+                $constant = $this->reflectionProvider->getConstant($fetch->name, $scope);
+                $fileName = $constant->getFileName();
+                if (is_string($fileName)) {
+                    $files[$fileName] = true;
+                } else {
+                    foreach (get_included_files() as $includedFile) {
+                        $files[$includedFile] = true;
+                    }
+                }
+            }
+
+            foreach ((new NodeFinder())->findInstanceOf([$returnNode->expr], FuncCall::class) as $call) {
+                if (!$call->name instanceof Name
+                    || !$this->reflectionProvider->hasFunction($call->name, $scope)
+                ) {
+                    continue;
+                }
+
+                $fileName = $this->reflectionProvider->getFunction($call->name, $scope)->getFileName();
+                if (is_string($fileName)) {
+                    $files[$fileName] = true;
+                }
+            }
+        }
+
+        return array_keys($files);
+    }
+
+    /** @return list<array{className: string, constantName: string}> */
+    public function sourceDependencyClassConstantReferences(ClassReflection $classReflection): array
+    {
+        $context = $this->resolveMethodContext($classReflection);
+        if ($context === null) {
+            return [];
+        }
+
+        [$classMethod, $scope] = $context;
+        $expressions = [];
+        foreach ($this->collectReturnNodes($classMethod->stmts ?? []) as $returnNode) {
+            if ($returnNode->expr !== null) {
+                $expressions[] = $returnNode->expr;
+            }
+        }
+
+        return $this->collectClassConstantReferences($expressions, $scope);
+    }
+
+    /** @return list<array{className: string, constantName: string}> */
+    public function classConstantSourceDependencyReferences(
+        ClassReflection $classReflection,
+        string $constantName
+    ): array {
+        $constant = $classReflection->getNativeReflection()->getReflectionConstant($constantName);
+        if ($constant === false) {
+            return [];
+        }
+
+        $declaringClassName = $constant->getDeclaringClass()->getName();
+        $analysisClass = $declaringClassName === $classReflection->getName()
+            ? $classReflection
+            : $classReflection->getAncestorWithClassName($declaringClassName);
+        $fileName = $constant->getDeclaringClass()->getFileName();
+        if ($analysisClass === null || !is_string($fileName)) {
+            return [];
+        }
+
+        $scope = $this->scopeFactory
+            ->create(ScopeContext::create($fileName))
+            ->enterClass($analysisClass);
+
+        return $this->collectClassConstantReferences([$constant->getValueExpression()], $scope);
+    }
+
     private function resolveUncached(ClassReflection $classReflection): ?Type
+    {
+        $context = $this->resolveMethodContext($classReflection);
+        if ($context === null) {
+            return null;
+        }
+
+        [$classMethod, $scope] = $context;
+        $returnNodes = $this->collectReturnNodes($classMethod->stmts ?? []);
+        $types = [];
+
+        try {
+            foreach ($returnNodes as $returnNode) {
+                if ($returnNode->expr === null) {
+                    return null;
+                }
+
+                $ruleTrees = $this->ruleSetResolver->resolve($returnNode->expr, $scope);
+                if ($ruleTrees === []) {
+                    return null;
+                }
+
+                foreach ($ruleTrees as $ruleTree) {
+                    $types[] = $this->typeResolver->evaluate(
+                        $ruleTree,
+                        $this->assumeHttpInputNormalization
+                    );
+                }
+            }
+        } catch (InvalidCustomRuleContractException $e) {
+            throw $e;
+        } catch (\Throwable) {
+            return null;
+        }
+
+        if ($types === []) {
+            return null;
+        }
+
+        return TypeCombinator::union(...$types);
+    }
+
+    /** @return array{ClassMethod, Scope}|null */
+    private function resolveMethodContext(ClassReflection $classReflection): ?array
     {
         $nativeClass = $classReflection->getNativeReflection();
         if (!$nativeClass->hasMethod('rules')) {
@@ -133,38 +303,7 @@ final class FormRequestRuleTypeResolver
                 false
             );
 
-        $returnNodes = $this->collectReturnNodes($classMethod->stmts ?? []);
-        $types = [];
-
-        try {
-            foreach ($returnNodes as $returnNode) {
-                if ($returnNode->expr === null) {
-                    return null;
-                }
-
-                $ruleTrees = $this->ruleSetResolver->resolve($returnNode->expr, $scope);
-                if ($ruleTrees === []) {
-                    return null;
-                }
-
-                foreach ($ruleTrees as $ruleTree) {
-                    $types[] = $this->typeResolver->evaluate(
-                        $ruleTree,
-                        $this->assumeHttpInputNormalization
-                    );
-                }
-            }
-        } catch (InvalidCustomRuleContractException $e) {
-            throw $e;
-        } catch (\Throwable) {
-            return null;
-        }
-
-        if ($types === []) {
-            return null;
-        }
-
-        return TypeCombinator::union(...$types);
+        return [$classMethod, $scope];
     }
 
     /** @param array<Node> $nodes */
@@ -231,6 +370,38 @@ final class FormRequestRuleTypeResolver
         $traverser->traverse($nodes);
 
         return $visitor->getReturnNodes();
+    }
+
+    /**
+     * @param array<Node> $nodes
+     * @return list<array{className: string, constantName: string}>
+     */
+    private function collectClassConstantReferences(array $nodes, Scope $scope): array
+    {
+        $references = [];
+        foreach ((new NodeFinder())->findInstanceOf($nodes, ClassConstFetch::class) as $fetch) {
+            if (!$fetch->name instanceof Identifier) {
+                continue;
+            }
+
+            foreach ($this->resolveClassConstantClassNames($fetch, $scope) as $className) {
+                $constantName = $fetch->name->toString();
+                $references[strtolower($className) . '::' . $constantName] = [
+                    'className' => $className,
+                    'constantName' => $constantName,
+                ];
+            }
+        }
+
+        return array_values($references);
+    }
+
+    /** @return list<string> */
+    private function resolveClassConstantClassNames(ClassConstFetch $fetch, Scope $scope): array
+    {
+        return $fetch->class instanceof Name
+            ? [$scope->resolveName($fetch->class)]
+            : $scope->getType($fetch->class)->getObjectClassNames();
     }
 
     private function containsLateBoundReference(ClassMethod $classMethod): bool
