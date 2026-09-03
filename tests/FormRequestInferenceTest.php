@@ -26,6 +26,7 @@ use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\AdditionalClasses
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\AdditionalClassesRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\AdditionalClassesWrongEntry;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\BasicRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\ClassConstantRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\PassedValidationRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\TrustedAdditionalClassesRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\UnlistedAdditionalClassesSiblingRequest;
@@ -34,6 +35,7 @@ use jbboehr\PhpstanLaravelValidation\Test\Support\AssertsFixtureUnderCoverage;
 use jbboehr\PhpstanLaravelValidation\Validation\FormRequestRuleTypeResolver;
 use jbboehr\PhpstanLaravelValidation\Validation\FormRequestTypeRegistry;
 use PHPStan\Analyser\ResultCache\ResultCacheMetaExtension;
+use PHPStan\File\FileHelper;
 use PHPStan\Parser\Parser;
 use PHPStan\Reflection\ReflectionProvider;
 use PHPStan\Type\VerbosityLevel;
@@ -58,6 +60,21 @@ final class FormRequestInferenceTest extends \PHPStan\Testing\TypeInferenceTestC
 
         self::assertCount(1, $registries);
         self::assertSame('phpstan-laravel-validation.form-requests', $registries[0]->getKey());
+    }
+
+    public function testLiteralRulesMethodIsEligibleForExportedFingerprinting(): void
+    {
+        $container = self::getContainer();
+        $reflectionProvider = $container->getByType(ReflectionProvider::class);
+
+        self::assertTrue(
+            $container->getByType(FormRequestRuleTypeResolver::class)
+                ->hasExportableLiteralRulesMethodBody($reflectionProvider->getClass(BasicRequest::class))
+        );
+        self::assertFalse(
+            $container->getByType(FormRequestRuleTypeResolver::class)
+                ->hasExportableLiteralRulesMethodBody($reflectionProvider->getClass(ClassConstantRequest::class))
+        );
     }
 
     public function testValidationRulesOverrideFollowsInstalledLaravelLifecycle(): void
@@ -90,6 +107,7 @@ final class FormRequestInferenceTest extends \PHPStan\Testing\TypeInferenceTestC
         $registry = new FormRequestTypeRegistry(
             reflectionProvider: $reflectionProvider,
             parser: $parser,
+            fileHelper: $container->getByType(FileHelper::class),
             ruleTypeResolver: $container->getByType(FormRequestRuleTypeResolver::class),
             workingDirectory: __DIR__,
             tmpDirectory: \sys_get_temp_dir(),
@@ -172,6 +190,7 @@ final class FormRequestInferenceTest extends \PHPStan\Testing\TypeInferenceTestC
         return new FormRequestTypeRegistry(
             reflectionProvider: $container->getByType(ReflectionProvider::class),
             parser: $parser,
+            fileHelper: $container->getByType(FileHelper::class),
             ruleTypeResolver: $container->getByType(FormRequestRuleTypeResolver::class),
             workingDirectory: __DIR__,
             tmpDirectory: \sys_get_temp_dir(),

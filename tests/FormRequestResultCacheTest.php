@@ -22,6 +22,7 @@ declare(strict_types=1);
 namespace jbboehr\PhpstanLaravelValidation\Test;
 
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\Process\Process;
 
 #[Group('subprocess')]
@@ -127,6 +128,534 @@ NEON,
         );
     }
 
+    public function testExportedFingerprintInvalidatesOnlyFormRequestDependants(): void
+    {
+        $this->writeRequest("return ['age' => 'required|integer'];");
+        $this->writeProjectFile('src/Controller.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+use function PHPStan\Testing\assertType;
+
+function consume(CacheRequest $request): void
+{
+    $validated = $request->validated();
+
+    assertType('array{age: float|int|numeric-string|Stringable|true}', $validated);
+}
+PHP);
+        $this->writeProjectFile('src/Unrelated.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+function unrelated(): int
+{
+    return 1;
+}
+PHP);
+
+        $first = $this->analyse();
+        self::assertSame(0, $first->getExitCode(), $first->getErrorOutput() . $first->getOutput());
+
+        $warm = $this->analyse(true);
+        self::assertSame(0, $warm->getExitCode(), $warm->getErrorOutput() . $warm->getOutput());
+
+        $this->writeRequest("return ['age' => 'required|string'];");
+
+        $second = $this->analyse(veryVerbose: true);
+        $output = $second->getErrorOutput() . $second->getOutput();
+        self::assertSame(1, $second->getExitCode(), $output);
+        self::assertStringContainsString(
+            'Expected type array{age: float|int|numeric-string|Stringable|true}, '
+                . 'actual: array{age: string}',
+            $output
+        );
+        self::assertStringContainsString('2 files will be reanalysed.', $output);
+    }
+
+    public function testRedundantAdditionalClassRemainsOnSelectiveCachePath(): void
+    {
+        $this->writeProjectFile('phpstan.neon', sprintf(
+            <<<'NEON'
+includes:
+    - %s
+
+parameters:
+    level: max
+    paths:
+        - src
+    tmpDir: cache
+    phpstanLaravelValidation:
+        formRequests:
+            enabled: true
+            additionalClasses:
+                - CacheFixture\CacheRequest
+NEON,
+            dirname(__DIR__) . '/extension.neon'
+        ));
+        $this->writeRequest("return ['age' => 'required|integer'];");
+        $this->writeProjectFile('src/Controller.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+use function PHPStan\Testing\assertType;
+
+function consume(CacheRequest $request): void
+{
+    $validated = $request->validated();
+
+    assertType('array{age: float|int|numeric-string|Stringable|true}', $validated);
+}
+PHP);
+        $this->writeProjectFile('src/Unrelated.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+function unrelated(): int
+{
+    return 1;
+}
+PHP);
+
+        $first = $this->analyse();
+        self::assertSame(0, $first->getExitCode(), $first->getErrorOutput() . $first->getOutput());
+
+        $warm = $this->analyse(true);
+        self::assertSame(0, $warm->getExitCode(), $warm->getErrorOutput() . $warm->getOutput());
+
+        $this->writeRequest("return ['age' => 'required|string'];");
+
+        $second = $this->analyse(veryVerbose: true);
+        $output = $second->getErrorOutput() . $second->getOutput();
+        self::assertSame(1, $second->getExitCode(), $output);
+        self::assertStringContainsString(
+            'Expected type array{age: float|int|numeric-string|Stringable|true}, '
+                . 'actual: array{age: string}',
+            $output
+        );
+        self::assertStringContainsString('2 files will be reanalysed.', $output);
+        self::assertStringNotContainsString('metadata do not match: metaExtensions', $output);
+    }
+
+    public function testTrustedClassRemainsOnGlobalCacheFallback(): void
+    {
+        $this->writeProjectFile('phpstan.neon', sprintf(
+            <<<'NEON'
+includes:
+    - %s
+
+parameters:
+    level: max
+    paths:
+        - src
+    tmpDir: cache
+    phpstanLaravelValidation:
+        formRequests:
+            enabled: true
+            trustedClasses:
+                - CacheFixture\CacheRequest
+NEON,
+            dirname(__DIR__) . '/extension.neon'
+        ));
+        $this->writeRequest("return ['value' => 'required|string'];");
+
+        $first = $this->analyse();
+        self::assertSame(0, $first->getExitCode(), $first->getErrorOutput() . $first->getOutput());
+
+        $warm = $this->analyse(true);
+        self::assertSame(0, $warm->getExitCode(), $warm->getErrorOutput() . $warm->getOutput());
+
+        $this->writeRequest("return ['value' => 'required|array'];");
+
+        $cached = $this->analyse(veryVerbose: true);
+        $uncached = $this->analyse(debug: true);
+        $uncachedOutput = $uncached->getErrorOutput() . $uncached->getOutput();
+        self::assertSame(1, $uncached->getExitCode(), $uncachedOutput);
+        self::assertStringContainsString(
+            'Parameter #1 $string of function strlen expects string, array given.',
+            $uncachedOutput
+        );
+
+        $cachedOutput = $cached->getErrorOutput() . $cached->getOutput();
+        self::assertSame(1, $cached->getExitCode(), $cachedOutput);
+        self::assertStringContainsString(
+            'Parameter #1 $string of function strlen expects string, array given.',
+            $cachedOutput
+        );
+        self::assertStringContainsString('metadata do not match: metaExtensions', $cachedOutput);
+    }
+
+    public function testUnrelatedFormRequestMethodBodyDoesNotInvalidateDependants(): void
+    {
+        $this->writeRequest(
+            "return ['value' => 'required|string'];",
+            <<<'PHP'
+
+    public function authorize(): bool
+    {
+        return true;
+    }
+PHP
+        );
+
+        $first = $this->analyse();
+        self::assertSame(0, $first->getExitCode(), $first->getErrorOutput() . $first->getOutput());
+
+        $warm = $this->analyse(true);
+        self::assertSame(0, $warm->getExitCode(), $warm->getErrorOutput() . $warm->getOutput());
+
+        $this->writeRequest(
+            "return ['value' => 'required|string'];",
+            <<<'PHP'
+
+    public function authorize(): bool
+    {
+        return false;
+    }
+PHP
+        );
+
+        $second = $this->analyse(veryVerbose: true);
+        $output = $second->getErrorOutput() . $second->getOutput();
+        self::assertSame(0, $second->getExitCode(), $output);
+        self::assertStringContainsString('1 file will be reanalysed.', $output);
+        self::assertStringNotContainsString('metadata do not match: metaExtensions', $output);
+    }
+
+    public function testUnrelatedMethodBeforeRulesKeepsRedundantAdditionalClassSelective(): void
+    {
+        $this->writeProjectFile('phpstan.neon', sprintf(
+            <<<'NEON'
+includes:
+    - %s
+
+parameters:
+    level: max
+    paths:
+        - src
+    tmpDir: cache
+    phpstanLaravelValidation:
+        formRequests:
+            enabled: true
+            additionalClasses:
+                - CacheFixture\CacheRequest
+NEON,
+            dirname(__DIR__) . '/extension.neon'
+        ));
+        $this->writeRequest(
+            "return ['value' => 'required|string'];",
+            precedingMethods: <<<'PHP'
+
+    public function authorize(): bool
+    {
+        return true;
+    }
+PHP
+        );
+
+        $first = $this->analyse();
+        self::assertSame(0, $first->getExitCode(), $first->getErrorOutput() . $first->getOutput());
+
+        $warm = $this->analyse(true);
+        self::assertSame(0, $warm->getExitCode(), $warm->getErrorOutput() . $warm->getOutput());
+
+        $this->writeRequest(
+            "return ['value' => 'required|string'];",
+            precedingMethods: <<<'PHP'
+
+    public function authorize(): bool
+    {
+        $choice = random_int(0, 1);
+
+        return $choice === 1;
+    }
+PHP
+        );
+
+        $second = $this->analyse(veryVerbose: true);
+        $output = $second->getErrorOutput() . $second->getOutput();
+        self::assertSame(0, $second->getExitCode(), $output);
+        self::assertStringContainsString('1 file will be reanalysed.', $output);
+        self::assertStringNotContainsString('metadata do not match: metaExtensions', $output);
+    }
+
+    public function testCliPathOverrideKeepsUnanalysedRequestOnGlobalCacheFallback(): void
+    {
+        self::assertTrue(mkdir($this->projectDirectory . '/controller'));
+        $this->writeProjectFile('phpstan.neon', sprintf(
+            <<<'NEON'
+includes:
+    - %s
+
+parameters:
+    level: max
+    paths:
+        - src/CacheRequest.php
+    bootstrapFiles:
+        - bootstrap.php
+    tmpDir: cache
+    phpstanLaravelValidation:
+        formRequests:
+            enabled: true
+NEON,
+            dirname(__DIR__) . '/extension.neon'
+        ));
+        $this->writeProjectFile('bootstrap.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+require_once __DIR__ . '/src/CacheRequest.php';
+PHP);
+        $this->writeRequest("return ['value' => 'required|string'];");
+        $this->writeProjectFile('controller/Controller.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+function consume(CacheRequest $request): int
+{
+    $validated = $request->validated();
+
+    return strlen($validated['value']);
+}
+PHP);
+
+        $first = $this->analyse(paths: ['controller']);
+        self::assertSame(0, $first->getExitCode(), $first->getErrorOutput() . $first->getOutput());
+
+        $warm = $this->analyse(veryVerbose: true, paths: ['controller']);
+        self::assertSame(0, $warm->getExitCode(), $warm->getErrorOutput() . $warm->getOutput());
+        self::assertStringContainsString(
+            'Result cache restored. 0 files will be reanalysed.',
+            $warm->getErrorOutput() . $warm->getOutput()
+        );
+
+        $this->writeRequest("return ['value' => 'required|array'];");
+
+        $cached = $this->analyse(veryVerbose: true, paths: ['controller']);
+        $uncached = $this->analyse(debug: true, paths: ['controller']);
+        $uncachedOutput = $uncached->getErrorOutput() . $uncached->getOutput();
+        self::assertSame(1, $uncached->getExitCode(), $uncachedOutput);
+        self::assertStringContainsString(
+            'Parameter #1 $string of function strlen expects string, array given.',
+            $uncachedOutput
+        );
+
+        $cachedOutput = $cached->getErrorOutput() . $cached->getOutput();
+        self::assertSame(1, $cached->getExitCode(), $cachedOutput);
+        self::assertStringContainsString(
+            'Parameter #1 $string of function strlen expects string, array given.',
+            $cachedOutput
+        );
+        self::assertStringContainsString('metadata do not match: metaExtensions', $cachedOutput);
+    }
+
+    #[DataProvider('phpStanIgnoredDirectoryProvider')]
+    public function testRequestInDirectoryIgnoredByPhpStanUsesGlobalCacheFallback(
+        string $directory
+    ): void {
+        $requestPath = 'src/' . $directory . '/CacheRequest.php';
+        self::assertTrue(mkdir($this->projectDirectory . '/src/' . $directory));
+        $this->writeProjectFile('phpstan.neon', sprintf(
+            <<<'NEON'
+includes:
+    - %s
+
+parameters:
+    level: max
+    paths:
+        - src
+    bootstrapFiles:
+        - bootstrap.php
+    tmpDir: cache
+    phpstanLaravelValidation:
+        formRequests:
+            enabled: true
+NEON,
+            dirname(__DIR__) . '/extension.neon'
+        ));
+        $this->writeProjectFile('bootstrap.php', sprintf(
+            <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+require_once __DIR__ . '/%s';
+PHP,
+            $requestPath
+        ));
+        $this->writeProjectFile($requestPath, <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+final class CacheRequest extends FormRequest
+{
+    /** @return array<string, string> */
+    public function rules(): array
+    {
+        return ['value' => 'required|string'];
+    }
+}
+PHP);
+
+        $first = $this->analyse();
+        self::assertSame(0, $first->getExitCode(), $first->getErrorOutput() . $first->getOutput());
+
+        $warm = $this->analyse(true);
+        self::assertSame(0, $warm->getExitCode(), $warm->getErrorOutput() . $warm->getOutput());
+
+        $this->writeProjectFile($requestPath, <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+final class CacheRequest extends FormRequest
+{
+    /** @return array<string, string> */
+    public function rules(): array
+    {
+        return ['value' => 'required|array'];
+    }
+}
+PHP);
+
+        $cached = $this->analyse(veryVerbose: true);
+        $uncached = $this->analyse(debug: true);
+        $uncachedOutput = $uncached->getErrorOutput() . $uncached->getOutput();
+        self::assertSame(1, $uncached->getExitCode(), $uncachedOutput);
+        self::assertStringContainsString(
+            'Parameter #1 $string of function strlen expects string, array given.',
+            $uncachedOutput
+        );
+
+        $cachedOutput = $cached->getErrorOutput() . $cached->getOutput();
+        self::assertSame(1, $cached->getExitCode(), $cachedOutput);
+        self::assertStringContainsString(
+            'Parameter #1 $string of function strlen expects string, array given.',
+            $cachedOutput
+        );
+        self::assertStringContainsString('metadata do not match: metaExtensions', $cachedOutput);
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function phpStanIgnoredDirectoryProvider(): iterable
+    {
+        yield 'dot directory' => ['.generated'];
+        yield 'VCS directory' => ['CVS'];
+    }
+
+    public function testReservedFingerprintAttributeCannotBeUsed(): void
+    {
+        $this->writeProjectFile('src/Controller.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+final class Controller
+{
+}
+PHP);
+        $this->writeRequest(
+            "return ['age' => 'required|integer'];",
+            <<<'PHP'
+
+    #[\jbboehr\PhpstanLaravelValidation\Internal\FormRequestRulesFingerprint('forbidden')]
+    public function exposeFingerprint(): string
+    {
+        return 'forbidden';
+    }
+PHP
+        );
+
+        $result = $this->analyse();
+        $output = $result->getErrorOutput() . $result->getOutput();
+        self::assertSame(1, $result->getExitCode(), $output);
+        self::assertStringContainsString(
+            'The FormRequest rules fingerprint attribute is reserved for PHPStan cache invalidation and must not be used.',
+            $output
+        );
+        self::assertStringNotContainsString('Attribute class', $output);
+    }
+
+    public function testReservedFingerprintAttributeCannotBeUsedWithDifferentCase(): void
+    {
+        $this->writeProjectFile('phpstan.neon', sprintf(
+            <<<'NEON'
+includes:
+    - %s
+
+parameters:
+    level: max
+    paths:
+        - src
+    ignoreErrors:
+        -
+            identifier: class.nameCase
+    tmpDir: cache
+    phpstanLaravelValidation:
+        formRequests:
+            enabled: true
+NEON,
+            dirname(__DIR__) . '/extension.neon'
+        ));
+        $this->writeProjectFile('src/Controller.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+final class Controller
+{
+}
+PHP);
+        $this->writeRequest(
+            "return ['age' => 'required|integer'];",
+            <<<'PHP'
+
+    #[\JBBOEHR\PHPSTANLARAVELVALIDATION\INTERNAL\FORMREQUESTRULESFINGERPRINT('forbidden')]
+    public function exposeFingerprint(): string
+    {
+        return 'forbidden';
+    }
+PHP
+        );
+
+        $result = $this->analyse();
+        $output = $result->getErrorOutput() . $result->getOutput();
+        self::assertSame(1, $result->getExitCode(), $output);
+        self::assertStringContainsString(
+            'The FormRequest rules fingerprint attribute is reserved for PHPStan cache invalidation and must not be used.',
+            $output
+        );
+    }
+
     public function testChangingRuleConstantInOutsidePackageMappingInvalidatesCachedCaller(): void
     {
         $this->writeExternalConfig();
@@ -167,7 +696,7 @@ NEON,
 
         $this->writeExternalClassmapRules('required|array');
 
-        $cached = $this->analyse();
+        $cached = $this->analyse(veryVerbose: true);
         $uncached = $this->analyse(debug: true);
         self::assertSame(
             1,
@@ -181,6 +710,10 @@ NEON,
         self::assertSame(1, $cached->getExitCode(), $cached->getErrorOutput() . $cached->getOutput());
         self::assertStringContainsString(
             'Parameter #1 $string of function strlen expects string, array given.',
+            $cached->getErrorOutput() . $cached->getOutput()
+        );
+        self::assertStringContainsString(
+            'metadata do not match: metaExtensions',
             $cached->getErrorOutput() . $cached->getOutput()
         );
     }
@@ -287,6 +820,126 @@ NEON,
         );
     }
 
+    public function testChangingClassConstantReferencedByGlobalRulesConstantInvalidatesCachedCaller(): void
+    {
+        $this->writeExternalConfig();
+        $this->writeExternalController();
+        self::assertTrue(mkdir($this->projectDirectory . '/external/package-a/src', 0777, true));
+        self::assertTrue(mkdir($this->projectDirectory . '/external/package-c/src', 0777, true));
+        $this->writeProjectFile('external/package-a/composer.json', <<<'JSON'
+{
+    "name": "cache-fixture/package-a",
+    "autoload": {
+        "psr-4": {
+            "CacheFixture\\": "src/"
+        }
+    }
+}
+JSON);
+        $this->writeProjectFile('external/package-c/composer.json', <<<'JSON'
+{
+    "name": "cache-fixture/package-c",
+    "autoload": {
+        "psr-4": {
+            "PackageC\\": "src/"
+        }
+    }
+}
+JSON);
+        $this->writeProjectFile('external/bootstrap.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+$loader = new \Composer\Autoload\ClassLoader();
+$loader->addPsr4('CacheFixture\\', __DIR__ . '/package-a/src');
+$loader->addPsr4('PackageC\\', __DIR__ . '/package-c/src');
+$loader->register();
+
+require_once dirname(__DIR__) . '/src/Rules.php';
+PHP);
+        $this->writeProjectFile('src/Rules.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+use PackageC\ActualRules;
+
+const REQUEST_RULES = ActualRules::RULES;
+PHP);
+        $this->writeProjectFile('external/package-a/src/ExternalRequest.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+use Illuminate\Foundation\Http\FormRequest;
+use const CacheFixture\REQUEST_RULES;
+
+final class ExternalRequest extends FormRequest
+{
+    /** @return array<string, string> */
+    public function rules(): array
+    {
+        return REQUEST_RULES;
+    }
+}
+PHP);
+        $this->writeProjectFile('external/package-c/src/ActualRules.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace PackageC;
+
+final class ActualRules
+{
+    /** @var array<string, string> */
+    public const RULES = ['value' => 'required|string'];
+}
+PHP);
+
+        $first = $this->analyse();
+        self::assertSame(0, $first->getExitCode(), $first->getErrorOutput() . $first->getOutput());
+
+        $warm = $this->analyse(true);
+        self::assertSame(0, $warm->getExitCode(), $warm->getErrorOutput() . $warm->getOutput());
+
+        $this->writeProjectFile('external/package-c/src/ActualRules.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace PackageC;
+
+final class ActualRules
+{
+    /** @var array<string, string> */
+    public const RULES = ['value' => 'required|array'];
+}
+PHP);
+
+        $cached = $this->analyse(veryVerbose: true);
+        $uncached = $this->analyse(debug: true);
+        $uncachedOutput = $uncached->getErrorOutput() . $uncached->getOutput();
+        self::assertSame(1, $uncached->getExitCode(), $uncachedOutput);
+        self::assertStringContainsString(
+            'Parameter #1 $string of function strlen expects string, array given.',
+            $uncachedOutput
+        );
+
+        $cachedOutput = $cached->getErrorOutput() . $cached->getOutput();
+        self::assertSame(1, $cached->getExitCode(), $cachedOutput);
+        self::assertStringContainsString(
+            'Parameter #1 $string of function strlen expects string, array given.',
+            $cachedOutput
+        );
+        self::assertStringContainsString('metadata do not match: metaExtensions', $cachedOutput);
+    }
+
     public function testChangingTransitiveRuleConstantInUnrelatedPackageInvalidatesCachedCaller(): void
     {
         $this->writeExternalConfig();
@@ -320,6 +973,92 @@ NEON,
             'Parameter #1 $string of function strlen expects string, array given.',
             $cached->getErrorOutput() . $cached->getOutput()
         );
+    }
+
+    public function testChangingInheritedInterfaceRuleConstantOutsideScanInvalidatesCachedCaller(): void
+    {
+        $this->writeProjectFile('phpstan.neon', sprintf(
+            <<<'NEON'
+includes:
+    - %s
+
+parameters:
+    level: max
+    paths:
+        - src
+    bootstrapFiles:
+        - external/bootstrap.php
+    tmpDir: cache
+    phpstanLaravelValidation:
+        formRequests:
+            enabled: true
+NEON,
+            dirname(__DIR__) . '/extension.neon'
+        ));
+        $this->writeProjectFile('external/bootstrap.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+require_once __DIR__ . '/RuleContract.php';
+require_once __DIR__ . '/RuleService.php';
+PHP);
+        $this->writeProjectFile('external/RuleService.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace ExternalRules;
+
+final class RuleService implements RuleContract
+{
+}
+PHP);
+        $this->writeProjectFile('src/CacheRequest.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+use ExternalRules\RuleService;
+use Illuminate\Foundation\Http\FormRequest;
+
+final class CacheRequest extends FormRequest
+{
+    /** @return array<string, string> */
+    public function rules(): array
+    {
+        return RuleService::RULES;
+    }
+}
+PHP);
+        $this->writeExternalRuleContract('required|string');
+
+        $first = $this->analyse();
+        self::assertSame(0, $first->getExitCode(), $first->getErrorOutput() . $first->getOutput());
+
+        $warm = $this->analyse(true);
+        self::assertSame(0, $warm->getExitCode(), $warm->getErrorOutput() . $warm->getOutput());
+
+        $this->writeExternalRuleContract('required|array');
+
+        $cached = $this->analyse(veryVerbose: true);
+        $uncached = $this->analyse(debug: true);
+        $uncachedOutput = $uncached->getErrorOutput() . $uncached->getOutput();
+        self::assertSame(1, $uncached->getExitCode(), $uncachedOutput);
+        self::assertStringContainsString(
+            'Parameter #1 $string of function strlen expects string, array given.',
+            $uncachedOutput
+        );
+
+        $cachedOutput = $cached->getErrorOutput() . $cached->getOutput();
+        self::assertSame(1, $cached->getExitCode(), $cachedOutput);
+        self::assertStringContainsString(
+            'Parameter #1 $string of function strlen expects string, array given.',
+            $cachedOutput
+        );
+        self::assertStringContainsString('metadata do not match: metaExtensions', $cachedOutput);
     }
 
     public function testChangingHelperBesideOutOfTreeRequestInvalidatesCachedCaller(): void
@@ -380,6 +1119,1107 @@ PHP
         );
     }
 
+    public function testChangingLifecycleHookBodyInvalidatesCachedCallerSelectively(): void
+    {
+        $this->writeRequest(
+            "return ['value' => 'required|string'];",
+            <<<'PHP'
+
+    public function withValidator(\Illuminate\Validation\Validator $validator): void
+    {
+    }
+PHP
+        );
+
+        $first = $this->analyse();
+        self::assertSame(0, $first->getExitCode(), $first->getErrorOutput() . $first->getOutput());
+
+        $warm = $this->analyse(true);
+        self::assertSame(0, $warm->getExitCode(), $warm->getErrorOutput() . $warm->getOutput());
+
+        $this->writeRequest(
+            "return ['value' => 'required|string'];",
+            <<<'PHP'
+
+    public function withValidator(\Illuminate\Validation\Validator $validator): void
+    {
+        $validator->setRules(['replacement' => 'required|array']);
+    }
+PHP
+        );
+
+        $second = $this->analyse(veryVerbose: true);
+        $output = $second->getErrorOutput() . $second->getOutput();
+        self::assertSame(1, $second->getExitCode(), $output);
+        self::assertStringContainsString("Cannot access offset 'value' on mixed.", $output);
+        self::assertStringContainsString('2 files will be reanalysed.', $output);
+    }
+
+    public function testAddingNonExportedPrivateLifecycleMethodInvalidatesCachedCaller(): void
+    {
+        $this->writeRequest(
+            "return ['value' => 'required|string'];",
+            <<<'PHP'
+
+    public function exerciseHelper(): void
+    {
+        $this->helper();
+    }
+
+    private function helper(): void
+    {
+    }
+PHP
+        );
+
+        $first = $this->analyse();
+        self::assertSame(0, $first->getExitCode(), $first->getErrorOutput() . $first->getOutput());
+
+        $warm = $this->analyse(true);
+        self::assertSame(0, $warm->getExitCode(), $warm->getErrorOutput() . $warm->getOutput());
+
+        $this->writeRequest(
+            "return ['value' => 'required|string'];",
+            <<<'PHP'
+
+    public function exerciseHelper(): void
+    {
+        $this->validator();
+    }
+
+    private function validator(): void
+    {
+    }
+PHP
+        );
+
+        $cached = $this->analyse(veryVerbose: true);
+        $uncached = $this->analyse(debug: true);
+        $uncachedOutput = $uncached->getErrorOutput() . $uncached->getOutput();
+        self::assertSame(1, $uncached->getExitCode(), $uncachedOutput);
+        self::assertStringContainsString("Cannot access offset 'value' on mixed.", $uncachedOutput);
+
+        $cachedOutput = $cached->getErrorOutput() . $cached->getOutput();
+        self::assertSame(1, $cached->getExitCode(), $cachedOutput);
+        self::assertStringContainsString("Cannot access offset 'value' on mixed.", $cachedOutput);
+        self::assertStringContainsString('metadata do not match: metaExtensions', $cachedOutput);
+    }
+
+    public function testInheritedRulesBodyChangeDoesNotLeaveCachedCallerStale(): void
+    {
+        $this->writeProjectFile('src/BaseRequest.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+abstract class BaseRequest extends FormRequest
+{
+    /** @return array<string, string> */
+    public function rules(): array
+    {
+        return ['value' => 'required|string'];
+    }
+}
+PHP);
+        $this->writeProjectFile('src/CacheRequest.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+final class CacheRequest extends BaseRequest
+{
+}
+PHP);
+
+        $first = $this->analyse();
+        self::assertSame(0, $first->getExitCode(), $first->getErrorOutput() . $first->getOutput());
+
+        $warm = $this->analyse(true);
+        self::assertSame(0, $warm->getExitCode(), $warm->getErrorOutput() . $warm->getOutput());
+
+        $this->writeProjectFile('src/BaseRequest.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+abstract class BaseRequest extends FormRequest
+{
+    /** @return array<string, string> */
+    public function rules(): array
+    {
+        return ['value' => 'required|array'];
+    }
+}
+PHP);
+
+        $second = $this->analyse(veryVerbose: true);
+        $output = $second->getErrorOutput() . $second->getOutput();
+        self::assertSame(1, $second->getExitCode(), $output);
+        self::assertStringContainsString(
+            'Parameter #1 $string of function strlen expects string, array given.',
+            $output
+        );
+        self::assertStringNotContainsString('metadata do not match: metaExtensions', $output);
+    }
+
+    public function testInheritedRulesOutsideAnalysedFileExtensionsUseGlobalCacheFallback(): void
+    {
+        $this->writeProjectFile('phpstan.neon', sprintf(
+            <<<'NEON'
+includes:
+    - %s
+
+parameters:
+    level: max
+    paths:
+        - src
+    bootstrapFiles:
+        - bootstrap.php
+    tmpDir: cache
+    phpstanLaravelValidation:
+        formRequests:
+            enabled: true
+NEON,
+            dirname(__DIR__) . '/extension.neon'
+        ));
+        $this->writeProjectFile('bootstrap.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+require_once __DIR__ . '/src/BaseRequest.inc';
+PHP);
+        $this->writeProjectFile('src/BaseRequest.inc', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+abstract class BaseRequest extends FormRequest
+{
+    /** @return array<string, string> */
+    public function rules(): array
+    {
+        return ['value' => 'required|string'];
+    }
+}
+PHP);
+        $this->writeProjectFile('src/CacheRequest.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+final class CacheRequest extends BaseRequest
+{
+}
+PHP);
+
+        $first = $this->analyse();
+        self::assertSame(0, $first->getExitCode(), $first->getErrorOutput() . $first->getOutput());
+
+        $warm = $this->analyse(true);
+        self::assertSame(0, $warm->getExitCode(), $warm->getErrorOutput() . $warm->getOutput());
+
+        $this->writeProjectFile('src/BaseRequest.inc', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+abstract class BaseRequest extends FormRequest
+{
+    /** @return array<string, string> */
+    public function rules(): array
+    {
+        return ['value' => 'required|array'];
+    }
+}
+PHP);
+
+        $cached = $this->analyse(veryVerbose: true);
+        $uncached = $this->analyse(debug: true);
+        $uncachedOutput = $uncached->getErrorOutput() . $uncached->getOutput();
+        self::assertSame(1, $uncached->getExitCode(), $uncachedOutput);
+        self::assertStringContainsString(
+            'Parameter #1 $string of function strlen expects string, array given.',
+            $uncachedOutput
+        );
+
+        $cachedOutput = $cached->getErrorOutput() . $cached->getOutput();
+        self::assertSame(1, $cached->getExitCode(), $cachedOutput);
+        self::assertStringContainsString(
+            'Parameter #1 $string of function strlen expects string, array given.',
+            $cachedOutput
+        );
+        self::assertStringContainsString('metadata do not match: metaExtensions', $cachedOutput);
+    }
+
+    public function testTraitRulesBodyChangeDoesNotLeaveCachedCallerStale(): void
+    {
+        $this->writeProjectFile('src/RequestRules.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+trait RequestRules
+{
+    /** @return array<string, string> */
+    public function rules(): array
+    {
+        return ['value' => 'required|string'];
+    }
+}
+PHP);
+        $this->writeProjectFile('src/CacheRequest.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+final class CacheRequest extends FormRequest
+{
+    use RequestRules;
+}
+PHP);
+
+        $first = $this->analyse();
+        self::assertSame(0, $first->getExitCode(), $first->getErrorOutput() . $first->getOutput());
+
+        $warm = $this->analyse(true);
+        self::assertSame(0, $warm->getExitCode(), $warm->getErrorOutput() . $warm->getOutput());
+
+        $this->writeProjectFile('src/RequestRules.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+trait RequestRules
+{
+    /** @return array<string, string> */
+    public function rules(): array
+    {
+        return ['value' => 'required|array'];
+    }
+}
+PHP);
+
+        $second = $this->analyse(veryVerbose: true);
+        $output = $second->getErrorOutput() . $second->getOutput();
+        self::assertSame(1, $second->getExitCode(), $output);
+        self::assertStringContainsString(
+            'Parameter #1 $string of function strlen expects string, array given.',
+            $output
+        );
+        self::assertStringNotContainsString('metadata do not match: metaExtensions', $output);
+    }
+
+    public function testPrivateTraitRulesPromotedToPublicUseGlobalCacheFallback(): void
+    {
+        $this->writeProjectFile('src/RequestRules.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+trait RequestRules
+{
+    /** @return array<string, string> */
+    private function rules(): array
+    {
+        return ['value' => 'required|string'];
+    }
+}
+PHP);
+        $this->writeProjectFile('src/CacheRequest.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+final class CacheRequest extends FormRequest
+{
+    use RequestRules {
+        rules as public;
+    }
+}
+PHP);
+
+        $first = $this->analyse();
+        self::assertSame(0, $first->getExitCode(), $first->getErrorOutput() . $first->getOutput());
+
+        $warm = $this->analyse(true);
+        self::assertSame(0, $warm->getExitCode(), $warm->getErrorOutput() . $warm->getOutput());
+
+        $this->writeProjectFile('src/RequestRules.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+trait RequestRules
+{
+    /** @return array<string, string> */
+    private function rules(): array
+    {
+        return ['value' => 'required|array'];
+    }
+}
+PHP);
+
+        $cached = $this->analyse(veryVerbose: true);
+        $uncached = $this->analyse(debug: true);
+        $uncachedOutput = $uncached->getErrorOutput() . $uncached->getOutput();
+        self::assertSame(1, $uncached->getExitCode(), $uncachedOutput);
+        self::assertStringContainsString(
+            'Parameter #1 $string of function strlen expects string, array given.',
+            $uncachedOutput
+        );
+
+        $cachedOutput = $cached->getErrorOutput() . $cached->getOutput();
+        self::assertSame(1, $cached->getExitCode(), $cachedOutput);
+        self::assertStringContainsString(
+            'Parameter #1 $string of function strlen expects string, array given.',
+            $cachedOutput
+        );
+        self::assertStringContainsString('metadata do not match: metaExtensions', $cachedOutput);
+    }
+
+    public function testNestedPrivateTraitRulesPromotedToPublicUseGlobalCacheFallback(): void
+    {
+        $this->writeProjectFile('src/NestedRequestRules.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+trait NestedRequestRules
+{
+    /** @return array<string, string> */
+    private function rules(): array
+    {
+        return ['value' => 'required|string'];
+    }
+}
+PHP);
+        $this->writeProjectFile('src/RequestRules.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+trait RequestRules
+{
+    use NestedRequestRules {
+        rules as public;
+    }
+}
+PHP);
+        $this->writeProjectFile('src/CacheRequest.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+final class CacheRequest extends FormRequest
+{
+    use RequestRules;
+}
+PHP);
+
+        $first = $this->analyse();
+        self::assertSame(0, $first->getExitCode(), $first->getErrorOutput() . $first->getOutput());
+
+        $warm = $this->analyse(true);
+        self::assertSame(0, $warm->getExitCode(), $warm->getErrorOutput() . $warm->getOutput());
+
+        $this->writeProjectFile('src/NestedRequestRules.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+trait NestedRequestRules
+{
+    /** @return array<string, string> */
+    private function rules(): array
+    {
+        return ['value' => 'required|array'];
+    }
+}
+PHP);
+
+        $cached = $this->analyse(veryVerbose: true);
+        $uncached = $this->analyse(debug: true);
+        $uncachedOutput = $uncached->getErrorOutput() . $uncached->getOutput();
+        self::assertSame(1, $uncached->getExitCode(), $uncachedOutput);
+        self::assertStringContainsString(
+            'Parameter #1 $string of function strlen expects string, array given.',
+            $uncachedOutput
+        );
+
+        $cachedOutput = $cached->getErrorOutput() . $cached->getOutput();
+        self::assertSame(1, $cached->getExitCode(), $cachedOutput);
+        self::assertStringContainsString(
+            'Parameter #1 $string of function strlen expects string, array given.',
+            $cachedOutput
+        );
+        self::assertStringContainsString('metadata do not match: metaExtensions', $cachedOutput);
+    }
+
+    public function testPrivateTraitLifecyclePromotedToPublicUsesGlobalCacheFallback(): void
+    {
+        $this->writeProjectFile('src/RequestLifecycle.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+use Illuminate\Validation\Validator;
+
+trait RequestLifecycle
+{
+    private function withValidator(Validator $validator): void
+    {
+    }
+}
+PHP);
+        $this->writeProjectFile('src/CacheRequest.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+final class CacheRequest extends FormRequest
+{
+    use RequestLifecycle {
+        withValidator as public;
+    }
+
+    /** @return array<string, string> */
+    public function rules(): array
+    {
+        return ['value' => 'required|string'];
+    }
+}
+PHP);
+
+        $first = $this->analyse();
+        self::assertSame(0, $first->getExitCode(), $first->getErrorOutput() . $first->getOutput());
+
+        $warm = $this->analyse(true);
+        self::assertSame(0, $warm->getExitCode(), $warm->getErrorOutput() . $warm->getOutput());
+
+        $this->writeProjectFile('src/RequestLifecycle.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+use Illuminate\Validation\Validator;
+
+trait RequestLifecycle
+{
+    private function withValidator(Validator $validator): void
+    {
+        $validator->setRules(['value' => 'required|array']);
+    }
+}
+PHP);
+
+        $cached = $this->analyse(veryVerbose: true);
+        $uncached = $this->analyse(debug: true);
+        $uncachedOutput = $uncached->getErrorOutput() . $uncached->getOutput();
+        self::assertSame(1, $uncached->getExitCode(), $uncachedOutput);
+        self::assertStringContainsString("Cannot access offset 'value' on mixed.", $uncachedOutput);
+
+        $cachedOutput = $cached->getErrorOutput() . $cached->getOutput();
+        self::assertSame(1, $cached->getExitCode(), $cachedOutput);
+        self::assertStringContainsString("Cannot access offset 'value' on mixed.", $cachedOutput);
+        self::assertStringContainsString('metadata do not match: metaExtensions', $cachedOutput);
+    }
+
+    public function testExcludedRequestUsesGlobalCacheFallback(): void
+    {
+        self::assertTrue(mkdir($this->projectDirectory . '/src/Excluded'));
+        $this->writeProjectFile('phpstan.neon', sprintf(
+            <<<'NEON'
+includes:
+    - %s
+
+parameters:
+    level: max
+    paths:
+        - src
+    excludePaths:
+        analyse:
+            - src/Excluded
+    tmpDir: cache
+    phpstanLaravelValidation:
+        formRequests:
+            enabled: true
+NEON,
+            dirname(__DIR__) . '/extension.neon'
+        ));
+        $this->writeProjectFile('src/Controller.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+use CacheFixture\Excluded\CacheRequest;
+
+function consume(CacheRequest $request): int
+{
+    $validated = $request->validated();
+
+    return strlen($validated['value']);
+}
+PHP);
+        $this->writeExcludedRequest('required|string');
+
+        $first = $this->analyse();
+        self::assertSame(0, $first->getExitCode(), $first->getErrorOutput() . $first->getOutput());
+
+        $warm = $this->analyse(true);
+        self::assertSame(0, $warm->getExitCode(), $warm->getErrorOutput() . $warm->getOutput());
+
+        $this->writeExcludedRequest('required|array');
+
+        $second = $this->analyse(veryVerbose: true);
+        $output = $second->getErrorOutput() . $second->getOutput();
+        self::assertSame(1, $second->getExitCode(), $output);
+        self::assertStringContainsString(
+            'Parameter #1 $string of function strlen expects string, array given.',
+            $output
+        );
+        self::assertStringContainsString('metadata do not match: metaExtensions', $output);
+    }
+
+    public function testNormalizedWildcardExclusionUsesGlobalCacheFallback(): void
+    {
+        self::assertTrue(mkdir($this->projectDirectory . '/src/Excluded'));
+        $this->writeProjectFile('phpstan.neon', sprintf(
+            <<<'NEON'
+includes:
+    - %s
+
+parameters:
+    level: max
+    paths:
+        - src
+    excludePaths:
+        analyseAndScan:
+            - '*/src/../src/Excluded/*'
+    bootstrapFiles:
+        - bootstrap.php
+    tmpDir: cache
+    phpstanLaravelValidation:
+        formRequests:
+            enabled: true
+NEON,
+            dirname(__DIR__) . '/extension.neon'
+        ));
+        $this->writeProjectFile('bootstrap.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+require_once __DIR__ . '/src/Excluded/CacheRequest.php';
+PHP);
+        $this->writeProjectFile('src/Controller.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+use CacheFixture\Excluded\CacheRequest;
+
+function consume(CacheRequest $request): int
+{
+    $validated = $request->validated();
+
+    return strlen($validated['value']);
+}
+PHP);
+        $this->writeExcludedRequest('required|string');
+
+        $first = $this->analyse();
+        self::assertSame(0, $first->getExitCode(), $first->getErrorOutput() . $first->getOutput());
+
+        $warm = $this->analyse(true);
+        self::assertSame(0, $warm->getExitCode(), $warm->getErrorOutput() . $warm->getOutput());
+
+        $this->writeExcludedRequest('required|array');
+
+        $cached = $this->analyse(veryVerbose: true);
+        $uncached = $this->analyse(debug: true);
+        $uncachedOutput = $uncached->getErrorOutput() . $uncached->getOutput();
+        self::assertSame(1, $uncached->getExitCode(), $uncachedOutput);
+        self::assertStringContainsString(
+            'Parameter #1 $string of function strlen expects string, array given.',
+            $uncachedOutput
+        );
+
+        $cachedOutput = $cached->getErrorOutput() . $cached->getOutput();
+        self::assertSame(1, $cached->getExitCode(), $cachedOutput);
+        self::assertStringContainsString(
+            'Parameter #1 $string of function strlen expects string, array given.',
+            $cachedOutput
+        );
+        self::assertStringContainsString('metadata do not match: metaExtensions', $cachedOutput);
+    }
+
+    public function testLeadingWildcardExclusionUsesGlobalCacheFallback(): void
+    {
+        $directory = tempnam(sys_get_temp_dir(), 'phpstan-form-request-wildcard-');
+        if (!is_string($directory)) {
+            self::fail('Unable to allocate an out-of-tree source path.');
+        }
+        if (!unlink($directory) || !mkdir($directory)) {
+            self::fail('Unable to create the out-of-tree source path.');
+        }
+        $this->outOfTreeSourceDirectory = $directory;
+
+        $this->writeProjectFile('phpstan.neon', sprintf(
+            <<<'NEON'
+includes:
+    - %s
+
+parameters:
+    level: max
+    paths:
+        - %s
+    fileExtensions:
+        - php
+        - inc
+    excludePaths:
+        analyse:
+            - '*.php'
+    bootstrapFiles:
+        - bootstrap.php
+    tmpDir: cache
+    phpstanLaravelValidation:
+        formRequests:
+            enabled: true
+NEON,
+            dirname(__DIR__) . '/extension.neon',
+            json_encode($directory, JSON_THROW_ON_ERROR)
+        ));
+        $this->writeProjectFile('bootstrap.php', sprintf(
+            <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+require_once %s;
+PHP,
+            var_export($directory . '/CacheRequest.php', true)
+        ));
+        $result = file_put_contents($directory . '/Controller.inc', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+function consume(CacheRequest $request): int
+{
+    $validated = $request->validated();
+
+    return strlen($validated['value']);
+}
+PHP);
+        self::assertNotFalse($result);
+        $this->writeLeadingWildcardExcludedRequest('required|string');
+
+        $first = $this->analyse();
+        self::assertSame(0, $first->getExitCode(), $first->getErrorOutput() . $first->getOutput());
+
+        $warm = $this->analyse(true);
+        self::assertSame(0, $warm->getExitCode(), $warm->getErrorOutput() . $warm->getOutput());
+
+        $this->writeLeadingWildcardExcludedRequest('required|array');
+
+        $cached = $this->analyse(veryVerbose: true);
+        $uncached = $this->analyse(debug: true);
+        $uncachedOutput = $uncached->getErrorOutput() . $uncached->getOutput();
+        self::assertSame(1, $uncached->getExitCode(), $uncachedOutput);
+        self::assertStringContainsString(
+            'Parameter #1 $string of function strlen expects string, array given.',
+            $uncachedOutput
+        );
+
+        $cachedOutput = $cached->getErrorOutput() . $cached->getOutput();
+        self::assertSame(1, $cached->getExitCode(), $cachedOutput);
+        self::assertStringContainsString(
+            'Parameter #1 $string of function strlen expects string, array given.',
+            $cachedOutput
+        );
+        self::assertStringContainsString('metadata do not match: metaExtensions', $cachedOutput);
+    }
+
+    public function testFileExtensionMatchingPreservesPhpStanCaseSensitivity(): void
+    {
+        $this->writeProjectFile('phpstan.neon', sprintf(
+            <<<'NEON'
+includes:
+    - %s
+
+parameters:
+    level: max
+    paths:
+        - src
+    fileExtensions:
+        - INC
+    bootstrapFiles:
+        - bootstrap.php
+    tmpDir: cache
+    phpstanLaravelValidation:
+        formRequests:
+            enabled: true
+            additionalClasses:
+                - CacheFixture\CacheRequest
+NEON,
+            dirname(__DIR__) . '/extension.neon'
+        ));
+        $this->writeProjectFile('bootstrap.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+require_once __DIR__ . '/src/CacheRequest.inc';
+PHP);
+        $this->writeProjectFile('src/Controller.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+PHP);
+        $this->writeProjectFile('src/Controller.INC', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+function consumeUppercaseExtension(CacheRequest $request): int
+{
+    $validated = $request->validated();
+
+    return strlen($validated['value']);
+}
+PHP);
+        $this->writeCaseSensitiveExtensionRequest('required|string');
+
+        $first = $this->analyse();
+        self::assertSame(0, $first->getExitCode(), $first->getErrorOutput() . $first->getOutput());
+
+        $warm = $this->analyse(true);
+        self::assertSame(0, $warm->getExitCode(), $warm->getErrorOutput() . $warm->getOutput());
+
+        $this->writeCaseSensitiveExtensionRequest('required|array');
+
+        $cached = $this->analyse(veryVerbose: true);
+        $uncached = $this->analyse(debug: true);
+        $uncachedOutput = $uncached->getErrorOutput() . $uncached->getOutput();
+        self::assertSame(1, $uncached->getExitCode(), $uncachedOutput);
+        self::assertStringContainsString(
+            'Parameter #1 $string of function strlen expects string, array given.',
+            $uncachedOutput
+        );
+
+        $cachedOutput = $cached->getErrorOutput() . $cached->getOutput();
+        self::assertSame(1, $cached->getExitCode(), $cachedOutput);
+        self::assertStringContainsString(
+            'Parameter #1 $string of function strlen expects string, array given.',
+            $cachedOutput
+        );
+        self::assertStringContainsString('metadata do not match: metaExtensions', $cachedOutput);
+    }
+
+    public function testExcludedChildWithInheritedRulesUsesGlobalCacheFallback(): void
+    {
+        self::assertTrue(mkdir($this->projectDirectory . '/src/Excluded'));
+        $this->writeProjectFile('phpstan.neon', sprintf(
+            <<<'NEON'
+includes:
+    - %s
+
+parameters:
+    level: max
+    paths:
+        - src
+    excludePaths:
+        analyseAndScan:
+            - src/Excluded
+    bootstrapFiles:
+        - bootstrap.php
+    tmpDir: cache
+    phpstanLaravelValidation:
+        formRequests:
+            enabled: true
+NEON,
+            dirname(__DIR__) . '/extension.neon'
+        ));
+        $this->writeProjectFile('bootstrap.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+require_once __DIR__ . '/src/BaseRequest.php';
+require_once __DIR__ . '/src/Excluded/CacheRequest.php';
+PHP);
+        $this->writeProjectFile('src/Controller.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+use CacheFixture\Excluded\CacheRequest;
+
+function consume(CacheRequest $request): int
+{
+    $validated = $request->validated();
+
+    return strlen($validated['value']);
+}
+PHP);
+        $this->writeProjectFile('src/BaseRequest.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+abstract class BaseRequest extends FormRequest
+{
+    /** @return array<string, string> */
+    public function rules(): array
+    {
+        return ['value' => 'required|string'];
+    }
+}
+PHP);
+        $this->writeProjectFile('src/Excluded/CacheRequest.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture\Excluded;
+
+use CacheFixture\BaseRequest;
+use Illuminate\Validation\Validator;
+
+final class CacheRequest extends BaseRequest
+{
+    public function withValidator(Validator $validator): void
+    {
+    }
+}
+PHP);
+
+        $first = $this->analyse();
+        self::assertSame(0, $first->getExitCode(), $first->getErrorOutput() . $first->getOutput());
+
+        $warm = $this->analyse(true);
+        self::assertSame(0, $warm->getExitCode(), $warm->getErrorOutput() . $warm->getOutput());
+
+        $this->writeProjectFile('src/Excluded/CacheRequest.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture\Excluded;
+
+use CacheFixture\BaseRequest;
+use Illuminate\Validation\Validator;
+
+final class CacheRequest extends BaseRequest
+{
+    public function withValidator(Validator $validator): void
+    {
+        $validator->setRules(['replacement' => 'required|array']);
+    }
+}
+PHP);
+
+        $cached = $this->analyse(veryVerbose: true);
+        $uncached = $this->analyse(debug: true);
+        $uncachedOutput = $uncached->getErrorOutput() . $uncached->getOutput();
+        self::assertSame(1, $uncached->getExitCode(), $uncachedOutput);
+        self::assertStringContainsString("Cannot access offset 'value' on mixed.", $uncachedOutput);
+
+        $cachedOutput = $cached->getErrorOutput() . $cached->getOutput();
+        self::assertSame(1, $cached->getExitCode(), $cachedOutput);
+        self::assertStringContainsString("Cannot access offset 'value' on mixed.", $cachedOutput);
+        self::assertStringContainsString('metadata do not match: metaExtensions', $cachedOutput);
+    }
+
+    public function testExcludedInheritedLifecycleBodyUsesGlobalCacheFallback(): void
+    {
+        self::assertTrue(mkdir($this->projectDirectory . '/src/Excluded'));
+        $this->writeProjectFile('phpstan.neon', sprintf(
+            <<<'NEON'
+includes:
+    - %s
+
+parameters:
+    level: max
+    paths:
+        - src
+    excludePaths:
+        analyseAndScan:
+            - src/Excluded
+    bootstrapFiles:
+        - bootstrap.php
+    tmpDir: cache
+    phpstanLaravelValidation:
+        formRequests:
+            enabled: true
+NEON,
+            dirname(__DIR__) . '/extension.neon'
+        ));
+        $this->writeProjectFile('bootstrap.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+require_once __DIR__ . '/src/Excluded/ParentRequest.php';
+PHP);
+        $this->writeProjectFile('src/Controller.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+function consume(CacheRequest $request): int
+{
+    $validated = $request->validated();
+
+    return strlen($validated['value']);
+}
+PHP);
+        $this->writeProjectFile('src/CacheRequest.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+use CacheFixture\Excluded\ParentRequest;
+
+final class CacheRequest extends ParentRequest
+{
+    /** @return array<string, string> */
+    public function rules(): array
+    {
+        return ['value' => 'required|string'];
+    }
+}
+PHP);
+        $this->writeProjectFile('src/Excluded/ParentRequest.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture\Excluded;
+
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
+
+abstract class ParentRequest extends FormRequest
+{
+    public function withValidator(Validator $validator): void
+    {
+    }
+}
+PHP);
+
+        $first = $this->analyse();
+        self::assertSame(0, $first->getExitCode(), $first->getErrorOutput() . $first->getOutput());
+
+        $warm = $this->analyse(true);
+        self::assertSame(0, $warm->getExitCode(), $warm->getErrorOutput() . $warm->getOutput());
+
+        $this->writeProjectFile('src/Excluded/ParentRequest.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture\Excluded;
+
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
+
+abstract class ParentRequest extends FormRequest
+{
+    public function withValidator(Validator $validator): void
+    {
+        $validator->setRules(['replacement' => 'required|array']);
+    }
+}
+PHP);
+
+        $cached = $this->analyse(veryVerbose: true);
+        $uncached = $this->analyse(debug: true);
+        $uncachedOutput = $uncached->getErrorOutput() . $uncached->getOutput();
+        self::assertSame(1, $uncached->getExitCode(), $uncachedOutput);
+        self::assertStringContainsString("Cannot access offset 'value' on mixed.", $uncachedOutput);
+
+        $cachedOutput = $cached->getErrorOutput() . $cached->getOutput();
+        self::assertSame(1, $cached->getExitCode(), $cachedOutput);
+        self::assertStringContainsString("Cannot access offset 'value' on mixed.", $cachedOutput);
+        self::assertStringContainsString('metadata do not match: metaExtensions', $cachedOutput);
+    }
+
     public function testUnrelatedBodyChangeKeepsResultCacheUsable(): void
     {
         $this->writeRequest("return ['value' => 'required|string'];");
@@ -414,6 +2254,52 @@ PHP);
 
         $second = $this->analyse(true);
         self::assertSame(0, $second->getExitCode(), $second->getErrorOutput() . $second->getOutput());
+    }
+
+    public function testDisabledInferenceDoesNotExportRulesBodyFingerprint(): void
+    {
+        $this->writeProjectFile('phpstan.neon', sprintf(
+            <<<'NEON'
+includes:
+    - %s
+
+parameters:
+    level: max
+    paths:
+        - src
+    tmpDir: cache
+    phpstanLaravelValidation:
+        formRequests:
+            enabled: false
+NEON,
+            dirname(__DIR__) . '/extension.neon'
+        ));
+        $this->writeProjectFile('src/Controller.php', <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+function consume(CacheRequest $request): void
+{
+}
+PHP);
+        $this->writeRequest("return ['value' => 'required|string'];");
+
+        $first = $this->analyse();
+        self::assertSame(0, $first->getExitCode(), $first->getErrorOutput() . $first->getOutput());
+
+        $warm = $this->analyse(true);
+        self::assertSame(0, $warm->getExitCode(), $warm->getErrorOutput() . $warm->getOutput());
+
+        $this->writeRequest("return ['value' => 'required|array'];");
+
+        $second = $this->analyse(veryVerbose: true);
+        $output = $second->getErrorOutput() . $second->getOutput();
+        self::assertSame(0, $second->getExitCode(), $output);
+        self::assertStringContainsString('1 file will be reanalysed.', $output);
+        self::assertStringNotContainsString('metadata do not match: metaExtensions', $output);
     }
 
     public function testChangingIncludedArrayKeyAssumptionInvalidatesCachedCaller(): void
@@ -497,7 +2383,7 @@ PHP);
         self::assertIsString($contents);
         $manifest = json_decode($contents, true, flags: JSON_THROW_ON_ERROR);
         self::assertIsArray($manifest);
-        self::assertSame(2, $manifest['schema'] ?? null);
+        self::assertSame(3, $manifest['schema'] ?? null);
         $descriptorHash = $manifest['descriptorHash'] ?? null;
         self::assertIsString($descriptorHash);
         self::assertMatchesRegularExpression('/^[a-f0-9]{64}$/D', $descriptorHash);
@@ -631,8 +2517,13 @@ PHP);
         );
     }
 
-    private function analyse(bool $failWithoutResultCache = false, bool $debug = false): Process
-    {
+    /** @param list<string> $paths */
+    private function analyse(
+        bool $failWithoutResultCache = false,
+        bool $debug = false,
+        bool $veryVerbose = false,
+        array $paths = []
+    ): Process {
         $command = [
             PHP_BINARY,
             dirname(__DIR__) . '/vendor/bin/phpstan',
@@ -648,6 +2539,10 @@ PHP);
         if ($debug) {
             $command[] = '--debug';
         }
+        if ($veryVerbose) {
+            $command[] = '-vv';
+        }
+        array_push($command, ...$paths);
 
         $process = new Process($command, $this->projectDirectory);
         $process->setTimeout(60.0);
@@ -656,9 +2551,41 @@ PHP);
         return $process;
     }
 
-    private function writeRequest(string $returnStatement, string $additionalMethods = ''): void
-    {
+    private function writeRequest(
+        string $returnStatement,
+        string $additionalMethods = '',
+        string $precedingMethods = ''
+    ): void {
         $this->writeProjectFile('src/CacheRequest.php', sprintf(
+            <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+final class CacheRequest extends FormRequest
+{
+%s
+    /** @return array<string, string> */
+    public function rules(): array
+    {
+        %s
+    }
+%s
+}
+PHP,
+            $precedingMethods,
+            $returnStatement,
+            $additionalMethods
+        ));
+    }
+
+    private function writeCaseSensitiveExtensionRequest(string $rule): void
+    {
+        $this->writeProjectFile('src/CacheRequest.inc', sprintf(
             <<<'PHP'
 <?php
 
@@ -673,14 +2600,67 @@ final class CacheRequest extends FormRequest
     /** @return array<string, string> */
     public function rules(): array
     {
-        %s
+        return ['value' => '%s'];
     }
-%s
 }
 PHP,
-            $returnStatement,
-            $additionalMethods
+            $rule
         ));
+    }
+
+    private function writeExcludedRequest(string $rule): void
+    {
+        $this->writeProjectFile('src/Excluded/CacheRequest.php', sprintf(
+            <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture\Excluded;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+final class CacheRequest extends FormRequest
+{
+    /** @return array<string, string> */
+    public function rules(): array
+    {
+        return ['value' => '%s'];
+    }
+}
+PHP,
+            $rule
+        ));
+    }
+
+    private function writeLeadingWildcardExcludedRequest(string $rule): void
+    {
+        self::assertNotNull($this->outOfTreeSourceDirectory);
+        $result = file_put_contents(
+            $this->outOfTreeSourceDirectory . '/CacheRequest.php',
+            sprintf(
+                <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace CacheFixture;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+final class CacheRequest extends FormRequest
+{
+    /** @return array<string, string> */
+    public function rules(): array
+    {
+        return ['value' => '%s'];
+    }
+}
+PHP,
+                $rule
+            )
+        );
+        self::assertNotFalse($result);
     }
 
     private function writeExternalConfig(): void
@@ -1107,6 +3087,26 @@ declare(strict_types=1);
 namespace PackageC;
 
 final class ActualRules
+{
+    /** @var array<string, string> */
+    public const RULES = ['value' => '%s'];
+}
+PHP,
+            $rule
+        ));
+    }
+
+    private function writeExternalRuleContract(string $rule): void
+    {
+        $this->writeProjectFile('external/RuleContract.php', sprintf(
+            <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace ExternalRules;
+
+interface RuleContract
 {
     /** @var array<string, string> */
     public const RULES = ['value' => '%s'];

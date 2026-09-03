@@ -30,6 +30,11 @@ parametersSchema:
   ])
 
 services:
+  - class: jbboehr\PhpstanLaravelValidation\Parser\FormRequestRulesFingerprintVisitor
+    arguments:
+      enabled: %phpstanLaravelValidation.formRequests.enabled%
+    tags:
+      - phpstan.parser.richParserNodeVisitor
   - class: jbboehr\PhpstanLaravelValidation\Evaluator\UnsafeConstExprEvaluator
   - class: jbboehr\PhpstanLaravelValidation\Validation\CustomRuleTypeResolver
     arguments:
@@ -63,6 +68,8 @@ services:
       composerAutoloaderProjectPaths: %composerAutoloaderProjectPaths%
       scanFiles: %scanFiles%
       scanDirectories: %scanDirectories%
+      excludePaths: %excludePaths%
+      fileExtensions: %fileExtensions%
     tags:
       - phpstan.resultCacheMetaExtension
   - class: jbboehr\PhpstanLaravelValidation\Validation\LaravelVersionContext
@@ -91,6 +98,9 @@ services:
     tags:
       - phpstan.rules.rule
   - class: jbboehr\PhpstanLaravelValidation\Rule\ParsingRuleLaravelVersionRule
+    tags:
+      - phpstan.rules.rule
+  - class: jbboehr\PhpstanLaravelValidation\Rule\FormRequestRulesFingerprintRule
     tags:
       - phpstan.rules.rule
   - class: jbboehr\PhpstanLaravelValidation\Extension\ControllerValidateExtension

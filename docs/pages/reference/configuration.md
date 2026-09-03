@@ -190,15 +190,37 @@ The manifest fingerprints the configured class's Composer package PHP sources
 and declared autoload paths. It does the same for parent classes, implemented
 interfaces, recursively used traits, and statically referenced classes in the
 `rules()` return expressions, including injected class-constant receivers and
-transitive class-constant references. Statically referenced user constants and
-functions also contribute their available source files. Exact `autoload.files`
-entries are included even when they do not use a `.php` extension. These
-additional sources do not make unlisted classes discoverable.
+transitive class-constant references. Statically referenced user constants add
+their defining file and the runtime-loaded file set as a conservative boundary
+for initializer dependencies; functions contribute their available source
+files. Exact `autoload.files` entries are included even when they do not use a
+`.php` extension. These additional sources do not make unlisted classes
+discoverable.
 
 `trustedClasses` is an exact class list. Subclasses are not trusted
 implicitly. Trust also makes the class discoverable, but bypasses those
 lifecycle checks and can therefore make inference unsound when asserted
 incorrectly.
+
+For a discovered FormRequest whose `rules()` method is a single literal return,
+the extension records each relevant class or trait method body in PHPStan's
+exported cache state when the complete application-owned request hierarchy is
+part of the current analysis selection and its relevant method markers are
+exportable by PHPStan. The extension enumerates the current analysis roots
+using PHPStan's file-selection semantics, including its hidden and
+version-control directory exclusions, rather than treating every path
+descendant as analysed. A rule-body change can then invalidate that request
+and its dependent callers without discarding unrelated cached files. A
+redundant `additionalClasses` entry does not change this cache strategy.
+
+Trusted requests, requests discovered only through `additionalClasses`,
+sources omitted by a CLI path override, excluded or otherwise unanalysed
+hierarchy sources, non-exportable private trait methods, and rule expressions
+involving constants, builders, helpers, services, or other external behavior
+retain the manifest's global descriptor fallback. The manifest remembers
+directly resolved external source fingerprints that are not part of its
+ordinary project scan. This split is conservative: unsupported provenance
+causes broader invalidation rather than risking a stale inferred type.
 
 ## Custom rules
 

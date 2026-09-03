@@ -10,6 +10,9 @@
         "threads": 4,
         "paths": [
             "src/Attribute/ValidationRuleType.php",
+            "src/Internal/FormRequestRulesFingerprint.php",
+            "src/Parser/FormRequestRulesFingerprintVisitor.php",
+            "src/Rule/FormRequestRulesFingerprintRule.php",
             "src/Validation/CustomRuleTypeResolver.php",
             "src/Validation/FormRequestRuleTypeResolver.php",
             "src/Validation/FormRequestTypeRegistry.php",

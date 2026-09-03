@@ -31,6 +31,7 @@ use PhpParser\Node\Stmt\Namespace_;
 use PhpParser\Node\Stmt\Nop;
 use PhpParser\NodeFinder;
 use PHPStan\Analyser\ResultCache\ResultCacheMetaExtension;
+use PHPStan\File\FileHelper;
 use PHPStan\Parser\Parser;
 use PHPStan\Reflection\ClassReflection;
 use PHPStan\Reflection\ReflectionProvider;
@@ -39,13 +40,23 @@ use PHPStan\Type\VerbosityLevel;
 
 final class FormRequestTypeRegistry implements ResultCacheMetaExtension
 {
-    private const MANIFEST_SCHEMA = 2;
+    private const MANIFEST_SCHEMA = 3;
+
+    /** @var array<string, true> */
+    private const PHPSTAN_IGNORED_NON_DOT_DIRECTORIES = [
+        'CVS' => true,
+        '_darcs' => true,
+        '_svn' => true,
+    ];
 
     /** @var array<string, Type|null> */
     private array $types = [];
 
     /** @var array<string, string> */
-    private array $descriptors = [];
+    private array $globalCacheDescriptors = [];
+
+    /** @var array<string, true> */
+    private array $globalCacheDependencyFiles = [];
 
     private bool $initialized = false;
 
@@ -55,6 +66,14 @@ final class FormRequestTypeRegistry implements ResultCacheMetaExtension
     /** @var list<string>|null */
     private ?array $fingerprintSourceFiles = null;
 
+    /** @var array<string, true>|null */
+    private ?array $analysedSourceFiles = null;
+
+    /** @var array<string, string|null> */
+    private array $fileDigests = [];
+
+    private ?string $extensionContractHash = null;
+
     /**
      * @param list<string> $additionalClasses
      * @param list<string> $trustedClasses
@@ -63,10 +82,13 @@ final class FormRequestTypeRegistry implements ResultCacheMetaExtension
      * @param list<string> $composerAutoloaderProjectPaths
      * @param list<string> $scanFiles
      * @param list<string> $scanDirectories
+     * @param array{analyse?: list<string>, analyseAndScan?: list<string>} $excludePaths
+     * @param non-empty-list<string> $fileExtensions
      */
     public function __construct(
         private ReflectionProvider $reflectionProvider,
         private Parser $parser,
+        private FileHelper $fileHelper,
         private FormRequestRuleTypeResolver $ruleTypeResolver,
         private string $workingDirectory,
         private string $tmpDirectory,
@@ -77,10 +99,13 @@ final class FormRequestTypeRegistry implements ResultCacheMetaExtension
         private array $analysedPathsFromConfig,
         private array $composerAutoloaderProjectPaths,
         private array $scanFiles,
-        private array $scanDirectories
+        private array $scanDirectories,
+        private array $excludePaths = [],
+        private array $fileExtensions = ['php']
     ) {
         $this->additionalClasses = self::normalizeClassNames($this->additionalClasses);
         $this->trustedClasses = self::normalizeClassNames($this->trustedClasses);
+        $this->fileExtensions = array_values(array_unique($this->fileExtensions));
     }
 
     public function getType(ClassReflection $classReflection): ?Type
@@ -98,7 +123,7 @@ final class FormRequestTypeRegistry implements ResultCacheMetaExtension
     public function getHash(): string
     {
         if (!$this->enabled || !$this->reflectionProvider->hasClass(FormRequest::class)) {
-            return $this->descriptorHash();
+            return hash('sha256', 'inactive:' . self::MANIFEST_SCHEMA);
         }
 
         $sourceFingerprint = $this->sourceFingerprint();
@@ -141,6 +166,7 @@ final class FormRequestTypeRegistry implements ResultCacheMetaExtension
         $baseClass = $this->reflectionProvider->getClass(FormRequest::class);
 
         foreach (array_keys($classNames) as $className) {
+            $classReflection = null;
             try {
                 if (!$this->reflectionProvider->hasClass($className)) {
                     continue;
@@ -155,25 +181,35 @@ final class FormRequestTypeRegistry implements ResultCacheMetaExtension
                 $eligibility = $this->determineEligibility($classReflection, $baseClass, $trusted);
                 if ($eligibility !== 'eligible') {
                     $this->types[$className] = null;
-                    $this->descriptors[$className] = $eligibility;
+                    if (!$this->canUseExportedFingerprint($classReflection)) {
+                        $this->globalCacheDescriptors[$className] = $eligibility;
+                        $this->recordGlobalCacheDependencies($classReflection);
+                    }
                     continue;
                 }
 
                 $type = $this->ruleTypeResolver->resolve($classReflection);
                 $this->types[$className] = $type;
-                $this->descriptors[$className] = $type === null
+                $descriptor = $type === null
                     ? 'unresolved'
                     : 'inferred:' . $type->describe(VerbosityLevel::precise());
+                if (!$this->canUseExportedFingerprint($classReflection)) {
+                    $this->globalCacheDescriptors[$className] = $descriptor;
+                    $this->recordGlobalCacheDependencies($classReflection);
+                }
             } catch (InvalidCustomRuleContractException $e) {
                 throw $e;
             } catch (\Throwable) {
                 $this->types[$className] = null;
-                $this->descriptors[$className] = 'unresolved';
+                $this->globalCacheDescriptors[$className] = 'unresolved';
+                if ($classReflection !== null) {
+                    $this->recordGlobalCacheDependencies($classReflection);
+                }
             }
         }
 
         ksort($this->types);
-        ksort($this->descriptors);
+        ksort($this->globalCacheDescriptors);
     }
 
     private function determineEligibility(
@@ -214,43 +250,50 @@ final class FormRequestTypeRegistry implements ResultCacheMetaExtension
 
     private function hasProvablyEmptyWithValidator(ClassReflection $classReflection): bool
     {
-        $nativeClass = $classReflection->getNativeReflection();
-        if (!$nativeClass->hasMethod('withValidator')) {
+        $method = $this->findNativeMethodNode($classReflection, 'withValidator');
+        if ($method === null || $method->stmts === null) {
             return false;
         }
 
-        $method = $nativeClass->getMethod('withValidator');
+        foreach ($method->stmts as $statement) {
+            if (!$statement instanceof Nop) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function findNativeMethodNode(
+        ClassReflection $classReflection,
+        string $methodName
+    ): ?ClassMethod {
+        $nativeClass = $classReflection->getNativeReflection();
+        if (!$nativeClass->hasMethod($methodName)) {
+            return null;
+        }
+
+        $method = $nativeClass->getMethod($methodName);
         $fileName = $method->getFileName();
         if (!is_string($fileName)) {
-            return false;
+            return null;
         }
 
         try {
             $nodes = $this->parser->parseFile($fileName);
         } catch (\Throwable) {
-            return false;
+            return null;
         }
 
-        $nodeFinder = new NodeFinder();
-        foreach ($nodeFinder->findInstanceOf($nodes, ClassMethod::class) as $methodNode) {
-            if ($methodNode->name->toLowerString() !== 'withvalidator'
-                || $methodNode->getStartLine() > $method->getStartLine()
-                || $methodNode->getEndLine() < $method->getEndLine()
-                || $methodNode->stmts === null
-            ) {
-                continue;
-            }
+        $methodNode = (new NodeFinder())->findFirst(
+            $nodes,
+            static fn (Node $node): bool => $node instanceof ClassMethod
+                && strcasecmp($node->name->toString(), $methodName) === 0
+                && $node->getStartLine() <= $method->getStartLine()
+                && $node->getEndLine() >= $method->getEndLine()
+        );
 
-            foreach ($methodNode->stmts as $statement) {
-                if (!$statement instanceof Nop) {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        return false;
+        return $methodNode instanceof ClassMethod ? $methodNode : null;
     }
 
     private function hasSameNativeMethod(
@@ -415,8 +458,8 @@ final class FormRequestTypeRegistry implements ResultCacheMetaExtension
             ->sourceDependencyClassConstantReferences($classReflection);
         $visitedReferences = [];
 
-        while ($queue !== []) {
-            $reference = array_shift($queue);
+        for ($offset = 0; isset($queue[$offset]); ++$offset) {
+            $reference = $queue[$offset];
             $referenceKey = strtolower($reference['className']) . '::' . $reference['constantName'];
             if (isset($visitedReferences[$referenceKey])) {
                 continue;
@@ -686,7 +729,245 @@ final class FormRequestTypeRegistry implements ResultCacheMetaExtension
 
     private function descriptorHash(): string
     {
-        return hash('sha256', serialize($this->descriptors));
+        return hash('sha256', serialize([
+            'extensionContract' => $this->extensionContractHash(),
+            'globalDescriptors' => $this->globalCacheDescriptors,
+        ]));
+    }
+
+    private function canUseExportedFingerprint(ClassReflection $classReflection): bool
+    {
+        $className = $classReflection->getName();
+        if (in_array($className, $this->trustedClasses, true)
+            || !$this->ruleTypeResolver->hasExportableLiteralRulesMethodBody($classReflection)
+            || !$this->hasExportableLifecycleFingerprints($classReflection)
+        ) {
+            return false;
+        }
+
+        $visited = [];
+        return $this->areFormRequestSourcesAnalysed($classReflection, $visited);
+    }
+
+    private function hasExportableLifecycleFingerprints(ClassReflection $classReflection): bool
+    {
+        foreach (['after', 'validator', 'withValidator'] as $methodName) {
+            if (!$classReflection->hasNativeMethod($methodName)) {
+                continue;
+            }
+
+            $method = $this->findNativeMethodNode($classReflection, $methodName);
+            if ($method === null
+                || (!$method->isAbstract() && !$method->isFinal() && $method->isPrivate())
+            ) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function recordGlobalCacheDependencies(ClassReflection $classReflection): void
+    {
+        try {
+            $visited = [];
+            $this->recordClassHierarchySourceFiles($classReflection, $visited);
+
+            foreach ($this->ruleTypeResolver->sourceDependencyClassNames($classReflection) as $className) {
+                if (!$this->reflectionProvider->hasClass($className)) {
+                    continue;
+                }
+
+                $this->recordClassHierarchySourceFiles(
+                    $this->reflectionProvider->getClass($className),
+                    $visited
+                );
+            }
+            foreach ($this->ruleTypeResolver->sourceDependencyFiles($classReflection) as $fileName) {
+                $this->globalCacheDependencyFiles[$fileName] = true;
+            }
+
+            $queue = $this->ruleTypeResolver
+                ->sourceDependencyClassConstantReferences($classReflection);
+            $visitedReferences = [];
+            for ($offset = 0; isset($queue[$offset]); ++$offset) {
+                $reference = $queue[$offset];
+                $referenceKey = strtolower($reference['className']) . '::' . $reference['constantName'];
+                if (isset($visitedReferences[$referenceKey])
+                    || !$this->reflectionProvider->hasClass($reference['className'])
+                ) {
+                    continue;
+                }
+                $visitedReferences[$referenceKey] = true;
+
+                $dependencyClass = $this->reflectionProvider->getClass($reference['className']);
+                $this->recordClassHierarchySourceFiles($dependencyClass, $visited);
+                if (strtolower($reference['constantName']) !== 'class') {
+                    array_push(
+                        $queue,
+                        ...$this->ruleTypeResolver->classConstantSourceDependencyReferences(
+                            $dependencyClass,
+                            $reference['constantName']
+                        )
+                    );
+                }
+            }
+        } catch (\Throwable) {
+            // The existing project/package scan remains the conservative fallback.
+        }
+    }
+
+    /** @param array<string, true> $visited */
+    private function recordClassHierarchySourceFiles(
+        ClassReflection $classReflection,
+        array &$visited
+    ): void {
+        $className = $classReflection->getName();
+        if ($className === FormRequest::class || isset($visited[$className])) {
+            return;
+        }
+        $visited[$className] = true;
+
+        foreach ($this->classSourceFiles($classReflection) as $fileName) {
+            $this->globalCacheDependencyFiles[$fileName] = true;
+        }
+        foreach ($classReflection->getTraits() as $traitReflection) {
+            $this->recordClassHierarchySourceFiles($traitReflection, $visited);
+        }
+        foreach ($classReflection->getInterfaces() as $interfaceReflection) {
+            $this->recordClassHierarchySourceFiles($interfaceReflection, $visited);
+        }
+
+        $parentReflection = $classReflection->getParentClass();
+        if ($parentReflection !== null) {
+            $this->recordClassHierarchySourceFiles($parentReflection, $visited);
+        }
+    }
+
+    /** @param array<string, true> $visited */
+    private function areFormRequestSourcesAnalysed(
+        ClassReflection $classReflection,
+        array &$visited
+    ): bool {
+        $className = $classReflection->getName();
+        if ($className === FormRequest::class || isset($visited[$className])) {
+            return true;
+        }
+        $visited[$className] = true;
+
+        $fileName = $classReflection->getNativeReflection()->getFileName();
+        if (!is_string($fileName) || !$this->isAnalysedSourceFile($fileName)) {
+            return false;
+        }
+
+        foreach ($classReflection->getTraits() as $traitReflection) {
+            if (!$this->areFormRequestSourcesAnalysed($traitReflection, $visited)) {
+                return false;
+            }
+        }
+
+        $parentReflection = $classReflection->getParentClass();
+        return $parentReflection === null
+            || $this->areFormRequestSourcesAnalysed($parentReflection, $visited);
+    }
+
+    private function isAnalysedSourceFile(string $fileName): bool
+    {
+        if (str_starts_with($fileName, 'phar://')) {
+            return false;
+        }
+
+        return isset($this->analysedSourceFiles()[$this->absolutizePath($fileName)]);
+    }
+
+    /** @return array<string, true> */
+    private function analysedSourceFiles(): array
+    {
+        if ($this->analysedSourceFiles !== null) {
+            return $this->analysedSourceFiles;
+        }
+
+        $files = [];
+        foreach ($this->analysedPaths as $path) {
+            $path = $this->absolutizePath($path);
+            if (is_file($path)) {
+                if (!$this->isExcludedFromAnalysing($path)) {
+                    $files[$path] = true;
+                }
+                continue;
+            }
+            if (!is_dir($path)) {
+                continue;
+            }
+
+            try {
+                $iterator = new \RecursiveCallbackFilterIterator(
+                    new \RecursiveDirectoryIterator(
+                        $path,
+                        \FilesystemIterator::SKIP_DOTS | \FilesystemIterator::FOLLOW_SYMLINKS
+                    ),
+                    function (\SplFileInfo $file): bool {
+                        if (str_starts_with($file->getFilename(), '.')
+                            || isset(self::PHPSTAN_IGNORED_NON_DOT_DIRECTORIES[$file->getFilename()])
+                        ) {
+                            return false;
+                        }
+
+                        return $file->isDir()
+                            || in_array($file->getExtension(), $this->fileExtensions, true);
+                    }
+                );
+                foreach (new \RecursiveIteratorIterator($iterator) as $file) {
+                    if (!$file instanceof \SplFileInfo || !$file->isFile()) {
+                        continue;
+                    }
+
+                    $fileName = $file->getPathname();
+                    if (!$this->isExcludedFromAnalysing($fileName)) {
+                        $files[$fileName] = true;
+                    }
+                }
+            } catch (\UnexpectedValueException) {
+                // An uncertain selection retains global invalidation.
+            }
+        }
+
+        return $this->analysedSourceFiles = $files;
+    }
+
+    private function isExcludedFromAnalysing(string $fileName): bool
+    {
+        $fileName = $this->fileHelper->normalizePath($fileName);
+        $excludes = array_merge(
+            $this->excludePaths['analyse'] ?? [],
+            $this->excludePaths['analyseAndScan'] ?? []
+        );
+        foreach (array_unique($excludes) as $exclude) {
+            // PHPStan deliberately leaves leading-star patterns relative so
+            // they can match analysed paths outside the working directory.
+            if (!str_starts_with($exclude, '*')) {
+                $exclude = $this->absolutizePath($exclude);
+            }
+            $exclude = $this->fileHelper->normalizePath($exclude);
+            if (preg_match('~[*?[\]]~', $exclude) === 1) {
+                $flags = DIRECTORY_SEPARATOR === '\\' ? FNM_CASEFOLD | FNM_NOESCAPE : 0;
+                if (fnmatch($exclude, $fileName, $flags)) {
+                    return true;
+                }
+                continue;
+            }
+
+            if ($fileName === rtrim($exclude, DIRECTORY_SEPARATOR)
+                || str_starts_with(
+                    $fileName,
+                    rtrim($exclude, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR
+                )
+            ) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function sourceFingerprint(): string
@@ -696,35 +977,39 @@ final class FormRequestTypeRegistry implements ResultCacheMetaExtension
         hash_update($context, 'working-directory:' . $this->workingDirectory . "\0");
         hash_update($context, 'additional:' . serialize($this->additionalClasses) . "\0");
         hash_update($context, 'trusted:' . serialize($this->trustedClasses) . "\0");
-
-        foreach ($this->extensionContractFiles() as $relativePath => $fileName) {
-            hash_update($context, 'extension:' . $relativePath . "\0");
-            $contents = @file_get_contents($fileName);
-            hash_update($context, is_string($contents)
-                ? hash('sha256', $contents)
-                : 'unreadable');
-            hash_update($context, "\0");
-        }
+        hash_update($context, 'excluded:' . serialize($this->excludePaths) . "\0");
+        hash_update($context, 'file-extensions:' . serialize($this->fileExtensions) . "\0");
+        hash_update($context, 'extension-contract:' . $this->extensionContractHash() . "\0");
 
         foreach ($this->fingerprintSourceFiles() as $fileName) {
             hash_update($context, 'source:' . $fileName . "\0");
-            $contents = @file_get_contents($fileName);
-            hash_update($context, is_string($contents)
-                ? hash('sha256', $contents)
-                : 'unreadable');
+            hash_update($context, $this->fingerprintFile($fileName, 'unreadable'));
             hash_update($context, "\0");
         }
 
         foreach ($this->composerMetadataFiles() as $fileName) {
             hash_update($context, 'composer:' . $fileName . "\0");
-            $contents = @file_get_contents($fileName);
-            hash_update($context, is_string($contents)
-                ? hash('sha256', $contents)
-                : 'missing');
+            hash_update($context, $this->fingerprintFile($fileName, 'missing'));
             hash_update($context, "\0");
         }
 
         return hash_final($context);
+    }
+
+    private function extensionContractHash(): string
+    {
+        if ($this->extensionContractHash !== null) {
+            return $this->extensionContractHash;
+        }
+
+        $context = hash_init('sha256');
+        foreach ($this->extensionContractFiles() as $relativePath => $fileName) {
+            hash_update($context, $relativePath . "\0");
+            hash_update($context, $this->fingerprintFile($fileName, 'unreadable'));
+            hash_update($context, "\0");
+        }
+
+        return $this->extensionContractHash = hash_final($context);
     }
 
     /** @return array<string, string> */
@@ -800,6 +1085,7 @@ final class FormRequestTypeRegistry implements ResultCacheMetaExtension
         if (!is_array($manifest)
             || ($manifest['schema'] ?? null) !== self::MANIFEST_SCHEMA
             || ($manifest['sourceFingerprint'] ?? null) !== $sourceFingerprint
+            || !$this->dependencyFingerprintsMatch($manifest['dependencyFingerprints'] ?? null)
         ) {
             return null;
         }
@@ -823,6 +1109,7 @@ final class FormRequestTypeRegistry implements ResultCacheMetaExtension
                 'schema' => self::MANIFEST_SCHEMA,
                 'sourceFingerprint' => $sourceFingerprint,
                 'descriptorHash' => $descriptorHash,
+                'dependencyFingerprints' => $this->globalCacheDependencyFingerprints(),
             ], JSON_THROW_ON_ERROR);
         } catch (\JsonException) {
             return;
@@ -837,6 +1124,51 @@ final class FormRequestTypeRegistry implements ResultCacheMetaExtension
         }
     }
 
+    /** @return array<string, string> */
+    private function globalCacheDependencyFingerprints(): array
+    {
+        $fingerprints = [];
+        $fileNames = array_keys($this->globalCacheDependencyFiles);
+        sort($fileNames);
+        foreach ($fileNames as $fileName) {
+            $fingerprints[$fileName] = $this->fingerprintFile($fileName, 'missing');
+        }
+
+        return $fingerprints;
+    }
+
+    private function dependencyFingerprintsMatch(mixed $fingerprints): bool
+    {
+        if (!is_array($fingerprints)) {
+            return false;
+        }
+
+        foreach ($fingerprints as $fileName => $expectedFingerprint) {
+            if (!is_string($fileName) || !is_string($expectedFingerprint)) {
+                return false;
+            }
+
+            $actualFingerprint = $this->fingerprintFile($fileName, 'missing');
+            if (!hash_equals($expectedFingerprint, $actualFingerprint)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function fingerprintFile(string $fileName, string $unreadable): string
+    {
+        if (!array_key_exists($fileName, $this->fileDigests)) {
+            $contents = @file_get_contents($fileName);
+            $this->fileDigests[$fileName] = is_string($contents)
+                ? hash('sha256', $contents)
+                : null;
+        }
+
+        return $this->fileDigests[$fileName] ?? $unreadable;
+    }
+
     private function manifestFile(): string
     {
         $identity = hash('sha256', serialize([
@@ -849,6 +1181,8 @@ final class FormRequestTypeRegistry implements ResultCacheMetaExtension
             $this->composerAutoloaderProjectPaths,
             $this->scanFiles,
             $this->scanDirectories,
+            $this->excludePaths,
+            $this->fileExtensions,
         ]));
 
         return rtrim($this->tmpDirectory, DIRECTORY_SEPARATOR)
@@ -992,13 +1326,9 @@ final class FormRequestTypeRegistry implements ResultCacheMetaExtension
 
     private function absolutizePath(string $path): string
     {
-        if ($this->isAbsolutePath($path)) {
-            return $path;
-        }
-
-        return rtrim($this->workingDirectory, DIRECTORY_SEPARATOR)
-            . DIRECTORY_SEPARATOR
-            . $path;
+        return $this->fileHelper->normalizePath(
+            $this->fileHelper->absolutizePath($path)
+        );
     }
 
     private function isAbsolutePath(string $path): bool

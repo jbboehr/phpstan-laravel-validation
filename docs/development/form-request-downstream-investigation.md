@@ -237,20 +237,47 @@ still require PHPStan reflection.
 
 The registry manifest and PHPStan's result cache have different invalidation
 boundaries. Any content change among the discovered PHP sources or Composer
-metadata invalidates the manifest and rebuilds the registry. If that rebuild
-produces the same semantic descriptor hash, PHPStan can still reuse its result
-cache. A changed descriptor hash invalidates the complete PHPStan result cache
-through `ResultCacheMetaExtension`.
+metadata invalidates the manifest and rebuilds the registry. The result-cache
+integration then chooses between two invalidation mechanisms according to the
+provenance of each inferred contract.
 
-The global hash is currently necessary for soundness. A controlled experiment
-removed the registry's result-cache metadata tag. PHPStan then reused a stale
+For a discovered request whose `rules()` method is a single literal return and
+whose complete application-owned hierarchy is part of the current analysis
+selection, a rich-parser visitor attaches a synthetic internal attribute
+containing a fingerprint of each relevant method body. A redundant
+`additionalClasses` entry does not force an otherwise eligible request onto the
+global fallback.
+Method attributes participate in PHPStan's exported-node comparison. A
+body-only change is therefore visible as an exported change, and PHPStan's
+existing class dependency graph reanalyses the request's callers without
+discarding unrelated cached files. The fingerprint also covers relevant
+FormRequest lifecycle method bodies when PHPStan exports their markers.
+Explicit application use of the reserved attribute is a non-ignorable PHPStan
+error. Selective eligibility enumerates the effective analysis roots with
+PHPStan's hidden-file, extension, and exclusion semantics instead of assuming
+that every path descendant was selected, including files below directories
+PHPStan ignores by default.
+
+The registry does not use that selective path when it cannot prove every
+request, parent, and trait source is both analysed in the current run,
+self-contained, and represented in PHPStan's exported nodes. Trusted requests,
+requests discovered only through `additionalClasses`, sources omitted by CLI
+path overrides, excluded or nonstandard source files, non-exportable private
+trait methods, and rule expressions involving
+constants, builders, helpers, services, or other executable or external
+behavior remain in the `ResultCacheMetaExtension` descriptor hash.
+The manifest also records directly resolved dependency-file fingerprints that
+fall outside its ordinary project scan. A changed descriptor in that set
+invalidates the complete PHPStan result cache. This is intentionally
+asymmetric: a missed optimization causes broader invalidation, while an
+uncertain dependency never silently receives the selective treatment.
+
+A controlled experiment that removed both mechanisms let PHPStan reuse a stale
 caller result after either a FormRequest `rules()` body changed or an external
-constant used by its rules changed. The focused
-`FormRequestResultCacheTest::testChangingOnlyRulesMethodBodyInvalidatesCachedCaller()`
-and
-`FormRequestResultCacheTest::testChangingExternalRuleConstantInvalidatesCachedCaller()`
-cases preserve these regressions. PHPStan's ordinary dependency graph does not
-express this method-body-derived semantic dependency.
+constant used by its rules changed. The focused result-cache tests preserve the
+direct-body regression, selective inheritance and trait propagation, lifecycle
+body changes, the reserved marker boundary, and the global fallback for
+external rule sources.
 
 PHPStan does not currently expose a supported per-file semantic dependency
 extension point. Draft
@@ -264,11 +291,12 @@ key, then ask the owning extension for that key's current hash. This would let
 a FormRequest contract change invalidate its actual consumers without making
 the dependency a raw file path or discarding the complete cache.
 
-Until PHPStan provides such an extension point, the global semantic descriptor
-hash plus the manifest is the safest available compromise. FormRequest
-inference remains disabled by default so projects that do not opt in pay none
-of this discovery or invalidation cost. Disabling invalidation for enabled
-projects would knowingly permit stale inferred types.
+Until PHPStan provides such an extension point, the exported fingerprint plus
+the global semantic fallback is the safest available compromise. It uses an
+internal synthetic attribute and must conservatively retain global invalidation
+for dependency-bearing rules, so it is not a substitute for a supported
+extension-defined dependency API. FormRequest inference remains disabled by
+default; when it is disabled, the visitor does not add fingerprints.
 
 ### Raw wall-time samples
 
@@ -337,8 +365,11 @@ The manifest follow-up removes most of that fixed warm cost while preserving
 content-based invalidation. The integration is disabled by default, so
 ordinary extension users do not pay its cold discovery cost. Projects opting
 into FormRequests still pay for initial analysis and registry reconstruction
-whenever any discovered PHP source or Composer metadata changes. Only a
-changed semantic descriptor hash invalidates PHPStan's complete result cache.
+whenever any discovered PHP source or Composer metadata changes. At the time
+of this benchmark, every changed semantic descriptor invalidated PHPStan's
+complete result cache. The later exported-fingerprint prototype narrows that
+invalidation for directly analysed literal rule bodies, but does not remove
+the measured registry reconstruction cost.
 
 Pterodactyl initially exhausted its project's effective 128 MiB limit when the
 audit first enabled FormRequests. A controlled rerun used a 2 GiB limit and
@@ -497,16 +528,17 @@ the PHP sources and declared autoload paths in its Composer package and in the
 packages of its parent classes, implemented interfaces, and recursively used
 traits. Statically referenced classes in the `rules()` return expressions also
 contribute their sources and package mappings, including injected receivers and
-transitively referenced class constants. User constants and functions contribute
-their available source files; when PHPStan cannot identify the defining file for
-a user constant, included files are conservatively fingerprinted. Exact
-`autoload.files` entries are included regardless of extension. Files included
-only for fingerprinting are not scanned for sibling requests. This keeps the
-warm manifest optimization from hiding a change to a sibling rule helper in a
-path package without broadening the exact discovery lists. Warm-cache
-regressions change helpers in inherited, unrelated, and externally mapped
-packages without changing Composer metadata and confirm that the caller is
-reanalysed with the new rule type.
+transitively referenced class constants. User constants contribute their
+available defining file and the runtime-loaded file set, which is the
+conservative transitive boundary because PHPStan's public constant reflection
+does not expose the initializer expression. User functions contribute their
+available source files. Exact `autoload.files` entries are included regardless
+of extension. Files included only for fingerprinting are not scanned for sibling
+requests. This keeps the warm manifest optimization from hiding a change to a
+sibling rule helper in a path package without broadening the exact discovery
+lists. Warm-cache regressions change helpers in inherited, unrelated, and
+externally mapped packages without changing Composer metadata and confirm that
+the caller is reanalysed with the new rule type.
 
 ## Remaining candidates
 
