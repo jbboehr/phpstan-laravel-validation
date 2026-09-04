@@ -544,31 +544,38 @@
             name = "phpunit-php81";
             php = phpVersions.php81;
             junitReport = true;
-            command = "php vendor/bin/phpunit --no-coverage --log-junit \"$PHPUNIT_JUNIT_REPORT\"";
+            command = "php vendor/bin/phpunit --exclude-group form-request-result-cache --no-coverage --log-junit \"$PHPUNIT_JUNIT_REPORT\"";
           };
           phpunit-php82 = mkProjectCheck {
             name = "phpunit-php82";
             php = phpVersions.php82;
             junitReport = true;
-            command = "php vendor/bin/phpunit --no-coverage --log-junit \"$PHPUNIT_JUNIT_REPORT\"";
+            command = "php vendor/bin/phpunit --exclude-group form-request-result-cache --no-coverage --log-junit \"$PHPUNIT_JUNIT_REPORT\"";
           };
           phpunit-php83 = mkProjectCheck {
             name = "phpunit-php83";
             php = phpVersions.php83;
             junitReport = true;
-            command = "php vendor/bin/phpunit --no-coverage --log-junit \"$PHPUNIT_JUNIT_REPORT\"";
+            command = "php vendor/bin/phpunit --exclude-group form-request-result-cache --no-coverage --log-junit \"$PHPUNIT_JUNIT_REPORT\"";
           };
           phpunit-php84 = mkProjectCheck {
             name = "phpunit-php84";
             php = phpVersions.php84;
             junitReport = true;
-            command = "php vendor/bin/phpunit --no-coverage --log-junit \"$PHPUNIT_JUNIT_REPORT\"";
+            command = "php vendor/bin/phpunit --exclude-group form-request-result-cache --no-coverage --log-junit \"$PHPUNIT_JUNIT_REPORT\"";
           };
           phpunit-php85 = mkProjectCheck {
             name = "phpunit-php85";
             php = phpVersions.php85;
             junitReport = true;
-            command = "php vendor/bin/phpunit --no-coverage --log-junit \"$PHPUNIT_JUNIT_REPORT\"";
+            command = "php vendor/bin/phpunit --exclude-group form-request-result-cache --no-coverage --log-junit \"$PHPUNIT_JUNIT_REPORT\"";
+          };
+
+          form-request-result-cache = mkProjectCheck {
+            name = "form-request-result-cache";
+            php = phpVersions.php85;
+            junitReport = true;
+            command = "php vendor/bin/phpunit --group form-request-result-cache --no-coverage --log-junit \"$PHPUNIT_JUNIT_REPORT\"";
           };
 
           phpunit-laravel11 = mkProjectCheck {
@@ -576,21 +583,21 @@
             php = phpVersions.php82;
             closure = laravel11Closure;
             junitReport = true;
-            command = "LARAVEL_AUDIT_BASELINE=11-latest php vendor/bin/phpunit --exclude-group documentation --no-coverage --log-junit \"$PHPUNIT_JUNIT_REPORT\"";
+            command = "LARAVEL_AUDIT_BASELINE=11-latest php vendor/bin/phpunit --exclude-group documentation,form-request-result-cache --no-coverage --log-junit \"$PHPUNIT_JUNIT_REPORT\"";
           };
           phpunit-laravel12 = mkProjectCheck {
             name = "phpunit-laravel12";
             php = phpVersions.php82;
             closure = laravel12Closure;
             junitReport = true;
-            command = "LARAVEL_AUDIT_BASELINE=12-latest php vendor/bin/phpunit --exclude-group documentation --no-coverage --log-junit \"$PHPUNIT_JUNIT_REPORT\"";
+            command = "LARAVEL_AUDIT_BASELINE=12-latest php vendor/bin/phpunit --exclude-group documentation,form-request-result-cache --no-coverage --log-junit \"$PHPUNIT_JUNIT_REPORT\"";
           };
           phpunit-laravel13 = mkProjectCheck {
             name = "phpunit-laravel13";
             php = phpVersions.php83;
             closure = laravel13Closure;
             junitReport = true;
-            command = "LARAVEL_AUDIT_BASELINE=13-latest php vendor/bin/phpunit --exclude-group documentation --no-coverage --log-junit \"$PHPUNIT_JUNIT_REPORT\"";
+            command = "LARAVEL_AUDIT_BASELINE=13-latest php vendor/bin/phpunit --exclude-group documentation,form-request-result-cache --no-coverage --log-junit \"$PHPUNIT_JUNIT_REPORT\"";
           };
 
           phpstan = mkProjectCheck {

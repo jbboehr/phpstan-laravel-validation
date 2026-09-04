@@ -92,6 +92,19 @@ The authoritative suite still includes the `subprocess` group. Use the fast
 loop while iterating on unrelated code, then run the complete Nix checks before
 considering a change ready.
 
+The FormRequest result-cache scenarios launch PHPStan repeatedly to verify
+cold, warm, selective, and global invalidation behavior. Run that focused
+suite with:
+
+```sh
+composer test:form-request-cache
+```
+
+Nix exposes it as the independent `form-request-result-cache` check. The
+ordinary PHP and Laravel compatibility jobs exclude this group; the complete
+suite runs with the canonical dependency closure and again in the
+minimum-PHPStan consumer check.
+
 ## Static inference fixtures
 
 PHPStan fixtures remain deliberately explicit. A contributor should be able to

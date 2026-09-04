@@ -26,6 +26,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\Process\Process;
 
 #[Group('subprocess')]
+#[Group('form-request-result-cache')]
 final class FormRequestResultCacheTest extends \PHPUnit\Framework\TestCase
 {
     private string $projectDirectory;
