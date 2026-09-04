@@ -279,6 +279,33 @@ direct-body regression, selective inheritance and trait propagation, lifecycle
 body changes, the reserved marker boundary, and the global fallback for
 external rule sources.
 
+#### Downstream selective-invalidation smoke test
+
+On 2026-09-03, the exported-fingerprint implementation at `2e82d5511e2c` was
+installed into the same Koel and Pterodactyl checkouts. Each application
+received a disposable dependent file in its normal analyzed source tree. The
+file asserted the type inferred from an existing FormRequest, and the result
+cache was warmed before changing only that request's literal `rules()` body.
+
+| Application | Rule edit | Files reanalyzed | Dependent result |
+| --- | --- | ---: | --- |
+| Koel | `prompt: string` to `prompt: array` | 3 | `strlen()` changed from valid to `array given` |
+| Pterodactyl | `server_uuid: string` to `server_uuid: array` | 2 | `assertType()` changed from a match to `array{server_uuid: array}` |
+
+The warm run immediately before each edit restored the cache and reanalyzed
+zero files. Koel also repeated the edit in reverse: three files were
+reanalyzed and the dependent diagnostic disappeared. Unrelated application
+files remained cached in both applications, so these literal body changes did
+not take the global metadata fallback. The disposable probes and rule edits
+were removed after the measurements.
+
+The unmodified extension-enabled cold and warm smoke tests also completed in
+both applications. Koel remained diagnostic-free. Pterodactyl retained its
+existing project diagnostics and did not add an extension-specific failure.
+The path dependency required a targeted Composer refresh before this run
+because the retained audit checkout's old lock metadata did not contain the
+current runtime namespace.
+
 PHPStan does not currently expose a supported per-file semantic dependency
 extension point. Draft
 [phpstan/phpstan-src#5364](https://github.com/phpstan/phpstan-src/pull/5364)
