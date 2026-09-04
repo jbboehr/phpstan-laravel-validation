@@ -73,6 +73,7 @@ final class FormRequestRulesFingerprintVisitor extends NodeVisitorAbstract
         if (!$this->enabled
             || (!$node instanceof Class_ && !$node instanceof Trait_)
             || $node->name === null
+            || ($node instanceof Class_ && $node->extends === null)
         ) {
             return null;
         }

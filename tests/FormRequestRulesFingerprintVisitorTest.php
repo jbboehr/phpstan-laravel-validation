@@ -36,7 +36,7 @@ final class FormRequestRulesFingerprintVisitorTest extends \PHPStan\Testing\PHPS
         $nodes = $this->parseAndTraverse(<<<'PHP'
 <?php
 
-final class Example
+final class Example extends ParentExample
 {
     public function rules(): array
     {
@@ -63,12 +63,50 @@ PHP);
         self::assertSame([], $methods['unrelated']->attrGroups);
     }
 
+    public function testDoesNotFingerprintAClassWithoutAParent(): void
+    {
+        $nodes = $this->parseAndTraverse(<<<'PHP'
+<?php
+
+final class Example
+{
+    public function rules(): array
+    {
+        return ['value' => 'required|string'];
+    }
+}
+PHP);
+
+        $methods = (new NodeFinder())->findInstanceOf($nodes, ClassMethod::class);
+        self::assertCount(1, $methods);
+        self::assertSame([], $methods[0]->attrGroups);
+    }
+
+    public function testFingerprintsATraitThatMaySupplyAFormRequestMethod(): void
+    {
+        $nodes = $this->parseAndTraverse(<<<'PHP'
+<?php
+
+trait ProvidesRules
+{
+    public function rules(): array
+    {
+        return ['value' => 'required|string'];
+    }
+}
+PHP);
+
+        $methods = (new NodeFinder())->findInstanceOf($nodes, ClassMethod::class);
+        self::assertCount(1, $methods);
+        $this->fingerprintOf($methods[0]);
+    }
+
     public function testFingerprintChangesWhenTheRelevantMethodBodyChanges(): void
     {
         $string = $this->fingerprintOf($this->rulesMethod(<<<'PHP'
 <?php
 
-final class Example
+final class Example extends ParentExample
 {
     public function rules(): array
     {
@@ -79,7 +117,7 @@ PHP));
         $array = $this->fingerprintOf($this->rulesMethod(<<<'PHP'
 <?php
 
-final class Example
+final class Example extends ParentExample
 {
     public function rules(): array
     {
@@ -96,7 +134,7 @@ PHP));
         $first = $this->fingerprintOf($this->rulesMethod(<<<'PHP'
 <?php
 
-final class Example
+final class Example extends ParentExample
 {
     public function rules(): array
     {
@@ -112,7 +150,7 @@ PHP));
         $second = $this->fingerprintOf($this->rulesMethod(<<<'PHP'
 <?php
 
-final class Example
+final class Example extends ParentExample
 {
     public function rules(): array
     {
@@ -134,7 +172,7 @@ PHP));
         $nodes = $this->parseAndTraverse(<<<'PHP'
 <?php
 
-final class Example
+final class Example extends ParentExample
 {
     public function rules(): array
     {
