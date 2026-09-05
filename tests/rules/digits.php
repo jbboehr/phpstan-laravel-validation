@@ -15,3 +15,8 @@ $validated = $validator->validated();
 assertType("array{required_digits: numeric-string, optional_digits?: string}", $validated);
 assertType("numeric-string", $validated['required_digits']);
 assertType("string", $validated['optional_digits']);
+
+$native = \Illuminate\Support\Facades\Validator::make([], [
+    'value' => 'required|digits_between:1,3',
+])->validated();
+assertType('bool|float|int|numeric-string|Stringable|null', $native['value']);

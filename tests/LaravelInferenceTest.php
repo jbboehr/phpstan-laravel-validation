@@ -1165,6 +1165,72 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         self::assertTrue($rulesType->accepts($validatedType, true)->yes());
     }
 
+    /** @return iterable<string, array{mixed, string, string, bool, bool}> */
+    public static function digitCountValueProvider(): iterable
+    {
+        foreach ([
+            ['digits:1', 'digits:0', '12.35.0'],
+            ['digits_between:1,3', 'digits_between:0,3', '13.6.0'],
+            ['min_digits:1', 'min_digits:0', '13.4.0'],
+            ['max_digits:3', 'max_digits:3', '13.4.0'],
+        ] as [$rule, $zeroRule, $boundary]) {
+            foreach (['integer' => 1, 'float' => 1.0, 'string' => '1'] as $label => $value) {
+                yield $rule . ' ' . $label => [$value, 'required|' . $rule, $boundary, true, true];
+            }
+            yield $rule . ' true' => [true, 'required|' . $rule, $boundary, true, false];
+            yield $rule . ' stringable' => [
+                new \Illuminate\Support\Stringable('1'), 'required|' . $rule, $boundary, true, false,
+            ];
+            yield $rule . ' invalid stringable' => [
+                new \Illuminate\Support\Stringable('no'), 'required|' . $rule, $boundary, false, false,
+            ];
+            yield $rule . ' fraction' => [1.5, 'required|' . $rule, $boundary, false, false];
+            yield $zeroRule . ' false' => [false, $zeroRule, $boundary, true, false];
+            yield $zeroRule . ' null' => [null, $zeroRule, $boundary, true, false];
+            yield $rule . ' nullable' => [null, 'nullable|' . $rule, $boundary, true, true];
+            yield $rule . ' blank bypass' => ['', $rule, $boundary, true, true];
+            yield $rule . ' numeric intersection' => [true, 'required|numeric|' . $rule, $boundary, false, false];
+        }
+    }
+
+    /** @dataProvider digitCountValueProvider */
+    public function testDigitCountInferenceContainsNativeLaravelOutput(
+        mixed $value,
+        string $rule,
+        string $boundary,
+        bool $beforeBoundary,
+        bool $afterBoundary,
+    ): void {
+        self::getContainer();
+        $version = self::frameworkVersion();
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(new \Illuminate\Translation\ArrayLoader(), 'en')
+        );
+        $rules = ['value' => $rule];
+        $validator = $factory->make(['value' => $value], $rules);
+        // Older predicates pass null to preg_match, which PHP deprecates.
+        // Laravel's result and the preserved native value are the contract.
+        $passes = @$validator->passes();
+        self::assertSame(
+            version_compare($version, $boundary, '>=') ? $afterBoundary : $beforeBoundary,
+            $passes
+        );
+        if (!$passes) {
+            return;
+        }
+
+        $validated = $validator->validated();
+        self::assertSame(['value' => $value], $validated);
+        $context = new LaravelVersionContext('', $version);
+        foreach ([new TypeResolver($context), new TypeResolver()] as $resolver) {
+            $type = $resolver->evaluate(RuleParser::parse($rules, $context));
+            self::assertTrue(
+                $type->isSuperTypeOf($this->convertToType($validated))->yes(),
+                $type->describe(Type\VerbosityLevel::precise()) . ' excludes the native Laravel output'
+            );
+        }
+    }
+
     public function testIntegerStrictRuleAcceptsAndPreservesNativeInteger(): void
     {
         $factory = new \Illuminate\Validation\Factory(

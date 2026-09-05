@@ -1301,7 +1301,9 @@ final class TypeResolver
             ),
 
             // We can't use numeric ranges here because laravel doesn't cast it to an integer or float
-            "Digits", "DigitsBetween", "Decimal", "MaxDigits", "MinDigits", "MultipleOf",
+            "Digits", "DigitsBetween", "MaxDigits", "MinDigits" => $this->resolveTypeDigits($rule),
+
+            "Decimal", "MultipleOf",
             "Numeric" => Type\TypeCombinator::union(
                 new IntersectionType([
                     new StringType(),
@@ -1496,6 +1498,30 @@ final class TypeResolver
     {
         return $this->laravelVersionContext !== null
             && $this->laravelVersionContext->isAtLeast('13.4.0');
+    }
+
+    private function resolveTypeDigits(Rule $rule): Type\Type
+    {
+        $types = [
+            new IntersectionType([new StringType(), new AccessoryNumericStringType()]),
+            new Type\IntegerType(),
+            new Type\FloatType(),
+        ];
+        $nativeScalarSince = match ($rule->getRuleName()) {
+            'Digits' => '12.35.0',
+            'DigitsBetween' => '13.6.0',
+            default => '13.4.0', // MinDigits and MaxDigits.
+        };
+
+        // Earlier predicates coerce through preg_match and string length but
+        // preserve the input. Zero-length bounds can also admit false or null.
+        if ($this->laravelVersionContext === null || !$this->laravelVersionContext->isAtLeast($nativeScalarSince)) {
+            $types[] = new Type\BooleanType();
+            $types[] = new Type\ObjectType(\Stringable::class);
+            $types[] = new Type\NullType();
+        }
+
+        return Type\TypeCombinator::union(...$types);
     }
 
     private function resolvesIntegerAsStrict(Rule $rule): bool

@@ -69,6 +69,16 @@ requiring a native integer. Laravel 10, Laravel 11, and Laravel 12.0 through
 meaning therefore depends on the installed framework release as well as its
 text.
 
+Digit-count rules have the same problem, with different release boundaries.
+For example, `required|digits_between:1,3` accepts and preserves `true` and a
+`Stringable` object rendering `'1'` on Laravel 10, 11, 12, and 13.0 through
+13.5. Laravel 13.6 rejects those native types. The corresponding guards arrived
+earlier for `digits` in 12.35 and for `min_digits` and `max_digits` in 13.4.
+Before those guards, zero-length bounds can even admit false or null.
+The [version audit](../contributing/laravel-version-inference-audit.md#digit-count-predicates-add-native-type-guards-at-different-releases)
+records the boundary probes and the broader inferred families needed to
+describe these preserved values.
+
 The scalar `in` rule provides a particularly sharp second example. At every
 pinned Laravel revision, its relevant implementation is:
 
@@ -462,6 +472,7 @@ FormRequest lifecycle behavior is covered by
 | --- | --- | --- |
 | `integer` can preserve non-integers | `LaravelInferenceTest::testIntegerRuleCanPreserveNonIntegerValues` | [`tests/rules/integer.php`](https://github.com/jbboehr/phpstan-laravel-validation/blob/master/tests/rules/integer.php) |
 | `integer:strict` differs by Laravel release | `LaravelInferenceTest::testIntegerStrictRuleFollowsRuntimeSupport` and `testIntegerStrictRuleAcceptsAndPreservesNativeInteger` | Boundary coverage in [`tests/TypeResolverTest.php`](https://github.com/jbboehr/phpstan-laravel-validation/blob/master/tests/TypeResolverTest.php), [`tests/version-aware/inference.php`](https://github.com/jbboehr/phpstan-laravel-validation/blob/master/tests/version-aware/inference.php), and the version-audit snapshots |
+| Digit-count predicates can preserve booleans, null, and objects before their native-type guards | `LaravelInferenceTest::testDigitCountInferenceContainsNativeLaravelOutput` and the version-audit snapshots on both sides of each boundary | `TypeResolverTest::testVersionAwareDigitCountInference`, [`tests/rules/digits.php`](https://github.com/jbboehr/phpstan-laravel-validation/blob/master/tests/rules/digits.php), and [`tests/version-aware/inference.php`](https://github.com/jbboehr/phpstan-laravel-validation/blob/master/tests/version-aware/inference.php) |
 | `base64` exists only from Laravel 13.21 and requires a native non-empty string | `LaravelInferenceTest::testBase64RuleFollowsRuntimeVersionBoundary` | Boundary coverage in [`tests/TypeResolverTest.php`](https://github.com/jbboehr/phpstan-laravel-validation/blob/master/tests/TypeResolverTest.php) and [`tests/version-aware/base64.php`](https://github.com/jbboehr/phpstan-laravel-validation/blob/master/tests/version-aware/base64.php) |
 | Scalar `in` preserves coercible inputs and admits parameter-dependent integer equivalence classes | `LaravelInferenceTest::testScalarInRuleAcceptsRuntimeValues`, `testNumericInRuleNarrowsOnlyItsRepresentableNativeIntegerClass`, and `testLargeFloatingPointInParameterAcceptsMultipleNativeIntegers` | [`tests/rules/in.php`](https://github.com/jbboehr/phpstan-laravel-validation/blob/master/tests/rules/in.php) and `TypeResolverTest::testNumericInParametersNarrowOnlyRepresentableIntegerClasses` |
 | Optional blanks bypass non-implicit rules | `LaravelInferenceTest::testBlankStringBypassesOptionalNonImplicitRules` | [`tests/structure/empty-string.php`](https://github.com/jbboehr/phpstan-laravel-validation/blob/master/tests/structure/empty-string.php) |

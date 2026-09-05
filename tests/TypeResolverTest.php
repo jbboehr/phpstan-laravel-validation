@@ -166,16 +166,16 @@ final class TypeResolverTest extends PHPStanTestCase
         yield 'declined if' => ['declined_if:other,value', 'mixed'];
 
         $numericRules = [
-            'digits:2',
-            'digits_between:1,2',
             'decimal:2',
-            'max_digits:2',
-            'min_digits:2',
             'multiple_of:2',
             'numeric',
         ];
         foreach ($numericRules as $rule) {
             yield $rule => [$rule, 'float|int|numeric-string'];
+        }
+
+        foreach (['digits:2', 'digits_between:1,2', 'max_digits:2', 'min_digits:2'] as $rule) {
+            yield $rule => [$rule, 'bool|float|int|numeric-string|Stringable|null'];
         }
 
         yield 'integer alias' => ['int', 'float|int|numeric-string|Stringable|true'];
@@ -517,6 +517,28 @@ final class TypeResolverTest extends PHPStanTestCase
         self::assertSame($broadType, self::resolveForVersion([
             'value' => 'required|integer:strict',
         ], '14.0.0'));
+    }
+
+    public function testVersionAwareDigitCountInference(): void
+    {
+        $broad = 'array{value: bool|float|int|numeric-string|Stringable|null}';
+        $numeric = 'array{value: float|int|numeric-string}';
+        foreach ([
+            ['digits:1', '12.34.0', '12.35.0'],
+            ['digits_between:1,3', '13.5.0', '13.6.0'],
+            ['min_digits:1', '13.3.0', '13.4.0'],
+            ['max_digits:3', '13.3.0', '13.4.0'],
+        ] as [$rule, $before, $after]) {
+            foreach (['10.0.0', '11.0.0', '12.0.0', $before, '14.0.0'] as $version) {
+                self::assertSame($broad, self::resolveForVersion(['value' => 'required|' . $rule], $version));
+            }
+            self::assertSame($numeric, self::resolveForVersion(['value' => 'required|' . $rule], $after));
+            self::assertSame($numeric, self::resolveForVersion(['value' => 'required|' . $rule], '13.24.0'));
+            self::assertSame($numeric, self::resolveForVersion(['value' => 'required|numeric|' . $rule], $before));
+            self::assertSame('array{value: numeric-string}', self::resolveForVersion([
+                'value' => 'required|string|' . $rule,
+            ], $before));
+        }
     }
 
     public function testVersionAwareAsciiInference(): void

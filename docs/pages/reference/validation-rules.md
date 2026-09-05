@@ -71,9 +71,18 @@ accept and preserve them. Unknown formats remain conservative.
 
 | Rule | Successful native type |
 | --- | --- |
-| `numeric`, `decimal`, `digits`, `digits_between`, `max_digits`, `min_digits`, `multiple_of` | `float\|int\|numeric-string` |
+| `numeric`, `decimal`, `multiple_of` | `float\|int\|numeric-string` |
+| `digits` | `float\|int\|numeric-string` from Laravel 12.35; `bool\|float\|int\|numeric-string\|Stringable\|null` before that |
+| `min_digits`, `max_digits` | `float\|int\|numeric-string` from Laravel 13.4; `bool\|float\|int\|numeric-string\|Stringable\|null` before that |
+| `digits_between` | `float\|int\|numeric-string` from Laravel 13.6; `bool\|float\|int\|numeric-string\|Stringable\|null` before that |
 | `integer` | `float\|int\|numeric-string\|Stringable\|true` |
 | `integer:strict` | `int` from Laravel 12.22; earlier releases ignore `strict` and keep the ordinary `integer` union |
+
+Digit-count rules keep the broader family when the Laravel version is unknown
+or unsupported. That family does not refine booleans or null by digit bounds.
+The [version boundaries](laravel-versions.md#contract-changes-in-the-portable-corpus)
+concern the predicates themselves: optional blank strings and `nullable` null
+values can still bypass them after the native-type guards were introduced.
 
 PHPStan cannot express “integral floats only.” The non-strict numeric unions
 are therefore broader than Laravel's successful subset and still sound.

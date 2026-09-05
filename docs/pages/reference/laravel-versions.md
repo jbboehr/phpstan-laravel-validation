@@ -14,7 +14,13 @@ boundaries. Detailed evidence is in the
 | --- | --- |
 | Laravel 12.0 | Top-level literal integer rule keys are preserved instead of reindexed from `0` |
 | Laravel 12.22 | `integer:strict` requires a native integer |
+| Laravel 12.35 | `digits` rejects booleans, null, and `Stringable` objects |
 | Laravel 13.4 | `ascii` requires a native string |
+| Laravel 13.4 | `min_digits` and `max_digits` reject booleans, null, and `Stringable` objects |
+| Laravel 13.6 | `digits_between` rejects booleans, null, and `Stringable` objects |
+
+These digit-count boundaries concern the predicates themselves. Optional blank
+strings and `nullable` null values can still bypass them.
 
 ## Rules and builders introduced in the supported range
 

@@ -132,6 +132,10 @@
 
 ### Fixed
 
+- Include native booleans, `Stringable` objects, and null in digit-count
+  inference where older Laravel predicates can preserve them. Narrow each rule
+  only after its verified native-type guard: `digits` in 12.35, `min_digits`
+  and `max_digits` in 13.4, and `digits_between` in 13.6.
 - Keep parsing rules on escaped literal-dot keys separate from nested paths
   with the same decoded name. Separate parser instances transform their own
   fields; sharing one instance across colliding paths fails validation.

@@ -31,7 +31,10 @@ User-facing inference boundaries are summarized in
 | --- | --- | --- |
 | Laravel 12.0 | Portable corpus | Top-level literal integer rule keys are preserved instead of reindexed from `0` |
 | Laravel 12.22 | Portable corpus | `integer:strict` requires a native integer |
+| Laravel 12.35 | Portable corpus | `digits` rejects booleans, null, and `Stringable` objects |
 | Laravel 13.4 | Portable corpus | `ascii` requires a native string |
+| Laravel 13.4 | Portable corpus | `min_digits` and `max_digits` reject booleans, null, and `Stringable` objects |
+| Laravel 13.6 | Portable corpus | `digits_between` rejects booleans, null, and `Stringable` objects |
 | 10.21.1 | Builder fixtures | `In` / `NotIn` serialize enum cases |
 | 10.32 | Runtime suite | `present_if` / `present_unless` exist |
 | 10.33 | Runtime suite | `hex_color`; `Rule::unless()` |
@@ -123,12 +126,16 @@ Composer root loaded into PHPStan.
 | `12.0.0` | `12.0.0` | 8.2 | 12.0.0 | [`bd8aeb64d3f9`](https://github.com/laravel/framework/commit/bd8aeb64d3f9fa4b11690d702bdf289f5f32ae97) |
 | `12.21.0` | `12.21.0` | 8.2 | 12.21.0 | [`ac8c4e73bf1b`](https://github.com/laravel/framework/commit/ac8c4e73bf1b5387b709f7736d41427e6af1c93b) |
 | `12.22.0` | `12.22.0` | 8.2 | 12.22.0 | [`6ab00c913ef6`](https://github.com/laravel/framework/commit/6ab00c913ef6ec6fad0bd506f7452c0bb9e792c3) |
+| `12.34.0` | `12.34.0` | 8.2 | 12.34.0 | [`f9ec5a5d88bc`](https://github.com/laravel/framework/commit/f9ec5a5d88bc8c468f17b59f88e05c8ac3c8d687) |
+| `12.35.0` | `12.35.0` | 8.2 | 12.35.0 | [`9583ef9e405a`](https://github.com/laravel/framework/commit/9583ef9e405a71d5b8c04ff6efd05a7ef9a5baef) |
 | `12.39.0` | `12.39.0` | 8.2 | 12.39.0 | [`1a6176129ef2`](https://github.com/laravel/framework/commit/1a6176129ef28eaf42b6b4a6250025120c3d8dac) |
 | `12.40.0` | `12.40.0` | 8.2 | 12.40.0 | [`3159215d904a`](https://github.com/laravel/framework/commit/3159215d904a2b04c5b903bce0328d54f1688d0f) |
 | `12-latest` | `^12.0` | 8.2 | 12.66.0 | [`82a53323c701`](https://github.com/laravel/framework/commit/82a53323c701a668f9054cbeb1d6b6cdbb6a5e10) |
 | `13.0.0` | `13.0.0` | 8.3 | 13.0.0 | [`3e33f431a053`](https://github.com/laravel/framework/commit/3e33f431a05365d008742ff8001b92641086d5f8) |
 | `13.3.0` | `13.3.0` | 8.3 | 13.3.0 | [`118b7063c44a`](https://github.com/laravel/framework/commit/118b7063c44a2f3421d1646f5ddf08defcfd1db3) |
 | `13.4.0` | `13.4.0` | 8.3 | 13.4.0 | [`912de244f88a`](https://github.com/laravel/framework/commit/912de244f88a69742b76e8a2807f6765947776da) |
+| `13.5.0` | `13.5.0` | 8.3 | 13.5.0 | [`ffa1850049a6`](https://github.com/laravel/framework/commit/ffa1850049a691b93129808f27ecd10e65c9d1a5) |
+| `13.6.0` | `13.6.0` | 8.3 | 13.6.0 | [`416a93ea9c53`](https://github.com/laravel/framework/commit/416a93ea9c53161e0d4b8a44045f447b65a7d2f1) |
 | `13.20.0` | `13.20.0` | 8.3 | 13.20.0 | [`b9d1bccad5fb`](https://github.com/laravel/framework/commit/b9d1bccad5fbc32578dca22566bb11e7c0e545d7) |
 | `13.21.0` | `13.21.0` | 8.3 | 13.21.0 | [`d1e02ce7b7e2`](https://github.com/laravel/framework/commit/d1e02ce7b7e25146177a1a0137c37bccb32d26d3) |
 | `13.23.0` | `13.23.0` | 8.3 | 13.23.0 | [`92a707229148`](https://github.com/laravel/framework/commit/92a707229148e57f08a249211c8a5a194159c619) |
@@ -192,7 +199,8 @@ it does not prove universal soundness outside them.
 | Area | Representative probes | Result |
 | --- | --- | --- |
 | Accepted and declined values | `accepted.true`, `accepted_if.inactive`, `declined.false`, `declined_if.inactive` | No observed release difference |
-| Boolean and numeric predicates | `boolean.*`, `integer.*`, `numeric.*`, `digits*`, `decimal`, `multiple_of`, `max_digits`, `min_digits`, and fresh fluent numeric builders | `integer:strict` begins at 12.22; the exact 11.42 and 12.55 builder cutovers are pinned by the linked upstream commits, tag history, and focused static fixtures, while cross-profile PHPUnit confirms representative behavior before and after them |
+| Boolean and numeric predicates | `boolean.*`, `integer.*`, `numeric.*`, `decimal`, `multiple_of`, and fresh fluent numeric builders | `integer:strict` begins at 12.22; the exact 11.42 and 12.55 builder cutovers are pinned by the linked upstream commits, tag history, and focused static fixtures, while cross-profile PHPUnit confirms representative behavior before and after them |
+| Digit-count predicates | `digits.*`, `digits_between.*`, `max_digits.*`, and `min_digits.*`, including booleans, null, and `Stringable` objects | Native-type guards begin at 12.35 for `digits`, 13.4 for `min_digits` and `max_digits`, and 13.6 for `digits_between` |
 | Text predicates | `alpha*`, `ascii.*`, `string`, `lowercase`, `uppercase`, `regex`, `not_regex`, and fresh fluent string builders | `ascii` boundary at 13.4; the exact 12.55 `StringRule` cutover is pinned by the linked upstream commit, tag history, and focused static fixtures, while cross-profile PHPUnit confirms representative behavior before and after it |
 | Hex colors | valid strings, compatible `Stringable`, optional blank input, and unsupported-rule behavior | Rule introduction at 10.33; native-string boundary at 13.4, covered by the cross-profile PHPUnit suite |
 | File extensions | valid and failed uploads, a compatible Symfony file subclass, invalid native values, optional blank input, and unsupported-rule behavior | `extensions` begins at Laravel 10.34, covered by the cross-profile PHPUnit suite rather than the portable audit corpus |
@@ -217,6 +225,39 @@ missing wildcard parents, and undeclared nested keys are included because
 ordinary happy-path strings do not reveal Laravel's native output contract.
 
 ## Findings
+
+### Digit-count predicates add native-type guards at different releases
+
+Before its guard, each digit-count predicate accepts and preserves `true` and
+a `Stringable` object rendering `'1'` under a suitable positive digit bound.
+Zero-length bounds can also admit `false` and null: `digits:0`,
+`digits_between:0,3`, `min_digits:0`, and `max_digits:3` all demonstrate this.
+`required|max_digits:3` even preserves `false`.
+
+Laravel added guards to `digits` in 12.35 via
+[`81331846d04b`](https://github.com/laravel/framework/commit/81331846d04b5fbe3a088fcf8c3d18863abe16de),
+to `min_digits` and `max_digits` in 13.4 via
+[`be799ce272d4`](https://github.com/laravel/framework/commit/be799ce272d446709c4c7a737d0de9ce22c00c19),
+and to `digits_between` in 13.6 via
+[`7f3aa1ad2348`](https://github.com/laravel/framework/commit/7f3aa1ad2348a210df347997075b86dfe6a55c3c).
+The pinned profiles immediately before and after each release confirm the
+change. The guards reject booleans, null, and objects; accepted integers,
+integral floats, and digit strings still retain their native representation.
+Optional blank strings and `nullable` null values can bypass the predicates.
+
+The conservative inferred family is
+`bool|float|int|numeric-string|Stringable|null` before each guard, and when the
+Laravel version is unknown or unsupported. After the guard it is
+`float|int|numeric-string`. The historical family does not refine booleans or
+null by digit bounds. Adding `numeric` or `string` still intersects the family
+with that companion rule's type.
+
+Sixteen portable cases cover the newly recognized native values across every
+audit profile. `LaravelInferenceTest::testDigitCountInferenceContainsNativeLaravelOutput`
+also checks native identity and inferred containment, with rejected-input,
+nullable, blank, and numeric-intersection controls. Static call-site fixtures
+and `TypeResolverTest::testVersionAwareDigitCountInference` cover the inferred
+families and exact version boundaries.
 
 ### Laravel 12 preserves top-level numeric rule keys
 

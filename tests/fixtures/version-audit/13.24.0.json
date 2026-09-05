@@ -870,6 +870,122 @@
                 "classification": "observed-imprecision"
             }
         },
+        "digits.true": {
+            "concern": "minor-version coercion",
+            "rules": {
+                "value": "required|digits:1"
+            },
+            "input": {
+                "value": true
+            },
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|numeric-string}",
+                "outputType": null,
+                "containsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            },
+            "precision": {
+                "candidateOutputType": "array{value: true}",
+                "containedByInference": "no",
+                "preservedOnSuccess": null,
+                "classification": "candidate-outside-inference"
+            }
+        },
+        "digits.false": {
+            "concern": "minor-version coercion",
+            "rules": {
+                "value": "digits:0"
+            },
+            "input": {
+                "value": false
+            },
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value?: float|int|string}",
+                "outputType": null,
+                "containsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            },
+            "precision": {
+                "candidateOutputType": "array{value: false}",
+                "containedByInference": "no",
+                "preservedOnSuccess": null,
+                "classification": "candidate-outside-inference"
+            }
+        },
+        "digits.null": {
+            "concern": "minor-version coercion",
+            "rules": {
+                "value": "digits:0"
+            },
+            "input": {
+                "value": null
+            },
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value?: float|int|string}",
+                "outputType": null,
+                "containsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            },
+            "precision": {
+                "candidateOutputType": "array{value: null}",
+                "containedByInference": "no",
+                "preservedOnSuccess": null,
+                "classification": "candidate-outside-inference"
+            }
+        },
+        "digits.stringable": {
+            "concern": "minor-version coercion",
+            "rules": {
+                "value": "required|digits:1"
+            },
+            "input": {
+                "value": {
+                    "type": "object",
+                    "class": "Illuminate\\Support\\Stringable",
+                    "value": "1"
+                }
+            },
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|numeric-string}",
+                "outputType": null,
+                "containsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            },
+            "precision": {
+                "candidateOutputType": "array{value: Illuminate\\Support\\Stringable}",
+                "containedByInference": "no",
+                "preservedOnSuccess": null,
+                "classification": "candidate-outside-inference"
+            }
+        },
         "digits_between.integer": {
             "concern": "native value",
             "rules": {
@@ -898,6 +1014,122 @@
                 "containedByInference": "yes",
                 "preservedOnSuccess": true,
                 "classification": "observed-realizable"
+            }
+        },
+        "digits_between.true": {
+            "concern": "minor-version coercion",
+            "rules": {
+                "value": "required|digits_between:1,3"
+            },
+            "input": {
+                "value": true
+            },
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|numeric-string}",
+                "outputType": null,
+                "containsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            },
+            "precision": {
+                "candidateOutputType": "array{value: true}",
+                "containedByInference": "no",
+                "preservedOnSuccess": null,
+                "classification": "candidate-outside-inference"
+            }
+        },
+        "digits_between.false": {
+            "concern": "minor-version coercion",
+            "rules": {
+                "value": "digits_between:0,3"
+            },
+            "input": {
+                "value": false
+            },
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value?: float|int|string}",
+                "outputType": null,
+                "containsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            },
+            "precision": {
+                "candidateOutputType": "array{value: false}",
+                "containedByInference": "no",
+                "preservedOnSuccess": null,
+                "classification": "candidate-outside-inference"
+            }
+        },
+        "digits_between.null": {
+            "concern": "minor-version coercion",
+            "rules": {
+                "value": "digits_between:0,3"
+            },
+            "input": {
+                "value": null
+            },
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value?: float|int|string}",
+                "outputType": null,
+                "containsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            },
+            "precision": {
+                "candidateOutputType": "array{value: null}",
+                "containedByInference": "no",
+                "preservedOnSuccess": null,
+                "classification": "candidate-outside-inference"
+            }
+        },
+        "digits_between.stringable": {
+            "concern": "minor-version coercion",
+            "rules": {
+                "value": "required|digits_between:1,3"
+            },
+            "input": {
+                "value": {
+                    "type": "object",
+                    "class": "Illuminate\\Support\\Stringable",
+                    "value": "1"
+                }
+            },
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|numeric-string}",
+                "outputType": null,
+                "containsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            },
+            "precision": {
+                "candidateOutputType": "array{value: Illuminate\\Support\\Stringable}",
+                "containedByInference": "no",
+                "preservedOnSuccess": null,
+                "classification": "candidate-outside-inference"
             }
         },
         "decimal.string": {
@@ -1074,6 +1306,122 @@
                 "classification": "observed-imprecision"
             }
         },
+        "max_digits.true": {
+            "concern": "minor-version coercion",
+            "rules": {
+                "value": "required|max_digits:3"
+            },
+            "input": {
+                "value": true
+            },
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|numeric-string}",
+                "outputType": null,
+                "containsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            },
+            "precision": {
+                "candidateOutputType": "array{value: true}",
+                "containedByInference": "no",
+                "preservedOnSuccess": null,
+                "classification": "candidate-outside-inference"
+            }
+        },
+        "max_digits.false": {
+            "concern": "minor-version coercion",
+            "rules": {
+                "value": "required|max_digits:3"
+            },
+            "input": {
+                "value": false
+            },
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|numeric-string}",
+                "outputType": null,
+                "containsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            },
+            "precision": {
+                "candidateOutputType": "array{value: false}",
+                "containedByInference": "no",
+                "preservedOnSuccess": null,
+                "classification": "candidate-outside-inference"
+            }
+        },
+        "max_digits.null": {
+            "concern": "minor-version coercion",
+            "rules": {
+                "value": "max_digits:3"
+            },
+            "input": {
+                "value": null
+            },
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value?: float|int|string}",
+                "outputType": null,
+                "containsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            },
+            "precision": {
+                "candidateOutputType": "array{value: null}",
+                "containedByInference": "no",
+                "preservedOnSuccess": null,
+                "classification": "candidate-outside-inference"
+            }
+        },
+        "max_digits.stringable": {
+            "concern": "minor-version coercion",
+            "rules": {
+                "value": "required|max_digits:3"
+            },
+            "input": {
+                "value": {
+                    "type": "object",
+                    "class": "Illuminate\\Support\\Stringable",
+                    "value": "1"
+                }
+            },
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|numeric-string}",
+                "outputType": null,
+                "containsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            },
+            "precision": {
+                "candidateOutputType": "array{value: Illuminate\\Support\\Stringable}",
+                "containedByInference": "no",
+                "preservedOnSuccess": null,
+                "classification": "candidate-outside-inference"
+            }
+        },
         "min_digits.integer": {
             "concern": "native value",
             "rules": {
@@ -1130,6 +1478,122 @@
                 "containedByInference": "yes",
                 "preservedOnSuccess": null,
                 "classification": "observed-imprecision"
+            }
+        },
+        "min_digits.true": {
+            "concern": "minor-version coercion",
+            "rules": {
+                "value": "required|min_digits:1"
+            },
+            "input": {
+                "value": true
+            },
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|numeric-string}",
+                "outputType": null,
+                "containsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            },
+            "precision": {
+                "candidateOutputType": "array{value: true}",
+                "containedByInference": "no",
+                "preservedOnSuccess": null,
+                "classification": "candidate-outside-inference"
+            }
+        },
+        "min_digits.false": {
+            "concern": "minor-version coercion",
+            "rules": {
+                "value": "min_digits:0"
+            },
+            "input": {
+                "value": false
+            },
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value?: float|int|string}",
+                "outputType": null,
+                "containsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            },
+            "precision": {
+                "candidateOutputType": "array{value: false}",
+                "containedByInference": "no",
+                "preservedOnSuccess": null,
+                "classification": "candidate-outside-inference"
+            }
+        },
+        "min_digits.null": {
+            "concern": "minor-version coercion",
+            "rules": {
+                "value": "min_digits:0"
+            },
+            "input": {
+                "value": null
+            },
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value?: float|int|string}",
+                "outputType": null,
+                "containsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            },
+            "precision": {
+                "candidateOutputType": "array{value: null}",
+                "containedByInference": "no",
+                "preservedOnSuccess": null,
+                "classification": "candidate-outside-inference"
+            }
+        },
+        "min_digits.stringable": {
+            "concern": "minor-version coercion",
+            "rules": {
+                "value": "required|min_digits:1"
+            },
+            "input": {
+                "value": {
+                    "type": "object",
+                    "class": "Illuminate\\Support\\Stringable",
+                    "value": "1"
+                }
+            },
+            "runtime": {
+                "outcome": "failed",
+                "output": null,
+                "warnings": [],
+                "exception": null
+            },
+            "inference": {
+                "type": "array{value: float|int|numeric-string}",
+                "outputType": null,
+                "containsOutput": null,
+                "exception": null,
+                "classification": "no-successful-output"
+            },
+            "precision": {
+                "candidateOutputType": "array{value: Illuminate\\Support\\Stringable}",
+                "containedByInference": "no",
+                "preservedOnSuccess": null,
+                "classification": "candidate-outside-inference"
             }
         },
         "min.string": {
