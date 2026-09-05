@@ -26,6 +26,7 @@ use Illuminate\Contracts\Validation\ValidatorAwareRule;
 use Illuminate\Support\Arr;
 use Illuminate\Validation\Validator;
 use jbboehr\Rensei\Internal\ParseState;
+use jbboehr\Rensei\Internal\ParsingRuleMap;
 use jbboehr\Rensei\Internal\ValidatorCapabilities;
 use jbboehr\Rensei\ParseFailure;
 use jbboehr\Rensei\ParsingRule;
@@ -33,10 +34,8 @@ use LogicException;
 use WeakMap;
 
 use function array_key_exists;
-use function is_string;
-use function preg_match;
 use function sprintf;
-use function str_replace;
+use function str_contains;
 
 /**
  * Shared lifecycle for a parsing rule.
@@ -122,12 +121,6 @@ abstract class BaseParsingRule implements ParsingRule, ValidatorAwareRule
         ));
     }
 
-    /**
-     * Laravel's escaped-dot placeholder: the marker plus one process-wide
-     * Str::random() value.
-     */
-    private const PLACEHOLDER_PATTERN = '/__dot__[A-Za-z0-9]{16}/';
-
     private ?Validator $validator = null;
 
     /**
@@ -184,7 +177,7 @@ abstract class BaseParsingRule implements ParsingRule, ValidatorAwareRule
 
         $key = $this->resolveDataKey($validator, $attribute);
         if ($key === null) {
-            $fail('Parsing rules cannot address this attribute name on this Laravel release.');
+            $fail('Parsing rules cannot address this attribute name unambiguously. Check the rule path and use separate parser instances for colliding paths.');
 
             return;
         }
@@ -265,37 +258,18 @@ abstract class BaseParsingRule implements ParsingRule, ValidatorAwareRule
      * decoded name, so writing to the decoded name would build an unrelated
      * nested branch and leave the real value unparsed.
      *
-     * The placeholder is recoverable because it is one fixed random string per
-     * process, marked with `__dot__`. Earlier supported releases -- Laravel
-     * 10 up to 10.48.28, 11 up to 11.44.0, and 12 up to 12.1.0 -- substituted
-     * a bare random string with nothing to anchor on, so there the attribute
-     * is reported as unaddressable rather than silently mishandled.
+     * Decode the internal keys with this validator's own placeholder tokens,
+     * then match the callback name and this parser to the internal data key. A parser
+     * shared by two paths with the same decoded name is ambiguous, even when
+     * their values differ, so that configuration must fail validation.
      */
     private function resolveDataKey(Validator $validator, string $attribute): ?string
     {
-        $rules = $validator->getRules();
-        $keys = array_keys($rules);
-
-        if (array_key_exists($attribute, $rules)) {
-            return $attribute;
+        if (!str_contains($attribute, '.')) {
+            return array_key_exists($attribute, $validator->getRules()) ? $attribute : null;
         }
 
-        foreach ($keys as $key) {
-            if (!is_string($key) || preg_match(self::PLACEHOLDER_PATTERN, $key, $matches) !== 1) {
-                continue;
-            }
-
-            // One placeholder per process, so the first is the only one.
-            foreach ($keys as $candidate) {
-                if (str_replace($matches[0], '.', (string) $candidate) === $attribute) {
-                    return (string) $candidate;
-                }
-            }
-
-            break;
-        }
-
-        return null;
+        return ParsingRuleMap::resolve($validator, $this, $attribute);
     }
 
     /**

@@ -28,6 +28,13 @@ use jbboehr\Rensei\Rules\TimezoneRule;
 use function PHPStan\Testing\assertType;
 use function PHPStan\Testing\assertSuperType;
 
+$collidingPaths = Validator::make([], [
+    'a\\.b' => ['required', Parse::integer()],
+    'a.b' => ['required', 'string'],
+])->validated();
+assertType('int', $collidingPaths['a.b']);
+assertType('string', $collidingPaths['a']['b']);
+
 /** @param ParsingRule<int> $parser */
 function inspectAbstractIntegerParser(ParsingRule $parser): void
 {

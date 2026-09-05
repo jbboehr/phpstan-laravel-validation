@@ -27,11 +27,13 @@ each statically resolvable parser use as
 analysis stays conservative about compatibility and the runtime guard still
 fails closed.
 
-Literal dots in attribute names have a narrower compatibility window. Parser
-rules on a path such as `a\.b` cannot recover Laravel's unmarked internal key
-on Laravel 10.7.0–10.48.28, 11.0.0–11.44.0, or 12.0.0–12.1.0, so validation
-fails rather than writing to the wrong path. Later releases and Laravel 13 use
-a recoverable marked key.
+Escape literal dots in rule paths as Laravel requires: `a\.b` addresses the
+key `a.b`, while `a.b` addresses `b` inside `a`. Both paths can have parsing
+rules, but each must use a separate parser instance. Laravel passes the same
+decoded name to both callbacks, so sharing one parser instance between them
+fails validation. Sharing an instance across paths with distinct decoded names
+remains supported. Escaped paths also work on older parsing-supported releases
+that use unmarked internal placeholders.
 
 No Rensei-specific PHPStan configuration flag is required. The extension reads
 the produced type from the concrete parsing rule's `ParsingRule<T>` binding.

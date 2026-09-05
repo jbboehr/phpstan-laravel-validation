@@ -61,6 +61,7 @@
             "runtime/Internal/FloatGrammar.php",
             "runtime/Internal/IntegerGrammar.php",
             "runtime/Internal/ParseState.php",
+            "runtime/Internal/ParsingRuleMap.php",
             "runtime/Internal/ValidatorCapabilities.php",
             "runtime/Parse.php",
             "runtime/ParseFailure.php",

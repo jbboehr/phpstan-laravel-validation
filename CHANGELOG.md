@@ -130,6 +130,13 @@
   and `addRules()` are diagnostic-only because their APIs do not return a
   validator contract that can be replaced portably.
 
+### Fixed
+
+- Keep parsing rules on escaped literal-dot keys separate from nested paths
+  with the same decoded name. Separate parser instances transform their own
+  fields; sharing one instance across colliding paths fails validation.
+  Escaped paths now also work with Laravel's older unmarked placeholders.
+
 ### Documentation
 
 - Split the project manual into a concise README and an mdBook site covering

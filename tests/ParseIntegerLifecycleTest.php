@@ -41,8 +41,10 @@ use jbboehr\Rensei\ValueParser;
 use jbboehr\Rensei\Rules\BaseParsingRule;
 use jbboehr\Rensei\Rules\ParsingRuleAdapter;
 use jbboehr\Rensei\UnsupportedLaravelVersion;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
+use WeakReference;
 
 /**
  * Lifecycle behavior of a delayed-write-back parsing rule against real Laravel.
@@ -338,6 +340,112 @@ final class ParseIntegerLifecycleTest extends TestCase
         );
     }
 
+    public function testResolvingWildcardPathsDoesLinearRuleMapWorkAcrossParsers(): void
+    {
+        $validator = new CountingParsingRuleMapValidator(
+            new Translator(new ArrayLoader(), 'en'),
+            ['rows' => array_fill(0, 32, ['age' => '42', 'enabled' => '1'])],
+            [
+                'rows.*.age' => [Parse::integer()],
+                'rows.*.enabled' => [Parse::boolean()],
+            ]
+        );
+        $validator->parsedKeyVisits = 0;
+
+        self::assertSame(
+            ['rows' => array_fill(0, 32, ['age' => 42, 'enabled' => true])],
+            $validator->validated()
+        );
+        self::assertSame(2, $validator->parsedKeyVisits);
+    }
+
+    public function testAParserDoesNotKeepItsValidatorAliveAfterResolvingPaths(): void
+    {
+        $parser = Parse::integer();
+        $validator = self::factory()->make(['a.b' => '42'], ['a\\.b' => [$parser]]);
+        $reference = WeakReference::create($validator);
+
+        self::assertSame(['a.b' => 42], $validator->validated());
+        unset($validator);
+        gc_collect_cycles();
+
+        self::assertNull($reference->get());
+        self::assertSame(7, $parser->parse('7'));
+    }
+
+    public function testAParserDoesNotKeepAnAbortedValidatorAlive(): void
+    {
+        $parser = Parse::integer();
+        $validator = self::factory()->make(
+            ['a.b' => '42', 'stop' => 'present'],
+            ['a\\.b' => [$parser], 'stop' => [new ThrowingRule()]]
+        );
+        $reference = WeakReference::create($validator);
+
+        try {
+            $validator->passes();
+            self::fail('The throwing rule should have unwound the run.');
+        } catch (\RuntimeException) {
+            // The path cache and pending results have not reached cleanup.
+        }
+        unset($validator);
+        gc_collect_cycles();
+
+        self::assertNull($reference->get());
+        self::assertSame(7, $parser->parse('7'));
+    }
+
+    public function testChangedRulesRefreshThePathMapDuringValidation(): void
+    {
+        $parser = Parse::integer();
+        $validator = self::factory()->make(
+            ['warm' => ['up' => '1'], 'change' => 'present', 'a.b' => '42', 'a' => ['b' => '7']],
+            ['warm.up' => [Parse::integer()], 'change' => [], 'a\\.b' => [$parser]]
+        );
+        $validator->addRules(['change' => [static function () use ($validator, $parser): void { // @phpstan-ignore laravelValidation.validatorMutation
+            $validator->setRules([ // @phpstan-ignore laravelValidation.validatorMutation
+                'a\\.b' => [$parser],
+                'a.b' => [$parser],
+            ]);
+        }]]);
+        $original = $validator->getData();
+
+        self::assertFalse($validator->passes());
+        self::assertStringContainsString('cannot address this attribute name', $validator->errors()->first('a.b'));
+        self::assertSame($original, $validator->getData());
+    }
+
+    public function testAnAbortedRunRefreshesThePathMapOnRetry(): void
+    {
+        $throw = true;
+        $validator = new CountingParsingRuleMapValidator(
+            new Translator(new ArrayLoader(), 'en'),
+            ['a.b' => '42', 'stop' => 'present'],
+            [
+                'a\\.b' => [Parse::integer()],
+                'stop' => [static function () use (&$throw): void {
+                    if ($throw) {
+                        $throw = false;
+
+                        throw new \RuntimeException('rule failure');
+                    }
+                }],
+            ]
+        );
+        $validator->parsedKeyVisits = 0;
+
+        try {
+            $validator->passes();
+            self::fail('The throwing rule should have unwound the run.');
+        } catch (\RuntimeException) {
+            self::assertSame(2, $validator->parsedKeyVisits);
+        }
+
+        self::assertTrue($validator->passes());
+        self::assertSame(['a.b' => 42, 'stop' => 'present'], $validator->validated());
+        self::assertSame(4, $validator->parsedKeyVisits);
+    }
+
     public function testTransformsAssociativeWildcardElements(): void
     {
         $validator = self::factory()->make(
@@ -500,16 +608,6 @@ final class ParseIntegerLifecycleTest extends TestCase
             ['a\.b' => ['required', Parse::integer()]]
         );
 
-        if (!self::usesMarkedDotPlaceholder($validator)) {
-            self::assertFalse($validator->passes());
-            self::assertStringContainsString(
-                'cannot address this attribute name',
-                $validator->errors()->first('a.b')
-            );
-
-            return;
-        }
-
         self::assertTrue($validator->passes());
         self::assertSame(['a.b' => 42], $validator->validated());
 
@@ -527,16 +625,6 @@ final class ParseIntegerLifecycleTest extends TestCase
             ]
         );
 
-        if (!self::usesMarkedDotPlaceholder($validator)) {
-            self::assertFalse($validator->passes());
-            self::assertStringContainsString(
-                'cannot address this attribute name',
-                $validator->errors()->first('a.b')
-            );
-
-            return;
-        }
-
         self::assertTrue($validator->passes());
         self::assertSame(
             ['ordinary' => 'value', 'a.b' => 42],
@@ -552,6 +640,230 @@ final class ParseIntegerLifecycleTest extends TestCase
         );
 
         self::assertFalse($validator->passes());
+    }
+
+    /** @return iterable<string, array{bool}> */
+    public static function collidingAttributeRuleOrders(): iterable
+    {
+        yield 'literal first' => [false];
+        yield 'nested first' => [true];
+    }
+
+    #[DataProvider('collidingAttributeRuleOrders')]
+    public function testParsesTheLiteralDotKeyWithoutChangingTheNestedPath(bool $reverse): void
+    {
+        $rules = [
+            'a\\.b' => ['required', Parse::integer()],
+            'a.b' => ['required', 'string'],
+        ];
+        $validator = self::factory()->make(
+            ['a.b' => '42', 'a' => ['b' => '7']],
+            $reverse ? array_reverse($rules, true) : $rules
+        );
+
+        self::assertTrue($validator->passes());
+        $validated = $validator->validated();
+        self::assertSame(42, $validated['a.b']);
+        self::assertSame(['b' => '7'], $validated['a']);
+    }
+
+    #[DataProvider('collidingAttributeRuleOrders')]
+    public function testParsesTheNestedPathWithoutChangingTheLiteralDotKey(bool $reverse): void
+    {
+        $rules = [
+            'a\\.b' => ['required', 'string'],
+            'a.b' => ['required', Parse::integer()],
+        ];
+        $validator = self::factory()->make(
+            ['a.b' => 'hello', 'a' => ['b' => '42']],
+            $reverse ? array_reverse($rules, true) : $rules
+        );
+
+        self::assertTrue($validator->passes());
+        $validated = $validator->validated();
+        self::assertSame('hello', $validated['a.b']);
+        self::assertSame(['b' => 42], $validated['a']);
+    }
+
+    /** @return iterable<string, array{string, string, string}> */
+    public static function wildcardBackslashPaths(): iterable
+    {
+        yield 'backslash before separator' => ['row\\', 'age', 'age'];
+        yield 'backslash and escaped field dot' => ['row\\', 'age.years', 'age\\.years'];
+        yield 'backslash and literal row dot' => ['row\\.part\\', 'age', 'age'];
+        yield 'backslash and both literal dots' => ['row\\.part\\', 'age.years', 'age\\.years'];
+    }
+
+    #[DataProvider('wildcardBackslashPaths')]
+    public function testPreservesLiteralBackslashesInExpandedWildcardPaths(
+        string $rowKey,
+        string $field,
+        string $ruleField,
+    ): void {
+        $validator = self::factory()->make(
+            ['rows' => [$rowKey => [$field => '42']]],
+            ['rows.*.' . $ruleField => ['required', Parse::integer()]]
+        );
+
+        self::assertTrue($validator->passes());
+        self::assertSame(['rows' => [$rowKey => [$field => 42]]], $validator->validated());
+    }
+
+    public function testPreservesLiteralBackslashesAcrossNestedWildcardExpansion(): void
+    {
+        $groupKey = 'group\\.part\\';
+        $rowKey = 'row\\.part\\';
+        $validator = self::factory()->make(
+            [
+                'groups' => [
+                    $groupKey => [
+                        'rows' => [
+                            $rowKey => ['age.years' => '42'],
+                        ],
+                    ],
+                ],
+            ],
+            ['groups.*.rows.*.age\\.years' => ['required', Parse::integer()]]
+        );
+
+        self::assertTrue($validator->passes());
+        self::assertSame(
+            [
+                'groups' => [
+                    $groupKey => [
+                        'rows' => [
+                            $rowKey => ['age.years' => 42],
+                        ],
+                    ],
+                ],
+            ],
+            $validator->validated()
+        );
+    }
+
+    #[DataProvider('collidingAttributeRuleOrders')]
+    public function testDistinctParsersCanAddressCollidingDecodedNames(bool $reverse): void
+    {
+        $rules = [
+            'a\\.b' => ['required', Parse::integer()],
+            'a.b' => ['required', Parse::boolean()],
+        ];
+        $validator = self::factory()->make(
+            ['a.b' => '42', 'a' => ['b' => '1']],
+            $reverse ? array_reverse($rules, true) : $rules
+        );
+
+        self::assertTrue($validator->passes());
+        $validated = $validator->validated();
+        self::assertSame(42, $validated['a.b']);
+        self::assertSame(['b' => true], $validated['a']);
+    }
+
+    #[DataProvider('collidingAttributeRuleOrders')]
+    public function testDistinctParsersAddressCollidingNamesAfterWildcardExpansion(bool $reverse): void
+    {
+        $rules = [
+            'items.*.code\\.value' => ['required', Parse::integer()],
+            'items.*.code.value' => ['required', Parse::boolean()],
+        ];
+        $validator = self::factory()->make(
+            [
+                'items' => [
+                    ['code.value' => '12', 'code' => ['value' => '1']],
+                    ['code.value' => '34', 'code' => ['value' => '0']],
+                ],
+            ],
+            $reverse ? array_reverse($rules, true) : $rules
+        );
+
+        self::assertTrue($validator->passes());
+        $validated = $validator->validated();
+        self::assertArrayHasKey('items', $validated);
+        self::assertSame([0, 1], array_keys($validated['items']));
+        self::assertSame(12, $validated['items'][0]['code.value']);
+        self::assertSame(['value' => true], $validated['items'][0]['code']);
+        self::assertSame(34, $validated['items'][1]['code.value']);
+        self::assertSame(['value' => false], $validated['items'][1]['code']);
+    }
+
+    #[DataProvider('collidingAttributeRuleOrders')]
+    public function testDistinctParsersAddressFourCollidingDecodedNames(bool $reverse): void
+    {
+        $rules = [
+            'a\\.b\\.c' => ['required', Parse::integer()],
+            'a\\.b.c' => ['required', Parse::integer()],
+            'a.b\\.c' => ['required', Parse::integer()],
+            'a.b.c' => ['required', Parse::integer()],
+        ];
+        $validator = self::factory()->make(
+            [
+                'a.b.c' => '10',
+                'a.b' => ['c' => '20'],
+                'a' => [
+                    'b.c' => '30',
+                    'b' => ['c' => '40'],
+                ],
+            ],
+            $reverse ? array_reverse($rules, true) : $rules
+        );
+
+        self::assertTrue($validator->passes());
+        $validated = $validator->validated();
+        self::assertSame(10, $validated['a.b.c']);
+        self::assertSame(['c' => 20], $validated['a.b']);
+        self::assertSame(30, $validated['a']['b.c']);
+        self::assertSame(['c' => 40], $validated['a']['b']);
+    }
+
+    #[DataProvider('collidingAttributeRuleOrders')]
+    public function testAParserSharedBetweenCollidingDecodedNamesFailsClosed(bool $reverse): void
+    {
+        $parser = Parse::integer();
+        $rules = [
+            'a\\.b' => ['required', $parser],
+            'a.b' => ['required', $parser],
+        ];
+        $validator = self::factory()->make(
+            ['a.b' => '42', 'a' => ['b' => '42']],
+            $reverse ? array_reverse($rules, true) : $rules
+        );
+        $original = $validator->getData();
+
+        self::assertFalse($validator->passes());
+        self::assertStringContainsString('cannot address this attribute name', $validator->errors()->first('a.b'));
+        self::assertSame($original, $validator->getData());
+    }
+
+    #[DataProvider('collidingAttributeRuleOrders')]
+    public function testAParserSharedBetweenWildcardCollisionsFailsClosed(bool $reverse): void
+    {
+        $parser = Parse::integer();
+        $rules = [
+            'items.*.code\\.value' => ['required', $parser],
+            'items.*.code.value' => ['required', $parser],
+        ];
+        $validator = self::factory()->make(
+            [
+                'items' => [
+                    ['code.value' => '12', 'code' => ['value' => '13']],
+                    ['code.value' => '34', 'code' => ['value' => '35']],
+                ],
+            ],
+            $reverse ? array_reverse($rules, true) : $rules
+        );
+        $original = $validator->getData();
+
+        self::assertFalse($validator->passes());
+        self::assertSame(['items.0.code.value', 'items.1.code.value'], $validator->errors()->keys());
+        self::assertStringContainsString(
+            'cannot address this attribute name',
+            $validator->errors()->first('items.0.code.value')
+        );
+        self::assertStringContainsString(
+            'cannot address this attribute name',
+            $validator->errors()->first('items.1.code.value')
+        );
+        self::assertSame($original, $validator->getData());
     }
 
     public function testAnAfterCallbackRegisteredBeforeValidationObservesRawValues(): void
@@ -673,7 +985,7 @@ final class ParseIntegerLifecycleTest extends TestCase
         );
 
         self::assertSame(
-            ['Parsing rules cannot address this attribute name on this Laravel release.'],
+            ['Parsing rules cannot address this attribute name unambiguously. Check the rule path and use separate parser instances for colliding paths.'],
             $failures
         );
     }
@@ -779,17 +1091,6 @@ final class ParseIntegerLifecycleTest extends TestCase
         return method_exists($validatorClass, 'setValue');
     }
 
-    private static function usesMarkedDotPlaceholder(Validator $validator): bool
-    {
-        foreach (array_keys($validator->getRules()) as $key) {
-            if (is_string($key) && str_contains($key, '__dot__')) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     /**
      * @param array<string, mixed> $input
      */
@@ -806,6 +1107,22 @@ final class ParseIntegerLifecycleTest extends TestCase
         $request->validateResolved();
 
         return $request;
+    }
+}
+
+final class CountingParsingRuleMapValidator extends Validator
+{
+    public int $parsedKeyVisits = 0;
+
+    /**
+     * @param array<array-key, mixed> $data
+     * @return array<array-key, mixed>
+     */
+    public function parseData(array $data): array
+    {
+        $this->parsedKeyVisits += count($data);
+
+        return parent::parseData($data);
     }
 }
 
