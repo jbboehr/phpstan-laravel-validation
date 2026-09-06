@@ -25,7 +25,7 @@ use PHPUnit\Framework\Attributes\Group;
 use Symfony\Component\Process\Process;
 
 #[Group('subprocess')]
-final class NixJunitReportCollectorTest extends \PHPUnit\Framework\TestCase
+final class NixReportCollectorTest extends \PHPUnit\Framework\TestCase
 {
     private string $temporaryDirectory;
 
@@ -280,15 +280,143 @@ final class NixJunitReportCollectorTest extends \PHPUnit\Framework\TestCase
         self::assertSame($report, file_get_contents($destination . '/phpunit-junit.xml'));
     }
 
+    public function testCopiesAllInfectionReportsFromSuccessfulNixOutput(): void
+    {
+        $output = $this->temporaryDirectory . '/output';
+        self::assertTrue(mkdir($output . '/reports', 0700, true));
+        $reports = [
+            'infection.log' => "Timed Out mutants:\nexample mutant\n",
+            'infection-summary.json' => '{"stats":{"timeOutCount":41}}',
+            'infection-summary.log' => "Timed Out: 41\n",
+        ];
+        foreach ($reports as $name => $contents) {
+            self::assertNotFalse(file_put_contents($output . '/reports/' . $name, $contents));
+        }
+        self::assertNotFalse(file_put_contents($output . '/reports/unrelated.txt', 'not a report'));
+        $result = $this->temporaryDirectory . '/result';
+        self::assertTrue(symlink($output, $result));
+        $destination = $this->temporaryDirectory . '/collected';
+
+        $process = $this->collect('', $result, '', $destination, 'infection');
+
+        self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+        foreach ($reports as $name => $contents) {
+            self::assertSame($contents, file_get_contents($destination . '/' . $name));
+        }
+        self::assertFileDoesNotExist($destination . '/unrelated.txt');
+    }
+
+    public function testCopiesAllInfectionReportsFromRetainedFailedBuild(): void
+    {
+        $retainedRoot = $this->temporaryDirectory . '/nix-builds';
+        $retained = $retainedRoot . '/nix-123456-987654321/build';
+        self::assertTrue(mkdir($retained . '/project', 0700, true));
+        $reports = [
+            'infection.log' => "Timed Out mutants:\nexample mutant\n",
+            'infection-summary.json' => '{"stats":{"timeOutCount":41}}',
+            'infection-summary.log' => "Timed Out: 41\n",
+        ];
+        foreach ($reports as $name => $contents) {
+            self::assertNotFalse(file_put_contents($retained . '/project/' . $name, $contents));
+        }
+        self::assertNotFalse(file_put_contents($retained . '/project/unrelated.txt', 'not a report'));
+        $log = $this->temporaryDirectory . '/nix-build.log';
+        self::assertNotFalse(file_put_contents($log, "error: builder failed\nnote: keeping build directory \"{$retained}\"\n"));
+        $destination = $this->temporaryDirectory . '/collected';
+
+        $process = $this->collect($log, $this->temporaryDirectory . '/missing-result', $retainedRoot, $destination, 'infection');
+
+        self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+        foreach ($reports as $name => $contents) {
+            self::assertSame($contents, file_get_contents($destination . '/' . $name));
+        }
+        self::assertFileDoesNotExist($destination . '/unrelated.txt');
+    }
+
+    public function testIgnoresInfectionReportsFromUnloggedRetainedBuilds(): void
+    {
+        $retainedRoot = $this->temporaryDirectory . '/nix-builds';
+        $logged = $retainedRoot . '/nix-123456-111111111/build';
+        $unlogged = $retainedRoot . '/nix-123456-222222222/build';
+        self::assertTrue(mkdir($logged . '/project', 0700, true));
+        self::assertTrue(mkdir($unlogged . '/project', 0700, true));
+        foreach ([
+            'infection.log' => 'unlogged diagnostics',
+            'infection-summary.json' => '{"stats":{"timeOutCount":41}}',
+            'infection-summary.log' => 'unlogged summary',
+        ] as $name => $contents) {
+            self::assertNotFalse(file_put_contents($unlogged . '/project/' . $name, $contents));
+        }
+
+        $log = $this->temporaryDirectory . '/nix-build.log';
+        self::assertNotFalse(file_put_contents(
+            $log,
+            "note: keeping build directory \"{$logged}\"\n",
+        ));
+        $destination = $this->temporaryDirectory . '/collected';
+
+        $process = $this->collect(
+            $log,
+            $this->temporaryDirectory . '/missing-result',
+            $retainedRoot,
+            $destination,
+            'infection',
+        );
+
+        self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+        self::assertDirectoryDoesNotExist($destination);
+    }
+
+    public function testRecoversAvailableInfectionLogWithoutACompletedSummary(): void
+    {
+        $retainedRoot = $this->temporaryDirectory . '/nix-builds';
+        $retained = $retainedRoot . '/nix-123456-987654321/build';
+        self::assertTrue(mkdir($retained . '/project', 0700, true));
+        self::assertNotFalse(file_put_contents($retained . '/project/infection.log', 'partial diagnostics'));
+        $log = $this->temporaryDirectory . '/nix-build.log';
+        self::assertNotFalse(file_put_contents($log, "note: keeping build directory \"{$retained}\"\n"));
+        $destination = $this->temporaryDirectory . '/collected';
+
+        $process = $this->collect($log, $this->temporaryDirectory . '/missing-result', $retainedRoot, $destination, 'infection');
+
+        self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+        self::assertSame('partial diagnostics', file_get_contents($destination . '/infection.log'));
+        self::assertFileDoesNotExist($destination . '/infection-summary.json');
+    }
+
+    public function testRecoversRegularInfectionReportsAlongsideRejectedSymlinks(): void
+    {
+        $retainedRoot = $this->temporaryDirectory . '/nix-builds';
+        $retained = $retainedRoot . '/nix-123456-987654321/build';
+        self::assertTrue(mkdir($retained . '/project', 0700, true));
+        $outside = $this->temporaryDirectory . '/unrelated-file';
+        self::assertNotFalse(file_put_contents($outside, 'not a report'));
+        self::assertTrue(symlink($outside, $retained . '/project/infection.log'));
+        self::assertTrue(symlink($outside, $retained . '/project/infection-summary.json'));
+        self::assertNotFalse(file_put_contents($retained . '/project/infection-summary.log', 'summary diagnostics'));
+        $log = $this->temporaryDirectory . '/nix-build.log';
+        self::assertNotFalse(file_put_contents($log, "note: keeping build directory \"{$retained}\"\n"));
+        $destination = $this->temporaryDirectory . '/collected';
+
+        $process = $this->collect($log, $this->temporaryDirectory . '/missing-result', $retainedRoot, $destination, 'infection');
+
+        self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+        self::assertFileDoesNotExist($destination . '/infection.log');
+        self::assertFileDoesNotExist($destination . '/infection-summary.json');
+        self::assertSame('summary diagnostics', file_get_contents($destination . '/infection-summary.log'));
+    }
+
     private function collect(
         string $log,
         string $output,
         string $retainedRoot,
         string $destination,
+        string $kind = 'junit',
     ): Process {
         $process = new Process([
             'bash',
-            __DIR__ . '/../scripts/collect-nix-junit-report.bash',
+            __DIR__ . '/../scripts/collect-nix-reports.bash',
+            $kind,
             $log,
             $output,
             $retainedRoot,

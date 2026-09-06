@@ -146,10 +146,14 @@ feedback-loop audits.
 
 Nix matrix jobs use the daemon's default build directory under
 `/nix/var/nix/builds`. A directory under the runner's temporary directory can
-be inaccessible to Nix build users and fail before the check starts. The JUnit
+be inaccessible to Nix build users and fail before the check starts. The report
 collector runs with `sudo` on the hosted Ubuntu runner so it can recover
 reports from daemon-owned failed-build directories as well as successful
-outputs.
+outputs. PHPUnit and mutation jobs retain failed build directories. Mutation
+jobs upload `infection.log`, `infection-summary.json`, and
+`infection-summary.log` when available, including after a timeout-threshold
+failure. These artifacts preserve mutant identities and diagnostics for
+reproduction; an incomplete report still causes aggregation to fail.
 
 Before the Nix matrix fans out, one job builds every pinned Composer vendor
 closure and saves the resulting Nix store under a derivation-specific cache

@@ -160,9 +160,10 @@ jobs:
               env:
                   NIX_INSTALLABLE: .#${{ matrix.attr }}
                   NIX_JUNIT_REPORT: ${{ matrix.junit }}
+                  NIX_INFECTION_REPORT: ${{ startsWith(matrix.name, 'mutation-') }}
               run: |
                   nix_options=(--keep-going --max-jobs 4)
-                  if [[ "$NIX_JUNIT_REPORT" == "true" ]]; then
+                  if [[ "$NIX_JUNIT_REPORT" == "true" || "$NIX_INFECTION_REPORT" == "true" ]]; then
                       nix_options+=(--keep-failed)
                   fi
 
@@ -176,7 +177,7 @@ jobs:
               if: ${{ always() && matrix.junit }}
               shell: bash
               run: |
-                  sudo bash scripts/collect-nix-junit-report.bash \
+                  sudo bash scripts/collect-nix-reports.bash junit \
                       "$RUNNER_TEMP/nix-build.log" \
                       "$RUNNER_TEMP/nix-result" \
                       /nix/var/nix/builds \
@@ -191,17 +192,23 @@ jobs:
                   if-no-files-found: warn
                   retention-days: 14
 
-            - name: Prepare Infection shard report
-              if: startsWith(matrix.name, 'mutation-')
-              run: cp -LR "$RUNNER_TEMP/nix-result/reports" "$RUNNER_TEMP/infection-report"
+            - name: Collect Infection shard reports
+              if: ${{ always() && startsWith(matrix.name, 'mutation-') }}
+              shell: bash
+              run: |
+                  sudo bash scripts/collect-nix-reports.bash infection \
+                      "$RUNNER_TEMP/nix-build.log" \
+                      "$RUNNER_TEMP/nix-result" \
+                      /nix/var/nix/builds \
+                      "$RUNNER_TEMP/infection-report"
 
             - name: Upload Infection shard report
-              if: startsWith(matrix.name, 'mutation-')
+              if: ${{ always() && startsWith(matrix.name, 'mutation-') }}
               uses: actions/upload-artifact@v7
               with:
                   name: ${{ matrix.name }}
                   path: ${{ runner.temp }}/infection-report
-                  if-no-files-found: error
+                  if-no-files-found: warn
                   retention-days: 7
 
     mutation-report:
