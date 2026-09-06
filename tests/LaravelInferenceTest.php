@@ -2201,6 +2201,53 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
         }
     }
 
+    public function testMixedWildcardAndLiteralRulesCanReorderOrRemoveListKeys(): void
+    {
+        self::getContainer();
+        $factory = new \Illuminate\Validation\Factory(
+            new \Illuminate\Translation\Translator(
+                new \Illuminate\Translation\ArrayLoader(),
+                'en'
+            )
+        );
+        $context = new LaravelVersionContext('', self::frameworkVersion());
+        // A bare list parent starts projecting nested rules in Laravel 11.23.
+        // The array parent exercises the same projection on older releases.
+        $parentRules = $context->isAtLeast('11.23.0') ? ['array', 'list'] : ['array'];
+        $cases = [
+            'direct overlap' => [
+                ['items.*' => 'required|string', 'items.1' => 'required|string'],
+                ['zero', 'one'],
+                [1 => 'one', 0 => 'zero'],
+            ],
+            'nested overlap' => [
+                ['items.*.id' => 'required|string', 'items.1.label' => 'required|string'],
+                [['id' => 'zero'], ['id' => 'one', 'label' => 'second']],
+                [1 => ['label' => 'second', 'id' => 'one'], 0 => ['id' => 'zero']],
+            ],
+            'literal exclusion' => [
+                ['items.*' => 'required|string', 'items.0' => 'exclude'],
+                ['zero', 'one'],
+                [1 => 'one'],
+            ],
+        ];
+
+        foreach ($parentRules as $parentRule) {
+            foreach ($cases as $name => [$children, $items, $expectedItems]) {
+                $rules = ['items' => 'required|' . $parentRule] + $children;
+                $validator = $factory->make(['items' => $items], $rules);
+                $label = $parentRule . ': ' . $name;
+                self::assertTrue($validator->passes(), $label);
+                self::assertSame(['items' => $expectedItems], $validator->validated(), $label);
+
+                $type = (new TypeResolver($context))->evaluate(RuleParser::parse($rules, $context));
+                self::assertTrue($type->isSuperTypeOf(
+                    $this->convertToType($validator->validated())
+                )->yes(), $label . ': inference contains output');
+            }
+        }
+    }
+
     public function testListRuleFollowsRuntimeVersionBoundary(): void
     {
         self::getContainer();

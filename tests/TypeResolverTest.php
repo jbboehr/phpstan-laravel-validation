@@ -1411,6 +1411,36 @@ final class TypeResolverTest extends PHPStanTestCase
         );
     }
 
+    public function testMixedWildcardAndLiteralRulesDoNotPreserveList(): void
+    {
+        self::assertSame(
+            'array{items: array<int|string, string>}',
+            self::resolveForVersion([
+                'items' => 'required|list',
+                'items.*' => 'required|string',
+                'items.1' => 'required|string',
+            ], '11.23.0')
+        );
+
+        self::assertSame(
+            'array{items: array<int|string, array{id: string}|array{label: string}>}',
+            self::resolveForVersion([
+                'items' => 'required|list',
+                'items.*.id' => 'required|string',
+                'items.1.label' => 'required|string',
+            ], '11.23.0')
+        );
+
+        self::assertSame(
+            'array{items: array<int|string, string>}',
+            self::resolveForVersion([
+                'items' => 'required|list',
+                'items.*' => 'required|string',
+                'items.0' => 'exclude',
+            ], '11.23.0')
+        );
+    }
+
     public function testEvaluatesNestedWildcardAndNamedChildrenConservatively(): void
     {
         self::getContainer();
