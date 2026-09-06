@@ -105,6 +105,49 @@ final class RuleParserTest extends TestCase
         self::assertSame('RequiredWithoutAll', RuleParser::normalizeName('required-without_all'));
     }
 
+    /** @return iterable<string, array{string}> */
+    public static function nameWhitespaceProvider(): iterable
+    {
+        yield 'none' => [''];
+        yield 'space' => [' '];
+        yield 'tab' => ["\t"];
+        yield 'LF' => ["\n"];
+        yield 'CR' => ["\r"];
+        yield 'NUL' => ["\0"];
+        yield 'VT' => ["\v"];
+    }
+
+    /** @dataProvider nameWhitespaceProvider */
+    public function testTrimsRuleNamesBeforeNormalizing(string $whitespace): void
+    {
+        self::assertSame('RequiredWithoutAll', RuleParser::normalizeName($whitespace . 'required-without_all' . $whitespace));
+        self::assertSame('Boolean', RuleParser::parseStringRule($whitespace . 'bool' . $whitespace)->getRuleName());
+
+        $rule = RuleParser::parseArrayRule([$whitespace . 'int' . $whitespace]);
+        self::assertInstanceOf(Rule::class, $rule);
+        self::assertSame('Integer', $rule->getRuleName());
+    }
+
+    public function testTrimsOnlyTheNameOfParameterizedRules(): void
+    {
+        $stringRule = RuleParser::parseStringRule("\tin\n: first,second\t");
+        self::assertSame('In', $stringRule->getRuleName());
+        self::assertSame([' first', "second\t"], $stringRule->getParameters());
+
+        $arrayRule = RuleParser::parseArrayRule(["\tin\n", ' first ', "\tsecond\n"]);
+        self::assertInstanceOf(Rule::class, $arrayRule);
+        self::assertSame('In', $arrayRule->getRuleName());
+        self::assertSame([' first ', "\tsecond\n"], $arrayRule->getParameters());
+    }
+
+    public function testRegexDetectionPrecedesRuleNameTrimming(): void
+    {
+        // Laravel only bypasses CSV parsing for an exact regex rule name.
+        $rule = RuleParser::parseStringRule("\tregex\n:/^one,two$/");
+        self::assertSame('Regex', $rule->getRuleName());
+        self::assertSame(['/^one', 'two$/'], $rule->getParameters());
+    }
+
     public function testNormalizesLaravelRuleAliases(): void
     {
         self::assertSame('Integer', RuleParser::normalizeName('int'));
