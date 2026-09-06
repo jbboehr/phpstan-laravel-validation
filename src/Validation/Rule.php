@@ -50,6 +50,7 @@ final class Rule
     public const RULE_LIST = "List";
     public const RULE_NUMERIC = "Numeric";
     public const RULE_CUSTOM = "__Custom";
+    public const RULE_BUILT_IN_PREDICATE = "__BuiltInPredicate";
     public const RULE_PARSE = "__Parse";
     public const RULE_NOOP = "__Noop";
     public const RULE_OPAQUE = "__Opaque";
@@ -95,6 +96,12 @@ final class Rule
     public static function custom(Type $acceptedType): self
     {
         return new self(self::RULE_CUSTOM, [], $acceptedType);
+    }
+
+    /** A statically modeled built-in rule that constrains the original value. */
+    public static function builtInPredicate(Type $acceptedType): self
+    {
+        return new self(self::RULE_BUILT_IN_PREDICATE, [], $acceptedType);
     }
 
     /**

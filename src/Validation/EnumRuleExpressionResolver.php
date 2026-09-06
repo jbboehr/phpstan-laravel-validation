@@ -65,7 +65,7 @@ final class EnumRuleExpressionResolver
             return null;
         }
 
-        return Rule::custom($this->resolveAcceptedType(
+        return Rule::builtInPredicate($this->resolveAcceptedType(
             $state['enum'],
             $state['only'],
             $state['except']

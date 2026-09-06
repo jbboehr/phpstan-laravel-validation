@@ -5,8 +5,11 @@ declare(strict_types=1);
 use DateTimeImmutable;
 use DateTimeZone;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Enum as NativeEnumRule;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\ArrayParsingRule;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\ExtensibleValueParsingRule;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FractionValidationValue;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\IntegerValidationStatus;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\MoneyParsingRule;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\NonImplicitIntegerParsingRule;
@@ -364,6 +367,74 @@ assertType(
         'status' => ['required', Parse::enum(StringValidationStatus::class)],
     ])->validated()
 );
+
+// Native enum predicates preserve their original value beside a parser.
+assertType(
+    "array{age: int, fraction: '0.5'|"
+        . 'jbboehr\PhpstanLaravelValidation\Test\Fixtures\FractionValidationValue::Half|Stringable}',
+    Validator::make([], [
+        'age' => ['required', Parse::integer()],
+        'fraction' => ['required', Rule::enum(FractionValidationValue::class)],
+    ])->validated()
+);
+
+assertType('array{fraction: float}', Validator::make([], [
+    'fraction' => ['required', Parse::float(), new NativeEnumRule(FractionValidationValue::class)],
+])->validated());
+
+assertType('array{fraction: float}', Validator::make([], [
+    'fraction' => ['required', Rule::enum(FractionValidationValue::class), Parse::float()],
+])->validated());
+
+assertType(
+    'array{status: jbboehr\PhpstanLaravelValidation\Test\Fixtures\StringValidationStatus}',
+    Validator::make([], [
+        'status' => ['required', Rule::enum(StringValidationStatus::class), Parse::enum(StringValidationStatus::class)],
+    ])->validated()
+);
+
+assertType(
+    'array{age: int, fraction?: '
+        . 'jbboehr\PhpstanLaravelValidation\Test\Fixtures\FractionValidationValue::Half|string|Stringable|null}',
+    Validator::make([], [
+        'age' => ['required', Parse::integer()],
+        'fraction' => ['nullable', new NativeEnumRule(FractionValidationValue::class)],
+    ])->validated()
+);
+
+assertType(
+    "array{rows?: array<int|string, array{age: int, fraction: '0.5'|"
+        . 'jbboehr\PhpstanLaravelValidation\Test\Fixtures\FractionValidationValue::Half|Stringable}>}',
+    Validator::make([], [
+        'rows.*.age' => ['required', Parse::integer()],
+        'rows.*.fraction' => ['required', Rule::enum(FractionValidationValue::class)],
+    ])->validated()
+);
+
+function inspectOpaqueEnumBesideParser(NativeEnumRule $rule, string $enum): void
+{
+    assertType('mixed', Validator::make([], [
+        'age' => ['required', Parse::integer()],
+        'fraction' => ['required', $rule],
+    ])->validated());
+
+    assertType('mixed', Validator::make([], [
+        'age' => ['required', Parse::integer()],
+        'fraction' => ['required', Rule::enum($enum)],
+    ])->validated());
+}
+
+assertType('mixed', Validator::make([], [
+    'age' => ['required', Parse::integer()],
+    'fraction' => ['required', new class (FractionValidationValue::class) extends NativeEnumRule {}],
+])->validated());
+
+assertType('mixed', Validator::make([], [
+    'age' => ['required', Parse::integer()],
+    'fraction' => ['required', Rule::enum(FractionValidationValue::class)],
+    'other' => [static function (string $attribute, mixed $value, Closure $fail): void {
+    }],
+])->validated());
 
 // Direct Validator safe() inference stays broad because Factory::resolver()
 // may substitute a Validator with a different virtual validated() contract.

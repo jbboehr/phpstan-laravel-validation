@@ -5,9 +5,11 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Enum;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FractionValidationValue;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\IntegerValidationStatus;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\PureValidationStatus;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\StringValidationStatus;
+use jbboehr\Rensei\Parse;
 
 use function PHPStan\Testing\assertType;
 
@@ -100,6 +102,32 @@ assertType(
         . 'jbboehr\PhpstanLaravelValidation\Test\Fixtures\IntegerValidationStatus::Two|numeric-string}',
     $coerciveFilters
 );
+
+$parsedFiltered = Validator::make([], [
+    'age' => ['required', Parse::integer()],
+    'only' => ['required', Rule::enum(PureValidationStatus::class)->only(PureValidationStatus::Draft)],
+    'except' => ['required', (new Enum(PureValidationStatus::class))->except(PureValidationStatus::Published)],
+    'same_field' => [
+        'required',
+        Rule::enum(FractionValidationValue::class)->only(FractionValidationValue::Half),
+        Parse::float(),
+    ],
+])->validated();
+assertType(
+    'array{age: int, only: jbboehr\PhpstanLaravelValidation\Test\Fixtures\PureValidationStatus::Draft, '
+        . 'except: jbboehr\PhpstanLaravelValidation\Test\Fixtures\PureValidationStatus::Draft, same_field: float}',
+    $parsedFiltered
+);
+
+/** @param array{status: mixed} $enumInput */
+function preserveEnumCallerInput(array $enumInput): void
+{
+    if (Validator::make($enumInput, [
+        'status' => ['required', Rule::enum(PureValidationStatus::class)],
+    ])->passes()) {
+        assertType('array{status: mixed}', $enumInput);
+    }
+}
 
 $ruleVariable = Rule::enum(PureValidationStatus::class);
 $mutable = Validator::make([], [

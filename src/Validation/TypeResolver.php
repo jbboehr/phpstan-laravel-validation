@@ -283,6 +283,7 @@ final class TypeResolver
         foreach ($node->getRules() as $rule) {
             if (in_array($rule->getRuleName(), [
                 Rule::RULE_CUSTOM,
+                Rule::RULE_BUILT_IN_PREDICATE,
                 Rule::RULE_OPAQUE,
                 Rule::RULE_PARSE,
             ], true)) {
@@ -1162,7 +1163,7 @@ final class TypeResolver
      */
     private function resolveType(Rule $rule): ?Type\Type
     {
-        if ($rule->getRuleName() === Rule::RULE_CUSTOM) {
+        if (in_array($rule->getRuleName(), [Rule::RULE_CUSTOM, Rule::RULE_BUILT_IN_PREDICATE], true)) {
             return $rule->getAcceptedType() ?? new MixedType();
         }
 

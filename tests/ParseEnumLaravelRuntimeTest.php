@@ -25,9 +25,11 @@ use BackedEnum;
 use Illuminate\Translation\ArrayLoader;
 use Illuminate\Translation\Translator;
 use Illuminate\Validation\Factory;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Enum as LaravelEnumRule;
 use Illuminate\Validation\Validator;
 use InvalidArgumentException;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FractionValidationValue;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\IntegerValidationStatus;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\PureValidationStatus;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\StringValidationStatus;
@@ -157,6 +159,124 @@ final class ParseEnumLaravelRuntimeTest extends \PHPStan\Testing\PHPStanTestCase
             );
             self::assertFalse($parser->passes());
         }
+    }
+
+    /** @return iterable<string, array{class-string<\UnitEnum>, mixed}> */
+    public static function nativeEnumSiblingValues(): iterable
+    {
+        yield 'fraction string' => [FractionValidationValue::class, '0.5'];
+        yield 'Stringable' => [FractionValidationValue::class, new ValidationStringable('0.5')];
+        yield 'backed case' => [FractionValidationValue::class, FractionValidationValue::Half];
+        yield 'pure case' => [PureValidationStatus::class, PureValidationStatus::Draft];
+        yield 'numeric string for integer enum' => [IntegerValidationStatus::class, '01'];
+        yield 'boolean for integer enum' => [IntegerValidationStatus::class, true];
+    }
+
+    #[DataProvider('nativeEnumSiblingValues')]
+    public function testNativeEnumPreservesItsValueBesideAParser(string $enum, mixed $value): void
+    {
+        $validator = self::factory()->make(['age' => '42', 'value' => $value], [
+            'age' => ['required', Parse::integer()],
+            'value' => ['required', Rule::enum($enum)],
+        ]);
+
+        self::assertTrue($validator->passes());
+        self::assertSame(['age' => 42, 'value' => $value], $validator->validated());
+    }
+
+    /** @return iterable<string, array{bool}> */
+    public static function nativeEnumParserOrders(): iterable
+    {
+        yield 'parser first' => [true];
+        yield 'predicate first' => [false];
+    }
+
+    #[DataProvider('nativeEnumParserOrders')]
+    public function testNativeEnumChecksTheOriginalValueBeforeParserWriteBack(bool $parserFirst): void
+    {
+        $fractionRules = [Parse::float(), new LaravelEnumRule(FractionValidationValue::class)];
+        $statusRules = [Parse::enum(StringValidationStatus::class), Rule::enum(StringValidationStatus::class)];
+        if (!$parserFirst) {
+            $fractionRules = array_reverse($fractionRules);
+            $statusRules = array_reverse($statusRules);
+        }
+        $validator = self::factory()->make(['fraction' => '0.5', 'status' => 'draft'], [
+            'fraction' => ['required', ...$fractionRules],
+            'status' => ['required', ...$statusRules],
+        ]);
+
+        self::assertTrue($validator->passes());
+        self::assertSame([
+            'fraction' => 0.5,
+            'status' => StringValidationStatus::Draft,
+        ], $validator->validated());
+    }
+
+    #[DataProvider('nativeEnumParserOrders')]
+    public function testNativeEnumFilterChecksTheOriginalValueBeforeParserWriteBack(bool $parserFirst): void
+    {
+        if (!(new ReflectionClass(LaravelEnumRule::class))->hasMethod('only')) {
+            self::markTestSkipped('Enum filters require Laravel 10.46 or newer.');
+        }
+
+        $rules = [
+            Parse::float(),
+            Rule::enum(FractionValidationValue::class)->only(FractionValidationValue::Half),
+        ];
+        if (!$parserFirst) {
+            $rules = array_reverse($rules);
+        }
+
+        $validator = self::factory()->make(['fraction' => '0.5'], [
+            'fraction' => ['required', ...$rules],
+        ]);
+
+        self::assertTrue($validator->passes());
+        self::assertSame(['fraction' => 0.5], $validator->validated());
+    }
+
+    public function testNativeEnumFiltersBesideAParser(): void
+    {
+        if (!(new ReflectionClass(LaravelEnumRule::class))->hasMethod('only')) {
+            self::markTestSkipped('Enum filters require Laravel 10.46 or newer.');
+        }
+
+        $validator = self::factory()->make([
+            'age' => '42',
+            'only' => PureValidationStatus::Draft,
+            'except' => PureValidationStatus::Draft,
+        ], [
+            'age' => ['required', Parse::integer()],
+            'only' => ['required', Rule::enum(PureValidationStatus::class)->only(PureValidationStatus::Draft)],
+            'except' => ['required', (new LaravelEnumRule(PureValidationStatus::class))
+                ->except(PureValidationStatus::Published)],
+        ]);
+
+        self::assertTrue($validator->passes());
+        self::assertSame([
+            'age' => 42,
+            'only' => PureValidationStatus::Draft,
+            'except' => PureValidationStatus::Draft,
+        ], $validator->validated());
+    }
+
+    public function testNativeEnumOptionalAndNestedValuesBesideParsers(): void
+    {
+        foreach ([[], ['fraction' => ''], ['fraction' => null]] as $optional) {
+            $validator = self::factory()->make(['age' => '42', ...$optional], [
+                'age' => ['required', Parse::integer()],
+                'fraction' => ['nullable', Rule::enum(FractionValidationValue::class)],
+            ]);
+            self::assertTrue($validator->passes());
+            self::assertSame(['age' => 42, ...$optional], $validator->validated());
+        }
+
+        $validator = self::factory()->make(['rows' => [['age' => '7', 'fraction' => '0.5']]], [
+            'rows.*.age' => ['required', Parse::integer()],
+            'rows.*.fraction' => ['required', Rule::enum(FractionValidationValue::class)],
+        ]);
+        self::assertTrue($validator->passes());
+        self::assertSame(['rows' => [['age' => 7, 'fraction' => '0.5']]], $validator->validated());
     }
 
     public function testOptionalNullableAndWildcardValues(): void

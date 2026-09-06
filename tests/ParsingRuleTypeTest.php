@@ -147,6 +147,26 @@ final class ParsingRuleTypeTest extends TestCase
         self::assertNotSame($parsing->getCacheKey(), $custom->getCacheKey());
     }
 
+    public function testBuiltInPredicatesRemainDistinctFromCustomRulesBesideParsers(): void
+    {
+        $predicate = Rule::builtInPredicate(new StringType());
+        $custom = Rule::custom(new StringType());
+        $resolver = new TypeResolver();
+
+        $withPredicate = self::rootFor([
+            'age' => ['required', Rule::parsing(new IntegerType())],
+            'value' => ['required', $predicate],
+        ]);
+        $withCustom = self::rootFor([
+            'age' => ['required', Rule::parsing(new IntegerType())],
+            'value' => ['required', $custom],
+        ]);
+
+        self::assertSame('array{age: int, value: string}', self::describe($resolver->evaluate($withPredicate)));
+        self::assertSame('mixed', self::describe($resolver->evaluate($withCustom)));
+        self::assertNotSame($predicate->getCacheKey(), $custom->getCacheKey());
+    }
+
     /**
      * `__Parse` is unreachable from a string rule: normalizeName() strips the
      * underscores, so no user rule name can acquire parsing behavior.
