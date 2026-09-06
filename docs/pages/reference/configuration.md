@@ -34,6 +34,9 @@ The detected `laravel/framework` version selects verified release boundaries
 such as `integer:strict`, `ascii`, and Laravel's default request-trimming
 exceptions. A standalone `illuminate/validation` installation can select
 rule-level behavior, but cannot establish full-framework middleware defaults.
+It also cannot select version-sensitive rule-name whitespace behavior because
+`illuminate/support` can have a different version. See
+[Validation Rule Reference](validation-rules.md).
 
 For monorepos or other layouts where PHPStan's working directory is not the
 relevant Composer project root, set the version explicitly:

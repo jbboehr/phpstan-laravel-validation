@@ -148,6 +148,66 @@ final class RuleParserTest extends TestCase
         self::assertSame(['/^one', 'two$/'], $rule->getParameters());
     }
 
+    /** @return iterable<string, array{string, bool, bool}> */
+    public static function broaderWhitespaceVersionProvider(): iterable
+    {
+        yield 'Laravel 10' => ['10.50.3', false, false];
+        yield 'before Laravel 11 backport' => ['11.45.1', false, false];
+        yield 'Laravel 11 backport' => ['11.45.2', true, false];
+        yield 'Laravel 12 starts with legacy splitting' => ['12.0.0', false, false];
+        yield 'before Laravel 12 change' => ['12.20.0', false, false];
+        yield 'Laravel 12 change' => ['12.21.0', true, false];
+        yield 'before PCRE splitting' => ['13.8.0', true, false];
+        yield 'PCRE splitting' => ['13.9.0', true, true];
+    }
+
+    /** @dataProvider broaderWhitespaceVersionProvider */
+    public function testBroaderWhitespaceFollowsTheConfiguredVersion(string $version, bool $unicode, bool $pcre): void
+    {
+        $context = self::version($version);
+        self::assertSame(
+            $unicode ? 'RequiredWithoutAll' : "Required\twithoutAll",
+            RuleParser::normalizeName("required\twithout_all", $context)
+        );
+        self::assertSame(
+            $pcre ? 'Nullable' : "\u{180e}nullable\u{180e}",
+            RuleParser::parseStringRule("\u{180e}nullable\u{180e}", $context)->getRuleName()
+        );
+
+        $tree = RuleParser::parse([
+            'value' => "\fnullable\f|string",
+            'optional' => ["\u{00a0}sometimes\u{00a0}", 'required', 'string'],
+        ], $context);
+        self::assertSame($unicode, $tree->resolvePath('value')->isNullable());
+        self::assertSame($unicode, $tree->resolvePath('optional')->isOptional());
+
+        $arrayRule = RuleParser::parseArrayRule(["\u{00a0}int\u{00a0}", 'parameter'], $context);
+        self::assertInstanceOf(Rule::class, $arrayRule);
+        self::assertSame($unicode ? 'Integer' : "\u{00a0}int\u{00a0}", $arrayRule->getRuleName());
+        self::assertSame(['parameter'], $arrayRule->getParameters());
+    }
+
+    public function testAmbiguousWhitespaceWithoutAKnownVersionIsOpaque(): void
+    {
+        foreach ([null, new LaravelVersionContext(''), self::version('14.0.0')] as $context) {
+            $tree = RuleParser::parse(['value' => ["\fnullable\f", 'string']], $context);
+            self::assertTrue($tree->resolvePath('value')->isOpaque());
+            self::assertSame(Rule::RULE_OPAQUE, RuleParser::parseStringRule("required\twith:other", $context)->getRuleName());
+        }
+    }
+
+    public function testUnicodeNormalizationLeavesParametersAndRegexClassificationAlone(): void
+    {
+        $context = self::version('13.9.0');
+        $membership = RuleParser::parseStringRule("\u{00a0}in\u{00a0}: first,second\t", $context);
+        self::assertSame('In', $membership->getRuleName());
+        self::assertSame([' first', "second\t"], $membership->getParameters());
+
+        $regex = RuleParser::parseStringRule("\fregex\f:/^one,two$/", $context);
+        self::assertSame('Regex', $regex->getRuleName());
+        self::assertSame(['/^one', 'two$/'], $regex->getParameters());
+    }
+
     public function testNormalizesLaravelRuleAliases(): void
     {
         self::assertSame('Integer', RuleParser::normalizeName('int'));

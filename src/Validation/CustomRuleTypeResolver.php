@@ -69,7 +69,8 @@ final class CustomRuleTypeResolver
         private TypeStringResolver $typeStringResolver,
         private ReflectionProvider $reflectionProvider,
         array $configuredClasses,
-        array $configuredNames
+        array $configuredNames,
+        ?LaravelVersionContext $laravelVersionContext = null
     ) {
         foreach ($configuredClasses as $className => $typeString) {
             $className = ltrim($className, '\\');
@@ -89,10 +90,18 @@ final class CustomRuleTypeResolver
         }
 
         foreach ($configuredNames as $ruleName => $typeString) {
-            if (trim($ruleName) === '') {
+            $normalizedName = RuleParser::normalizeName($ruleName, $laravelVersionContext);
+            if ($normalizedName === null) {
+                throw new InvalidCustomRuleContractException(sprintf(
+                    'Configured custom validation rule name %s contains ambiguous whitespace; '
+                    . 'set phpstanLaravelValidation.laravelVersion to a supported framework version '
+                    . 'or rewrite the name without ambiguous whitespace',
+                    $ruleName
+                ));
+            }
+            if ($normalizedName === '') {
                 throw new InvalidCustomRuleContractException('Configured custom validation rule name cannot be empty');
             }
-            $normalizedName = RuleParser::normalizeName($ruleName);
             if (TypeResolver::isBuiltInRuleName($normalizedName)) {
                 throw new InvalidCustomRuleContractException(sprintf(
                     'Configured custom validation rule name %s collides with a built-in Laravel rule',

@@ -13,6 +13,22 @@ inventory and status counts are in
 `int` and `bool` aliases normalize to `integer` and `boolean` before type
 resolution, matching Laravel's `ValidationRuleParser::normalizeRule()`.
 
+Rule-name whitespace follows the selected Laravel version. Internal tabs and
+additional Unicode whitespace become word separators in Laravel
+[11.45.2](https://github.com/laravel/framework/compare/v11.45.1...v11.45.2)
+and [12.21.0](https://github.com/laravel/framework/compare/v12.20.0...v12.21.0).
+Laravel 12.0–12.20 retains the earlier behavior. From
+[13.9.0](https://github.com/laravel/framework/pull/60012), U+180E is also a
+separator. Parameters retain their original whitespace.
+
+Without a known framework version, names affected by these differences are
+opaque. This also applies to automatically detected standalone Validation
+components, whose Support dependency can have a different version. An explicit
+[`laravelVersion`](configuration.md#laravelversion) selects the corresponding
+normalization behavior. Configured custom-rule names use the same normalization.
+Ambiguous names require a known framework version; empty names and collisions
+with built-in rules or other custom names are rejected.
+
 Before a named rule exists in the detected Laravel version, the same spelling
 may be an application alias. Inference then stays `mixed`.
 

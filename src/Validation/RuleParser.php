@@ -56,7 +56,7 @@ final class RuleParser
             }
 
             $child = $node->resolvePath($path);
-            $child->push(...self::explodeRules($ruleDef));
+            $child->push(...self::explodeRules($ruleDef, $laravelVersionContext));
         }
 
         $node->resolveOptional();
@@ -69,7 +69,7 @@ final class RuleParser
      * @return Rule[]
      * @throws InvalidRuleException
      */
-    public static function explodeRules(mixed $rules): array
+    public static function explodeRules(mixed $rules, ?LaravelVersionContext $laravelVersionContext = null): array
     {
         if ($rules instanceof Rule) {
             return [$rules];
@@ -83,15 +83,15 @@ final class RuleParser
             throw new InvalidRuleException('Invalid rule definition: ' . var_export($rules, true));
         }
 
-        return array_filter(array_map(function ($rule) {
-            return self::parseRule($rule);
+        return array_filter(array_map(function ($rule) use ($laravelVersionContext) {
+            return self::parseRule($rule, $laravelVersionContext);
         }, $rules));
     }
 
     /**
      * @throws InvalidRuleException
      */
-    public static function parseRule(mixed $rule): ?Rule
+    public static function parseRule(mixed $rule, ?LaravelVersionContext $laravelVersionContext = null): ?Rule
     {
         if ($rule === null) {
             // Within an array rule list, Laravel normalizes null to an empty
@@ -101,9 +101,9 @@ final class RuleParser
         } elseif ($rule instanceof Rule) {
             return $rule;
         } elseif (is_array($rule)) {
-            return self::parseArrayRule(array_values($rule));
+            return self::parseArrayRule(array_values($rule), $laravelVersionContext);
         } elseif (is_string($rule)) {
-            return self::parseStringRule($rule);
+            return self::parseStringRule($rule, $laravelVersionContext);
         }
 
         throw new InvalidRuleException('Invalid rule type: ' . gettype($rule) . ' ' . var_export($rule, true));
@@ -113,7 +113,7 @@ final class RuleParser
      * @param array<int, mixed> $rule
      * @return Rule
      */
-    public static function parseArrayRule(array $rule): ?Rule
+    public static function parseArrayRule(array $rule, ?LaravelVersionContext $laravelVersionContext = null): ?Rule
     {
         if (count($rule) <= 0) {
             return null;
@@ -125,10 +125,10 @@ final class RuleParser
             return null;
         }
 
-        return Rule::create(self::normalizeName($ruleName), array_slice($rule, 1));
+        return self::createRule($ruleName, array_slice($rule, 1), $laravelVersionContext);
     }
 
-    public static function parseStringRule(string $rule): Rule
+    public static function parseStringRule(string $rule, ?LaravelVersionContext $laravelVersionContext = null): Rule
     {
         if (str_contains($rule, ':')) {
             [$rule, $parameter] = explode(':', $rule, 2);
@@ -141,14 +141,52 @@ final class RuleParser
             $parameters = [];
         }
 
-        return Rule::create(self::normalizeName($rule), $parameters);
+        return self::createRule($rule, $parameters, $laravelVersionContext);
     }
 
-    public static function normalizeName(string $str): string
+    /** @param array<int, mixed> $parameters */
+    private static function createRule(string $name, array $parameters, ?LaravelVersionContext $laravelVersionContext): Rule
     {
+        $normalizedName = self::normalizeName($name, $laravelVersionContext);
+
+        return $normalizedName === null ? Rule::opaque() : Rule::create($normalizedName, $parameters);
+    }
+
+    /** Returns null when the framework's whitespace normalization is unknown. */
+    public static function normalizeName(string $str, ?LaravelVersionContext $laravelVersionContext = null): ?string
+    {
+        if (
+            ($laravelVersionContext === null || !$laravelVersionContext->hasFrameworkVersion())
+            && preg_match('/[^\S ]/u', trim($str)) !== 0
+        ) {
+            // Supported versions disagree about these word boundaries, so an
+            // unknown version cannot establish the normalized rule name. A
+            // standalone Validation component can use another Support version.
+            return null;
+        }
+
+        $str = str_replace(['-', '_'], ' ', trim($str));
+        $unicodeWhitespace = $laravelVersionContext !== null && $laravelVersionContext->hasFrameworkVersion() && (
+            $laravelVersionContext->isAtLeast('12.21.0')
+            || ($laravelVersionContext->isAtLeast('11.45.2') && !$laravelVersionContext->isAtLeast('12.0.0'))
+        );
+
+        if ($unicodeWhitespace) {
+            // mb_split() leaves U+180E intact; Laravel 13.9 switched to PCRE,
+            // whose whitespace class includes it. No mbstring dependency is
+            // needed to model either set of separators.
+            $pattern = $laravelVersionContext->isAtLeast('13.9.0') ? '/\s+/u' : '/[^\S\x{180e}]+/u';
+            $words = preg_split($pattern, $str);
+            if ($words === false) {
+                $words = [$str];
+            }
+        } else {
+            $words = explode(' ', $str);
+        }
+
         $normalized = implode(array_map(function (string $word) {
             return ucfirst($word);
-        }, explode(' ', str_replace(['-', '_'], ' ', trim($str)))));
+        }, $words));
 
         // Laravel rewrites these aliases after normalizing names to StudlyCase.
         return match ($normalized) {

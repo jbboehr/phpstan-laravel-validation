@@ -33,6 +33,7 @@ use jbboehr\PhpstanLaravelValidation\Test\CustomRules\StringableRuleBuilder;
 use jbboehr\PhpstanLaravelValidation\Test\CustomRules\UnknownRule;
 use jbboehr\PhpstanLaravelValidation\Validation\CustomRuleTypeResolver;
 use jbboehr\PhpstanLaravelValidation\Validation\InvalidCustomRuleContractException;
+use jbboehr\PhpstanLaravelValidation\Validation\LaravelVersionContext;
 use jbboehr\PhpstanLaravelValidation\Validation\Rule;
 use jbboehr\PhpstanLaravelValidation\Validation\TypeResolver;
 use PHPStan\PhpDoc\TypeStringResolver;
@@ -229,6 +230,59 @@ final class CustomRulesInferenceTest extends \PHPStan\Testing\TypeInferenceTestC
         }
     }
 
+    public function testConfiguredNamesUseTheFrameworkWhitespaceSyntax(): void
+    {
+        $resolver = $this->createResolver([], ["custom\tvalue" => 'int'], new LaravelVersionContext('', '12.21.0'));
+        self::assertSame('int', $resolver->resolveName('CustomValue')?->describe(VerbosityLevel::precise()));
+    }
+
+    /** @dataProvider ambiguousConfiguredNameProvider */
+    public function testRejectsAmbiguousConfiguredNamesWithoutKnownNormalization(string $name, ?string $version): void
+    {
+        $this->expectException(InvalidCustomRuleContractException::class);
+        $this->expectExceptionMessage('phpstanLaravelValidation.laravelVersion');
+        $this->createResolver([], [$name => 'int'], $version === null ? null : new LaravelVersionContext('', $version));
+    }
+
+    /** @return iterable<string, array{string, ?string}> */
+    public static function ambiguousConfiguredNameProvider(): iterable
+    {
+        yield 'built-in collision without context' => ["\u{00a0}string\u{00a0}", null];
+        yield 'empty name with unknown version' => ["\u{00a0}", 'auto'];
+        yield 'word boundary with unsupported version' => ["custom\tvalue", '14.0.0'];
+    }
+
+    public function testOrdinaryConfiguredNamesRemainUsableWithoutAVersion(): void
+    {
+        $resolver = $this->createResolver([], [
+            "\tcustom value\n" => 'int',
+            'other-value' => 'string',
+            'third_value' => 'bool',
+        ]);
+
+        self::assertSame('int', $resolver->resolveName('CustomValue')?->describe(VerbosityLevel::precise()));
+        self::assertSame('string', $resolver->resolveName('OtherValue')?->describe(VerbosityLevel::precise()));
+        self::assertSame('bool', $resolver->resolveName('ThirdValue')?->describe(VerbosityLevel::precise()));
+    }
+
+    public function testRejectsUnicodeWhitespaceBuiltInNameCollision(): void
+    {
+        $this->expectException(InvalidCustomRuleContractException::class);
+        $this->createResolver([], ["\u{00a0}string\u{00a0}" => 'int'], new LaravelVersionContext('', '12.21.0'));
+    }
+
+    public function testRejectsDuplicateNamesAfterVersionedWhitespaceNormalization(): void
+    {
+        $this->expectException(InvalidCustomRuleContractException::class);
+        $this->createResolver([], ["custom\tvalue" => 'int', 'custom_value' => 'string'], new LaravelVersionContext('', '12.21.0'));
+    }
+
+    public function testRejectsNamesThatNormalizeToEmptyWithUnicodeWhitespace(): void
+    {
+        $this->expectException(InvalidCustomRuleContractException::class);
+        $this->createResolver([], ["\u{00a0}" => 'int'], new LaravelVersionContext('', '12.21.0'));
+    }
+
     public function testEveryInstalledLaravelAttributeRuleNameIsReservedFromCustomAliases(): void
     {
         $reflection = new \ReflectionClass(\Illuminate\Validation\Concerns\ValidatesAttributes::class);
@@ -259,13 +313,14 @@ final class CustomRulesInferenceTest extends \PHPStan\Testing\TypeInferenceTestC
      * @param array<string, string> $classes
      * @param array<string, string> $names
      */
-    private function createResolver(array $classes = [], array $names = []): CustomRuleTypeResolver
+    private function createResolver(array $classes = [], array $names = [], ?LaravelVersionContext $context = null): CustomRuleTypeResolver
     {
         return new CustomRuleTypeResolver(
             self::getContainer()->getByType(TypeStringResolver::class),
             self::getContainer()->getByType(ReflectionProvider::class),
             $classes,
-            $names
+            $names,
+            $context
         );
     }
 

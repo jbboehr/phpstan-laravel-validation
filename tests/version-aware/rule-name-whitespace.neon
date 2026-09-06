@@ -1,0 +1,6 @@
+parameters:
+  phpstanLaravelValidation:
+    laravelVersion: '12.21.0'
+    customRules:
+      names:
+        "custom\tvalue": int

@@ -23,6 +23,7 @@ namespace jbboehr\PhpstanLaravelValidation\Test;
 
 use Composer\Autoload\ClassLoader;
 use jbboehr\PhpstanLaravelValidation\Validation\LaravelVersionContext;
+use jbboehr\PhpstanLaravelValidation\Validation\RuleParser;
 use jbboehr\PhpstanLaravelValidation\Test\Support\InferenceAuditProfiles;
 use PHPUnit\Framework\TestCase;
 
@@ -137,6 +138,24 @@ final class LaravelVersionContextTest extends TestCase
 
         self::assertNull($context->getVersion());
         self::assertFalse($context->isSupported());
+    }
+
+    public function testComponentVersionCannotEstablishSupportWhitespaceSyntax(): void
+    {
+        $directory = $this->createComposerProject([
+            'packages' => [
+                ['name' => 'illuminate/validation', 'version' => 'v12.20.0'],
+                ['name' => 'illuminate/support', 'version' => 'v12.21.0'],
+            ],
+        ]);
+        $context = new LaravelVersionContext($directory);
+        $tree = RuleParser::parse(
+            ['value' => ["\u{00a0}nullable\u{00a0}", 'string']],
+            $context
+        );
+
+        self::assertTrue($tree->resolvePath('value')->isOpaque());
+        self::assertNull(RuleParser::normalizeName("custom\tvalue", $context));
     }
 
     public function testLockIsUsedWhenMatchingInstalledDataHasNoLaravelPackage(): void
