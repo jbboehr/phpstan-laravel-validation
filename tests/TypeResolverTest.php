@@ -292,9 +292,20 @@ final class TypeResolverTest extends PHPStanTestCase
     {
         self::assertSame(
             "array{mode: 'create', value?: string}",
-            self::resolve([
+            self::resolveForVersion([
                 'mode' => 'required|string|in:create',
                 'value' => 'present_if:mode,create|string',
+            ], '10.32.1')
+        );
+    }
+
+    public function testExperimentalConditionalPresenceInferenceDeclinesNestedDefiniteConditions(): void
+    {
+        self::assertSame(
+            "array{payload: array{mode: 'create', value?: string}}",
+            self::resolveWithConditionalPresenceInference([
+                'payload.mode' => 'required|string|in:create',
+                'payload.value' => 'present_if:payload.mode,create|string',
             ])
         );
     }
