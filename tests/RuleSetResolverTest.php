@@ -86,6 +86,8 @@ final class RuleSetResolverTest extends PHPStanTestCase
 
     public function testPreservesFiniteRuleAlternatives(): void
     {
+        self::getContainer();
+
         $rules = self::constantArray([
             'value' => self::constantArray([
                 0 => new ConstantStringType('required'),
