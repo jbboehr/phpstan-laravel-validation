@@ -31,6 +31,7 @@ use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\PassedValidationR
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\TrustedAdditionalClassesRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\UnlistedAdditionalClassesSiblingRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\ValidationRulesRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest as Requests;
 use jbboehr\PhpstanLaravelValidation\Test\Support\AssertsFixtureUnderCoverage;
 use jbboehr\PhpstanLaravelValidation\Validation\FormRequestRuleTypeResolver;
 use jbboehr\PhpstanLaravelValidation\Validation\FormRequestTypeRegistry;
@@ -48,6 +49,89 @@ final class FormRequestInferenceTest extends \PHPStan\Testing\TypeInferenceTestC
     public function testFileAsserts(): void
     {
         $this->assertFixtureUnderCoverage(__DIR__ . '/form-request/inference.php');
+    }
+
+    public function testPolymorphicReceivers(): void
+    {
+        $this->assertFixtureUnderCoverage(__DIR__ . '/form-request/polymorphism.php');
+    }
+
+    /** @return iterable<string, array{list<class-string<FormRequest>>, string|null}> */
+    public static function requestHierarchies(): iterable
+    {
+        yield 'leaf' => [[Requests\PolymorphicRequest::class], 'array{value: string}'];
+        yield 'documented final leaf' => [[Requests\PolymorphicDocumentedFinalRequest::class], 'array{value: string}'];
+        yield 'same inherited rules' => [[
+            Requests\PolymorphicRequest::class, Requests\PolymorphicInheritedRequest::class,
+        ], 'array{value: string}'];
+        yield 'abstract descendant only' => [[
+            Requests\PolymorphicRequest::class, Requests\PolymorphicAbstractRequest::class,
+        ], 'array{value: string}'];
+        yield 'different rules' => [[
+            Requests\PolymorphicRequest::class, Requests\PolymorphicChildRequest::class,
+        ], 'array{value: array}|array{value: string}'];
+        yield 'grandchild through abstract intermediate' => [[
+            Requests\PolymorphicRequest::class, Requests\PolymorphicGrandchildRequest::class,
+        ], 'array{value: array}|array{value: string}'];
+        yield 'abstract receiver' => [[
+            Requests\PolymorphicAbstractRequest::class, Requests\PolymorphicGrandchildRequest::class,
+        ], 'array{value: array}'];
+        yield 'unsafe child despite final rules' => [[
+            Requests\PolymorphicFinalRulesRequest::class, Requests\PolymorphicHookRequest::class,
+        ], null];
+    }
+
+    /**
+     * @dataProvider requestHierarchies
+     * @param non-empty-list<class-string<FormRequest>> $classes
+     */
+    public function testReceiverIncludesEveryKnownConcreteContract(array $classes, ?string $expected): void
+    {
+        $reflection = self::getContainer()->getByType(ReflectionProvider::class)->getClass($classes[0]);
+        $registry = $this->createIsolatedRegistry($classes, []);
+        self::assertSame($expected, $registry->getType($reflection)?->describe(VerbosityLevel::precise()));
+    }
+
+    public function testTrustStillAppliesOnlyToTheConfiguredClass(): void
+    {
+        $reflection = self::getContainer()->getByType(ReflectionProvider::class)
+            ->getClass(Requests\PolymorphicTrustedFinalRequest::class);
+        $untrusted = $this->createIsolatedRegistry(
+            [Requests\PolymorphicTrustedFinalRequest::class],
+            [Requests\PolymorphicRequest::class]
+        );
+        self::assertNull($untrusted->getType($reflection));
+
+        $trusted = $this->createIsolatedRegistry([], [Requests\PolymorphicTrustedFinalRequest::class]);
+        $type = $trusted->getType($reflection);
+        self::assertNotNull($type);
+        self::assertSame('array{value: string}', $type->describe(VerbosityLevel::precise()));
+
+        $parent = self::getContainer()->getByType(ReflectionProvider::class)
+            ->getClass(Requests\PolymorphicRequest::class);
+        self::assertNull($untrusted->getType($parent));
+        $trustedLeaf = $this->createIsolatedRegistry([], [Requests\PolymorphicRequest::class]);
+        self::assertSame('array{value: string}', $trustedLeaf->getType($parent)?->describe(VerbosityLevel::precise()));
+    }
+
+    public function testSafeOverrideDoesNotDiscardTheValidatedContract(): void
+    {
+        $registry = $this->createIsolatedRegistry([
+            Requests\PolymorphicSafeRequest::class, Requests\PolymorphicSafeChildRequest::class,
+        ], []);
+        $parent = self::getContainer()->getByType(ReflectionProvider::class)
+            ->getClass(Requests\PolymorphicSafeRequest::class);
+        self::assertSame('array{value: string}', $registry->getType($parent)?->describe(VerbosityLevel::precise()));
+        self::assertNull($registry->getType($parent, 'safe'));
+    }
+
+    public function testAnonymousDescendantsPreventAParentOnlyContract(): void
+    {
+        $registry = $this->createIsolatedRegistry([], [], [__DIR__ . '/Fixtures/FormRequest/PolymorphicAnonymousRequest.php']);
+        $parent = self::getContainer()->getByType(ReflectionProvider::class)
+            ->getClass(Requests\PolymorphicAnonymousRequest::class);
+        self::assertNull($registry->getType($parent));
+        self::assertNull($registry->getType($parent, 'safe'));
     }
 
     public function testRegistryIsRegisteredAsResultCacheMetadata(): void

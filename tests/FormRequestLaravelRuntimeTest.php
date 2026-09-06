@@ -37,6 +37,7 @@ use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\NumericKeyValidat
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\IntermediateWithValidatorRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\ThisConstantChildRequest;
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\TraitWithValidatorRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest as Requests;
 use jbboehr\PhpstanLaravelValidation\Validation\RuleParser;
 use jbboehr\PhpstanLaravelValidation\Validation\TypeResolver;
 use PHPStan\Type\Constant\ConstantArrayTypeBuilder;
@@ -44,6 +45,62 @@ use PHPStan\Type\Constant\ConstantStringType;
 
 final class FormRequestLaravelRuntimeTest extends \PHPStan\Testing\PHPStanTestCase
 {
+    public function testPolymorphicChildCanReplaceTheParentsRulesContract(): void
+    {
+        $request = $this->resolveRequest(Requests\PolymorphicChildRequest::class, ['value' => ['child']]);
+        $consume = static function (Requests\PolymorphicRequest $parent): array {
+            $safe = $parent->safe();
+            self::assertInstanceOf(\Illuminate\Support\ValidatedInput::class, $safe);
+            return [$parent->validated(), $parent->validated('value'), $parent->safe(['value']), $safe->all()];
+        };
+        self::assertSame([
+            ['value' => ['child']], ['child'], ['value' => ['child']], ['value' => ['child']],
+        ], $consume($request));
+    }
+
+    public function testFinalRulesMethodDoesNotPreventAChildFromReplacingValidation(): void
+    {
+        $request = $this->resolveRequest(Requests\PolymorphicHookRequest::class, ['value' => ['child']]);
+        $consume = static function (Requests\PolymorphicFinalRulesRequest $parent): array {
+            $safe = $parent->safe();
+            self::assertInstanceOf(\Illuminate\Support\ValidatedInput::class, $safe);
+            return [$parent->validated(), $safe->all()];
+        };
+        self::assertSame([['value' => ['child']], ['value' => ['child']]], $consume($request));
+    }
+
+    public function testFinalChildCanPreserveInheritedRules(): void
+    {
+        $request = $this->resolveRequest(Requests\PolymorphicInheritedRequest::class, ['value' => 'parent']);
+        self::assertSame(['value' => 'parent'], $request->validated());
+        $safe = $request->safe();
+        self::assertInstanceOf(\Illuminate\Support\ValidatedInput::class, $safe);
+        self::assertSame(['value' => 'parent'], $safe->all());
+    }
+
+    public function testGrandchildCanChangeRulesThroughAnAbstractIntermediate(): void
+    {
+        $request = $this->resolveRequest(Requests\PolymorphicGrandchildRequest::class, ['value' => ['child']]);
+        self::assertSame(['value' => ['child']], $request->validated());
+    }
+
+    public function testChildCanOverrideSafeWithoutChangingValidated(): void
+    {
+        $request = $this->resolveRequest(Requests\PolymorphicSafeChildRequest::class, ['value' => 'parent']);
+        $consume = static fn (Requests\PolymorphicSafeRequest $parent): array => [
+            $parent->validated(), $parent->safe(['value']),
+        ];
+        self::assertSame([['value' => 'parent'], ['changed' => true]], $consume($request));
+    }
+
+    public function testAnonymousChildCanChangeTheParentContract(): void
+    {
+        class_exists(Requests\PolymorphicAnonymousRequest::class);
+        $className = get_class(Requests\anonymousPolymorphicRequest());
+        $request = $this->resolveRequest($className, ['value' => ['anonymous']]);
+        self::assertSame(['value' => ['anonymous']], $request->validated());
+    }
+
     public function testConventionalFormRequestUsesRulesAndPreservesValues(): void
     {
         self::getContainer();

@@ -23,9 +23,11 @@ custom output mutation remain conservative. See
 
 ## FormRequest lifecycle
 
-Experimental FormRequest inference is opt-in. It models conventional request
-validation and falls back for known lifecycle customization. It cannot
-globally track an inherited `setValidator()` call that replaces the
+Experimental FormRequest inference is opt-in and assumes its discovery scope
+covers the application's request implementations. It includes known
+descendant contracts and falls back for unresolved or unsafe possibilities.
+Undiscovered and dynamically generated descendants remain outside that model. It
+cannot globally track an inherited `setValidator()` call that replaces the
 validator before `validated()`. See
 [FormRequest Inference](../guides/form-requests.md).
 

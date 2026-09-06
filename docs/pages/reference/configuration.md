@@ -200,7 +200,14 @@ discoverable.
 `trustedClasses` is an exact class list. Subclasses are not trusted
 implicitly. Trust also makes the class discoverable, but bypasses those
 lifecycle checks and can therefore make inference unsound when asserted
-incorrectly.
+incorrectly. Trust in a parent does not bypass checks on its descendants.
+
+Receiver inference includes discovered descendants and assumes discovery
+covers the application's request implementations. Hierarchy membership and
+polymorphic payload changes can invalidate the global result cache, because
+parent-typed callers do not otherwise depend on child classes. Literal-rule
+leaves and hierarchies whose combined payload matches the parent's own
+exportable contract retain selective invalidation.
 
 For a discovered FormRequest whose `rules()` method is a single literal return,
 the extension records each relevant class or trait method body in PHPStan's

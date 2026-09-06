@@ -132,6 +132,11 @@
 
 ### Fixed
 
+- Include discovered FormRequest descendants when inferring a receiver's
+  `validated()` or `safe()` payload. Leaf requests retain precision without
+  requiring `final`; differing contracts form a union, while unsafe or
+  unresolved possibilities retain the broad fallback. Track hierarchy changes
+  in the result cache and apply trust to each concrete class separately.
 - Include native booleans, `Stringable` objects, and null in digit-count
   inference where older Laravel predicates can preserve them. Narrow each rule
   only after its verified native-type guard: `digits` in 12.35, `min_digits`

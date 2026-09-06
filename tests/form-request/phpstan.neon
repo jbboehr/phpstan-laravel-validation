@@ -7,3 +7,4 @@ parameters:
         - jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\PassedValidationRequest
       trustedClasses:
         - jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\TrustedWithValidatorRequest
+        - jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\PolymorphicTrustedFinalRequest

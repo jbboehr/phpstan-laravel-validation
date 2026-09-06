@@ -406,14 +406,21 @@ and verified Laravel-version boundaries. It tracks supported validator unions,
 applies declared custom-rule contracts, and its optional experimental
 FormRequest inference can recover the
 whole-payload `validated()` and `validated(null)` shapes of conventional
-`FormRequest` subclasses from statically resolvable `rules()` returns. It
+FormRequest subclasses from statically resolvable `rules()` returns. It
 retains `mixed` where a field has no usable value contract. When the rule
 expression itself cannot be resolved, PHPStan generally keeps Laravel's broad
 declared return type.
 
-Form requests make the runtime-program problem concrete. Lifecycle hooks
-can replace the validator. The extension declines `rules()` inference when
-it detects those customizations, unless the exact class is trusted.
+Form requests make the runtime-program problem concrete. A child can override
+its parent's rules, or replace validation through a lifecycle hook even when
+`rules()` is final. A parameter typed as that parent can therefore receive a
+different validated shape. The extension includes discovered concrete
+descendant contracts in the receiver's inferred type, retaining a union when
+they differ. This assumes discovery covers the application's request
+implementations; unknown runtime subclasses remain outside that model.
+Lifecycle hooks can also replace the validator. The extension declines
+`rules()` inference for unsafe possibilities unless each affected concrete
+class is explicitly trusted. Trust in a parent does not cover its children.
 `setValidator()` after resolution remains outside that assumption. See
 [FormRequest Inference](form-requests.md).
 
@@ -489,6 +496,7 @@ FormRequest lifecycle behavior is covered by
 | Literal `list` joins nested reconstruction in Laravel 11.23; projection order can preserve, sparsify, or reorder its keys | `LaravelInferenceTest::testListRuleFollowsRuntimeVersionBoundary` and `testFactoryUnvalidatedArrayKeyModesMatchInference` on the 11.22 and 11.23 profiles | [`tests/version-aware/list.php`](https://github.com/jbboehr/phpstan-laravel-validation/blob/master/tests/version-aware/list.php), [`tests/version-aware/list-projection.php`](https://github.com/jbboehr/phpstan-laravel-validation/blob/master/tests/version-aware/list-projection.php), and `TypeResolverTest::testListParentProjectionChangesInLaravel1123` |
 | Custom predicates preserve successful original values | `CustomRulesLaravelRuntimeTest::testObjectRulesPreserveSuccessfulValuesAndRejectOthers`, `testClosureRulePreservesSuccessfulOriginalValue`, and `testRegisteredStringRulePreservesSuccessfulOriginalValue` | [`tests/custom-rules/inference.php`](https://github.com/jbboehr/phpstan-laravel-validation/blob/master/tests/custom-rules/inference.php) |
 | FormRequest lifecycle hooks can change effective rules and later output | `FormRequestLaravelRuntimeTest::testWithValidatorCanReplaceTheEffectiveRules`, `testIntermediateWithValidatorHookCanReplaceTheEffectiveRules`, `testTraitWithValidatorHookCanReplaceTheEffectiveRules`, `testPassedValidationCanReplaceRulesAfterSuccessfulValidation`, and `testCustomValidatorCanIgnoreRulesMethod` | [`tests/form-request/inference.php`](https://github.com/jbboehr/phpstan-laravel-validation/blob/master/tests/form-request/inference.php) |
+| A parent-typed FormRequest can receive child output that violates the parent's rules contract | `FormRequestLaravelRuntimeTest::testPolymorphicChildCanReplaceTheParentsRulesContract`, `testFinalRulesMethodDoesNotPreventAChildFromReplacingValidation`, `testGrandchildCanChangeRulesThroughAnAbstractIntermediate`, `testChildCanOverrideSafeWithoutChangingValidated`, and `testAnonymousChildCanChangeTheParentContract` | [`tests/form-request/polymorphism.php`](https://github.com/jbboehr/phpstan-laravel-validation/blob/master/tests/form-request/polymorphism.php), `FormRequestInferenceTest::testReceiverIncludesEveryKnownConcreteContract`, and `FormRequestResultCacheTest::testDescendantChangesInvalidateCachedParentCaller` |
 
 Generated fixtures under [`tests/fixtures`](https://github.com/jbboehr/phpstan-laravel-validation/blob/master/tests/fixtures) add broad
 coverage from Laravel's own validation tests and record exact upstream

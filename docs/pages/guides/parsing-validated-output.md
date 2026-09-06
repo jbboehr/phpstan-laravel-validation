@@ -86,7 +86,8 @@ PHPStan deliberately retains Laravel's broad `array` type for
 a custom Validator whose virtual `validated()` method changes the payload, so
 the wrapper cannot receive the ordinary validator's structural contract
 soundly. Supported `safe()` projections on conventional FormRequests can carry
-the parsed shape when FormRequest inference is enabled.
+the parsed shape when FormRequest inference is enabled and all discovered
+concrete request contracts can be resolved.
 
 The caller's `$input` array is not rewritten. A request also retains its
 original values through `$request->all()` and `$request->input()`. Parsing
@@ -383,8 +384,9 @@ After successful validation, `validated()` and `safe()` contain parsed values,
 while `all()` and `input()` retain the request values.
 
 Enable [FormRequest inference](form-requests.md) if PHPStan should infer the
-parsed shape for conventional FormRequests, including supported direct
-`safe()` projections. If application code must consume the parsed values
+parsed shape or union of discovered concrete contracts for conventional
+FormRequests, including supported direct `safe()` projections. If application
+code must consume the parsed values
 during the FormRequest lifecycle, `passedValidation()` is the runtime
 post-write-back hook. Declaring that hook currently makes the extension
 conservatively decline FormRequest inference for the class because the hook

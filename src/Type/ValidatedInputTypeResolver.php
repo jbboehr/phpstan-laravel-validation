@@ -407,15 +407,16 @@ final class ValidatedInputTypeResolver
             ) {
                 return null;
             }
+            $nativeClass = $classReflection->getNativeReflection();
             if (
-                !$classReflection->hasNativeMethod('safe')
-                || $classReflection->getNativeMethod('safe')->getDeclaringClass()->getName()
+                !$nativeClass->hasMethod('safe')
+                || $nativeClass->getMethod('safe')->getDeclaringClass()->getName()
                     !== FormRequest::class
             ) {
                 return null;
             }
 
-            $payloadType = $this->formRequestTypeRegistry->getType($classReflection);
+            $payloadType = $this->formRequestTypeRegistry->getType($classReflection, 'safe');
             if ($payloadType === null) {
                 return null;
             }

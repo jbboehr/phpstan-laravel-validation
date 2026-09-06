@@ -11,7 +11,7 @@ The same rule-set inference applies to these statically resolvable calls.
 | `Request::validate($rules)` | Validated shape |
 | Controller `$this->validate($request, $rules)` | Validated shape |
 | `validator($data, $rules)->validated()` helper | Validated shape |
-| `FormRequest::validated()` / supported `safe()` | Validated shape when [FormRequest inference](../guides/form-requests.md) is enabled |
+| `FormRequest::validated()` / supported `safe()` | Validated shape or union of discovered concrete contracts when [FormRequest inference](../guides/form-requests.md) is enabled |
 
 Named `data` and `rules` arguments are supported. Dynamic rule sets retain
 Laravel's broad declared return types. Calls that supply the relevant
@@ -66,7 +66,8 @@ aliased.
 Broadly typed Laravel validators do not carry a contract for this extension to
 invalidate, so their mutations are not diagnosed. This includes ordinary
 `FormRequest::withValidator()` hooks: non-empty lifecycle hooks already make
-FormRequest inference fall back unless the request is explicitly trusted.
+FormRequest inference fall back unless the affected concrete request class is
+explicitly trusted.
 Constructing a new validator with complete data and rules remains the clearest
 general solution.
 
