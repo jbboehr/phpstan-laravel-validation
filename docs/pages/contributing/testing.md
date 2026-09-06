@@ -263,3 +263,21 @@ derivations to the exhaustive Nix matrix as separate jobs, then applies the
 same aggregate checks to their uploaded reports. Each runner therefore uses at
 most four Infection workers while the five shards can progress in parallel.
 Ordinary `nix flake check` never runs mutation testing.
+
+The ordinary checks do include `infection-harness`: filesystem conformance and
+the FormRequest source-discovery tests with Infection intercepting unchanged
+source. This detects harness failures that could otherwise count as killed
+mutants. The isolated Infection Composer install applies a small compatibility
+patch for `include-interceptor` 1.0.0: link metadata must remain available when
+the target is missing, and quiet metadata queries must not emit warnings.
+The patch accepts only the pinned original or already-patched source. Review
+or remove it when updating the interceptor; do not bypass a checksum failure.
+
+Run these checks locally after installing the toolchain:
+
+```sh
+composer --working-dir=tools/infection install
+composer --working-dir=tools/infection test
+php vendor/bin/phpunit --bootstrap tools/infection/tests/bootstrap.php \
+    tests/FormRequestSourceDiscoveryTest.php --no-coverage
+```

@@ -640,6 +640,17 @@
             php = phpVersions.php81;
             command = "php scripts/infection-shards.php >/dev/null";
           };
+          infection-harness = mkProjectCheck {
+            name = "infection-harness";
+            command = ''
+              sharedInfectionVendor=${infectionClosure.vendor}/share/php/${infectionClosure.vendorPname}/vendor
+              mkdir -p tools/infection
+              cp -rs "$sharedInfectionVendor" tools/infection/vendor
+              php tools/infection/tests/interceptor.php
+              php vendor/bin/phpunit --bootstrap tools/infection/tests/bootstrap.php \
+                tests/FormRequestSourceDiscoveryTest.php --no-coverage
+            '';
+          };
 
           consumer-phpstan-minimum = mkProjectCheck {
             name = "consumer-phpstan-minimum";
