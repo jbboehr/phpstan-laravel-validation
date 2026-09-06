@@ -1,3 +1,6 @@
+includes:
+  - ../form-request/source-discovery.neon
+
 parameters:
   phpstanLaravelValidation:
     includeUnvalidatedArrayKeys: true

@@ -22,6 +22,7 @@ declare(strict_types=1);
 namespace jbboehr\PhpstanLaravelValidation\Test;
 
 use Illuminate\Foundation\Http\FormRequest;
+use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\PolymorphicRequest;
 use jbboehr\PhpstanLaravelValidation\Validation\FormRequestRuleTypeResolver;
 use jbboehr\PhpstanLaravelValidation\Validation\FormRequestTypeRegistry;
 use PHPStan\File\FileHelper;
@@ -115,6 +116,24 @@ final class FormRequestSourceDiscoveryTest extends \PHPStan\Testing\TypeInferenc
         self::assertSame($mode === 'composer'
             ? [$this->directory . '/source/linked/Included.php', $this->directory . '/source/linked/Upper.PHP']
             : [$this->directory . '/source/linked/Included.inc'], $files);
+    }
+
+    public function testUnrelatedMissingParentPreservesKnownRequestType(): void
+    {
+        self::assertNotFalse(file_put_contents(
+            $this->directory . '/source/OptionalService.php',
+            '<?php namespace MissingParentDiscoveryFixture; class OptionalService extends MissingDependency {}'
+        ));
+        $container = self::getContainer();
+        $parser = $container->getService('currentPhpVersionSimpleDirectParser');
+        self::assertInstanceOf(Parser::class, $parser);
+        $reflection = $container->getByType(ReflectionProvider::class)->getClass(PolymorphicRequest::class);
+
+        self::assertSame(
+            'array{value: string}',
+            $this->registry('scan', $parser, ['php'], [PolymorphicRequest::class])
+                ->getType($reflection)?->describe(VerbosityLevel::precise())
+        );
     }
 
     public function testParseFailureDoesNotMakeManifestDependOnCallOrder(): void

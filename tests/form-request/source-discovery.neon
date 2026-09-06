@@ -1,0 +1,7 @@
+parameters:
+  # A nonempty, missing Composer project prevents repository-wide fallback.
+  # Composer discovery and cache invalidation have separate integration tests.
+  composerAutoloaderProjectPaths:
+    - missing-composer-project
+  scanDirectories:
+    - ../Fixtures/FormRequest
