@@ -136,10 +136,8 @@ jobs:
         steps:
             - uses: actions/checkout@v7
 
+            # Keep Nix's default build directory accessible to its build users.
             - uses: cachix/install-nix-action@v31
-              with:
-                  extra_nix_config: |
-                      build-dir = ${{ runner.temp }}/nix-builds
 
             - name: Wait for the Nix store database
               run: bash scripts/wait-for-nix-store-database.bash
@@ -178,10 +176,10 @@ jobs:
               if: ${{ always() && matrix.junit }}
               shell: bash
               run: |
-                  bash scripts/collect-nix-junit-report.bash \
+                  sudo bash scripts/collect-nix-junit-report.bash \
                       "$RUNNER_TEMP/nix-build.log" \
                       "$RUNNER_TEMP/nix-result" \
-                      "$RUNNER_TEMP/nix-builds" \
+                      /nix/var/nix/builds \
                       "$RUNNER_TEMP/phpunit-results"
 
             - name: Upload PHPUnit results

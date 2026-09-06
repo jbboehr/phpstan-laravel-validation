@@ -144,6 +144,13 @@ The conventional job uploads PHPUnit's JUnit XML even when the test step
 fails, preserving per-test outcomes and timings for diagnosis and
 feedback-loop audits.
 
+Nix matrix jobs use the daemon's default build directory under
+`/nix/var/nix/builds`. A directory under the runner's temporary directory can
+be inaccessible to Nix build users and fail before the check starts. The JUnit
+collector runs with `sudo` on the hosted Ubuntu runner so it can recover
+reports from daemon-owned failed-build directories as well as successful
+outputs.
+
 Before the Nix matrix fans out, one job builds every pinned Composer vendor
 closure and saves the resulting Nix store under a derivation-specific cache
 key. Every matrix job requires an exact cache restore. This keeps the jobs
