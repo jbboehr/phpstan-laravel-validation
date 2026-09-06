@@ -107,6 +107,25 @@ created.
 The more faithfully static analysis models this behavior, the less the rule
 resembles the narrow declaration it appears to be.
 
+The `current_password` rule delegates acceptance to the configured hasher
+without first requiring a native string. With Laravel's default bcrypt hasher,
+an authenticated fixture user whose stored hash represents `'12345'` can
+validate this input:
+
+```php
+$factory->make(
+    ['value' => 12345],
+    ['value' => 'required|current_password'],
+)->validated();
+// ['value' => 12345], still an integer.
+```
+
+The runtime tests confirm native-value preservation on Laravel 10 through 13.
+Because applications can replace the hasher, its accepted native types cannot
+be inferred from the rule name alone. The extension therefore leaves this
+rule as `mixed`. Add `string` when a native string is required; that companion
+rule rejects the integer above and supplies the corresponding inferred type.
+
 Laravel validation can still enforce useful runtime domain constraints such as
 email syntax, ranges, and membership. The problem is not that predicates are
 useless. The problem is mistaking successful predicates for a declaration of
@@ -474,12 +493,15 @@ Conditional presence behavior is covered by
 [`tests/ConditionalPresenceLaravelRuntimeTest.php`](https://github.com/jbboehr/phpstan-laravel-validation/blob/master/tests/ConditionalPresenceLaravelRuntimeTest.php).
 FormRequest lifecycle behavior is covered by
 [`tests/FormRequestLaravelRuntimeTest.php`](https://github.com/jbboehr/phpstan-laravel-validation/blob/master/tests/FormRequestLaravelRuntimeTest.php).
+Hasher delegation and native-value preservation are covered by
+[`tests/CurrentPasswordLaravelRuntimeTest.php`](https://github.com/jbboehr/phpstan-laravel-validation/blob/master/tests/CurrentPasswordLaravelRuntimeTest.php).
 
 | Claim | Laravel runtime coverage | PHPStan inference coverage |
 | --- | --- | --- |
 | `integer` can preserve non-integers | `LaravelInferenceTest::testIntegerRuleCanPreserveNonIntegerValues` | [`tests/rules/integer.php`](https://github.com/jbboehr/phpstan-laravel-validation/blob/master/tests/rules/integer.php) |
 | `integer:strict` differs by Laravel release | `LaravelInferenceTest::testIntegerStrictRuleFollowsRuntimeSupport` and `testIntegerStrictRuleAcceptsAndPreservesNativeInteger` | Boundary coverage in [`tests/TypeResolverTest.php`](https://github.com/jbboehr/phpstan-laravel-validation/blob/master/tests/TypeResolverTest.php), [`tests/version-aware/inference.php`](https://github.com/jbboehr/phpstan-laravel-validation/blob/master/tests/version-aware/inference.php), and the version-audit snapshots |
 | Digit-count predicates can preserve booleans, null, and objects before their native-type guards | `LaravelInferenceTest::testDigitCountInferenceContainsNativeLaravelOutput` and the version-audit snapshots on both sides of each boundary | `TypeResolverTest::testVersionAwareDigitCountInference`, [`tests/rules/digits.php`](https://github.com/jbboehr/phpstan-laravel-validation/blob/master/tests/rules/digits.php), and [`tests/version-aware/inference.php`](https://github.com/jbboehr/phpstan-laravel-validation/blob/master/tests/version-aware/inference.php) |
+| `current_password` delegates to the configured hasher and preserves accepted native values | `CurrentPasswordLaravelRuntimeTest::testCurrentPasswordPreservesAcceptedNativeValues`, `testCurrentPasswordUsesTheConfiguredHasherWithoutANativeTypeGuard`, and `testCurrentPasswordRetainsExplicitStringAndPresenceConstraints` | Runtime-to-inference containment in those value-preservation tests, [`tests/rules/current-password.php`](https://github.com/jbboehr/phpstan-laravel-validation/blob/master/tests/rules/current-password.php), and `TypeResolverTest::testResolvesSupportedRuleExactly` |
 | `base64` exists only from Laravel 13.21 and requires a native non-empty string | `LaravelInferenceTest::testBase64RuleFollowsRuntimeVersionBoundary` | Boundary coverage in [`tests/TypeResolverTest.php`](https://github.com/jbboehr/phpstan-laravel-validation/blob/master/tests/TypeResolverTest.php) and [`tests/version-aware/base64.php`](https://github.com/jbboehr/phpstan-laravel-validation/blob/master/tests/version-aware/base64.php) |
 | Scalar `in` preserves coercible inputs and admits parameter-dependent integer equivalence classes | `LaravelInferenceTest::testScalarInRuleAcceptsRuntimeValues`, `testNumericInRuleNarrowsOnlyItsRepresentableNativeIntegerClass`, and `testLargeFloatingPointInParameterAcceptsMultipleNativeIntegers` | [`tests/rules/in.php`](https://github.com/jbboehr/phpstan-laravel-validation/blob/master/tests/rules/in.php) and `TypeResolverTest::testNumericInParametersNarrowOnlyRepresentableIntegerClasses` |
 | Optional blanks bypass non-implicit rules | `LaravelInferenceTest::testBlankStringBypassesOptionalNonImplicitRules` | [`tests/structure/empty-string.php`](https://github.com/jbboehr/phpstan-laravel-validation/blob/master/tests/structure/empty-string.php) |

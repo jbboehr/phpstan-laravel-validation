@@ -92,12 +92,16 @@ final class TypeResolverTest extends PHPStanTestCase
 
         foreach (
             [
-            'active_url', 'alpha', 'current_password',
+            'active_url', 'alpha',
             'email', 'ip', 'ipv4', 'ipv6', 'mac_address', 'timezone', 'url', 'ulid', 'uuid',
             ] as $rule
         ) {
             yield $rule => [$rule, 'non-empty-string'];
         }
+
+        yield 'current password' => ['current_password', 'mixed'];
+        yield 'current password with named guard' => ['current_password:fixture', 'mixed'];
+        yield 'current password with native string constraint' => ['string|current_password', 'string'];
 
         foreach (['alpha_dash', 'alpha_dash:ascii'] as $rule) {
             yield $rule => [$rule, 'float|int|non-empty-string'];

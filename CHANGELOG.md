@@ -132,6 +132,9 @@
 
 ### Fixed
 
+- Stop inferring a native string from `current_password`. Laravel delegates
+  acceptance to the configured hasher and preserves the original value, so
+  this rule leaves the type as `mixed` unless companion rules constrain it.
 - Include discovered FormRequest descendants when inferring a receiver's
   `validated()` or `safe()` payload. Leaf requests retain precision without
   requiring `final`; differing contracts form a union, while unsafe or

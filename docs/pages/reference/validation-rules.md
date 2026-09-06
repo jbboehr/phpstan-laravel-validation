@@ -38,7 +38,11 @@ branches. A float parameter also retains broad `int` because PHP's
 | Rule | Successful native type |
 | --- | --- |
 | `string`, `lowercase`, `uppercase` | `string` |
-| `email`, `alpha`, `url`, `uuid`, `ulid`, `ip`, `ipv4`, `ipv6`, `mac_address`, `timezone`, `active_url`, `current_password` | `non-empty-string` |
+| `email`, `alpha`, `url`, `uuid`, `ulid`, `ip`, `ipv4`, `ipv6`, `mac_address`, `timezone`, `active_url` | `non-empty-string` |
+
+`current_password` contributes `mixed`: Laravel delegates acceptance to the
+configured hasher and preserves the original native value. Add `string` to
+require a native string. See the [runtime example](../guides/laravel-validation-and-type-safety.md#laravel-validation-is-not-typed-parsing).
 
 ## Coercive text
 

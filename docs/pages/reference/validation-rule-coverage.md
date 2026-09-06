@@ -102,8 +102,8 @@ separate dimensions.
 
 | Accepted-value handling | Rule forms | Focused static coverage | Meaning |
 | --- | ---: | ---: | --- |
-| Direct type contribution | 57 | 57 | A native value type is emitted and has dedicated focused static coverage |
-| Explicitly neutral | 49 | 18 | The rule does not independently narrow the local value type, whether intentionally or because a correlated model is unavailable |
+| Direct type contribution | 56 | 56 | A native value type is emitted and has dedicated focused static coverage |
+| Explicitly neutral | 50 | 19 | The rule does not independently narrow the local value type, whether intentionally or because a correlated model is unavailable |
 | Conservative `mixed` fallback | 8 | 0 | No built-in accepted-value model is applied |
 | Object-only built-in predicate with `mixed` contribution | 2 | 0 | `Can` and `AnyOf` are recognized by their Laravel predicate contracts but have no dedicated built-in extraction |
 | **Total public rule semantics** | **116** | **89 files** | 114 reserved identities plus the two distinct object-only predicates |
@@ -120,12 +120,12 @@ adversarial native values that Laravel's upstream tests do not exercise.
 
 ## Rules with direct accepted-value inference
 
-The following 57 names contribute a concrete type today:
+The following 56 names contribute a concrete type today:
 
 | Family | Rules | Current contribution |
 | --- | --- | --- |
 | Exact accepted sets | `Accepted`, `Boolean`, `Declined`, `In` | Literal unions or parameter-aware scalar unions; numeric `In` parameters narrow safely representable native integers while retaining broader float, numeric-string, and object equivalence classes; fresh inline `Rule::in()` builders can supply the parameters, with float-bearing builders retaining `int` for runtime precision changes |
-| String predicates | `ActiveUrl`, `Alpha`, `CurrentPassword`, `Email`, `Ip`, `Ipv4`, `Ipv6`, `MacAddress`, `Timezone`, `Ulid`, `Url`, `Uuid` | Usually `non-empty-string` |
+| String predicates | `ActiveUrl`, `Alpha`, `Email`, `Ip`, `Ipv4`, `Ipv6`, `MacAddress`, `Timezone`, `Ulid`, `Url`, `Uuid` | Usually `non-empty-string` |
 | Native string checks | `Lowercase`, `String`, `Uppercase` | `string` |
 | Coercive text checks | `AlphaDash`, `AlphaNum`, `Json`, `NotRegex`, `Regex` | Unions containing the native scalar or `Stringable` values Laravel preserves |
 | Date checks | `After`, `AfterOrEqual`, `Before`, `BeforeOrEqual`, `Date`, `DateEquals`, `DateFormat` | Numeric scalars, non-empty strings, and where applicable `DateTimeInterface`; `DateFormat` removes native numerics when every known format proves they cannot satisfy Laravel's weakly coerced comparison |
@@ -153,10 +153,11 @@ Every direct rule has a dedicated static fixture under
 
 ## Explicitly neutral rules
 
-These 49 names are recognized and deliberately contribute no local value type:
+These 50 names are recognized and deliberately contribute no local value type:
 
 | Family | Rules | Why a neutral contribution is currently conservative |
 | --- | --- | --- |
+| Configured hasher predicate | `CurrentPassword` | Delegates to the configured hasher without establishing a native output type; companion rules still constrain the original value |
 | Size and comparison | `Between`, `Gt`, `Gte`, `Lt`, `Lte`, `Max`, `Min`, `Size` | The accepted native family depends on adjacent numeric, array, string, or file rules and on runtime values |
 | Cross-field and domain predicates | `AcceptedIf`, `Confirmed`, `DeclinedIf`, `Different`, `Distinct`, `DoesntEndWith`, `DoesntStartWith`, `EndsWith`, `Exists`, `Filled`, `InArray`, `NotIn`, `Password`, `Same`, `StartsWith`, `Unique` | These are predicates or environment-dependent checks; several need correlated types to improve safely |
 | Flow and output rules | `Bail`, `Exclude`, `ExcludeIf`, `ExcludeUnless`, `ExcludeWith`, `ExcludeWithout`, `Missing`, `MissingIf`, `MissingUnless`, `Nullable`, `Present`, `PresentIf`, `PresentUnless`, `Prohibited`, `ProhibitedIf`, `ProhibitedUnless`, `Prohibits`, `Required`, `RequiredIf`, `RequiredUnless`, `RequiredWith`, `RequiredWithAll`, `RequiredWithout`, `RequiredWithoutAll`, `Sometimes` | Their primary effect is validation flow, nullability, presence, or projection rather than a standalone native value type |

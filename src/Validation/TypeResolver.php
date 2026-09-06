@@ -1190,12 +1190,16 @@ final class TypeResolver
                 new ConstantBooleanType(true),
             ),
 
-            "ActiveUrl", "Alpha", "CurrentPassword",
+            "ActiveUrl", "Alpha",
             "Email", "Ip", "Ipv4", "Ipv6", "MacAddress", "Timezone", "Url", "Ulid",
             "Uuid" => new IntersectionType([
                 new StringType(),
                 new AccessoryNonEmptyStringType(),
             ]),
+
+            // The configured hasher decides acceptance without establishing
+            // a native output type. Companion rules can still constrain it.
+            "CurrentPassword" => new MixedType(),
 
             "DateFormat" => $this->resolveTypeDateFormat($rule),
 
