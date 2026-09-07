@@ -1,0 +1,4 @@
+# PHPStan caches test containers by config paths. Give fixture assertions their
+# own container so registry tests cannot warm it before coverage starts.
+includes:
+  - phpstan.neon
