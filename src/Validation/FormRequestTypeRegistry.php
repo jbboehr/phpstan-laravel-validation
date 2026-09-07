@@ -572,12 +572,14 @@ final class FormRequestTypeRegistry implements ResultCacheMetaExtension
                 foreach ($this->ruleTypeResolver->sourceDependencyFiles($classReflection) as $dependencyFile) {
                     $files[$dependencyFile] = true;
                 }
-                $this->collectRuleConstantDependencySourceFiles(
-                    $classReflection,
-                    $files,
-                    $visited,
-                    $packageDirectories
-                );
+                foreach ($this->ruleConstantDependencyClasses($classReflection) as $dependencyClass) {
+                    $this->collectClassSourceFiles(
+                        $dependencyClass,
+                        $files,
+                        $visited,
+                        $packageDirectories
+                    );
+                }
             } catch (\Throwable) {
                 continue;
             }
@@ -589,17 +591,9 @@ final class FormRequestTypeRegistry implements ResultCacheMetaExtension
         return $this->fingerprintSourceFiles;
     }
 
-    /**
-     * @param array<string, true> $files
-     * @param array<string, true> $visitedClasses
-     * @param array<string, true> $packageDirectories
-     */
-    private function collectRuleConstantDependencySourceFiles(
-        ClassReflection $classReflection,
-        array &$files,
-        array &$visitedClasses,
-        array &$packageDirectories
-    ): void {
+    /** @return iterable<ClassReflection> */
+    private function ruleConstantDependencyClasses(ClassReflection $classReflection): iterable
+    {
         $queue = $this->ruleTypeResolver
             ->sourceDependencyClassConstantReferences($classReflection);
         $visitedReferences = [];
@@ -617,12 +611,7 @@ final class FormRequestTypeRegistry implements ResultCacheMetaExtension
             }
 
             $dependencyClass = $this->reflectionProvider->getClass($reference['className']);
-            $this->collectClassSourceFiles(
-                $dependencyClass,
-                $files,
-                $visitedClasses,
-                $packageDirectories
-            );
+            yield $dependencyClass;
             if (strtolower($reference['constantName']) === 'class') {
                 continue;
             }
@@ -975,30 +964,8 @@ final class FormRequestTypeRegistry implements ResultCacheMetaExtension
                 $this->globalCacheDependencyFiles[$fileName] = true;
             }
 
-            $queue = $this->ruleTypeResolver
-                ->sourceDependencyClassConstantReferences($classReflection);
-            $visitedReferences = [];
-            for ($offset = 0; isset($queue[$offset]); ++$offset) {
-                $reference = $queue[$offset];
-                $referenceKey = strtolower($reference['className']) . '::' . $reference['constantName'];
-                if (isset($visitedReferences[$referenceKey])
-                    || !$this->reflectionProvider->hasClass($reference['className'])
-                ) {
-                    continue;
-                }
-                $visitedReferences[$referenceKey] = true;
-
-                $dependencyClass = $this->reflectionProvider->getClass($reference['className']);
+            foreach ($this->ruleConstantDependencyClasses($classReflection) as $dependencyClass) {
                 $this->recordClassHierarchySourceFiles($dependencyClass, $visited);
-                if (strtolower($reference['constantName']) !== 'class') {
-                    array_push(
-                        $queue,
-                        ...$this->ruleTypeResolver->classConstantSourceDependencyReferences(
-                            $dependencyClass,
-                            $reference['constantName']
-                        )
-                    );
-                }
             }
         } catch (\Throwable) {
             // The existing project/package scan remains the conservative fallback.

@@ -353,7 +353,7 @@ final class RuleSetResolver
         foreach ($values as $value) {
             if (is_string($value)) {
                 $value = explode('|', $value);
-            } elseif ($value instanceof StaticRuleValue) {
+            } elseif ($value instanceof Type) {
                 $value = [$value];
             } elseif (!is_array($value)) {
                 return null;
@@ -721,7 +721,7 @@ final class RuleSetResolver
             }
         }
 
-        return [new StaticRuleValue($type)];
+        return [$type];
     }
 
     /**
@@ -762,21 +762,20 @@ final class RuleSetResolver
 
     private function materializeRuleValues(mixed $value): mixed
     {
-        if ($value instanceof StaticRuleValue) {
+        if ($value instanceof Type) {
             // A parsing rule also satisfies the ValidationRule contract that
             // the custom resolver recognizes, so it must be offered the type
             // first or its produced type is lost to a predicate reading.
-            $type = $value->getType();
-            $parsingRule = $this->parsingRuleTypeResolver->resolveRule($type);
+            $parsingRule = $this->parsingRuleTypeResolver->resolveRule($value);
             if ($parsingRule !== null) {
                 return $parsingRule;
             }
 
-            if ($this->parsingRuleTypeResolver->requiresValidatorSetValue($type)) {
+            if ($this->parsingRuleTypeResolver->requiresValidatorSetValue($value)) {
                 return Rule::unresolvedParsing();
             }
 
-            return $this->customRuleTypeResolver->resolveRule($type);
+            return $this->customRuleTypeResolver->resolveRule($value);
         }
         if (!is_array($value)) {
             return $value;

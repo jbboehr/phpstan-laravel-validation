@@ -75,8 +75,8 @@ final class EnumRuleExpressionResolver
     /**
      * @return array{
      *     enum: ClassReflection,
-     *     only: list<array{class: string, case: string}>,
-     *     except: list<array{class: string, case: string}>
+     *     only: array<string, true>,
+     *     except: array<string, true>
      * }|null
      */
     private function resolveState(Expr $expression, Scope $scope): ?array
@@ -158,7 +158,7 @@ final class EnumRuleExpressionResolver
     }
 
     /**
-     * @return list<array{class: string, case: string}>|null
+     * @return array<string, true>|null
      */
     private function resolveFilterCases(Expr $expression, Scope $scope): ?array
     {
@@ -173,24 +173,20 @@ final class EnumRuleExpressionResolver
                 if ($case === null) {
                     return null;
                 }
-                $cases[] = $case;
+                $cases[$case] = true;
             }
             return $cases;
         }
 
         $case = $this->resolveSingleCase($expression, $scope);
-        return $case === null ? null : [$case];
+        return $case === null ? null : [$case => true];
     }
 
-    /** @return array{class: string, case: string}|null */
-    private function resolveSingleCase(Expr $expression, Scope $scope): ?array
+    private function resolveSingleCase(Expr $expression, Scope $scope): ?string
     {
         $cases = $scope->getType($expression)->getEnumCases();
         if (count($cases) === 1) {
-            return [
-                'class' => $cases[0]->getClassName(),
-                'case' => $cases[0]->getEnumCaseName(),
-            ];
+            return $this->caseId($cases[0]->getClassName(), $cases[0]->getEnumCaseName());
         }
 
         if (
@@ -212,10 +208,7 @@ final class EnumRuleExpressionResolver
             return null;
         }
 
-        return [
-            'class' => $className,
-            'case' => $caseName,
-        ];
+        return $this->caseId($className, $caseName);
     }
 
     private function resolveEnumClassName(Expr $expression, Scope $scope): ?string
@@ -246,23 +239,21 @@ final class EnumRuleExpressionResolver
     }
 
     /**
-     * @param list<array{class: string, case: string}> $only
-     * @param list<array{class: string, case: string}> $except
+     * @param array<string, true> $only
+     * @param array<string, true> $except
      */
     private function resolveAcceptedType(ClassReflection $enum, array $only, array $except): Type\Type
     {
         $cases = $enum->getEnumCases();
         if ($only !== []) {
-            $allowed = $this->caseSet($only);
             $cases = array_filter(
                 $cases,
-                fn ($case): bool => isset($allowed[$this->caseId($enum->getName(), $case->getName())])
+                fn ($case): bool => isset($only[$this->caseId($enum->getName(), $case->getName())])
             );
         } elseif ($except !== []) {
-            $excluded = $this->caseSet($except);
             $cases = array_filter(
                 $cases,
-                fn ($case): bool => !isset($excluded[$this->caseId($enum->getName(), $case->getName())])
+                fn ($case): bool => !isset($except[$this->caseId($enum->getName(), $case->getName())])
             );
         }
 
@@ -376,19 +367,6 @@ final class EnumRuleExpressionResolver
         return count($caseTypes) === 1
             ? $caseTypes[0]
             : new UnionType($caseTypes);
-    }
-
-    /**
-     * @param list<array{class: string, case: string}> $cases
-     * @return array<string, true>
-     */
-    private function caseSet(array $cases): array
-    {
-        $result = [];
-        foreach ($cases as $case) {
-            $result[$this->caseId($case['class'], $case['case'])] = true;
-        }
-        return $result;
     }
 
     private function caseId(string $className, string $caseName): string

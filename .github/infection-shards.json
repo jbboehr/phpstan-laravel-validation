@@ -32,7 +32,6 @@
             "src/Validation/NumericRuleExpressionResolver.php",
             "src/Validation/RuleParameterExpressionResolver.php",
             "src/Validation/RuleSetResolver.php",
-            "src/Validation/StaticRuleValue.php",
             "src/Validation/StringRuleExpressionResolver.php",
             "src/Validation/ValidationRulesExpressionResolver.php"
         ]

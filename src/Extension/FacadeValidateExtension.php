@@ -23,13 +23,9 @@ namespace jbboehr\PhpstanLaravelValidation\Extension;
 
 use jbboehr\PhpstanLaravelValidation\ShouldNotHappenException;
 use jbboehr\PhpstanLaravelValidation\Validation\InvalidCustomRuleContractException;
-use jbboehr\PhpstanLaravelValidation\Validation\RuleSetResolver;
-use jbboehr\PhpstanLaravelValidation\Validation\TypeResolver;
-use PhpParser\Node\Expr;
 use PhpParser\Node\Expr\StaticCall;
 use PHPStan\Analyser\Scope;
 use PHPStan\Analyser\SpecifiedTypes;
-use PHPStan\Analyser\TypeSpecifier;
 use PHPStan\Analyser\TypeSpecifierAwareExtension;
 use PHPStan\Analyser\TypeSpecifierContext;
 use PHPStan\Reflection\MethodReflection;
@@ -42,14 +38,7 @@ final class FacadeValidateExtension implements
     StaticMethodTypeSpecifyingExtension,
     TypeSpecifierAwareExtension
 {
-    private TypeSpecifier $typeSpecifier;
-
-    public function __construct(
-        private RuleSetResolver $ruleSetResolver,
-        private TypeResolver $typeResolver,
-        private CallArgumentResolver $callArgumentResolver
-    ) {
-    }
+    use SpecifiesValidatedInput;
 
     public function getClass(): string
     {
@@ -109,51 +98,6 @@ final class FacadeValidateExtension implements
         Scope $scope,
         TypeSpecifierContext $context
     ): SpecifiedTypes {
-        try {
-            $dataArg = $this->callArgumentResolver->find($node->getArgs(), 'data', 0);
-            $rulesArg = $this->callArgumentResolver->find($node->getArgs(), 'rules', 1);
-            if (
-                $dataArg === null
-                || $rulesArg === null
-                || !$dataArg->value instanceof Expr\Variable
-                || !is_string($dataArg->value->name)
-                || $this->callArgumentResolver->otherArgumentMayChangeEvaluationState(
-                    $node->getArgs(),
-                    $dataArg
-                )
-            ) {
-                return new SpecifiedTypes([], []);
-            }
-
-            $ruleTrees = $this->ruleSetResolver->resolve($rulesArg->value, $scope);
-            if ($ruleTrees === []) {
-                return new SpecifiedTypes([], []);
-            }
-
-            $currentInputType = $scope->getType($dataArg->value);
-            $inputType = TypeCombinator::union(...array_map(
-                fn ($ruleTree) => $this->typeResolver->refineSuccessfulDirectInput(
-                    $ruleTree,
-                    $currentInputType
-                ),
-                $ruleTrees
-            ));
-
-            return $this->typeSpecifier->create(
-                $dataArg->value,
-                $inputType,
-                TypeSpecifierContext::createTruthy(),
-                $scope
-            );
-        } catch (InvalidCustomRuleContractException $e) {
-            throw $e;
-        } catch (\Throwable $e) {
-            throw new ShouldNotHappenException($e->getMessage(), $e);
-        }
-    }
-
-    public function setTypeSpecifier(TypeSpecifier $typeSpecifier): void
-    {
-        $this->typeSpecifier = $typeSpecifier;
+        return $this->specifyValidatedInput($node->getArgs(), $scope);
     }
 }

@@ -97,6 +97,37 @@ assertType(
     $exceptArraySubset
 );
 
+$duplicateOnly = Validator::make([], [
+    'value' => ['required', Rule::enum(PureValidationStatus::class)->only([
+        PureValidationStatus::Draft,
+        PureValidationStatus::Draft,
+    ])],
+])->validated();
+assertType(
+    'array{value: jbboehr\PhpstanLaravelValidation\Test\Fixtures\PureValidationStatus::Draft}',
+    $duplicateOnly
+);
+
+$duplicateExcept = Validator::make([], [
+    'value' => ['required', Rule::enum(PureValidationStatus::class)->except([
+        PureValidationStatus::Draft,
+        PureValidationStatus::Draft,
+    ])],
+])->validated();
+assertType(
+    'array{value: jbboehr\PhpstanLaravelValidation\Test\Fixtures\PureValidationStatus::Published}',
+    $duplicateExcept
+);
+
+$foreignExcept = Validator::make([], [
+    'value' => ['required', Rule::enum(PureValidationStatus::class)->except(StringValidationStatus::Draft)],
+])->validated();
+assertType(
+    'array{value: jbboehr\PhpstanLaravelValidation\Test\Fixtures\PureValidationStatus::Draft'
+        . '|jbboehr\PhpstanLaravelValidation\Test\Fixtures\PureValidationStatus::Published}',
+    $foreignExcept
+);
+
 $case = PureValidationStatus::Draft;
 $knownCaseVariable = Validator::make([], [
     'value' => ['required', Rule::enum(PureValidationStatus::class)->only($case)],

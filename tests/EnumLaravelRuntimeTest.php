@@ -212,6 +212,31 @@ final class EnumLaravelRuntimeTest extends \PHPStan\Testing\PHPStanTestCase
         self::assertFalse($integerTwoOnly->passes('value', true));
     }
 
+    public function testFiltersPreserveClassIdentityAndIgnoreDuplicateCases(): void
+    {
+        if (!self::enumMethodExists('only')) {
+            return;
+        }
+
+        $only = (new Enum(PureValidationStatus::class))->only([
+            PureValidationStatus::Draft,
+            PureValidationStatus::Draft,
+        ]);
+        $this->assertAcceptedAndPreserved($only, PureValidationStatus::Draft);
+        self::assertFalse($only->passes('value', PureValidationStatus::Published));
+
+        $except = (new Enum(PureValidationStatus::class))->except([
+            PureValidationStatus::Draft,
+            PureValidationStatus::Draft,
+        ]);
+        self::assertFalse($except->passes('value', PureValidationStatus::Draft));
+        $this->assertAcceptedAndPreserved($except, PureValidationStatus::Published);
+
+        $foreign = (new Enum(PureValidationStatus::class))->except(StringValidationStatus::Draft);
+        $this->assertAcceptedAndPreserved($foreign, PureValidationStatus::Draft);
+        $this->assertAcceptedAndPreserved($foreign, PureValidationStatus::Published);
+    }
+
     private function assertAcceptedAndPreserved(Enum $rule, mixed $value): void
     {
         $validator = self::factory()->make(['value' => $value], ['value' => ['required', $rule]]);

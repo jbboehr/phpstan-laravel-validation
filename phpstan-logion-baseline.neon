@@ -187,12 +187,6 @@ parameters:
 			path: src/Validation/RuleTreeNode.php
 
 		-
-			message: '#^Named declaration jbboehr\\PhpstanLaravelValidation\\Validation\\StaticRuleValue must contain exactly one @logion PHPDoc tag\.$#'
-			identifier: doctrine.logion.missing
-			count: 1
-			path: src/Validation/StaticRuleValue.php
-
-		-
 			message: '#^Named declaration jbboehr\\PhpstanLaravelValidation\\Validation\\TypeResolver must contain exactly one @logion PHPDoc tag\.$#'
 			identifier: doctrine.logion.missing
 			count: 1
