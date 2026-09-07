@@ -53,10 +53,24 @@ try {
     $check(!is_link($directory . '/original.php'), 'A regular file must not become a symlink.');
     $check((require $directory . '/original.php') === 'replacement', 'Includes must still load the mutant.');
     $check(file_get_contents($directory . '/original.php') === '<?php return "original";', 'Ordinary reads must retain original contents.');
+
+    file_put_contents($directory . '/bootstrap-original.php', '<?php final class InfectionBootstrapFixture { public const VALUE = "original"; }');
+    file_put_contents($directory . '/bootstrap-replacement.php', '<?php final class InfectionBootstrapFixture { public const VALUE = "replacement"; }');
+    IncludeInterceptor::intercept($directory . '/bootstrap-original.php', $directory . '/bootstrap-replacement.php');
+    $projectRoot = dirname(__DIR__, 3);
+    $configuration = simplexml_load_file($projectRoot . '/phpunit.xml.dist');
+    $check($configuration !== false, 'Cannot read the PHPUnit configuration.');
+    require $projectRoot . '/' . (string) $configuration['bootstrap'];
+
+    // PHPStan restores the native file wrapper after locating an unloaded class.
+    PHPStan\Reflection\BetterReflection\SourceLocator\FileReadTrapStreamWrapper::withStreamWrapperOverride(static fn () => null);
+    require_once $directory . '/bootstrap-original.php';
+    IncludeInterceptor::enable();
+    $check(InfectionBootstrapFixture::VALUE === 'replacement', 'PHPStan reflection must not cause tests to execute the original declaration.');
 } finally {
     IncludeInterceptor::disable();
     restore_error_handler();
-    foreach (['original.php', 'replacement.php', 'dangling', 'linked'] as $name) {
+    foreach (['original.php', 'replacement.php', 'dangling', 'linked', 'bootstrap-original.php', 'bootstrap-replacement.php'] as $name) {
         if (file_exists($directory . '/' . $name) || is_link($directory . '/' . $name)) {
             unlink($directory . '/' . $name);
         }

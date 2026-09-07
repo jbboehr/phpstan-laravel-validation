@@ -11,4 +11,4 @@ $source = $projectRoot . '/src/Validation/FormRequestTypeRegistry.php';
 // Unchanged source must pass the same tests when Infection intercepts includes.
 IncludeInterceptor::intercept($source, $source);
 IncludeInterceptor::enable();
-require $projectRoot . '/vendor/autoload.php';
+require $projectRoot . '/tests/bootstrap.php';
