@@ -21,8 +21,12 @@ declare(strict_types=1);
 
 namespace jbboehr\PhpstanLaravelValidation\Test;
 
+use jbboehr\PhpstanLaravelValidation\Test\Support\AssertsFixtureUnderCoverage;
+
 class StructureInferenceTest extends \PHPStan\Testing\TypeInferenceTestCase
 {
+    use AssertsFixtureUnderCoverage;
+
     /**
      * @return iterable<mixed>
      */
@@ -40,8 +44,6 @@ class StructureInferenceTest extends \PHPStan\Testing\TypeInferenceTestCase
         yield from self::gatherAssertTypes(__DIR__ . '/structure/readme.php');
         yield from self::gatherAssertTypes(__DIR__ . '/structure/request.php');
         yield from self::gatherAssertTypes(__DIR__ . '/structure/validator-union.php');
-        yield from self::gatherAssertTypes(__DIR__ . '/structure/validator-mutation.php');
-        yield from self::gatherAssertTypes(__DIR__ . '/structure/validator-mutation-helper.php');
         yield from self::gatherAssertTypes(__DIR__ . '/structure/wildcard.php');
     }
 
@@ -55,6 +57,18 @@ class StructureInferenceTest extends \PHPStan\Testing\TypeInferenceTestCase
         mixed ...$args
     ): void {
         $this->assertFileAsserts($assertType, $file, ...$args);
+    }
+
+    /** @group structure */
+    public function testValidatorMutationFileAsserts(): void
+    {
+        $this->assertFixtureUnderCoverage(__DIR__ . '/structure/validator-mutation.php');
+    }
+
+    /** @group structure */
+    public function testValidatorMutationHelperFileAsserts(): void
+    {
+        $this->assertFixtureUnderCoverage(__DIR__ . '/structure/validator-mutation-helper.php');
     }
 
     public static function getAdditionalConfigFiles(): array
