@@ -101,6 +101,24 @@ final class FormRequestLaravelRuntimeTest extends \PHPStan\Testing\PHPStanTestCa
         self::assertSame(['value' => ['anonymous']], $request->validated());
     }
 
+    public function testSafeSelectorsCanBeOmittedOrPresent(): void
+    {
+        $request = $this->resolveRequest(BasicRequest::class, ['name' => 'Ada', 'age' => '42']);
+        $safe = $request->safe();
+        self::assertInstanceOf(\Illuminate\Support\ValidatedInput::class, $safe);
+
+        foreach ([
+            'no selectors' => [[], [], ['name' => 'Ada', 'age' => '42']],
+            'name selected' => [['name'], ['name' => 'Ada'], ['age' => '42']],
+        ] as $name => [$keys, $only, $except]) {
+            self::assertSame($only, $request->safe($keys), $name . ': safe');
+            self::assertSame($only, $safe->only($keys), $name . ': only');
+            self::assertSame($except, $safe->except($keys), $name . ': except');
+        }
+
+        self::assertSame(['name' => 'Ada', 'age' => '42'], $safe->all());
+    }
+
     public function testConventionalFormRequestUsesRulesAndPreservesValues(): void
     {
         self::getContainer();

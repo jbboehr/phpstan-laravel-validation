@@ -52,6 +52,17 @@ function inspectAliases(AliasRulesRequest $request): void
     );
 }
 
+/** @param array{0?: 'name'} $keys */
+function inspectOptionalSelectors(BasicRequest $request, array $keys): void
+{
+    assertType('array{name?: string}', $request->safe($keys));
+    assertType('array{name?: string}', $request->safe()->only($keys));
+    assertType(
+        'array{name?: string, age?: float|int|string|Stringable|true}',
+        $request->safe()->except($keys)
+    );
+}
+
 /** @param array<string, mixed> $dynamicItems */
 function inspectBasic(BasicRequest $request, array $dynamicItems): void
 {

@@ -49,6 +49,49 @@ final class ValidatedInputTypeResolverTest extends PHPStanTestCase
         ];
     }
 
+    /** @return iterable<string, array{'only'|'except', string, string}> */
+    public static function selectorPresenceProvider(): iterable
+    {
+        yield 'only with no selectors' => ['only', 'array{}', 'array{}'];
+        yield 'only with a definite selector' => ['only', "array{0: 'name'}", 'array{name: string}'];
+        yield 'only with an optional selector' => ['only', "array{0?: 'name'}", 'array{name?: string}'];
+        yield 'except with no selectors' => ['except', 'array{}', 'array{name: string, retained: int}'];
+        yield 'except with a definite selector' => ['except', "array{0: 'name'}", 'array{retained: int}'];
+        yield 'except with an optional selector' => [
+            'except', "array{0?: 'name'}", 'array{name?: string, retained: int}',
+        ];
+    }
+
+    /**
+     * @dataProvider selectorPresenceProvider
+     * @param 'only'|'except' $method
+     */
+    public function testProjectionRespectsSelectorPresence(
+        string $method,
+        string $selectors,
+        string $expectedType
+    ): void {
+        $container = self::getContainer();
+        $typeStringResolver = $container->getByType(TypeStringResolver::class);
+        $payload = $typeStringResolver->resolve('array{name: string, retained: int}');
+        $keysExpression = new Expr\Variable('keys');
+        $scope = self::createMock(Scope::class);
+        $scope->method('getType')
+            ->with($keysExpression)
+            ->willReturn($typeStringResolver->resolve($selectors));
+        $call = new Expr\MethodCall(
+            new Expr\Variable('validated'),
+            new Identifier($method),
+            [new Arg($keysExpression)]
+        );
+        $resolver = $container->getByType(ValidatedInputTypeResolver::class);
+        $type = $method === 'only'
+            ? $resolver->resolveOnlyReturnType($payload, $call, $scope)
+            : $resolver->resolveExceptReturnType($payload, $call, $scope);
+
+        self::assertSame($expectedType, $type?->describe(VerbosityLevel::precise()));
+    }
+
     public function testOnlyProjectsNestedOptionalAndNumericPaths(): void
     {
         $container = self::getContainer();
