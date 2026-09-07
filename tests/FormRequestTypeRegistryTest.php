@@ -34,6 +34,7 @@ use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest\ValidationRulesRe
 use jbboehr\PhpstanLaravelValidation\Test\Fixtures\FormRequest as Requests;
 use jbboehr\PhpstanLaravelValidation\Validation\FormRequestRuleTypeResolver;
 use jbboehr\PhpstanLaravelValidation\Validation\FormRequestTypeRegistry;
+use jbboehr\PhpstanLaravelValidation\Validation\InvalidCustomRuleContractException;
 use PHPStan\Analyser\ResultCache\ResultCacheMetaExtension;
 use PHPStan\File\FileHelper;
 use PHPStan\Parser\Parser;
@@ -145,6 +146,47 @@ final class FormRequestTypeRegistryTest extends \PHPStan\Testing\PHPStanTestCase
             $container->getByType(FormRequestRuleTypeResolver::class)
                 ->hasExportableLiteralRulesMethodBody($reflectionProvider->getClass(ClassConstantRequest::class))
         );
+        foreach ([Requests\CustomRuleRequest::class, Requests\InRuleRequest::class] as $className) {
+            self::assertFalse(
+                $container->getByType(FormRequestRuleTypeResolver::class)
+                    ->hasExportableLiteralRulesMethodBody($reflectionProvider->getClass($className)),
+                $className
+            );
+        }
+    }
+
+    public function testRuleDependenciesIncludeNestedCustomRulesAndClassConstants(): void
+    {
+        $container = self::getContainer();
+        $reflectionProvider = $container->getByType(ReflectionProvider::class);
+        $resolver = $container->getByType(FormRequestRuleTypeResolver::class);
+
+        self::assertContains(
+            Requests\FormRequestStringRule::class,
+            $resolver->sourceDependencyClassNames($reflectionProvider->getClass(Requests\CustomRuleRequest::class))
+        );
+        self::assertContains(
+            ['className' => Requests\RuleConstants::class, 'constantName' => 'RULES'],
+            $resolver->sourceDependencyClassConstantReferences(
+                $reflectionProvider->getClass(ClassConstantRequest::class)
+            )
+        );
+    }
+
+    public function testInvalidCustomRuleContractPropagatesThroughTheRegistry(): void
+    {
+        // The fixture must stay outside normal PHP source discovery.
+        require_once __DIR__ . '/CustomRules/InvalidContractRequest.inc';
+        $className = 'jbboehr\\PhpstanLaravelValidation\\Test\\CustomRules\\InvalidContractRequest';
+        $reflection = self::getContainer()->getByType(ReflectionProvider::class)->getClass($className);
+        $registry = $this->createIsolatedRegistry([$className], []);
+
+        $this->expectException(InvalidCustomRuleContractException::class);
+        $this->expectExceptionMessage(
+            'Invalid PHPStan type array{ for custom validation rule '
+                . 'jbboehr\\PhpstanLaravelValidation\\Test\\CustomRules\\InvalidAttributeRule'
+        );
+        $registry->getType($reflection);
     }
 
     public function testValidationRulesOverrideFollowsInstalledLaravelLifecycle(): void

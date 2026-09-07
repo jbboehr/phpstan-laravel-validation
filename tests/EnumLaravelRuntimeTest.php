@@ -160,6 +160,24 @@ final class EnumLaravelRuntimeTest extends \PHPStan\Testing\PHPStanTestCase
         self::assertFalse($exceptDraft->passes('value', PureValidationStatus::Draft));
         $this->assertAcceptedAndPreserved($exceptDraft, PureValidationStatus::Published);
 
+        $onlyArraySubset = (new Enum(PureValidationStatus::class))->only([PureValidationStatus::Draft]);
+        $this->assertAcceptedAndPreserved($onlyArraySubset, PureValidationStatus::Draft);
+        self::assertFalse($onlyArraySubset->passes('value', PureValidationStatus::Published));
+
+        $exceptArraySubset = (new Enum(PureValidationStatus::class))->except([PureValidationStatus::Draft]);
+        self::assertFalse($exceptArraySubset->passes('value', PureValidationStatus::Draft));
+        $this->assertAcceptedAndPreserved($exceptArraySubset, PureValidationStatus::Published);
+
+        $case = PureValidationStatus::Draft;
+        $knownCaseVariable = (new Enum(PureValidationStatus::class))->only($case);
+        $this->assertAcceptedAndPreserved($knownCaseVariable, $case);
+        self::assertFalse($knownCaseVariable->passes('value', PureValidationStatus::Published));
+
+        $enumClass = PureValidationStatus::class;
+        $knownClassVariable = new Enum($enumClass);
+        $this->assertAcceptedAndPreserved($knownClassVariable, PureValidationStatus::Draft);
+        $this->assertAcceptedAndPreserved($knownClassVariable, PureValidationStatus::Published);
+
         $onlyWins = (new Enum(PureValidationStatus::class))
             ->only(PureValidationStatus::Draft)
             ->except(PureValidationStatus::Draft);

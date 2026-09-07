@@ -18,6 +18,12 @@ $presentIf = Validator::make(conditionalPresenceInput(), [
 ])->validated();
 assertType("array{mode: 'create', value: string}", $presentIf);
 
+$presentAfterPredicate = Validator::make(conditionalPresenceInput(), [
+    'mode' => 'required|string|in:create',
+    'value' => 'string|present_if:mode,create',
+])->validated();
+assertType("array{mode: 'create', value: string}", $presentAfterPredicate);
+
 $presentUnless = Validator::make(conditionalPresenceInput(), [
     'mode' => 'required|string|in:update',
     'value' => 'present_unless:mode,create|string',
@@ -29,6 +35,13 @@ $missingIf = Validator::make(conditionalPresenceInput(), [
     'value' => 'missing_if:mode,create|string',
 ])->validated();
 assertType("array{mode: 'create'}", $missingIf);
+
+$missingBeforeSibling = Validator::make(conditionalPresenceInput(), [
+    'mode' => 'required|string|in:create',
+    'value' => 'missing_if:mode,create|string',
+    'retained' => 'required|string',
+])->validated();
+assertType("array{mode: 'create', retained: string}", $missingBeforeSibling);
 
 $missingUnless = Validator::make(conditionalPresenceInput(), [
     'mode' => 'required|string|in:update',

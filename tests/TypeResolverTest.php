@@ -65,6 +65,19 @@ final class TypeResolverTest extends PHPStanTestCase
         );
     }
 
+    public function testSuccessfulDirectInputPreservesExistingLiteralTypes(): void
+    {
+        $input = ConstantArrayTypeBuilder::createEmpty();
+        $input->setOffsetValueType(new ConstantStringType('name'), new ConstantStringType('Ada'));
+
+        $type = (new TypeResolver())->refineSuccessfulDirectInput(
+            RuleParser::parse(['name' => 'required|string']),
+            $input->getArray()
+        );
+
+        self::assertSame("array{name: 'Ada'}", $type->describe(VerbosityLevel::precise()));
+    }
+
     public function testSuccessfulDirectInputDeclinesExecutableRulesAnywhereInTree(): void
     {
         $input = ConstantArrayTypeBuilder::createEmpty();
@@ -318,6 +331,11 @@ final class TypeResolverTest extends PHPStanTestCase
                 'present_if:mode,create|string',
                 "array{mode: 'create', value: string}",
             ],
+            'present if active after predicate' => [
+                'create',
+                'string|present_if:mode,create',
+                "array{mode: 'create', value: string}",
+            ],
             'present if inactive' => [
                 'update',
                 'present_if:mode,create|string',
@@ -365,6 +383,18 @@ final class TypeResolverTest extends PHPStanTestCase
                 $name
             );
         }
+    }
+
+    public function testConditionalMissingPreservesLaterSiblings(): void
+    {
+        self::assertSame(
+            "array{mode: 'create', retained: string}",
+            self::resolveWithConditionalPresenceInference([
+                'mode' => 'required|string|in:create',
+                'value' => 'missing_if:mode,create|string',
+                'retained' => 'required|string',
+            ])
+        );
     }
 
     public function testExperimentalConditionalPresenceInferencePreservesPresentBlankBypass(): void

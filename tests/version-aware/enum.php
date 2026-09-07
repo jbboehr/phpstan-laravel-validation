@@ -81,6 +81,41 @@ assertType(
     $filtered
 );
 
+$onlyArraySubset = Validator::make([], [
+    'value' => ['required', Rule::enum(PureValidationStatus::class)->only([PureValidationStatus::Draft])],
+])->validated();
+assertType(
+    'array{value: jbboehr\PhpstanLaravelValidation\Test\Fixtures\PureValidationStatus::Draft}',
+    $onlyArraySubset
+);
+
+$exceptArraySubset = Validator::make([], [
+    'value' => ['required', Rule::enum(PureValidationStatus::class)->except([PureValidationStatus::Draft])],
+])->validated();
+assertType(
+    'array{value: jbboehr\PhpstanLaravelValidation\Test\Fixtures\PureValidationStatus::Published}',
+    $exceptArraySubset
+);
+
+$case = PureValidationStatus::Draft;
+$knownCaseVariable = Validator::make([], [
+    'value' => ['required', Rule::enum(PureValidationStatus::class)->only($case)],
+])->validated();
+assertType(
+    'array{value: jbboehr\PhpstanLaravelValidation\Test\Fixtures\PureValidationStatus::Draft}',
+    $knownCaseVariable
+);
+
+$enumClass = PureValidationStatus::class;
+$knownClassVariable = Validator::make([], [
+    'value' => ['required', Rule::enum($enumClass)],
+])->validated();
+assertType(
+    'array{value: jbboehr\PhpstanLaravelValidation\Test\Fixtures\PureValidationStatus::Draft'
+        . '|jbboehr\PhpstanLaravelValidation\Test\Fixtures\PureValidationStatus::Published}',
+    $knownClassVariable
+);
+
 $coerciveFilters = Validator::make([], [
     'string_one' => ['required', Rule::enum(StringValidationStatus::class)->only(StringValidationStatus::One)],
     'string_draft' => ['required', Rule::enum(StringValidationStatus::class)->only(StringValidationStatus::Draft)],

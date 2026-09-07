@@ -222,6 +222,36 @@ final class ConditionalPresenceLaravelRuntimeTest extends \PHPStan\Testing\PHPSt
         );
     }
 
+    public function testConditionalMissingPreservesLaterSiblings(): void
+    {
+        $data = ['mode' => 'create', 'retained' => 'kept'];
+        $validator = self::factory()->make($data, [
+            'mode' => 'required|string|in:create',
+            'value' => 'missing_if:mode,create|string',
+            'retained' => 'required|string',
+        ]);
+
+        self::assertTrue($validator->passes());
+        self::assertSame($data, $validator->validated());
+    }
+
+    public function testConditionalPresentRequiresTheFieldInEitherRuleOrder(): void
+    {
+        if (!self::supportsConditionalPresentRules()) {
+            self::markTestSkipped('Conditional present rules require Laravel 10.32 or later');
+        }
+
+        foreach (['present_if:mode,create|string', 'string|present_if:mode,create'] as $valueRules) {
+            $rules = ['mode' => 'required|string|in:create', 'value' => $valueRules];
+            $data = ['mode' => 'create', 'value' => 'kept'];
+            $validator = self::factory()->make($data, $rules);
+
+            self::assertTrue($validator->passes(), $valueRules);
+            self::assertSame($data, $validator->validated(), $valueRules);
+            self::assertFalse(self::factory()->make(['mode' => 'create'], $rules)->passes(), $valueRules);
+        }
+    }
+
     private static function factory(): Factory
     {
         return new Factory(new Translator(new ArrayLoader(), 'en'));
