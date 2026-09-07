@@ -223,10 +223,11 @@
         closure ? rootClosure,
         command,
         junitReport ? false,
+        useProot ? true,
         nativeBuildInputs ? [],
       }: let
         runCommand =
-          if pkgs.stdenv.isLinux
+          if pkgs.stdenv.isLinux && useProot
           then ''${pkgs.proot}/bin/proot -b "$TMPDIR/usr/bin/env:/usr/bin/env" ${pkgs.bash}/bin/bash -euo pipefail -c ${pkgs.lib.escapeShellArg command}''
           else ''
             ${pkgs.bash}/bin/bash -euo pipefail -c ${pkgs.lib.escapeShellArg command}
@@ -437,6 +438,10 @@
         mkProjectCheck {
           name = "mutation-${shard}";
           php = mutationPhp;
+          # Mutation tests exclude child PHPStan processes, and PHPUnit's
+          # shebang is patched above. Avoid tracing their filesystem work
+          # through PRoot just to provide /usr/bin/env for subprocess tests.
+          useProot = false;
           command = ''
             sharedInfectionVendor=${infectionClosure.vendor}/share/php/${infectionClosure.vendorPname}/vendor
             mkdir -p tools/infection
