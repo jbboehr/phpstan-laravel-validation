@@ -1,0 +1,446 @@
+diff --git a/app/Http/Requests/Api/Application/Nodes/GetDeployableNodesRequest.php b/app/Http/Requests/Api/Application/Nodes/GetDeployableNodesRequest.php
+index fd077ec..4ec1d00 100644
+--- a/app/Http/Requests/Api/Application/Nodes/GetDeployableNodesRequest.php
++++ b/app/Http/Requests/Api/Application/Nodes/GetDeployableNodesRequest.php
+@@ -2,16 +2,18 @@
+ 
+ namespace Pterodactyl\Http\Requests\Api\Application\Nodes;
+ 
++use jbboehr\Rensei\Parse;
++
+ class GetDeployableNodesRequest extends GetNodesRequest
+ {
+     public function rules(): array
+     {
+         return [
+             'page' => 'integer',
+-            'memory' => 'required|integer|min:0',
+-            'disk' => 'required|integer|min:0',
++            'memory' => ['required', 'integer', Parse::integer(), 'min:0'],
++            'disk' => ['required', 'integer', Parse::integer(), 'min:0'],
+             'location_ids' => 'array',
+-            'location_ids.*' => 'integer',
++            'location_ids.*' => ['integer', Parse::integer()],
+         ];
+     }
+ }
+diff --git a/phpstan-experimental.neon b/phpstan-experimental.neon
+new file mode 100644
+index 0000000..2983511
+--- /dev/null
++++ b/phpstan-experimental.neon
+@@ -0,0 +1,10 @@
++includes:
++    - phpstan.neon
++    - vendor/jbboehr/phpstan-laravel-validation/extension.neon
++
++parameters:
++    tmpDir: storage/framework/cache/phpstan-experimental
++    phpstanLaravelValidation:
++        experimentalConditionalPresenceInference: true
++        formRequests:
++            enabled: true
+diff --git a/phpstan-experimental-control.neon b/phpstan-experimental-control.neon
+new file mode 100644
+index 0000000..adb2cb6
+--- /dev/null
++++ b/phpstan-experimental-control.neon
+@@ -0,0 +1,7 @@
++includes:
++    - phpstan-experimental.neon
++
++parameters:
++    tmpDir: storage/framework/cache/phpstan-experimental-control
++    phpstanLaravelValidation:
++        experimentalConditionalPresenceInference: false
+diff --git a/tests/Integration/ParsingAdoptionTest.php b/tests/Integration/ParsingAdoptionTest.php
+new file mode 100644
+index 0000000..7d7ea88
+--- /dev/null
++++ b/tests/Integration/ParsingAdoptionTest.php
+@@ -0,0 +1,214 @@
++<?php
++
++namespace Pterodactyl\Tests\Integration;
++
++use Pterodactyl\Models\User;
++use Pterodactyl\Models\ApiKey;
++use Illuminate\Foundation\Application;
++use Illuminate\Contracts\Console\Kernel;
++use Illuminate\Foundation\Http\FormRequest;
++use Illuminate\Foundation\Testing\TestCase;
++use Illuminate\Validation\ValidationException;
++use PHPUnit\Framework\Attributes\DataProvider;
++use Pterodactyl\Http\Requests\Api\Remote\ReportBackupCompleteRequest;
++use Pterodactyl\Tests\Fixtures\ExperimentalValidation\MixedModeRequest;
++use Pterodactyl\Tests\Fixtures\ExperimentalValidation\MissingModeRequest;
++use Pterodactyl\Tests\Fixtures\ExperimentalValidation\PresentModeRequest;
++use Pterodactyl\Http\Requests\Api\Application\Nodes\GetDeployableNodesRequest;
++
++final class ParsingAdoptionTest extends TestCase
++{
++    public function createApplication(): Application
++    {
++        $app = require dirname(__DIR__, 2) . '/bootstrap/app.php';
++        $app->make(Kernel::class)->bootstrap();
++
++        return $app;
++    }
++
++    /** @return iterable<string, array{array<string, mixed>, array<string, mixed>}> */
++    public static function acceptedCriteria(): iterable
++    {
++        yield 'query strings and wildcard values' => [
++            ['memory' => '1024', 'disk' => '2048', 'location_ids' => ['4', 6]],
++            ['memory' => 1024, 'disk' => 2048, 'location_ids' => [4, 6]],
++        ];
++        yield 'zero limits and omitted locations' => [
++            ['memory' => '0', 'disk' => '0'],
++            ['memory' => 0, 'disk' => 0],
++        ];
++        yield 'blank optional locations remain a string' => [
++            ['memory' => '1', 'disk' => '1', 'location_ids' => ''],
++            ['memory' => 1, 'disk' => 1, 'location_ids' => ''],
++        ];
++        yield 'native integers and empty locations' => [
++            ['memory' => 1024, 'disk' => 2048, 'location_ids' => []],
++            ['memory' => 1024, 'disk' => 2048, 'location_ids' => []],
++        ];
++        yield 'page remains unparsed' => [
++            ['page' => '2', 'memory' => '1024', 'disk' => '2048'],
++            ['page' => '2', 'memory' => 1024, 'disk' => 2048],
++        ];
++    }
++
++    #[DataProvider('acceptedCriteria')]
++    public function testValidatedDeploymentCriteriaAreTypedAndInputIsPreserved(array $input, array $expected): void
++    {
++        $request = $this->validatedRequest($input);
++
++        self::assertSame($expected, $request->validated());
++        self::assertSame($expected['memory'], $request->validated('memory'));
++        self::assertSame(['memory' => $expected['memory']], $request->safe()->only(['memory']));
++        self::assertSame($input, $request->all());
++        self::assertSame($input['memory'], $request->input('memory'));
++    }
++
++    /** @return iterable<string, array{array<string, mixed>, string}> */
++    public static function rejectedCriteria(): iterable
++    {
++        yield 'missing memory' => [['disk' => '1'], 'memory'];
++        yield 'missing disk' => [['memory' => '1'], 'disk'];
++        yield 'negative memory' => [['memory' => '-1', 'disk' => '1'], 'memory'];
++        yield 'negative disk' => [['memory' => '1', 'disk' => '-1'], 'disk'];
++        yield 'plus sign' => [['memory' => '+1', 'disk' => '1'], 'memory'];
++        yield 'padded input' => [['memory' => ' 1', 'disk' => '1'], 'memory'];
++        yield 'fractional input' => [['memory' => '1.5', 'disk' => '1'], 'memory'];
++        yield 'native float' => [['memory' => 1.0, 'disk' => '1'], 'memory'];
++        yield 'native boolean' => [['memory' => true, 'disk' => '1'], 'memory'];
++        yield 'invalid location' => [['memory' => '1', 'disk' => '1', 'location_ids' => ['oops']], 'location_ids.0'];
++        yield 'padded location' => [['memory' => '1', 'disk' => '1', 'location_ids' => [' 4']], 'location_ids.0'];
++        yield 'blank location element' => [['memory' => '1', 'disk' => '1', 'location_ids' => ['']], 'location_ids.0'];
++        yield 'non-array locations' => [['memory' => '1', 'disk' => '1', 'location_ids' => '4'], 'location_ids'];
++    }
++
++    #[DataProvider('rejectedCriteria')]
++    public function testRejectsInvalidOrNonCanonicalDeploymentCriteria(array $input, string $field): void
++    {
++        try {
++            $this->validatedRequest($input);
++            self::fail('Invalid deployment criteria were accepted.');
++        } catch (ValidationException $exception) {
++            self::assertArrayHasKey($field, $exception->errors());
++        }
++    }
++
++    /** @return iterable<string, array{class-string<FormRequest>, array<string, mixed>, array<string, mixed>}> */
++    public static function acceptedExperimentalRequests(): iterable
++    {
++        yield 'definite presence' => [
++            PresentModeRequest::class,
++            ['mode' => 'create', 'value' => 'chosen', 'extra' => 'discarded'],
++            ['mode' => 'create', 'value' => 'chosen'],
++        ];
++        yield 'present permits an empty string' => [
++            PresentModeRequest::class,
++            ['mode' => 'create', 'value' => ''],
++            ['mode' => 'create', 'value' => ''],
++        ];
++        yield 'definite absence preserves later siblings' => [
++            MissingModeRequest::class,
++            ['mode' => 'create', 'retained' => 'keep'],
++            ['mode' => 'create', 'retained' => 'keep'],
++        ];
++        yield 'mixed domain matching branch' => [
++            MixedModeRequest::class,
++            ['mode' => 'create', 'value' => 'chosen'],
++            ['mode' => 'create', 'value' => 'chosen'],
++        ];
++        yield 'mixed domain nonmatching omission' => [
++            MixedModeRequest::class,
++            ['mode' => 'update'],
++            ['mode' => 'update'],
++        ];
++        yield 'mixed domain nonmatching value' => [
++            MixedModeRequest::class,
++            ['mode' => 'update', 'value' => 'optional'],
++            ['mode' => 'update', 'value' => 'optional'],
++        ];
++        yield 'failed backup omits conditional metadata' => [
++            ReportBackupCompleteRequest::class, ['successful' => false], ['successful' => false],
++        ];
++        yield 'successful backup keeps numeric predicate representation' => [
++            ReportBackupCompleteRequest::class,
++            ['successful' => true, 'checksum' => 'abc', 'checksum_type' => 'sha256', 'size' => '1024'],
++            ['successful' => true, 'checksum' => 'abc', 'checksum_type' => 'sha256', 'size' => '1024'],
++        ];
++        yield 'backup parts project only validated keys' => [
++            ReportBackupCompleteRequest::class,
++            ['successful' => false, 'parts' => [['etag' => 'part', 'part_number' => '1', 'extra' => 'discarded']]],
++            ['successful' => false, 'parts' => [['etag' => 'part', 'part_number' => '1']]],
++        ];
++    }
++
++    /** @param class-string<FormRequest> $requestClass */
++    #[DataProvider('acceptedExperimentalRequests')]
++    public function testExperimentalContractsMatchRuntime(string $requestClass, array $input, array $expected): void
++    {
++
++        $request = $this->validatedRequest($input, $requestClass);
++
++        static::assertSame($expected, $request->validated());
++        static::assertSame($expected, $request->safe()->all());
++        static::assertSame($input, $request->input());
++    }
++
++    /** @return iterable<string, array{class-string<FormRequest>, array<string, mixed>, string}> */
++    public static function rejectedExperimentalRequests(): iterable
++    {
++        yield 'present rejects omission' => [PresentModeRequest::class, ['mode' => 'create'], 'value'];
++        yield 'missing rejects a value' => [
++            MissingModeRequest::class, ['mode' => 'create', 'value' => 'forbidden', 'retained' => 'keep'], 'value',
++        ];
++        yield 'missing rejects null' => [
++            MissingModeRequest::class, ['mode' => 'create', 'value' => null, 'retained' => 'keep'], 'value',
++        ];
++        yield 'missing rejects an empty string' => [
++            MissingModeRequest::class, ['mode' => 'create', 'value' => '', 'retained' => 'keep'], 'value',
++        ];
++        yield 'mixed matching branch requires presence' => [MixedModeRequest::class, ['mode' => 'create'], 'value'];
++        yield 'controller domain is enforced' => [
++            PresentModeRequest::class, ['mode' => 'delete', 'value' => 'chosen'], 'mode',
++        ];
++        yield 'successful backup requires metadata' => [ReportBackupCompleteRequest::class, ['successful' => true], 'checksum'];
++        yield 'backup part requires its etag' => [
++            ReportBackupCompleteRequest::class, ['successful' => false, 'parts' => [['part_number' => '1']]], 'parts.0.etag',
++        ];
++    }
++
++    /** @param class-string<FormRequest> $requestClass */
++    #[DataProvider('rejectedExperimentalRequests')]
++    public function testExperimentalContractsRejectTheOppositeShape(string $requestClass, array $input, string $field): void
++    {
++
++        try {
++            $this->validatedRequest($input, $requestClass);
++            static::fail('A request violating its conditional contract was accepted.');
++        } catch (ValidationException $exception) {
++            static::assertArrayHasKey($field, $exception->errors());
++        }
++    }
++
++    /**
++     * @template T of FormRequest
++     *
++     * @param array<string, mixed> $input
++     * @param class-string<T> $requestClass
++     *
++     * @return T
++     */
++    private function validatedRequest(array $input, string $requestClass = GetDeployableNodesRequest::class): FormRequest
++    {
++        $user = new User();
++        $token = new ApiKey();
++        $token->key_type = ApiKey::TYPE_ACCOUNT;
++        $user->withAccessToken($token);
++
++        $request = $requestClass::create('/audit/experimental-validation', 'GET', $input);
++        $request->setContainer($this->app);
++        $request->setRedirector($this->app->make('redirect'));
++        $request->setUserResolver(static fn (): User => $user);
++        $request->validateResolved();
++
++        return $request;
++    }
++}
+diff --git a/tests/Integration/ExperimentalInferenceTest.php b/tests/Integration/ExperimentalInferenceTest.php
+new file mode 100644
+index 0000000..c7c3d84
+--- /dev/null
++++ b/tests/Integration/ExperimentalInferenceTest.php
+@@ -0,0 +1,41 @@
++<?php
++
++namespace Pterodactyl\Tests\Integration;
++
++use Composer\InstalledVersions;
++use PHPStan\Testing\TypeInferenceTestCase;
++use Illuminate\Foundation\Bootstrap\HandleExceptions;
++use jbboehr\PhpstanLaravelValidation\Validation\LaravelVersionContext;
++
++final class ExperimentalInferenceTest extends TypeInferenceTestCase
++{
++    public static function getAdditionalConfigFiles(): array
++    {
++        $control = getenv('PLV_CONDITIONAL_CONTROL') === 'off' ? '-control' : '';
++
++        return [
++            dirname(__DIR__, 2) . '/phpstan-experimental' . $control . '.neon',
++            dirname(__DIR__) . '/Type/phpstan.neon',
++        ];
++    }
++
++    public function testExperimentalTypes(): void
++    {
++        static::assertSame(
++            ltrim(InstalledVersions::getPrettyVersion('laravel/framework'), 'v'),
++            self::getContainer()->getByType(LaravelVersionContext::class)->getVersion(),
++        );
++        $assertions = self::gatherAssertTypes(dirname(__DIR__) . '/Type/ExperimentalValidation.php');
++        static::assertNotEmpty($assertions);
++
++        foreach ($assertions as $assertion) {
++            $this->assertFileAsserts(...$assertion);
++        }
++    }
++
++    protected function tearDown(): void
++    {
++        HandleExceptions::flushState($this);
++        parent::tearDown();
++    }
++}
+diff --git a/tests/Type/ExperimentalValidation.php b/tests/Type/ExperimentalValidation.php
+new file mode 100644
+index 0000000..4a9a482
+--- /dev/null
++++ b/tests/Type/ExperimentalValidation.php
+@@ -0,0 +1,31 @@
++<?php
++
++declare(strict_types=1);
++
++use function PHPStan\Testing\assertType;
++
++use Pterodactyl\Http\Requests\Api\Remote\ReportBackupCompleteRequest;
++use Pterodactyl\Tests\Fixtures\ExperimentalValidation\MixedModeRequest;
++use Pterodactyl\Tests\Fixtures\ExperimentalValidation\MissingModeRequest;
++use Pterodactyl\Tests\Fixtures\ExperimentalValidation\PresentModeRequest;
++use Pterodactyl\Http\Requests\Api\Application\Nodes\GetDeployableNodesRequest;
++
++function experimentalValidationContracts(
++    PresentModeRequest $present,
++    MissingModeRequest $missing,
++    MixedModeRequest $mixed,
++    GetDeployableNodesRequest $parsed,
++    ReportBackupCompleteRequest $natural,
++): void {
++    assertType("array{mode: 'create', value: string}", $present->validated());
++    assertType('array{value: string}', $present->safe()->only(['value']));
++    assertType("array{mode: 'create', retained: string}", $missing->validated());
++    assertType('array{}', $missing->safe()->only(['value']));
++    assertType("array{mode: 'create'|'update', value?: string}", $mixed->validated());
++    assertType('mixed', $present->input('value'));
++    assertType('int', $parsed->validated('memory'));
++    assertType('int', $parsed->validated('disk'));
++    assertType('array{memory: int, disk: int}', $parsed->safe()->only(['memory', 'disk']));
++    assertType("array{successful: 0|1|'0'|'1'|bool}", $natural->safe()->only(['successful']));
++    assertType('array{checksum?: string|null}', $natural->safe()->only(['checksum']));
++}
+diff --git a/tests/Type/phpstan.neon b/tests/Type/phpstan.neon
+new file mode 100644
+index 0000000..e1f4934
+--- /dev/null
++++ b/tests/Type/phpstan.neon
+@@ -0,0 +1,5 @@
++# TypeInferenceTestCase creates its container at PHPStan's own package root.
++# Match the application's pinned framework here; ordinary CLI analysis uses auto.
++parameters:
++    phpstanLaravelValidation:
++        laravelVersion: '12.64.0'
+diff --git a/tests/Fixtures/ExperimentalValidation/MissingModeRequest.php b/tests/Fixtures/ExperimentalValidation/MissingModeRequest.php
+new file mode 100644
+index 0000000..1c43254
+--- /dev/null
++++ b/tests/Fixtures/ExperimentalValidation/MissingModeRequest.php
+@@ -0,0 +1,20 @@
++<?php
++
++namespace Pterodactyl\Tests\Fixtures\ExperimentalValidation;
++
++use Pterodactyl\Services\Acl\Api\AdminAcl;
++use Pterodactyl\Http\Requests\Api\Application\ApplicationApiRequest;
++
++final class MissingModeRequest extends ApplicationApiRequest
++{
++    protected ?string $resource = AdminAcl::RESOURCE_NODES;
++
++    public function rules(): array
++    {
++        return [
++            'mode' => 'required|string|in:create',
++            'value' => 'missing_if:mode,create|string',
++            'retained' => 'required|string',
++        ];
++    }
++}
+diff --git a/tests/Fixtures/ExperimentalValidation/MixedModeRequest.php b/tests/Fixtures/ExperimentalValidation/MixedModeRequest.php
+new file mode 100644
+index 0000000..507e0c6
+--- /dev/null
++++ b/tests/Fixtures/ExperimentalValidation/MixedModeRequest.php
+@@ -0,0 +1,19 @@
++<?php
++
++namespace Pterodactyl\Tests\Fixtures\ExperimentalValidation;
++
++use Pterodactyl\Services\Acl\Api\AdminAcl;
++use Pterodactyl\Http\Requests\Api\Application\ApplicationApiRequest;
++
++final class MixedModeRequest extends ApplicationApiRequest
++{
++    protected ?string $resource = AdminAcl::RESOURCE_NODES;
++
++    public function rules(): array
++    {
++        return [
++            'mode' => 'required|string|in:create,update',
++            'value' => 'present_if:mode,create|string',
++        ];
++    }
++}
+diff --git a/tests/Fixtures/ExperimentalValidation/PresentModeRequest.php b/tests/Fixtures/ExperimentalValidation/PresentModeRequest.php
+new file mode 100644
+index 0000000..b682b76
+--- /dev/null
++++ b/tests/Fixtures/ExperimentalValidation/PresentModeRequest.php
+@@ -0,0 +1,19 @@
++<?php
++
++namespace Pterodactyl\Tests\Fixtures\ExperimentalValidation;
++
++use Pterodactyl\Services\Acl\Api\AdminAcl;
++use Pterodactyl\Http\Requests\Api\Application\ApplicationApiRequest;
++
++final class PresentModeRequest extends ApplicationApiRequest
++{
++    protected ?string $resource = AdminAcl::RESOURCE_NODES;
++
++    public function rules(): array
++    {
++        return [
++            'mode' => 'required|string|in:create',
++            'value' => 'present_if:mode,create|string',
++        ];
++    }
++}

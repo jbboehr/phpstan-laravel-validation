@@ -1,0 +1,483 @@
+diff --git a/app/Http/Controllers/API/RateSongController.php b/app/Http/Controllers/API/RateSongController.php
+index 901327b..465fe81 100644
+--- a/app/Http/Controllers/API/RateSongController.php
++++ b/app/Http/Controllers/API/RateSongController.php
+@@ -23,7 +23,7 @@ class RateSongController extends Controller
+     {
+         $this->authorize('access', $song);
+ 
+-        $this->ratingService->setRating($song, $user, $request->rating);
++        $this->ratingService->setRating($song, $user, $request->validated('rating'));
+ 
+         return SongResource::make($this->songRepository->getOne($song->id, $user))->for($user);
+     }
+diff --git a/app/Http/Requests/API/RateRequest.php b/app/Http/Requests/API/RateRequest.php
+index fe4b64e..2c8759b 100644
+--- a/app/Http/Requests/API/RateRequest.php
++++ b/app/Http/Requests/API/RateRequest.php
+@@ -3,6 +3,7 @@
+ namespace App\Http\Requests\API;
+ 
+ use App\Http\Requests\Request;
++use jbboehr\Rensei\Parse;
+ 
+ /**
+  * @property int $rating
+@@ -13,7 +14,7 @@ class RateRequest extends Request
+     public function rules(): array
+     {
+         return [
+-            'rating' => ['required', 'integer', 'min:0', 'max:5'],
++            'rating' => ['required', 'integer', Parse::integer(), 'min:0', 'max:5'],
+         ];
+     }
+ }
+diff --git a/phpstan-experimental.neon b/phpstan-experimental.neon
+new file mode 100644
+index 0000000..192b2c4
+--- /dev/null
++++ b/phpstan-experimental.neon
+@@ -0,0 +1,10 @@
++includes:
++    - phpstan.neon.dist
++    - vendor/jbboehr/phpstan-laravel-validation/extension.neon
++
++parameters:
++    tmpDir: storage/framework/cache/phpstan-experimental
++    phpstanLaravelValidation:
++        experimentalConditionalPresenceInference: true
++        formRequests:
++            enabled: true
+diff --git a/phpstan-experimental-control.neon b/phpstan-experimental-control.neon
+new file mode 100644
+index 0000000..adb2cb6
+--- /dev/null
++++ b/phpstan-experimental-control.neon
+@@ -0,0 +1,7 @@
++includes:
++    - phpstan-experimental.neon
++
++parameters:
++    tmpDir: storage/framework/cache/phpstan-experimental-control
++    phpstanLaravelValidation:
++        experimentalConditionalPresenceInference: false
+diff --git a/tests/Feature/ParsingAdoptionTest.php b/tests/Feature/ParsingAdoptionTest.php
+new file mode 100644
+index 0000000..5da3f54
+--- /dev/null
++++ b/tests/Feature/ParsingAdoptionTest.php
+@@ -0,0 +1,250 @@
++<?php
++
++namespace Tests\Feature;
++
++use App\Enums\DownloadableType;
++use App\Http\Controllers\API\RateSongController;
++use App\Http\Requests\API\RateRequest;
++use App\Http\Requests\Download\CheckDownloadableCountRequest;
++use App\Models\Contracts\Rateable;
++use App\Models\Song;
++use App\Models\User;
++use App\Repositories\SongRepository;
++use App\Services\RatingService;
++use Illuminate\Auth\Access\Response;
++use Illuminate\Contracts\Console\Kernel;
++use Illuminate\Database\Eloquent\Model;
++use Illuminate\Foundation\Application;
++use Illuminate\Foundation\Http\FormRequest;
++use Illuminate\Foundation\Testing\TestCase;
++use Illuminate\Validation\ValidationException;
++use PHPUnit\Framework\Attributes\DataProvider;
++use Tests\Fixtures\ExperimentalValidation\MissingModeRequest;
++use Tests\Fixtures\ExperimentalValidation\MixedModeRequest;
++use Tests\Fixtures\ExperimentalValidation\PresentModeRequest;
++
++final class ParsingAdoptionTest extends TestCase
++{
++    public function createApplication(): Application
++    {
++        $app = require dirname(__DIR__, 2) . '/bootstrap/app.php';
++        $app->make(Kernel::class)->bootstrap();
++
++        return $app;
++    }
++
++    /** @return iterable<string, array{mixed, int}> */
++    public static function acceptedRatings(): iterable
++    {
++        yield 'lower boundary' => ['0', 0];
++        yield 'ordinary rating' => ['3', 3];
++        yield 'upper boundary' => ['5', 5];
++        yield 'native integer' => [3, 3];
++    }
++
++    #[DataProvider('acceptedRatings')]
++    public function testValidatedRatingsAreIntegersWhileInputIsPreserved(mixed $rating, int $expected): void
++    {
++        $request = $this->validatedRequest(['rating' => $rating]);
++
++        static::assertSame(['rating' => $expected], $request->validated());
++        static::assertSame($expected, $request->validated('rating'));
++        static::assertSame(['rating' => $expected], $request->safe()->only(['rating']));
++        static::assertSame($rating, $request->input('rating'));
++        static::assertSame(['rating' => $rating], $request->input());
++    }
++
++    public function testSongConsumerReadsParsedValidatedRating(): void
++    {
++        $request = $this->validatedRequest(['rating' => '3']);
++        $ratingService = new class extends RatingService {
++            public mixed $receivedRating = null;
++
++            public function setRating(Rateable&Model $rateable, User $user, mixed $rating): void
++            {
++                $this->receivedRating = $rating;
++            }
++        };
++        $songRepository = $this->createMock(SongRepository::class);
++        $song = new Song();
++        $user = new User();
++        $songRepository->method('getOne')->willReturn($song);
++        $controller = new class($ratingService, $songRepository) extends RateSongController {
++            public function authorize(mixed $ability, mixed $arguments = []): Response
++            {
++                return Response::allow();
++            }
++        };
++
++        $controller($request, $song, $user);
++
++        static::assertSame(3, $ratingService->receivedRating);
++    }
++
++    /** @return iterable<string, array{array<string, mixed>}> */
++    public static function rejectedRatings(): iterable
++    {
++        yield 'missing' => [[]];
++        yield 'null' => [['rating' => null]];
++        yield 'below minimum' => [['rating' => '-1']];
++        yield 'above maximum' => [['rating' => '6']];
++        yield 'leading zero' => [['rating' => '03']];
++        yield 'explicit plus sign' => [['rating' => '+3']];
++        yield 'padded string' => [['rating' => ' 3']];
++        yield 'float' => [['rating' => 3.0]];
++        yield 'boolean' => [['rating' => true]];
++        yield 'array' => [['rating' => [3]]];
++    }
++
++    #[DataProvider('rejectedRatings')]
++    public function testRejectsInvalidOrNonCanonicalRatings(array $input): void
++    {
++        try {
++            $this->validatedRequest($input);
++            static::fail('Invalid rating was accepted.');
++        } catch (ValidationException $exception) {
++            static::assertArrayHasKey('rating', $exception->errors());
++        }
++    }
++
++    /** @return iterable<string, array{class-string<FormRequest>, array<string, mixed>, array<string, mixed>}> */
++    public static function acceptedExperimentalRequests(): iterable
++    {
++        yield 'definite presence' => [
++            PresentModeRequest::class,
++            ['mode' => 'create', 'value' => 'chosen', 'extra' => 'discarded'],
++            ['mode' => 'create', 'value' => 'chosen'],
++        ];
++        yield 'present permits an empty string' => [
++            PresentModeRequest::class,
++            ['mode' => 'create', 'value' => ''],
++            ['mode' => 'create', 'value' => ''],
++        ];
++        yield 'definite absence preserves later siblings' => [
++            MissingModeRequest::class,
++            ['mode' => 'create', 'retained' => 'keep'],
++            ['mode' => 'create', 'retained' => 'keep'],
++        ];
++        yield 'mixed domain matching branch' => [
++            MixedModeRequest::class,
++            ['mode' => 'create', 'value' => 'chosen'],
++            ['mode' => 'create', 'value' => 'chosen'],
++        ];
++        yield 'mixed domain nonmatching omission' => [
++            MixedModeRequest::class,
++            ['mode' => 'update'],
++            ['mode' => 'update'],
++        ];
++        yield 'mixed domain nonmatching value' => [
++            MixedModeRequest::class,
++            ['mode' => 'update', 'value' => 'optional'],
++            ['mode' => 'update', 'value' => 'optional'],
++        ];
++        yield 'download enum with no conditional target' => [
++            CheckDownloadableCountRequest::class,
++            ['type' => 'favorites'],
++            ['type' => 'favorites'],
++        ];
++        yield 'download enum case keeps its representation' => [
++            CheckDownloadableCountRequest::class,
++            ['type' => DownloadableType::Favorites],
++            ['type' => DownloadableType::Favorites],
++        ];
++        $downloadType = new class implements \Stringable {
++            public function __toString(): string
++            {
++                return 'favorites';
++            }
++        };
++        yield 'download stringable keeps its representation' => [
++            CheckDownloadableCountRequest::class,
++            ['type' => $downloadType],
++            ['type' => $downloadType],
++        ];
++        yield 'song download requires its list' => [
++            CheckDownloadableCountRequest::class,
++            ['type' => 'songs', 'ids' => ['first', 'second']],
++            ['type' => 'songs', 'ids' => ['first', 'second']],
++        ];
++        yield 'album download retains raw identifier' => [
++            CheckDownloadableCountRequest::class,
++            ['type' => 'album', 'id' => '21'],
++            ['type' => 'album', 'id' => '21'],
++        ];
++    }
++
++    /** @param class-string<FormRequest> $requestClass */
++    #[DataProvider('acceptedExperimentalRequests')]
++    public function testExperimentalContractsMatchRuntime(string $requestClass, array $input, array $expected): void
++    {
++        $this->app['config']->set('koel.download.allow', true);
++
++        $request = $this->validatedRequest($input, $requestClass);
++
++        static::assertSame($expected, $request->validated());
++        static::assertSame($expected, $request->safe()->all());
++        static::assertSame($input, $request->input());
++    }
++
++    /** @return iterable<string, array{class-string<FormRequest>, array<string, mixed>, string}> */
++    public static function rejectedExperimentalRequests(): iterable
++    {
++        yield 'present rejects omission' => [PresentModeRequest::class, ['mode' => 'create'], 'value'];
++        yield 'missing rejects a value' => [
++            MissingModeRequest::class,
++            ['mode' => 'create', 'value' => 'forbidden', 'retained' => 'keep'],
++            'value',
++        ];
++        yield 'missing rejects null' => [
++            MissingModeRequest::class,
++            ['mode' => 'create', 'value' => null, 'retained' => 'keep'],
++            'value',
++        ];
++        yield 'missing rejects an empty string' => [
++            MissingModeRequest::class,
++            ['mode' => 'create', 'value' => '', 'retained' => 'keep'],
++            'value',
++        ];
++        yield 'mixed matching branch requires presence' => [MixedModeRequest::class, ['mode' => 'create'], 'value'];
++        yield 'controller domain is enforced' => [
++            PresentModeRequest::class,
++            ['mode' => 'delete', 'value' => 'chosen'],
++            'mode',
++        ];
++        yield 'song download rejects missing ids' => [CheckDownloadableCountRequest::class, ['type' => 'songs'], 'ids'];
++        yield 'album download rejects missing id' => [CheckDownloadableCountRequest::class, ['type' => 'album'], 'id'];
++    }
++
++    /** @param class-string<FormRequest> $requestClass */
++    #[DataProvider('rejectedExperimentalRequests')]
++    public function testExperimentalContractsRejectTheOppositeShape(
++        string $requestClass,
++        array $input,
++        string $field,
++    ): void {
++        $this->app['config']->set('koel.download.allow', true);
++
++        try {
++            $this->validatedRequest($input, $requestClass);
++            static::fail('A request violating its conditional contract was accepted.');
++        } catch (ValidationException $exception) {
++            static::assertArrayHasKey($field, $exception->errors());
++        }
++    }
++
++    /**
++     * @template T of FormRequest
++     * @param array<string, mixed> $input
++     * @param class-string<T> $requestClass
++     * @return T
++     */
++    private function validatedRequest(array $input, string $requestClass = RateRequest::class): FormRequest
++    {
++        $request = $requestClass::create('/audit/experimental-validation', 'PUT', $input);
++        $request->setContainer($this->app);
++        $request->setRedirector($this->app->make('redirect'));
++        $request->validateResolved();
++
++        return $request;
++    }
++}
+diff --git a/tests/Feature/ExperimentalInferenceTest.php b/tests/Feature/ExperimentalInferenceTest.php
+new file mode 100644
+index 0000000..09ab365
+--- /dev/null
++++ b/tests/Feature/ExperimentalInferenceTest.php
+@@ -0,0 +1,41 @@
++<?php
++
++namespace Tests\Feature;
++
++use Composer\InstalledVersions;
++use Illuminate\Foundation\Bootstrap\HandleExceptions;
++use jbboehr\PhpstanLaravelValidation\Validation\LaravelVersionContext;
++use PHPStan\Testing\TypeInferenceTestCase;
++
++final class ExperimentalInferenceTest extends TypeInferenceTestCase
++{
++    public static function getAdditionalConfigFiles(): array
++    {
++        $control = getenv('PLV_CONDITIONAL_CONTROL') === 'off' ? '-control' : '';
++
++        return [
++            dirname(__DIR__, 2) . '/phpstan-experimental' . $control . '.neon',
++            dirname(__DIR__) . '/Type/phpstan.neon',
++        ];
++    }
++
++    public function testExperimentalTypes(): void
++    {
++        static::assertSame(
++            ltrim(InstalledVersions::getPrettyVersion('laravel/framework'), 'v'),
++            self::getContainer()->getByType(LaravelVersionContext::class)->getVersion(),
++        );
++        $assertions = self::gatherAssertTypes(dirname(__DIR__) . '/Type/ExperimentalValidation.php');
++        static::assertNotEmpty($assertions);
++
++        foreach ($assertions as $assertion) {
++            $this->assertFileAsserts(...$assertion);
++        }
++    }
++
++    protected function tearDown(): void
++    {
++        HandleExceptions::flushState($this);
++        parent::tearDown();
++    }
++}
+diff --git a/tests/Type/ExperimentalValidation.php b/tests/Type/ExperimentalValidation.php
+new file mode 100644
+index 0000000..91e26d1
+--- /dev/null
++++ b/tests/Type/ExperimentalValidation.php
+@@ -0,0 +1,33 @@
++<?php
++
++declare(strict_types=1);
++
++use App\Http\Requests\API\RateRequest;
++use App\Http\Requests\Download\CheckDownloadableCountRequest;
++use Tests\Fixtures\ExperimentalValidation\MissingModeRequest;
++use Tests\Fixtures\ExperimentalValidation\MixedModeRequest;
++use Tests\Fixtures\ExperimentalValidation\PresentModeRequest;
++
++use function PHPStan\Testing\assertType;
++
++function experimental_validation_contracts(
++    PresentModeRequest $present,
++    MissingModeRequest $missing,
++    MixedModeRequest $mixed,
++    RateRequest $parsed,
++    CheckDownloadableCountRequest $natural,
++): void {
++    assertType("array{mode: 'create', value: string}", $present->validated());
++    assertType('array{value: string}', $present->safe()->only(['value']));
++    assertType("array{mode: 'create', retained: string}", $missing->validated());
++    assertType('array{}', $missing->safe()->only(['value']));
++    assertType("array{mode: 'create'|'update', value?: string}", $mixed->validated());
++    assertType('mixed', $present->input('value'));
++    assertType('int', $parsed->validated('rating'));
++    assertType('array{rating: int}', $parsed->safe()->only(['rating']));
++    assertType(
++        "array{type: 'album'|'artist'|'favorites'|'playlist'|'songs'|App\\Enums\\DownloadableType::Album|App\\Enums\\DownloadableType::Artist|App\\Enums\\DownloadableType::Favorites|App\\Enums\\DownloadableType::Playlist|App\\Enums\\DownloadableType::Songs|Stringable}",
++        $natural->safe()->only(['type']),
++    );
++    assertType('array{ids?: array|string}', $natural->safe()->only(['ids']));
++}
+diff --git a/tests/Type/phpstan.neon b/tests/Type/phpstan.neon
+new file mode 100644
+index 0000000..80f9f62
+--- /dev/null
++++ b/tests/Type/phpstan.neon
+@@ -0,0 +1,5 @@
++# TypeInferenceTestCase creates its container at PHPStan's own package root.
++# Match the application's pinned framework here; ordinary CLI analysis uses auto.
++parameters:
++    phpstanLaravelValidation:
++        laravelVersion: '13.24.0'
+diff --git a/tests/Fixtures/ExperimentalValidation/MissingModeRequest.php b/tests/Fixtures/ExperimentalValidation/MissingModeRequest.php
+new file mode 100644
+index 0000000..5b35619
+--- /dev/null
++++ b/tests/Fixtures/ExperimentalValidation/MissingModeRequest.php
+@@ -0,0 +1,17 @@
++<?php
++
++namespace Tests\Fixtures\ExperimentalValidation;
++
++use App\Http\Requests\Request;
++
++final class MissingModeRequest extends Request
++{
++    public function rules(): array
++    {
++        return [
++            'mode' => ['required', 'string', 'in:create'],
++            'value' => ['missing_if:mode,create', 'string'],
++            'retained' => ['required', 'string'],
++        ];
++    }
++}
+diff --git a/tests/Fixtures/ExperimentalValidation/MixedModeRequest.php b/tests/Fixtures/ExperimentalValidation/MixedModeRequest.php
+new file mode 100644
+index 0000000..0d209f6
+--- /dev/null
++++ b/tests/Fixtures/ExperimentalValidation/MixedModeRequest.php
+@@ -0,0 +1,16 @@
++<?php
++
++namespace Tests\Fixtures\ExperimentalValidation;
++
++use App\Http\Requests\Request;
++
++final class MixedModeRequest extends Request
++{
++    public function rules(): array
++    {
++        return [
++            'mode' => ['required', 'string', 'in:create,update'],
++            'value' => ['present_if:mode,create', 'string'],
++        ];
++    }
++}
+diff --git a/tests/Fixtures/ExperimentalValidation/PresentModeRequest.php b/tests/Fixtures/ExperimentalValidation/PresentModeRequest.php
+new file mode 100644
+index 0000000..54d58bf
+--- /dev/null
++++ b/tests/Fixtures/ExperimentalValidation/PresentModeRequest.php
+@@ -0,0 +1,16 @@
++<?php
++
++namespace Tests\Fixtures\ExperimentalValidation;
++
++use App\Http\Requests\Request;
++
++final class PresentModeRequest extends Request
++{
++    public function rules(): array
++    {
++        return [
++            'mode' => ['required', 'string', 'in:create'],
++            'value' => ['present_if:mode,create', 'string'],
++        ];
++    }
++}

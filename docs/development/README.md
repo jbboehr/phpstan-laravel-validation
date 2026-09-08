@@ -93,6 +93,14 @@ model that would be required for broader precision. It also records downstream
 smoke tests against BookStack, Koel, and Pterodactyl, including the adoption
 cost of the earlier strict diagnostic prototype.
 
+### [Koel and Pterodactyl functional validation trial](koel-pterodactyl-functional-validation.md)
+
+This records a 2026-09-07 functional trial with both experimental features
+enabled, retained application patches, runtime tests, exact inference checks,
+and a flag-off control. It covers parsing, conditional presence, conservative
+fallbacks, enums, and nested projection. Whole-application diagnostics remain
+unchanged, and restored caches agree with fresh analyses.
+
 ## Maintenance rules
 
 - Keep exact application, framework, PHPStan, Larastan, PHP, and extension
