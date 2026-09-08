@@ -21,6 +21,13 @@ Investigation date: 2026-08-17. Prototype built and corrections folded in:
 
 ## Status
 
+The v0.2.0 release preparation retains the current Composer dependencies.
+Applications using the parsing runtime install this package under `require`;
+analysis-only consumers may keep it under `require-dev`. The dependency
+inversion proposed in §17 remains deferred. The current
+[installation guidance](../pages/guides/parsing-validated-output.md)
+documents the production dependency cost.
+
 Implementations of `Parse::integer()`, `Parse::float()`, `Parse::string()`,
 `Parse::base64()`, `Parse::boolean()`, `Parse::accepted()`,
 `Parse::declined()`, `Parse::enum()`, `Parse::dateTime()`, and

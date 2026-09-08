@@ -76,6 +76,11 @@ and Laravel 10 through 13.
 composer require --dev jbboehr/phpstan-laravel-validation
 ```
 
+If your application uses the experimental `jbboehr\Rensei\Parse` runtime,
+install this package without `--dev` so it remains available in production.
+See [Parsing Validated Output](docs/pages/guides/parsing-validated-output.md)
+for installation details and runtime requirements.
+
 If you also install
 [phpstan/extension-installer](https://github.com/phpstan/extension-installer),
 the extension is registered automatically.

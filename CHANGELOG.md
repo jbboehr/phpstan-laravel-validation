@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+## 0.2.0 (2026-09-07)
+
+This experimental release adds opt-in runtime parsing with matching static
+inference, expands FormRequest discovery and projections, and corrects several
+inferred contracts to match Laravel's preserved values.
+
+### Installation and upgrade notes
+
+- Applications using `jbboehr\Rensei\Parse` must install this package under
+  `require`, so its runtime classes survive `composer install --no-dev`.
+  Analysis-only users can keep it under `require-dev`. The current package
+  retains PHPStan and nikic/php-parser as production dependencies.
+- FormRequest and conditional-presence inference remain experimental and
+  disabled by default. Parsing is opt-in through explicit `Parse::*` rules;
+  it needs no additional PHPStan feature flag.
+- Existing analyses can gain diagnostics or broader inferred types from the
+  correctness fixes below. Review validator mutations, custom rule contracts,
+  and code that assumes validated values have been converted to native types.
+- Parsing contracts remain experimental. Review the narrower accepted input,
+  numeric size-rule requirements, single-use validators, and `after()` callback
+  limitation before adopting the runtime.
+
 ### Added
 
 - Add `formRequests.additionalClasses` as a discovery-only exact class list.

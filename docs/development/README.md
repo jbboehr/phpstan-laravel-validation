@@ -14,6 +14,12 @@ and [testing guide](../pages/contributing/testing.md).
 
 ## Reports
 
+### [v0.2.0 release preparation](release-0.2.0.md)
+
+This records the runtime installation decision, a repeatable production
+consumer check with a development-only negative control, and the final release
+steps. The dependency restructuring remains deferred.
+
 ### [BookStack compatibility investigation](bookstack-compatibility-investigation.md)
 
 This records whole-application Larastan coexistence, the diagnostic

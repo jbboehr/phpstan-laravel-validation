@@ -16,6 +16,16 @@ analysis. If a deployed code path uses `Parse::*`, this package must remain
 installed in production. Installing it only with `composer require --dev` and
 then deploying with `composer install --no-dev` removes the runtime classes.
 
+For runtime use in a Laravel application, install it without `--dev`:
+
+```sh
+composer require jbboehr/phpstan-laravel-validation
+```
+
+Analysis-only users can continue to use `composer require --dev`. The current
+package also installs PHPStan and nikic/php-parser as production dependencies
+when installed under `require`.
+
 The analysis extension supports Laravel 10.0 through 13. The parsing runtime
 requires Laravel 10.7 or newer because it uses `Validator::setValue()` for
 checked final write-back. Composer cannot express a version floor that applies
