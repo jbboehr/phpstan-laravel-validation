@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "ab60b023a2177d4b3025e9a6ebd6bfda",
+    "content-hash": "8ebeb9648114239cebc918492e8f2988",
     "packages": [
         {
             "name": "nikic/php-parser",
@@ -65,16 +65,11 @@
         },
         {
             "name": "phpstan/phpstan",
-            "version": "2.1.5",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/phpstan/phpstan.git",
-                "reference": "451b17f9665481ee502adc39be987cb71067ece2"
-            },
+            "version": "2.3.x-dev",
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/451b17f9665481ee502adc39be987cb71067ece2",
-                "reference": "451b17f9665481ee502adc39be987cb71067ece2",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/f7c762bf2ffc48ce213051ae3282838206811842",
+                "reference": "f7c762bf2ffc48ce213051ae3282838206811842",
                 "shasum": ""
             },
             "require": {
@@ -83,6 +78,7 @@
             "conflict": {
                 "phpstan/phpstan-shim": "*"
             },
+            "default-branch": true,
             "bin": [
                 "phpstan",
                 "phpstan.phar"
@@ -96,6 +92,17 @@
             "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Ondřej Mirtes"
+                },
+                {
+                    "name": "Markus Staab"
+                },
+                {
+                    "name": "Vincent Langlet"
+                }
             ],
             "description": "PHPStan - PHP Static Analysis Tool",
             "keywords": [
@@ -119,7 +126,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-02-13T12:49:56+00:00"
+            "time": "2026-09-30T21:12:32+00:00"
         }
     ],
     "packages-dev": [
@@ -7213,7 +7220,8 @@
     "minimum-stability": "stable",
     "stability-flags": {
         "jbboehr/akashi": 20,
-        "jbboehr/doctrine-of-the-second-sun": 20
+        "jbboehr/doctrine-of-the-second-sun": 20,
+        "phpstan/phpstan": 20
     },
     "prefer-stable": false,
     "prefer-lowest": false,

@@ -1,10 +1,10 @@
 {
-  root = "sha256-4BXTPfyoi67xoFAPMOcKNOc0EmRTmdyiH/RqhZdCn2U=";
-  laravel11 = "sha256-WRJjXADnutwsupGqzlwK2Ic0VXLdpHYwVhSeBJtPryI=";
-  laravel12 = "sha256-h0AAkANSd8NJcH9IiXsSEfuzaZsljBQVRV6G+V2QwiQ=";
-  laravel13 = "sha256-MrKQIvZwKYFpg1ikzoky111KSlI+CtPYOzwE5Nyh+dA=";
-  phpstan-minimum = "sha256-EXCzuqsiParTggzHr9zxrmsh2pVONl8o69vLNBKk83U=";
-  larastan = "sha256-T6mjZTz/GGyD0/q5MeCobu6UD9Umi5mtnX3pwsDiqSU=";
+  root = "sha256-xejxAKRs61Sn9A97fX82omZ1PII7TZ4I7bPwP4nAMMY=";
+  laravel11 = "sha256-247tfhUG1HGWEnXhnwEiSgdWMxuTO4RQjfDp5B9QBj8=";
+  laravel12 = "sha256-yZoq/GojRmLJPLHN9cZ93z3ZnOcR+H2Ma3oIiNR4bVU=";
+  laravel13 = "sha256-PJ9GoBQ/PnhTcsN8UeRSyFi6uuFx27JHF7KX4DFAB0o=";
+  phpstan-minimum = "sha256-CZiKoL+6QIe2FM7UHPb1eNbkqbzuJhZWliweXvAd6Ss=";
+  larastan = "sha256-b59AaTVOn9Lhw3CqSmzi9xPNofu8o+4s8M28V5SSXjg=";
   infection = "sha256-zhl3+EGwHxl+hUaNY9g+JH9YaGD9pidfPDRSG/d7MCI=";
 
   dateParser = {

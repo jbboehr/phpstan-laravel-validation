@@ -89,7 +89,7 @@ final class FormRequestSourceDiscoveryTest extends \PHPStan\Testing\TypeInferenc
             return [];
         });
 
-        $this->registry($mode, $parser)->getHash();
+        $this->registry($mode, $parser)->getValue('validated:' . FormRequest::class);
 
         self::assertSame([$file], $files);
     }
@@ -111,7 +111,7 @@ final class FormRequestSourceDiscoveryTest extends \PHPStan\Testing\TypeInferenc
             return [];
         });
 
-        $this->registry($mode, $parser, ['inc'])->getHash();
+        $this->registry($mode, $parser, ['inc'])->getValue('validated:' . FormRequest::class);
 
         self::assertSame($mode === 'composer'
             ? [$this->directory . '/source/linked/Included.php', $this->directory . '/source/linked/Upper.PHP']
@@ -141,18 +141,18 @@ final class FormRequestSourceDiscoveryTest extends \PHPStan\Testing\TypeInferenc
         self::assertNotFalse(file_put_contents($this->directory . '/source/Broken.php', '<?php class'));
         $parser = self::getContainer()->getService('currentPhpVersionSimpleDirectParser');
         self::assertInstanceOf(Parser::class, $parser);
-        $hashFirst = $this->registry('scan', $parser);
-        $hash = $hashFirst->getHash();
+        $valueFirst = $this->registry('scan', $parser);
+        $value = $valueFirst->getValue('validated:' . FormRequest::class);
 
         // Initializing the receiver first must preserve the same manifest key,
         // even though parsing has now marked class discovery incomplete.
         $typeFirst = $this->registry('scan', $parser);
         $typeFirst->getType(self::getContainer()->getByType(ReflectionProvider::class)->getClass(FormRequest::class));
-        self::assertSame($hash, $typeFirst->getHash());
+        self::assertSame($value, $typeFirst->getValue('validated:' . FormRequest::class));
 
         $cachedParser = $this->createMock(Parser::class);
         $cachedParser->expects(self::never())->method('parseFile');
-        self::assertSame($hash, $this->registry('scan', $cachedParser)->getHash());
+        self::assertSame($value, $this->registry('scan', $cachedParser)->getValue('validated:' . FormRequest::class));
     }
 
     public function testCacheOnlyTraversalFailurePreservesReceiverAndRefreshesManifest(): void
@@ -205,15 +205,16 @@ PHP,
                 $expectedType,
                 $typeFirst->getType($reflection)?->describe(VerbosityLevel::precise())
             );
-            $expectedHash = $typeFirst->getHash();
+            $expectedValue = $typeFirst->getValue('validated:' . $parentClass);
+            self::assertNotSame('unresolved', $expectedValue);
 
-            $hashFirst = $this->registry('scan', $parser, ['php'], $classes);
-            self::assertSame($expectedHash, $hashFirst->getHash());
+            $valueFirst = $this->registry('scan', $parser, ['php'], $classes);
+            self::assertSame($expectedValue, $valueFirst->getValue('validated:' . $parentClass));
             self::assertSame(
                 $expectedType,
-                $hashFirst->getType($reflection)?->describe(VerbosityLevel::precise())
+                $valueFirst->getType($reflection)?->describe(VerbosityLevel::precise())
             );
-            self::assertSame($expectedHash, $hashFirst->getHash());
+            self::assertSame($expectedValue, $valueFirst->getValue('validated:' . $parentClass));
 
             self::assertTrue(unlink($brokenLink));
             $reparsedFiles = [];
@@ -225,14 +226,14 @@ PHP,
                 }
             );
             $recovered = $this->registry('scan', $recoveredParser, ['php'], $classes);
-            self::assertSame($expectedHash, $recovered->getHash());
+            self::assertSame($expectedValue, $recovered->getValue('validated:' . $parentClass));
             self::assertContains($sourceFile, $reparsedFiles);
 
             $cachedParser = $this->createMock(Parser::class);
             $cachedParser->expects(self::never())->method('parseFile');
             self::assertSame(
-                $expectedHash,
-                $this->registry('scan', $cachedParser, ['php'], $classes)->getHash()
+                $expectedValue,
+                $this->registry('scan', $cachedParser, ['php'], $classes)->getValue('validated:' . $parentClass)
             );
         } finally {
             if (is_link($brokenLink)) {

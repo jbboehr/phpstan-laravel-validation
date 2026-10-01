@@ -82,34 +82,6 @@ final class FormRequestRuleTypeResolver
         }
     }
 
-    public function hasExportableLiteralRulesMethodBody(ClassReflection $classReflection): bool
-    {
-        $context = $this->resolveMethodContext($classReflection);
-        if ($context === null) {
-            return false;
-        }
-
-        [$classMethod] = $context;
-        if (!$classMethod->isAbstract()
-            && !$classMethod->isFinal()
-            && $classMethod->isPrivate()
-        ) {
-            // PHPStan omits non-final private methods (and their attributes)
-            // from exported nodes, even when a trait alias promotes visibility.
-            return false;
-        }
-
-        $statements = array_values(array_filter(
-            $classMethod->stmts ?? [],
-            static fn (Node $node): bool => !$node instanceof \PhpParser\Node\Stmt\Nop
-        ));
-
-        return count($statements) === 1
-            && $statements[0] instanceof Return_
-            && $statements[0]->expr !== null
-            && self::isLiteralRuleExpression($statements[0]->expr);
-    }
-
     /** @return list<string> */
     public function sourceDependencyClassNames(ClassReflection $classReflection): array
     {
@@ -461,49 +433,5 @@ final class FormRequestRuleTypeResolver
                     && $node->class->name === 'this';
             }
         ) !== null;
-    }
-
-    private static function isLiteralRuleExpression(Node $node): bool
-    {
-        $nodeType = $node->getType();
-        if ($nodeType === 'Expr_ConstFetch') {
-            return $node instanceof ConstFetch
-                && in_array(strtolower($node->name->toString()), ['false', 'null', 'true'], true);
-        }
-
-        if (!in_array($nodeType, [
-            'Expr_Array',
-            'Expr_ArrayItem',
-            'Expr_UnaryMinus',
-            'Expr_UnaryPlus',
-            'Scalar_DNumber',
-            'Scalar_Float',
-            'Scalar_Int',
-            'Scalar_LNumber',
-            'Scalar_String',
-            'ArrayItem',
-        ], true)) {
-            return false;
-        }
-
-        $subNodeValues = array_intersect_key(
-            get_object_vars($node),
-            array_fill_keys($node->getSubNodeNames(), true)
-        );
-        foreach ($subNodeValues as $value) {
-            if ($value instanceof Node && !self::isLiteralRuleExpression($value)) {
-                return false;
-            }
-            if (!is_array($value)) {
-                continue;
-            }
-            foreach ($value as $item) {
-                if ($item instanceof Node && !self::isLiteralRuleExpression($item)) {
-                    return false;
-                }
-            }
-        }
-
-        return true;
     }
 }

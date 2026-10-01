@@ -230,13 +230,13 @@ PHP);
         $output = $different->getErrorOutput() . $different->getOutput();
         self::assertSame(1, $different->getExitCode(), $output);
         self::assertStringContainsString('array|string given', $output);
-        self::assertStringContainsString('metadata do not match: metaExtensions', $output);
+        self::assertStringNotContainsString('metadata do not match: metaExtensions', $output);
 
         $this->writeRequest("return ['value' => 'required|string'];", final: false);
         $equalAgain = $this->analyse(veryVerbose: true);
         $output = $equalAgain->getErrorOutput() . $equalAgain->getOutput();
         self::assertSame(0, $equalAgain->getExitCode(), $output);
-        self::assertStringContainsString('metadata do not match: metaExtensions', $output);
+        self::assertStringNotContainsString('metadata do not match: metaExtensions', $output);
 
         // The child stays fixed while only the parent's own contract changes.
         $this->writeRequest("return ['value' => 'required|array'];", final: false);
@@ -244,14 +244,14 @@ PHP);
         $output = $parentChanged->getErrorOutput() . $parentChanged->getOutput();
         self::assertSame(1, $parentChanged->getExitCode(), $output);
         self::assertStringContainsString('array|string given', $output);
-        self::assertStringContainsString('metadata do not match: metaExtensions', $output);
+        self::assertStringNotContainsString('metadata do not match: metaExtensions', $output);
 
         $this->writeProjectFile('src/ChildRequest.php', $inheritedChild);
         $inheritedAgain = $this->analyse(veryVerbose: true);
         $output = $inheritedAgain->getErrorOutput() . $inheritedAgain->getOutput();
         self::assertSame(1, $inheritedAgain->getExitCode(), $output);
         self::assertStringContainsString('array given', $output);
-        self::assertStringContainsString('metadata do not match: metaExtensions', $output);
+        self::assertStringNotContainsString('metadata do not match: metaExtensions', $output);
     }
 
     /** @return array<string, array{string}> */
@@ -316,14 +316,14 @@ PHP;
         $equal = $this->analyse(veryVerbose: true);
         $output = $equal->getErrorOutput() . $equal->getOutput();
         self::assertSame(0, $equal->getExitCode(), $output);
-        self::assertStringContainsString('metadata do not match: metaExtensions', $output);
+        self::assertStringNotContainsString('metadata do not match: metaExtensions', $output);
 
         $this->writeProjectFile('external/ChildRequest.inc', $child);
         $changed = $this->analyse(veryVerbose: true);
         $output = $changed->getErrorOutput() . $changed->getOutput();
         self::assertSame(1, $changed->getExitCode(), $output);
         self::assertStringContainsString('array|string given', $output);
-        self::assertStringContainsString('metadata do not match: metaExtensions', $output);
+        self::assertStringNotContainsString('metadata do not match: metaExtensions', $output);
     }
 
     /** @return array<string, array{string, string, bool}> */
@@ -446,14 +446,14 @@ PHP);
         $equal = $this->analyse(veryVerbose: true);
         $output = $equal->getErrorOutput() . $equal->getOutput();
         self::assertSame(0, $equal->getExitCode(), $output);
-        self::assertStringContainsString('metadata do not match: metaExtensions', $output);
+        self::assertStringNotContainsString('metadata do not match: metaExtensions', $output);
 
         $this->writeProjectFile('external/children/ArrayRequest.php', $child);
         $changed = $this->analyse(veryVerbose: true);
         $output = $changed->getErrorOutput() . $changed->getOutput();
         self::assertSame(1, $changed->getExitCode(), $output);
         self::assertSame(2, substr_count($output, 'array|string given'), $output);
-        self::assertStringContainsString('metadata do not match: metaExtensions', $output);
+        self::assertStringNotContainsString('metadata do not match: metaExtensions', $output);
     }
 
     /** @return array<string, array{string}> */
@@ -550,7 +550,7 @@ PHP);
         $output = $cachedUnreadable->getErrorOutput() . $cachedUnreadable->getOutput();
         self::assertSame(1, $cachedUnreadable->getExitCode(), $output);
         self::assertStringContainsString("Cannot access offset 'value' on mixed.", $output);
-        self::assertStringContainsString('metadata do not match: metaExtensions', $output);
+        self::assertStringNotContainsString('metadata do not match: metaExtensions', $output);
 
         $output = $uncachedUnreadable->getErrorOutput() . $uncachedUnreadable->getOutput();
         self::assertSame(1, $uncachedUnreadable->getExitCode(), $output);
@@ -558,10 +558,10 @@ PHP);
 
         $output = $recovered->getErrorOutput() . $recovered->getOutput();
         self::assertSame(0, $recovered->getExitCode(), $output);
-        self::assertStringContainsString('metadata do not match: metaExtensions', $output);
+        self::assertStringNotContainsString('metadata do not match: metaExtensions', $output);
     }
 
-    public function testExportedFingerprintInvalidatesOnlyFormRequestDependants(): void
+    public function testValueDependencyInvalidatesOnlyFormRequestConsumers(): void
     {
         $this->writeRequest("return ['age' => 'required|integer'];");
         $this->writeProjectFile('src/Controller.php', <<<'PHP'
@@ -738,7 +738,7 @@ PHP);
         self::assertStringNotContainsString('metadata do not match: metaExtensions', $output);
     }
 
-    public function testTrustedClassRemainsOnGlobalCacheFallback(): void
+    public function testTrustedClassRemainsOnValueDependency(): void
     {
         $this->writeProjectFile('phpstan.neon', sprintf(
             <<<'NEON'
@@ -783,7 +783,7 @@ NEON,
             'Parameter #1 $string of function strlen expects string, array given.',
             $cachedOutput
         );
-        self::assertStringContainsString('metadata do not match: metaExtensions', $cachedOutput);
+        self::assertStringNotContainsString('metadata do not match: metaExtensions', $cachedOutput);
     }
 
     public function testUnrelatedFormRequestMethodBodyDoesNotInvalidateDependants(): void
@@ -880,7 +880,7 @@ PHP
         self::assertStringNotContainsString('metadata do not match: metaExtensions', $output);
     }
 
-    public function testCliPathOverrideKeepsUnanalysedRequestOnGlobalCacheFallback(): void
+    public function testCliPathOverrideKeepsUnanalysedRequestOnValueDependency(): void
     {
         self::assertTrue(mkdir($this->projectDirectory . '/controller'));
         $this->writeProjectFile('phpstan.neon', sprintf(
@@ -951,11 +951,11 @@ PHP);
             'Parameter #1 $string of function strlen expects string, array given.',
             $cachedOutput
         );
-        self::assertStringContainsString('metadata do not match: metaExtensions', $cachedOutput);
+        self::assertStringNotContainsString('metadata do not match: metaExtensions', $cachedOutput);
     }
 
     #[DataProvider('phpStanIgnoredDirectoryProvider')]
-    public function testRequestInDirectoryIgnoredByPhpStanUsesGlobalCacheFallback(
+    public function testRequestInDirectoryIgnoredByPhpStanUsesValueDependency(
         string $directory
     ): void {
         $requestPath = 'src/' . $directory . '/CacheRequest.php';
@@ -1047,7 +1047,7 @@ PHP);
             'Parameter #1 $string of function strlen expects string, array given.',
             $cachedOutput
         );
-        self::assertStringContainsString('metadata do not match: metaExtensions', $cachedOutput);
+        self::assertStringNotContainsString('metadata do not match: metaExtensions', $cachedOutput);
     }
 
     /** @return iterable<string, array{string}> */
@@ -1055,94 +1055,6 @@ PHP);
     {
         yield 'dot directory' => ['.generated'];
         yield 'VCS directory' => ['CVS'];
-    }
-
-    public function testReservedFingerprintAttributeCannotBeUsed(): void
-    {
-        $this->writeProjectFile('src/Controller.php', <<<'PHP'
-<?php
-
-declare(strict_types=1);
-
-namespace CacheFixture;
-
-final class Controller
-{
-}
-PHP);
-        $this->writeRequest(
-            "return ['age' => 'required|integer'];",
-            <<<'PHP'
-
-    #[\jbboehr\PhpstanLaravelValidation\Internal\FormRequestRulesFingerprint('forbidden')]
-    public function exposeFingerprint(): string
-    {
-        return 'forbidden';
-    }
-PHP
-        );
-
-        $result = $this->analyse();
-        $output = $result->getErrorOutput() . $result->getOutput();
-        self::assertSame(1, $result->getExitCode(), $output);
-        self::assertStringContainsString(
-            'The FormRequest rules fingerprint attribute is reserved for PHPStan cache invalidation and must not be used.',
-            $output
-        );
-        self::assertStringNotContainsString('Attribute class', $output);
-    }
-
-    public function testReservedFingerprintAttributeCannotBeUsedWithDifferentCase(): void
-    {
-        $this->writeProjectFile('phpstan.neon', sprintf(
-            <<<'NEON'
-includes:
-    - %s
-
-parameters:
-    level: max
-    paths:
-        - src
-    ignoreErrors:
-        -
-            identifier: class.nameCase
-    tmpDir: cache
-    phpstanLaravelValidation:
-        formRequests:
-            enabled: true
-NEON,
-            dirname(__DIR__) . '/extension.neon'
-        ));
-        $this->writeProjectFile('src/Controller.php', <<<'PHP'
-<?php
-
-declare(strict_types=1);
-
-namespace CacheFixture;
-
-final class Controller
-{
-}
-PHP);
-        $this->writeRequest(
-            "return ['age' => 'required|integer'];",
-            <<<'PHP'
-
-    #[\JBBOEHR\PHPSTANLARAVELVALIDATION\INTERNAL\FORMREQUESTRULESFINGERPRINT('forbidden')]
-    public function exposeFingerprint(): string
-    {
-        return 'forbidden';
-    }
-PHP
-        );
-
-        $result = $this->analyse();
-        $output = $result->getErrorOutput() . $result->getOutput();
-        self::assertSame(1, $result->getExitCode(), $output);
-        self::assertStringContainsString(
-            'The FormRequest rules fingerprint attribute is reserved for PHPStan cache invalidation and must not be used.',
-            $output
-        );
     }
 
     public function testChangingRuleConstantInOutsidePackageMappingInvalidatesCachedCaller(): void
@@ -1201,7 +1113,7 @@ PHP
             'Parameter #1 $string of function strlen expects string, array given.',
             $cached->getErrorOutput() . $cached->getOutput()
         );
-        self::assertStringContainsString(
+        self::assertStringNotContainsString(
             'metadata do not match: metaExtensions',
             $cached->getErrorOutput() . $cached->getOutput()
         );
@@ -1426,7 +1338,7 @@ PHP);
             'Parameter #1 $string of function strlen expects string, array given.',
             $cachedOutput
         );
-        self::assertStringContainsString('metadata do not match: metaExtensions', $cachedOutput);
+        self::assertStringNotContainsString('metadata do not match: metaExtensions', $cachedOutput);
     }
 
     public function testChangingTransitiveRuleConstantInUnrelatedPackageInvalidatesCachedCaller(): void
@@ -1547,7 +1459,7 @@ PHP);
             'Parameter #1 $string of function strlen expects string, array given.',
             $cachedOutput
         );
-        self::assertStringContainsString('metadata do not match: metaExtensions', $cachedOutput);
+        self::assertStringNotContainsString('metadata do not match: metaExtensions', $cachedOutput);
     }
 
     public function testChangingHelperBesideOutOfTreeRequestInvalidatesCachedCaller(): void
@@ -1691,7 +1603,7 @@ PHP
         $cachedOutput = $cached->getErrorOutput() . $cached->getOutput();
         self::assertSame(1, $cached->getExitCode(), $cachedOutput);
         self::assertStringContainsString("Cannot access offset 'value' on mixed.", $cachedOutput);
-        self::assertStringContainsString('metadata do not match: metaExtensions', $cachedOutput);
+        self::assertStringNotContainsString('metadata do not match: metaExtensions', $cachedOutput);
     }
 
     public function testInheritedRulesBodyChangeDoesNotLeaveCachedCallerStale(): void
@@ -1761,7 +1673,7 @@ PHP);
         self::assertStringNotContainsString('metadata do not match: metaExtensions', $output);
     }
 
-    public function testInheritedRulesOutsideAnalysedFileExtensionsUseGlobalCacheFallback(): void
+    public function testInheritedRulesOutsideAnalysedFileExtensionsUseValueDependency(): void
     {
         $this->writeProjectFile('phpstan.neon', sprintf(
             <<<'NEON'
@@ -1858,7 +1770,7 @@ PHP);
             'Parameter #1 $string of function strlen expects string, array given.',
             $cachedOutput
         );
-        self::assertStringContainsString('metadata do not match: metaExtensions', $cachedOutput);
+        self::assertStringNotContainsString('metadata do not match: metaExtensions', $cachedOutput);
     }
 
     public function testTraitRulesBodyChangeDoesNotLeaveCachedCallerStale(): void
@@ -1927,7 +1839,7 @@ PHP);
         self::assertStringNotContainsString('metadata do not match: metaExtensions', $output);
     }
 
-    public function testPrivateTraitRulesPromotedToPublicUseGlobalCacheFallback(): void
+    public function testPrivateTraitRulesPromotedToPublicUseValueDependency(): void
     {
         $this->writeProjectFile('src/RequestRules.php', <<<'PHP'
 <?php
@@ -2000,10 +1912,10 @@ PHP);
             'Parameter #1 $string of function strlen expects string, array given.',
             $cachedOutput
         );
-        self::assertStringContainsString('metadata do not match: metaExtensions', $cachedOutput);
+        self::assertStringNotContainsString('metadata do not match: metaExtensions', $cachedOutput);
     }
 
-    public function testNestedPrivateTraitRulesPromotedToPublicUseGlobalCacheFallback(): void
+    public function testNestedPrivateTraitRulesPromotedToPublicUseValueDependency(): void
     {
         $this->writeProjectFile('src/NestedRequestRules.php', <<<'PHP'
 <?php
@@ -2088,10 +2000,10 @@ PHP);
             'Parameter #1 $string of function strlen expects string, array given.',
             $cachedOutput
         );
-        self::assertStringContainsString('metadata do not match: metaExtensions', $cachedOutput);
+        self::assertStringNotContainsString('metadata do not match: metaExtensions', $cachedOutput);
     }
 
-    public function testPrivateTraitLifecyclePromotedToPublicUsesGlobalCacheFallback(): void
+    public function testPrivateTraitLifecyclePromotedToPublicUsesValueDependency(): void
     {
         $this->writeProjectFile('src/RequestLifecycle.php', <<<'PHP'
 <?php
@@ -2165,10 +2077,10 @@ PHP);
         $cachedOutput = $cached->getErrorOutput() . $cached->getOutput();
         self::assertSame(1, $cached->getExitCode(), $cachedOutput);
         self::assertStringContainsString("Cannot access offset 'value' on mixed.", $cachedOutput);
-        self::assertStringContainsString('metadata do not match: metaExtensions', $cachedOutput);
+        self::assertStringNotContainsString('metadata do not match: metaExtensions', $cachedOutput);
     }
 
-    public function testExcludedRequestUsesGlobalCacheFallback(): void
+    public function testExcludedRequestUsesValueDependency(): void
     {
         self::assertTrue(mkdir($this->projectDirectory . '/src/Excluded'));
         $this->writeProjectFile('phpstan.neon', sprintf(
@@ -2223,10 +2135,10 @@ PHP);
             'Parameter #1 $string of function strlen expects string, array given.',
             $output
         );
-        self::assertStringContainsString('metadata do not match: metaExtensions', $output);
+        self::assertStringNotContainsString('metadata do not match: metaExtensions', $output);
     }
 
-    public function testNormalizedWildcardExclusionUsesGlobalCacheFallback(): void
+    public function testNormalizedWildcardExclusionUsesValueDependency(): void
     {
         self::assertTrue(mkdir($this->projectDirectory . '/src/Excluded'));
         $this->writeProjectFile('phpstan.neon', sprintf(
@@ -2298,10 +2210,10 @@ PHP);
             'Parameter #1 $string of function strlen expects string, array given.',
             $cachedOutput
         );
-        self::assertStringContainsString('metadata do not match: metaExtensions', $cachedOutput);
+        self::assertStringNotContainsString('metadata do not match: metaExtensions', $cachedOutput);
     }
 
-    public function testLeadingWildcardExclusionUsesGlobalCacheFallback(): void
+    public function testLeadingWildcardExclusionUsesValueDependency(): void
     {
         $directory = tempnam(sys_get_temp_dir(), 'phpstan-form-request-wildcard-');
         if (!is_string($directory)) {
@@ -2387,7 +2299,7 @@ PHP);
             'Parameter #1 $string of function strlen expects string, array given.',
             $cachedOutput
         );
-        self::assertStringContainsString('metadata do not match: metaExtensions', $cachedOutput);
+        self::assertStringNotContainsString('metadata do not match: metaExtensions', $cachedOutput);
     }
 
     public function testFileExtensionMatchingPreservesPhpStanCaseSensitivity(): void
@@ -2467,10 +2379,10 @@ PHP);
             'Parameter #1 $string of function strlen expects string, array given.',
             $cachedOutput
         );
-        self::assertStringContainsString('metadata do not match: metaExtensions', $cachedOutput);
+        self::assertStringNotContainsString('metadata do not match: metaExtensions', $cachedOutput);
     }
 
-    public function testExcludedChildWithInheritedRulesUsesGlobalCacheFallback(): void
+    public function testExcludedChildWithInheritedRulesUsesValueDependency(): void
     {
         self::assertTrue(mkdir($this->projectDirectory . '/src/Excluded'));
         $this->writeProjectFile('phpstan.neon', sprintf(
@@ -2588,10 +2500,10 @@ PHP);
         $cachedOutput = $cached->getErrorOutput() . $cached->getOutput();
         self::assertSame(1, $cached->getExitCode(), $cachedOutput);
         self::assertStringContainsString("Cannot access offset 'value' on mixed.", $cachedOutput);
-        self::assertStringContainsString('metadata do not match: metaExtensions', $cachedOutput);
+        self::assertStringNotContainsString('metadata do not match: metaExtensions', $cachedOutput);
     }
 
-    public function testExcludedInheritedLifecycleBodyUsesGlobalCacheFallback(): void
+    public function testExcludedInheritedLifecycleBodyUsesValueDependency(): void
     {
         self::assertTrue(mkdir($this->projectDirectory . '/src/Excluded'));
         $this->writeProjectFile('phpstan.neon', sprintf(
@@ -2706,7 +2618,7 @@ PHP);
         $cachedOutput = $cached->getErrorOutput() . $cached->getOutput();
         self::assertSame(1, $cached->getExitCode(), $cachedOutput);
         self::assertStringContainsString("Cannot access offset 'value' on mixed.", $cachedOutput);
-        self::assertStringContainsString('metadata do not match: metaExtensions', $cachedOutput);
+        self::assertStringNotContainsString('metadata do not match: metaExtensions', $cachedOutput);
     }
 
     public function testUnrelatedBodyChangeKeepsResultCacheUsable(): void
@@ -2745,7 +2657,7 @@ PHP);
         self::assertSame(0, $second->getExitCode(), $second->getErrorOutput() . $second->getOutput());
     }
 
-    public function testDisabledInferenceDoesNotExportRulesBodyFingerprint(): void
+    public function testDisabledInferenceDoesNotDependOnRulesBodies(): void
     {
         $this->writeProjectFile('phpstan.neon', sprintf(
             <<<'NEON'
@@ -2872,10 +2784,10 @@ PHP);
         self::assertIsString($contents);
         $manifest = json_decode($contents, true, flags: JSON_THROW_ON_ERROR);
         self::assertIsArray($manifest);
-        self::assertSame(3, $manifest['schema'] ?? null);
-        $descriptorHash = $manifest['descriptorHash'] ?? null;
-        self::assertIsString($descriptorHash);
-        self::assertMatchesRegularExpression('/^[a-f0-9]{64}$/D', $descriptorHash);
+        self::assertSame(4, $manifest['schema'] ?? null);
+        $valuesHash = $manifest['valuesHash'] ?? null;
+        self::assertIsString($valuesHash);
+        self::assertMatchesRegularExpression('/^[a-f0-9]{64}$/D', $valuesHash);
 
         $warm = $this->analyse(true);
         self::assertSame(0, $warm->getExitCode(), $warm->getErrorOutput() . $warm->getOutput());
@@ -2884,6 +2796,25 @@ PHP);
         self::assertNotFalse(file_put_contents($manifests[0], '{corrupt'));
         $second = $this->analyse(true);
         self::assertSame(0, $second->getExitCode(), $second->getErrorOutput() . $second->getOutput());
+
+        // Valid JSON with a lost value must also be rebuilt, rather than
+        // silently recording an unresolved dependency for a precise payload.
+        $manifest['values'] = [];
+        self::assertNotFalse(file_put_contents($manifests[0], json_encode($manifest, JSON_THROW_ON_ERROR)));
+        $repaired = $this->analyse(true);
+        self::assertSame(0, $repaired->getExitCode(), $repaired->getErrorOutput() . $repaired->getOutput());
+        $repairedContents = file_get_contents($manifests[0]);
+        self::assertIsString($repairedContents);
+        $repairedManifest = json_decode($repairedContents, true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($repairedManifest);
+        $originalManifest = json_decode($contents, true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($originalManifest);
+        self::assertSame($originalManifest['values'], $repairedManifest['values']);
+
+        $this->writeRequest("return ['value' => 'required|array'];");
+        $changed = $this->analyse();
+        self::assertSame(1, $changed->getExitCode(), $changed->getErrorOutput() . $changed->getOutput());
+        self::assertStringContainsString('strlen expects string, array given.', $changed->getOutput());
     }
 
     public function testChangingHelperInParentPackageInvalidatesCachedCaller(): void

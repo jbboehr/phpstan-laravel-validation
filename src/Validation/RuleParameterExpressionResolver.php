@@ -93,9 +93,9 @@ final class RuleParameterExpressionResolver
 
         $parameters = [];
         $hasRuntimeFormattedFloatParameter = false;
-        foreach ($arguments as $argument) {
+        foreach ($arguments as $positionalArgument) {
             $resolution = $this->resolveExpressionValue(
-                $argument->value,
+                $positionalArgument->value,
                 $scope,
                 $enumValueBoundary
             );

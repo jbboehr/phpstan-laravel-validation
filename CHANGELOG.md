@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Require PHPStan 2.3. The preparation branch temporarily permits its development
+  build until the stable release is available.
+- Track FormRequest payload dependencies through PHPStan's result-cache value
+  API. Rule, lifecycle, and hierarchy changes reanalyse affected payload
+  consumers without globally invalidating unrelated files. Unchanged payloads
+  retain cached consumers, including requests with external rule sources.
+- Remove the internal synthetic FormRequest fingerprint attribute and its
+  reserved-attribute diagnostic.
+
 ## 0.2.0 (2026-09-07)
 
 This experimental release adds opt-in runtime parsing with matching static

@@ -133,26 +133,43 @@ final class FormRequestTypeRegistryTest extends \PHPStan\Testing\PHPStanTestCase
         self::assertSame('phpstan-laravel-validation.form-requests', $registries[0]->getKey());
     }
 
-    public function testLiteralRulesMethodIsEligibleForExportedFingerprinting(): void
+    public function testWarmValuesDoNotParseRequestSourcesAgain(): void
     {
-        $container = self::getContainer();
-        $reflectionProvider = $container->getByType(ReflectionProvider::class);
+        $directory = sys_get_temp_dir() . '/form-request-values-' . bin2hex(random_bytes(8));
+        self::assertTrue(mkdir($directory));
+        $file = __DIR__ . '/Fixtures/FormRequest/BasicRequest.php';
+        $key = 'validated:' . BasicRequest::class;
 
-        self::assertTrue(
-            $container->getByType(FormRequestRuleTypeResolver::class)
-                ->hasExportableLiteralRulesMethodBody($reflectionProvider->getClass(BasicRequest::class))
-        );
-        self::assertFalse(
-            $container->getByType(FormRequestRuleTypeResolver::class)
-                ->hasExportableLiteralRulesMethodBody($reflectionProvider->getClass(ClassConstantRequest::class))
-        );
-        foreach ([Requests\CustomRuleRequest::class, Requests\InRuleRequest::class] as $className) {
-            self::assertFalse(
-                $container->getByType(FormRequestRuleTypeResolver::class)
-                    ->hasExportableLiteralRulesMethodBody($reflectionProvider->getClass($className)),
-                $className
-            );
+        try {
+            $first = $this->createIsolatedRegistry([], [], [$file], $directory);
+            $value = $first->getValue($key);
+            self::assertNotSame('unresolved', $value);
+
+            $parser = $this->createMock(Parser::class);
+            $parser->expects(self::never())->method('parseFile');
+            $warm = $this->createIsolatedRegistry([], [], [$file], $directory, $parser);
+            self::assertSame($value, $warm->getValue($key));
+        } finally {
+            $manifests = glob($directory . '/phpstan-laravel-validation/*.json');
+            self::assertIsArray($manifests);
+            foreach ($manifests as $manifest) {
+                unlink($manifest);
+            }
+            if (is_dir($directory . '/phpstan-laravel-validation')) {
+                rmdir($directory . '/phpstan-laravel-validation');
+            }
+            rmdir($directory);
         }
+    }
+
+    public function testRegistryIsRegisteredAsResultCacheValues(): void
+    {
+        $registry = self::getContainer()->getByType(FormRequestTypeRegistry::class);
+        self::assertContains($registry, self::getContainer()->getServicesByTag(
+            \PHPStan\Analyser\ResultCache\ResultCacheValueExtension::EXTENSION_TAG
+        ));
+        $key = 'safe:' . BasicRequest::class;
+        self::assertSame($key, $registry->keyFromResultCache($registry->keyToResultCache($key)));
     }
 
     public function testRuleDependenciesIncludeNestedCustomRulesAndClassConstants(): void
@@ -293,10 +310,12 @@ final class FormRequestTypeRegistryTest extends \PHPStan\Testing\PHPStanTestCase
     private function createIsolatedRegistry(
         array $additionalClasses,
         array $trustedClasses,
-        array $scanFiles = []
+        array $scanFiles = [],
+        ?string $tmpDirectory = null,
+        ?Parser $parser = null
     ): FormRequestTypeRegistry {
         $container = self::getContainer();
-        $parser = $container->getService('currentPhpVersionSimpleDirectParser');
+        $parser ??= $container->getService('currentPhpVersionSimpleDirectParser');
         self::assertInstanceOf(Parser::class, $parser);
 
         return new FormRequestTypeRegistry(
@@ -305,7 +324,7 @@ final class FormRequestTypeRegistryTest extends \PHPStan\Testing\PHPStanTestCase
             fileHelper: $container->getByType(FileHelper::class),
             ruleTypeResolver: $container->getByType(FormRequestRuleTypeResolver::class),
             workingDirectory: __DIR__,
-            tmpDirectory: \sys_get_temp_dir(),
+            tmpDirectory: $tmpDirectory ?? \sys_get_temp_dir(),
             enabled: true,
             additionalClasses: $additionalClasses,
             trustedClasses: $trustedClasses,

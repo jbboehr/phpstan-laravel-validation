@@ -128,10 +128,8 @@ final class ConditionalRuleBuilderLaravelRuntimeTest extends \PHPStan\Testing\PH
 
     public function testRuleListKeyCollisionsOccurBeforeConditionalFlattening(): void
     {
-        $conditionalRules = [0 => 'required'];
-        $conditionalRules[0] = Rule::when(true, ['string']);
-        $builtInRules = [0 => 'required'];
-        $builtInRules[0] = Rule::in(['a']);
+        $conditionalRules = array_replace([0 => 'required'], [0 => Rule::when(true, ['string'])]);
+        $builtInRules = array_replace([0 => 'required'], [0 => Rule::in(['a'])]);
 
         foreach (['conditional' => $conditionalRules, 'built-in' => $builtInRules] as $name => $rules) {
             $validator = self::factory()->make([], ['value' => $rules]);

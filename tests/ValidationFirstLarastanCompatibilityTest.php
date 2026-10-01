@@ -25,6 +25,10 @@ final class ValidationFirstLarastanCompatibilityTest extends LarastanCompatibili
 {
     public static function getAdditionalConfigFiles(): array
     {
+        if (!\Composer\InstalledVersions::isInstalled('larastan/larastan')) {
+            return [];
+        }
+
         return [
             __DIR__ . '/../extension.neon',
             self::getLarastanConfigFile(),

@@ -28,6 +28,7 @@ use jbboehr\PhpstanLaravelValidation\Validation\FormRequestTypeRegistry;
 use jbboehr\PhpstanLaravelValidation\Validation\InvalidCustomRuleContractException;
 use PhpParser\Node\Arg;
 use PhpParser\Node\Expr\MethodCall;
+use PHPStan\Analyser\DependencyEmitter;
 use PHPStan\Analyser\Scope;
 use PHPStan\Reflection\MethodReflection;
 use PHPStan\Type\Constant\ConstantStringType;
@@ -56,6 +57,7 @@ final class FormRequestValidatedExtension implements DynamicMethodReturnTypeExte
         return in_array($methodReflection->getName(), ['safe', 'validated'], true);
     }
 
+    /** @param Scope&DependencyEmitter $scope */
     public function getTypeFromMethodCall(
         MethodReflection $methodReflection,
         MethodCall $methodCall,
@@ -95,7 +97,7 @@ final class FormRequestValidatedExtension implements DynamicMethodReturnTypeExte
                     continue;
                 }
 
-                $type = $this->typeRegistry->getType($classReflection);
+                $type = $this->typeRegistry->getType($classReflection, 'validated', $scope);
                 if ($type === null) {
                     return null;
                 }

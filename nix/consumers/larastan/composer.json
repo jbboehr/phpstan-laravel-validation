@@ -6,7 +6,7 @@
     "require": {
         "php": "^8.3",
         "composer-runtime-api": "^2.1",
-        "phpstan/phpstan": "^2.1.5",
+        "phpstan/phpstan": "^2.3@dev",
         "nikic/php-parser": "^4.15 || ^5.1"
     },
     "require-dev": {

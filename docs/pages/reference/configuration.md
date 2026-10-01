@@ -206,31 +206,18 @@ lifecycle checks and can therefore make inference unsound when asserted
 incorrectly. Trust in a parent does not bypass checks on its descendants.
 
 Receiver inference includes discovered descendants and assumes discovery
-covers the application's request implementations. Hierarchy membership and
-polymorphic payload changes can invalidate the global result cache, because
-parent-typed callers do not otherwise depend on child classes. Literal-rule
-leaves and hierarchies whose combined payload matches the parent's own
-exportable contract retain selective invalidation.
+covers the application's request implementations. PHPStan tracks each
+`validated()` and `safe()` consumer's dependency on the corresponding receiver
+payload. Changes to rules, lifecycle eligibility, or discovered descendants
+reanalyse consumers whose inferred payload changed. This also applies to
+trusted requests, external rule sources, and sources outside the analysis
+selection.
 
-For a discovered FormRequest whose `rules()` method is a single literal return,
-the extension records each relevant class or trait method body in PHPStan's
-exported cache state when the complete application-owned request hierarchy is
-part of the current analysis selection and its relevant method markers are
-exportable by PHPStan. The extension enumerates the current analysis roots
-using PHPStan's file-selection semantics, including its hidden and
-version-control directory exclusions, rather than treating every path
-descendant as analysed. A rule-body change can then invalidate that request
-and its dependent callers without discarding unrelated cached files. A
-redundant `additionalClasses` entry does not change this cache strategy.
-
-Trusted requests, requests discovered only through `additionalClasses`,
-sources omitted by a CLI path override, excluded or otherwise unanalysed
-hierarchy sources, non-exportable private trait methods, and rule expressions
-involving constants, builders, helpers, services, or other external behavior
-retain the manifest's global descriptor fallback. The manifest remembers
-directly resolved external source fingerprints that are not part of its
-ordinary project scan. This split is conservative: unsupported provenance
-causes broader invalidation rather than risking a stale inferred type.
+Unchanged payloads leave consumers cached, even when a rules method changed.
+The extension caches payload fingerprints in a local manifest and verifies
+request sources, external dependencies, and inference configuration before
+reusing them. Corrupt or outdated manifests are rebuilt. Changes to the
+extension's implementation still invalidate the global result cache.
 
 ## Custom rules
 

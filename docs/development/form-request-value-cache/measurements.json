@@ -1,0 +1,83 @@
+{
+  "requests": 100,
+  "visitor": {
+    "checkout": "/home/sandbox/Code/phpstan-laravel-validation/tmp/value-cache-baseline",
+    "phpstan": "PHPStan - PHP Static Analysis Tool 2.3.x-dev@223a01f",
+    "project": "/tmp/nix-shell.ejRdOk/form-request-value-benchmark-e4be9rks",
+    "cold": {
+      "seconds": 2.161,
+      "reanalysed": null
+    },
+    "warm": [
+      {
+        "seconds": 0.462,
+        "reanalysed": 0
+      },
+      {
+        "seconds": 0.447,
+        "reanalysed": 0
+      },
+      {
+        "seconds": 0.451,
+        "reanalysed": 0
+      },
+      {
+        "seconds": 0.453,
+        "reanalysed": 0
+      },
+      {
+        "seconds": 0.449,
+        "reanalysed": 0
+      }
+    ],
+    "warm_median_seconds": 0.451,
+    "equivalent_payload_edit": {
+      "seconds": 0.947,
+      "reanalysed": 3
+    },
+    "changed_payload_edit": {
+      "seconds": 0.953,
+      "reanalysed": 3
+    }
+  },
+  "value": {
+    "checkout": "/home/sandbox/Code/phpstan-laravel-validation",
+    "phpstan": "PHPStan - PHP Static Analysis Tool 2.3.x-dev@223a01f",
+    "project": "/tmp/nix-shell.ejRdOk/form-request-value-benchmark-yguer0qh",
+    "cold": {
+      "seconds": 1.708,
+      "reanalysed": null
+    },
+    "warm": [
+      {
+        "seconds": 0.464,
+        "reanalysed": 0
+      },
+      {
+        "seconds": 0.454,
+        "reanalysed": 0
+      },
+      {
+        "seconds": 0.454,
+        "reanalysed": 0
+      },
+      {
+        "seconds": 0.457,
+        "reanalysed": 0
+      },
+      {
+        "seconds": 0.448,
+        "reanalysed": 0
+      }
+    ],
+    "warm_median_seconds": 0.454,
+    "equivalent_payload_edit": {
+      "seconds": 0.945,
+      "reanalysed": 1
+    },
+    "changed_payload_edit": {
+      "seconds": 0.974,
+      "reanalysed": 2
+    }
+  }
+}

@@ -14,6 +14,12 @@ and [testing guide](../pages/contributing/testing.md).
 
 ## Reports
 
+### [FormRequest value-dependency migration](form-request-value-cache.md)
+
+This records the PHPStan 2.3 migration from rich-parser fingerprints to scope
+value dependencies, including persistent registry values, cache conformance
+tests, a reproducible benchmark, and the checks required before adoption.
+
 ### [v0.2.0 release preparation](release-0.2.0.md)
 
 This records the runtime installation decision, a repeatable production

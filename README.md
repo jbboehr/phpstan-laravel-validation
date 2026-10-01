@@ -69,7 +69,7 @@ output. Details are in
 
 ## Installation
 
-Requires PHP 8.1. Supported on PHP 8.1 through 8.5, PHPStan 2.1.5 or later,
+Requires PHP 8.1. Supported on PHP 8.1 through 8.5, PHPStan 2.3 or later,
 and Laravel 10 through 13.
 
 ```bash
@@ -118,7 +118,7 @@ The full option list is in
 The 0.1 line is an experimental public release.
 
 - PHP 8.1 through 8.5
-- PHPStan 2.1.5 or later
+- PHPStan 2.3 or later
 - Laravel 10 through 13
 
 Sound inferred types may be broader than rule names suggest. Dynamic rule

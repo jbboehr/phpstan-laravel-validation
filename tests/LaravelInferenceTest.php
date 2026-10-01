@@ -537,22 +537,28 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
 
             $argumentData = ['name' => 'Ada'];
             self::assertSame(
-                ['name' => 'Ada'],
-                \Illuminate\Support\Facades\Validator::validate(
+                [['name' => 'Ada'], ['name' => 123]],
+                [
+                    \Illuminate\Support\Facades\Validator::validate(
+                        $argumentData,
+                        ['name' => 'required|string'],
+                        $argumentData = ['name' => 123]
+                    ),
                     $argumentData,
-                    ['name' => 'required|string'],
-                    $argumentData = ['name' => 123]
-                )
+                ]
             );
 
             $namedArgumentData = ['name' => 'Ada'];
             self::assertSame(
-                ['name' => 'Ada'],
-                \Illuminate\Support\Facades\Validator::validate(
-                    rules: ['name' => 'required|string'],
-                    data: $namedArgumentData,
-                    messages: $namedArgumentData = ['name' => 123]
-                )
+                [['name' => 'Ada'], ['name' => 123]],
+                [
+                    \Illuminate\Support\Facades\Validator::validate(
+                        rules: ['name' => 'required|string'],
+                        data: $namedArgumentData,
+                        messages: $namedArgumentData = ['name' => 123]
+                    ),
+                    $namedArgumentData,
+                ]
             );
         } finally {
             \Illuminate\Support\Facades\Validator::clearResolvedInstance('validator');
@@ -627,22 +633,28 @@ class LaravelInferenceTest extends \PHPStan\Testing\PHPStanTestCase
 
         $argumentData = ['name' => 'Ada'];
         self::assertSame(
-            ['name' => 'Ada'],
-            $factory->validate(
+            [['name' => 'Ada'], ['name' => 123]],
+            [
+                $factory->validate(
+                    $argumentData,
+                    ['name' => 'required|string'],
+                    $argumentData = ['name' => 123]
+                ),
                 $argumentData,
-                ['name' => 'required|string'],
-                $argumentData = ['name' => 123]
-            )
+            ]
         );
 
         $namedArgumentData = ['name' => 'Ada'];
         self::assertSame(
-            ['name' => 'Ada'],
-            $factory->validate(
-                rules: ['name' => 'required|string'],
-                data: $namedArgumentData,
-                messages: $namedArgumentData = ['name' => 123]
-            )
+            [['name' => 'Ada'], ['name' => 123]],
+            [
+                $factory->validate(
+                    rules: ['name' => 'required|string'],
+                    data: $namedArgumentData,
+                    messages: $namedArgumentData = ['name' => 123]
+                ),
+                $namedArgumentData,
+            ]
         );
 
         $castData = ['name' => 'Ada'];

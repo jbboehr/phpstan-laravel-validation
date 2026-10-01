@@ -30,6 +30,7 @@ use PhpParser\Node\Expr;
 use PhpParser\Node\Expr\Array_;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Identifier;
+use PHPStan\Analyser\DependencyEmitter;
 use PHPStan\Analyser\Scope;
 use PHPStan\Type\Constant\ConstantArrayType;
 use PHPStan\Type\Constant\ConstantArrayTypeBuilder;
@@ -58,12 +59,13 @@ final class ValidatedInputTypeResolver
     ) {
     }
 
+    /** @param Scope&DependencyEmitter $scope */
     public function resolveSafeReturnType(
         Type $receiverType,
         MethodCall $methodCall,
         Scope $scope
     ): ?Type {
-        $payloadType = $this->resolvePayloadType($receiverType);
+        $payloadType = $this->resolvePayloadType($receiverType, $scope);
         if ($payloadType === null || $methodCall->isFirstClassCallable()) {
             return null;
         }
@@ -83,6 +85,7 @@ final class ValidatedInputTypeResolver
         return $this->resolveSafeKeysType($payloadType, $keysType);
     }
 
+    /** @param Scope&DependencyEmitter $scope */
     public function resolveDirectPayload(MethodCall $call, Scope $scope): ?Type
     {
         if (
@@ -113,9 +116,10 @@ final class ValidatedInputTypeResolver
             }
         }
 
-        return $this->resolvePayloadType($scope->getType($call->var));
+        return $this->resolvePayloadType($scope->getType($call->var), $scope);
     }
 
+    /** @param Scope&DependencyEmitter $scope */
     private function resolveMergedPayload(MethodCall $mergeCall, Scope $scope): ?Type
     {
         if (!$mergeCall->var instanceof MethodCall) {
@@ -397,7 +401,8 @@ final class ValidatedInputTypeResolver
         return [$paths];
     }
 
-    private function resolvePayloadType(Type $receiverType): ?Type
+    /** @param Scope&DependencyEmitter $scope */
+    private function resolvePayloadType(Type $receiverType, Scope $scope): ?Type
     {
         $payloadTypes = [];
         foreach ($receiverType->getObjectClassReflections() as $classReflection) {
@@ -416,7 +421,7 @@ final class ValidatedInputTypeResolver
                 return null;
             }
 
-            $payloadType = $this->formRequestTypeRegistry->getType($classReflection, 'safe');
+            $payloadType = $this->formRequestTypeRegistry->getType($classReflection, 'safe', $scope);
             if ($payloadType === null) {
                 return null;
             }

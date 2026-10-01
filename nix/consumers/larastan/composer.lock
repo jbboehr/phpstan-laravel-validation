@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "81eadcbb8b582699dbea5aaf4f88f7b6",
+    "content-hash": "e3e3daaa65251f839df16de4c1f23d3a",
     "packages": [
         {
             "name": "nikic/php-parser",
@@ -65,11 +65,11 @@
         },
         {
             "name": "phpstan/phpstan",
-            "version": "2.2.8",
+            "version": "2.3.x-dev",
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/e285254e60f33c21902efef4a926ca0987c06804",
-                "reference": "e285254e60f33c21902efef4a926ca0987c06804",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/f7c762bf2ffc48ce213051ae3282838206811842",
+                "reference": "f7c762bf2ffc48ce213051ae3282838206811842",
                 "shasum": ""
             },
             "require": {
@@ -78,6 +78,7 @@
             "conflict": {
                 "phpstan/phpstan-shim": "*"
             },
+            "default-branch": true,
             "bin": [
                 "phpstan",
                 "phpstan.phar"
@@ -125,7 +126,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-08-04T22:21:45+00:00"
+            "time": "2026-09-30T21:12:32+00:00"
         }
     ],
     "packages-dev": [
@@ -8382,7 +8383,8 @@
     "minimum-stability": "stable",
     "stability-flags": {
         "jbboehr/akashi": 20,
-        "jbboehr/doctrine-of-the-second-sun": 20
+        "jbboehr/doctrine-of-the-second-sun": 20,
+        "phpstan/phpstan": 20
     },
     "prefer-stable": false,
     "prefer-lowest": false,
